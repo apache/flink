@@ -182,6 +182,9 @@ class TestingExecutor implements Executor {
         throw new UnsupportedOperationException("Not implemented.");
     }
 
+    @Override
+    public void addJar(String sessionId, String path) {}
+
     public int getNumCancelCalls() {
         return numCancelCalls;
     }

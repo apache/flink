@@ -319,7 +319,9 @@ public final class SqlCommandParser {
 
         RESET("RESET", NO_OPERANDS),
 
-        SOURCE("SOURCE\\s+(.*)", SINGLE_OPERAND);
+        SOURCE("SOURCE\\s+(.*)", SINGLE_OPERAND),
+
+        ADD_JAR("ADD\\s+JAR\\s+(.*)", SINGLE_OPERAND);
 
         public final @Nullable Pattern pattern;
         public final @Nullable Function<String[], Optional<String[]>> operandConverter;

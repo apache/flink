@@ -213,6 +213,9 @@ public class CliResultViewTest {
                 throws SqlExecutionException {
             return null;
         }
+
+        @Override
+        public void addJar(String sessionId, String path) {}
     }
 
     private static final class TestingCliResultView implements Runnable {

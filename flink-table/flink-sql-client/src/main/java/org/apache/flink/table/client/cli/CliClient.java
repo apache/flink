@@ -383,6 +383,9 @@ public class CliClient implements AutoCloseable {
             case DROP_CATALOG:
                 callDdl(cmdCall.operands[0], CliStrings.MESSAGE_CATALOG_REMOVED);
                 break;
+            case ADD_JAR:
+                callAddJar(cmdCall);
+                break;
             default:
                 throw new SqlClientException("Unsupported command: " + cmdCall.command);
         }
@@ -740,6 +743,15 @@ public class CliClient implements AutoCloseable {
             printInfo(successMessage);
         } catch (SqlExecutionException e) {
             printExecutionException(errorMessage, e);
+        }
+    }
+
+    private void callAddJar(SqlCommandCall cmdCall) {
+        String jarPath = cmdCall.operands[0];
+        try {
+            executor.addJar(sessionId, jarPath);
+        } catch (SqlExecutionException e) {
+            printExecutionException("Failed to add jar", e);
         }
     }
 

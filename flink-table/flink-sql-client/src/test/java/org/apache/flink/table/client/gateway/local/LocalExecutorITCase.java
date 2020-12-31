@@ -1618,6 +1618,49 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
+    @Test
+    public void testAddJar() throws Exception {
+        final URL url = getClass().getClassLoader().getResource("test-data.csv");
+        Objects.requireNonNull(url);
+        final Map<String, String> replaceVars = new HashMap<>();
+        replaceVars.put("$VAR_PLANNER", planner);
+        replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+        replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+        replaceVars.put("$VAR_RESULT_MODE", "table");
+        replaceVars.put("$VAR_UPDATE_MODE", "");
+        replaceVars.put("$VAR_MAX_ROWS", "100");
+        replaceVars.putIfAbsent("$VAR_RESTART_STRATEGY_TYPE", "failure-rate");
+        final Executor executor =
+                new LocalExecutor(
+                        EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+                        Collections.emptyList(),
+                        clusterClient.getFlinkConfiguration(),
+                        new DefaultCLI(),
+                        new DefaultClusterClientServiceLoader());
+        final SessionContext session = new SessionContext("test-session", new Environment());
+        String sessionId = executor.openSession(session);
+        try {
+            executor.addJar(sessionId, udfDependency.getPath());
+            executor.executeSql(sessionId, "create function myfunc as 'LowerUDF'");
+            final ResultDescriptor desc =
+                    executor.executeQuery(
+                            sessionId, "select myfunc(StringField1) from TableNumber1");
+            final List<String> actualResults =
+                    retrieveTableResult(executor, sessionId, desc.getResultId());
+            List<String> expectedResults = new ArrayList<>();
+            expectedResults.add("hello world");
+            expectedResults.add("hello world");
+            expectedResults.add("hello world");
+            expectedResults.add("hello world");
+            expectedResults.add("hello world");
+            expectedResults.add("hello world!!!!");
+            TestBaseUtils.compareResultCollections(
+                    expectedResults, actualResults, Comparator.naturalOrder());
+        } finally {
+            executor.closeSession(sessionId);
+        }
+    }
+
     private void executeStreamQueryTable(
             Map<String, String> replaceVars, String query, List<String> expectedResults)
             throws Exception {

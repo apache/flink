@@ -117,4 +117,7 @@ public interface Executor {
      */
     ProgramTargetDescriptor executeUpdate(String sessionId, String statement)
             throws SqlExecutionException;
+
+    /** Adds a local jar file to session. */
+    void addJar(String sessionId, String path);
 }

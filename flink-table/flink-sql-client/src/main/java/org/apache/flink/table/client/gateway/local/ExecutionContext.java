@@ -164,7 +164,8 @@ public class ExecutionContext<ClusterID> {
             Configuration flinkConfig,
             ClusterClientServiceLoader clusterClientServiceLoader,
             Options commandLineOptions,
-            List<CustomCommandLine> availableCommandLines)
+            List<CustomCommandLine> availableCommandLines,
+            @Nullable URLClassLoader classLoader)
             throws FlinkException {
         this.environment = environment;
         this.originalSessionContext = originalSessionContext;
@@ -176,12 +177,14 @@ public class ExecutionContext<ClusterID> {
         }
 
         // create class loader
-        classLoader =
-                ClientUtils.buildUserCodeClassLoader(
-                        dependencies,
-                        Collections.emptyList(),
-                        this.getClass().getClassLoader(),
-                        flinkConfig);
+        this.classLoader =
+                classLoader != null
+                        ? classLoader
+                        : ClientUtils.buildUserCodeClassLoader(
+                                dependencies,
+                                Collections.emptyList(),
+                                this.getClass().getClassLoader(),
+                                flinkConfig);
 
         // Initialize the TableEnvironment.
         initializeTableEnvironment(sessionState);
@@ -927,6 +930,9 @@ public class ExecutionContext<ClusterID> {
         // Optional members.
         @Nullable private SessionState sessionState;
 
+        // Optional user code classloader.
+        @Nullable private URLClassLoader classLoader;
+
         private Builder(
                 Environment defaultEnv,
                 @Nullable SessionContext sessionContext,
@@ -954,6 +960,11 @@ public class ExecutionContext<ClusterID> {
             return this;
         }
 
+        public Builder classLoader(URLClassLoader classLoader) {
+            this.classLoader = classLoader;
+            return this;
+        }
+
         public ExecutionContext<?> build() {
             try {
                 return new ExecutionContext<>(
@@ -966,7 +977,8 @@ public class ExecutionContext<ClusterID> {
                         this.configuration,
                         this.serviceLoader,
                         this.commandLineOptions,
-                        this.commandLines);
+                        this.commandLines,
+                        this.classLoader);
             } catch (Throwable t) {
                 // catch everything such that a configuration does not crash the executor
                 throw new SqlExecutionException("Could not create execution context.", t);

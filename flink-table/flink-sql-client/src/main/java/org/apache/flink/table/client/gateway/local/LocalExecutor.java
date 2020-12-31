@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
@@ -71,6 +72,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -79,6 +81,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -102,6 +106,8 @@ public class LocalExecutor implements Executor {
     private final ClusterClientServiceLoader clusterClientServiceLoader;
     private final Environment defaultEnvironment;
     private final List<URL> dependencies;
+    // dynamically added deps
+    private final List<URL> addedDependencies = new ArrayList<>();
     private final Configuration flinkConfig;
     private final List<CustomCommandLine> commandLines;
     private final Options commandLineOptions;
@@ -208,7 +214,8 @@ public class LocalExecutor implements Executor {
         return ExecutionContext.builder(
                 defaultEnvironment,
                 sessionContext,
-                this.dependencies,
+                Stream.concat(this.dependencies.stream(), this.addedDependencies.stream())
+                        .collect(Collectors.toList()),
                 this.flinkConfig,
                 this.clusterClientServiceLoader,
                 this.commandLineOptions,
@@ -280,6 +287,7 @@ public class LocalExecutor implements Executor {
         ExecutionContext<?> newContext =
                 createExecutionContextBuilder(context.getOriginalSessionContext())
                         .sessionState(context.getSessionState())
+                        .classLoader((URLClassLoader) context.getClassLoader())
                         .build();
         this.contextMap.put(sessionId, newContext);
     }
@@ -303,6 +311,7 @@ public class LocalExecutor implements Executor {
                 createExecutionContextBuilder(context.getOriginalSessionContext())
                         .env(newEnv)
                         .sessionState(context.getSessionState())
+                        .classLoader((URLClassLoader) context.getClassLoader())
                         .build();
         this.contextMap.put(sessionId, newContext);
     }
@@ -426,6 +435,43 @@ public class LocalExecutor implements Executor {
             throws SqlExecutionException {
         final ExecutionContext<?> context = getExecutionContext(sessionId);
         return executeUpdateInternal(sessionId, context, statement);
+    }
+
+    @Override
+    public void addJar(String sessionId, String path) {
+        URL url;
+        try {
+            File file = new File(path);
+            if (!file.isFile() || !file.getAbsolutePath().toLowerCase().endsWith(".jar")) {
+                throw new SqlExecutionException(
+                        String.format("Specified path %s is not a valid jar file", path));
+            }
+            url = file.toURI().toURL();
+            JarUtils.checkJarFile(url);
+        } catch (IOException e) {
+            throw new SqlExecutionException(
+                    String.format("Specified path %s is not a valid jar file", path), e);
+        }
+
+        if (!dependencies.contains(url) && !addedDependencies.contains(url)) {
+            // remember the added jar
+            addedDependencies.add(url);
+            // create a new context with updated dependencies
+            final ExecutionContext<?> context = getExecutionContext(sessionId);
+            URLClassLoader classLoader =
+                    ClientUtils.buildUserCodeClassLoader(
+                            Collections.singletonList(url),
+                            Collections.emptyList(),
+                            context.getClassLoader(),
+                            flinkConfig);
+            ExecutionContext<?> newContext =
+                    createExecutionContextBuilder(context.getOriginalSessionContext())
+                            .env(context.getEnvironment())
+                            .sessionState(context.getSessionState())
+                            .classLoader(classLoader)
+                            .build();
+            contextMap.put(sessionId, newContext);
+        }
     }
 
     // --------------------------------------------------------------------------------------------

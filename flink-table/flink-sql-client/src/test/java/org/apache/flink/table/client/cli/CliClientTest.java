@@ -510,5 +510,8 @@ public class CliClientTest extends TestLogger {
             JobID jobID = JobID.generate();
             return new ProgramTargetDescriptor(jobID);
         }
+
+        @Override
+        public void addJar(String sessionId, String path) {}
     }
 }
