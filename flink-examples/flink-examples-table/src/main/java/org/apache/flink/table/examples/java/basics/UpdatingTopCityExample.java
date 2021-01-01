@@ -168,11 +168,11 @@ public final class UpdatingTopCityExample {
                         final RowKind kind = row.getKind();
                         switch (kind) {
                             case INSERT:
-                            case UPDATE_BEFORE:
+                            case UPDATE_AFTER:
                                 row.setKind(RowKind.INSERT); // for full equality
                                 materializedUpdates.add(row);
                                 break;
-                            case UPDATE_AFTER:
+                            case UPDATE_BEFORE:
                             case DELETE:
                                 row.setKind(RowKind.INSERT); // for full equality
                                 materializedUpdates.remove(row);
