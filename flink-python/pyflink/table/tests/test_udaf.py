@@ -371,9 +371,9 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                                       (3, 'Hi3', 'hi'),
                                       (2, 'Hi3', 'Hello')], ['a', 'b', 'c'])
         result = t.group_by(t.c).select(my_concat(t.b, ',').alias("a"), t.c)
-        assert_frame_equal(result.to_pandas(),
-                           pd.DataFrame([["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
-                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"]], columns=['a', 'c']))
+        assert_frame_equal(result.to_pandas().sort_values('c').reset_index(drop=True),
+                           pd.DataFrame([["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"]], columns=['a', 'c']))
 
     def test_map_view(self):
         my_count = udaf(CountDistinctAggregateFunction())
@@ -465,10 +465,10 @@ class StreamTableAggregateTests(PyFlinkBlinkStreamTableTestCase):
                     col("a").get(3).alias("d"),
                     t.c.alias("e"))
         assert_frame_equal(
-            result.to_pandas(),
+            result.to_pandas().sort_values('c').reset_index(drop=True),
             pd.DataFrame([
-                ["hello,hello2", "1,3", 'hello:3,hello2:1', 2, "hello"],
-                ["Hi,Hi2,Hi3", "1,2,3", "Hi:3,Hi2:2,Hi3:1", 3, "hi"]],
+                ["Hi,Hi2,Hi3", "1,2,3", "Hi:3,Hi2:2,Hi3:1", 3, "hi"],
+                ["hello,hello2", "1,3", 'hello:3,hello2:1', 2, "hello"]],
                 columns=['a', 'b', 'c', 'd', 'e']))
 
     def test_distinct_and_filter(self):

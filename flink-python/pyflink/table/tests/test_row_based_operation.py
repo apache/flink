@@ -237,7 +237,8 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
             .aggregate(agg.alias("c", "d")) \
             .select("a, c, d") \
             .to_pandas()
-        assert_frame_equal(result, pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
+        assert_frame_equal(result.sort_values('a').reset_index(drop=True),
+                           pd.DataFrame([[1, 3, 15], [2, 2, 4]], columns=['a', 'c', 'd']))
 
     def test_flat_aggregate(self):
         import pandas as pd
@@ -279,11 +280,11 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkBlinkStreamT
             .flat_aggregate(my_concat(t.b, ',').alias("b")) \
             .select(t.b, t.c) \
             .alias("a, c")
-        assert_frame_equal(result.to_pandas(),
-                           pd.DataFrame([["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
-                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+        assert_frame_equal(result.to_pandas().sort_values('c').reset_index(drop=True),
+                           pd.DataFrame([["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
                                          ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"],
-                                         ["Hi,Hi,Hi2,Hi2,Hi3", "Hello"]],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"],
+                                         ["Hi,Hi2,Hi,Hi3,Hi3", "hi"]],
                                         columns=['a', 'c']))
 
 
