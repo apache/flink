@@ -53,7 +53,7 @@ HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS EX
 +- Exchange(distribution=[hash[b]])
    +- LocalHashAggregate(groupBy=[b], select=[b, Partial_COUNT(a) AS count$0, Partial_SUM(c) AS sum$1, Partial_SUM(d) AS sum$2])
       +- Calc(select=[b, a, c, d])
-         +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, c, d, id])
+         +- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, c, d, id])
             +- Calc(select=[b, a, c, d])
                +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_SUM(sum$0) AS c, Final_SUM(sum$1) AS d])
                   +- Exchange(distribution=[hash[a, b]])
@@ -99,7 +99,7 @@ HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_COUNT(count$0) AS EX
 +- Exchange(distribution=[hash[b]])
    +- LocalHashAggregate(groupBy=[b], select=[b, Partial_COUNT(a) AS count$0, Partial_SUM(c) AS sum$1, Partial_SUM(d) AS sum$2])
       +- Calc(select=[b, a, c, d])
-         +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, c, d, id])
+         +- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, c, d, id])
             +- Calc(select=[b, a, c, d])
                +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_SUM(sum$0) AS c, Final_SUM(sum$1) AS d])
                   +- Exchange(distribution=[hash[a, b]])
@@ -125,7 +125,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -148,7 +148,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -179,7 +179,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], name=[$5], age=[$6], nominal_age=[$7])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, name, age, nominal_age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, id, name, age, (age + 1) AS nominal_age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, id, name, age, (age + 1) AS nominal_age])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -209,10 +209,40 @@ LogicalProject(a=[$0], b=[$1], c=[$2], name=[$5], age=[$6], nominal_age=[$7])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, name, age, nominal_age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[((age + 1) > 12)], select=[a, b, c, id, name, age, (age + 1) AS nominal_age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[((age + 1) > 12)], select=[a, b, c, id, name, age, (age + 1) AS nominal_age])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithComputedColumnAndCalcPushIntoLookupTableSource[LegacyTableSource=false]">
+	<Resource name="sql">
+	  <![CDATA[
+SELECT
+  T.a, T.b, T.c, D.age, D.nominal_age
+FROM
+  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+  ON T.a = D.id and D.nominal_age > 12
+]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], age=[$6], nominal_age=[$7])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[AND(=($cor0.a, $0), >($3, 12))])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalProject(id=[$0], name=[$1], age=[$2], nominal_age=[+($2, 1)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
+Calc(select=[a, b, c, age, nominal_age])
++- LookupJoin(table=[default_catalog.default_database.LookupTableWithComputedColumn], tableFieldNames=[id, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[((age + 1) > 12)], select=[a, b, c, id, age, (age + 1) AS nominal_age])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+	</Resource>
   </TestCase>
   <TestCase name="testJoinTemporalTableWithFilterPushDown[LegacyTableSource=false]">
     <Resource name="sql">
@@ -238,7 +268,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -268,7 +298,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, c, proctime, id, name, CAST(10) AS age])
-+- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[age=10, id=a], where=[(age = 10)], select=[a, b, c, proctime, id, name])
    +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
       +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -293,7 +323,7 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
 +- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -318,7 +348,7 @@ LogicalProject(a=[$0], b=[$1], proctime=[$2], id=[$3], name=[$4], age=[$5])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, proctime, id, name, age])
 +- Calc(select=[a, b, PROCTIME() AS proctime], where=[(c > 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -346,7 +376,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -369,7 +399,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -397,7 +427,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -425,7 +455,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -448,7 +478,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[LeftOuterJoin], async=[false], lookup=[id=a], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
@@ -521,11 +551,94 @@ LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], id=[$4], name=[$5], age=[$
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[], select=[a, b, c, proctime, id, name, age])
 +- Calc(select=[a, b, c, PROCTIME() AS proctime], where=[(c > 1000)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
 ]]>
     </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithCalcPushIntoLookupTableSource[LegacyTableSource=false]">
+	<Resource name="sql">
+	  <![CDATA[SELECT T.a, D.id, D.age FROM MyTable AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], id=[$4], age=[$6])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
+LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, age], joinType=[InnerJoin], async=[false], lookup=[id=a], select=[a, id, age])
++- Calc(select=[a])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithCallAndCalcPushIntoLookupTableSource[LegacyTableSource=false]">
+	<Resource name="sql">
+	  <![CDATA[
+SELECT T.a, T.c, D.age FROM MyTable AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id + 1 AND T.b = concat( Cast(D.age as varchar), '!')
+WHERE T.c > 1000
+      ]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], c=[$2], age=[$6])
++- LogicalFilter(condition=[>($2, 1000)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 1, 3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+      +- LogicalFilter(condition=[AND(=($cor0.a, +($0, 1)), =($cor0.b, CONCAT(CAST($2):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'!')))])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
+Calc(select=[a, c, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[age, id], joinType=[InnerJoin], async=[false], lookup=[], joinCondition=[((a = $f3) AND (b = $f4))], select=[a, b, c, age, (id + 1) AS $f3, CONCAT(CAST(age), _UTF-16LE'!') AS $f4])
+   +- Calc(select=[a, b, c], where=[(c > 1000)])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithConditionAndCalcPushIntoLookupTableSource[LegacyTableSource=false]">
+	<Resource name="sql">
+	  <![CDATA[
+SELECT T.a, T.c, D.age FROM MyTable AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id
+WHERE D.age + 1 > 1000
+      ]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], c=[$2], age=[$6])
++- LogicalFilter(condition=[>(+($6, 1), 1000)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, T0]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
+Calc(select=[a, c, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[((age + 1) > 1000)], select=[a, c, id, age])
+   +- Calc(select=[a, c])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, T0]], fields=[a, b, c])
+]]>
+	</Resource>
   </TestCase>
   <TestCase name="testReusing[LegacyTableSource=true]">
     <Resource name="sql">
@@ -591,7 +704,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
       +- LocalHashAggregate(groupBy=[b, b0], select=[b, b0, Partial_COUNT(a) AS count$0, Partial_COUNT(id) AS count$1, Partial_SUM(a0) AS sum$2])
          +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[b, a, id, a0, b0], build=[right])
             :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
-            :  +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, id])(reuse_id=[1])
+            :  +- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, name, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, id])(reuse_id=[1])
             :     +- Calc(select=[b, a])
             :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             :           +- Exchange(distribution=[hash[a, b]])
@@ -644,7 +757,7 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)], EXPR$2=[SUM($2)], EXPR$3=
       :     +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, T1]])
       +- FlinkLogicalSnapshot(period=[$cor0.proctime])
          +- FlinkLogicalCalc(select=[id], where=[>(age, 10)])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
+            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable, project=[id, age]]], fields=[id, age])
 ]]>
     </Resource>
   </TestCase>
@@ -712,7 +825,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2])
       +- LocalHashAggregate(groupBy=[b, b0], select=[b, b0, Partial_COUNT(a) AS count$0, Partial_COUNT(id) AS count$1, Partial_SUM(a0) AS sum$2])
          +- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[b, a, id, a0, b0], build=[right])
             :- Exchange(distribution=[hash[a]], shuffle_mode=[BATCH])
-            :  +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, id])(reuse_id=[1])
+            :  +- LookupJoin(table=[default_catalog.default_database.LookupTable], tableFieldNames=[id, age], joinType=[InnerJoin], async=[false], lookup=[id=a], where=[(age > 10)], select=[b, a, id])(reuse_id=[1])
             :     +- Calc(select=[b, a])
             :        +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
             :           +- Exchange(distribution=[hash[a, b]])

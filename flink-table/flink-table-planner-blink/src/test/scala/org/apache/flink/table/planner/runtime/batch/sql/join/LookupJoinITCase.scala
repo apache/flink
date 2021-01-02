@@ -208,6 +208,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiFieldsWithUdf(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON mod(T.id, 4) = D.id AND T.content = D.name"
 
@@ -219,6 +220,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = s"SELECT T.id, T.len, D.name FROM T JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
@@ -230,6 +232,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testLeftJoinTemporalTable(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = s"SELECT T.id, T.len, D.name, D.age FROM T LEFT JOIN userTable " +
       "for system_time as of T.proctime AS D ON T.id = D.id"
 
@@ -244,6 +247,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = s"SELECT T.id, T.len, D.name FROM nullableT T JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
@@ -254,6 +258,7 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
 
   @Test
   def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = s"SELECT D.id, T.len, D.name FROM nullableT T LEFT JOIN userTableWithNull " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
     val expected = Seq(
@@ -300,14 +305,14 @@ class LookupJoinITCase(legacyTableSource: Boolean, isAsyncMode: Boolean) extends
   def testJoinTemporalTableWithComputedColumnAndPushDown(): Unit = {
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
-
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+    // push [id, age] into lookup tableSource
+    val sql = s"SELECT T.id, T.len, T.content, D.age, D.nominal_age " +
       "FROM T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
 
     val expected = Seq(
-      BatchTestBase.row(2, 15, "Hello", "Jark", 22, 23),
-      BatchTestBase.row(3, 15, "Fabian", "Fabian", 33, 34))
+      BatchTestBase.row(2, 15, "Hello", 22, 23),
+      BatchTestBase.row(3, 15, "Fabian", 33, 34))
     checkResult(sql, expected)
   }
 }

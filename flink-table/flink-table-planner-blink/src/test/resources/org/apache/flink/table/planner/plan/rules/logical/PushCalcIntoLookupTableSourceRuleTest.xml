@@ -1,0 +1,99 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testLookupWithCalcPushIntoLookupTableSource">
+    <Resource name="sql">
+      <![CDATA[SELECT T.a, D.id FROM table1 AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], id=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
+:- FlinkLogicalCalc(select=[a])
+:  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, table1]], fields=[a, b, c])
++- FlinkLogicalSnapshot(period=[$cor0.proctime])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable, project=[id]]], fields=[id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLookupWithConditionAndCalcPushIntoLookupTableSource">
+	<Resource name="sql">
+	  <![CDATA[SELECT T.a, D.id FROM table1 AS T JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id WHERE D.age + 1 > 60]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], id=[$4])
++- LogicalFilter(condition=[>(+($6, 1), 60)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
+:- FlinkLogicalCalc(select=[a])
+:  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, table1]], fields=[a, b, c])
++- FlinkLogicalSnapshot(period=[$cor0.proctime])
+   +- FlinkLogicalCalc(select=[id], where=[>(+(age, 1), 60)])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable, project=[id, age]]], fields=[id, age])
+]]>
+	</Resource>
+  </TestCase>
+  <TestCase name="testLookupWithComputedColumnAndCalcPushIntoLookupTableSource">
+	<Resource name="sql">
+	  <![CDATA[SELECT T.a, D.id FROM table1 AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id WHERE D.computed_age + 1 > 60]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalProject(a=[$0], id=[$4])
++- LogicalFilter(condition=[>(+($7, 1), 60)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+      :- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, table1]])
+      +- LogicalFilter(condition=[=($cor0.a, $0)])
+         +- LogicalSnapshot(period=[$cor0.proctime])
+            +- LogicalProject(id=[$0], name=[$1], age=[$2], computed_age=[+($2, 1)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
+:- FlinkLogicalCalc(select=[a])
+:  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, table1]], fields=[a, b, c])
++- FlinkLogicalSnapshot(period=[$cor0.proctime])
+   +- FlinkLogicalCalc(select=[id], where=[>(+(+(age, 1), 1), 60)])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTableWithComputedColumn, project=[id, age]]], fields=[id, age])
+]]>
+	</Resource>
+  </TestCase>
+</Root>

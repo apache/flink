@@ -235,6 +235,7 @@ abstract class CommonLookupJoin(
 
     super.explainTerms(pw)
       .item("table", tableIdentifier.asSummaryString())
+      .item("tableFieldNames", tableFieldNames.asScala.mkString(", "))
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("async", isAsyncEnabled)
       .item("lookup", lookupKeys)

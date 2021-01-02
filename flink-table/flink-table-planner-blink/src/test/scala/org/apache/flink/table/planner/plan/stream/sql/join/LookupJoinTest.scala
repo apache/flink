@@ -434,6 +434,46 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
   }
 
   @Test
+  def testJoinTemporalTableWithCalcPushIntoLookupTableSource(): Unit = {
+    // Calc does not support push into legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql = "SELECT T.a, D.id, D.age FROM MyTable AS T JOIN LookupTable " +
+      "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithCallAndCalcPushIntoLookupTableSource(): Unit = {
+    // Calc does not support push into legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT T.a, T.c, D.age FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id + 1 AND T.b = concat( Cast(D.age as varchar), '!')
+        |WHERE T.c > 1000
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithConditionAndCalcPushIntoLookupTableSource(): Unit = {
+    // Calc does not support push into legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT T.a, T.c, D.age FROM MyTable AS T
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON T.a = D.id
+        |WHERE D.age + 1 > 1000
+      """.stripMargin
+
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
   def testJoinTemporalTableWithComputedColumn(): Unit = {
     //Computed column do not support in legacyTableSource.
     Assume.assumeFalse(legacyTableSource)
@@ -456,6 +496,21 @@ class LookupJoinTest(legacyTableSource: Boolean) extends TableTestBase with Seri
       """
         |SELECT
         |  T.a, T.b, T.c, D.name, D.age, D.nominal_age
+        |FROM
+        |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
+        |  ON T.a = D.id and D.nominal_age > 12
+        |""".stripMargin
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinTemporalTableWithComputedColumnAndCalcPushIntoLookupTableSource(): Unit = {
+    // Calc does not support push into legacyTableSource.
+    Assume.assumeFalse(legacyTableSource)
+    val sql =
+      """
+        |SELECT
+        |  T.a, T.b, T.c, D.age, D.nominal_age
         |FROM
         |  MyTable AS T JOIN LookupTableWithComputedColumn FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id and D.nominal_age > 12

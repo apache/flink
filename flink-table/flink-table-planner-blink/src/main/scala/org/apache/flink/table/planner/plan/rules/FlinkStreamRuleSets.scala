@@ -378,6 +378,8 @@ object FlinkStreamRuleSets {
     // because [[PushWatermarkIntoTableSourceScanAcrossCalcRule]] will push the rowtime computed
     // column into the source. After FlinkCalcMergeRule applies, it may produces a trivial calc.
     FlinkLogicalCalcRemoveRule.INSTANCE,
+    // Rule that push calc into lookup tableSource
+    PushCalcIntoTemporalTableSourceRule.INSTANCE,
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.

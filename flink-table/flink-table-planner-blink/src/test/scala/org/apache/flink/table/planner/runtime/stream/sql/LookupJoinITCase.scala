@@ -272,6 +272,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
@@ -305,6 +306,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithConstantKey(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND 3 = D.id"
 
@@ -318,6 +320,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithStringConstantKey(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = "SELECT T.id, T.len, D.name FROM src AS T JOIN user_table " +
       "for system_time as of T.proctime AS D ON D.name = 'Fabian' AND T.id = D.id"
 
@@ -403,6 +406,7 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
+    // push [id, name] into lookup tableSource
     val sql = "SELECT T.id, T.len, D.name FROM nullable_src AS T JOIN nullable_user_table " +
       "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
 
@@ -498,7 +502,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
       //Computed column do not support in legacyTableSource.
       return
     }
-    val sql = s"SELECT T.id, T.len, T.content, D.name, D.age, D.nominal_age " +
+    // push [id, age] into lookup tableSource
+    val sql = s"SELECT T.id, T.len, T.content, D.age, D.nominal_age " +
       "FROM src AS T JOIN userTableWithComputedColumn " +
       "for system_time as of T.proctime AS D ON T.id = D.id and D.nominal_age > 12"
 
@@ -507,8 +512,8 @@ class LookupJoinITCase(legacyTableSource: Boolean) extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "2,15,Hello,Jark,22,23",
-      "3,15,Fabian,Fabian,33,34")
+      "2,15,Hello,22,23",
+      "3,15,Fabian,33,34")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 }

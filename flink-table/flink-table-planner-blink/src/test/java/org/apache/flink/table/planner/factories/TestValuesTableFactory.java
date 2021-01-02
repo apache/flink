@@ -800,7 +800,7 @@ public final class TestValuesTableFactory
             return result;
         }
 
-        private Row projectRow(Row row) {
+        protected Row projectRow(Row row) {
             if (projectedPhysicalFields == null) {
                 return row;
             }
@@ -1043,17 +1043,18 @@ public final class TestValuesTableFactory
             }
             rows.forEach(
                     record -> {
+                        Row projectRow = projectRow(record);
                         Row key =
                                 Row.of(
                                         Arrays.stream(lookupIndices)
-                                                .mapToObj(record::getField)
+                                                .mapToObj(projectRow::getField)
                                                 .toArray());
                         List<Row> list = mapping.get(key);
                         if (list != null) {
-                            list.add(record);
+                            list.add(projectRow);
                         } else {
                             list = new ArrayList<>();
-                            list.add(record);
+                            list.add(projectRow);
                             mapping.put(key, list);
                         }
                     });
@@ -1062,6 +1063,26 @@ public final class TestValuesTableFactory
             } else {
                 return TableFunctionProvider.of(new TestValuesLookupFunction(mapping));
             }
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesScanLookupTableSource(
+                    producedDataType,
+                    changelogMode,
+                    bounded,
+                    runtimeSource,
+                    data,
+                    isAsync,
+                    lookupFunctionClass,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields);
         }
     }
 
