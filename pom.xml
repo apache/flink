@@ -830,7 +830,7 @@ under the License.
 			</properties>
 			<activation>
 				<property>
-					<name>scala-2.12</name>
+					<name>!scala-2.11</name>
 				</property>
 			</activation>
 			<build>
