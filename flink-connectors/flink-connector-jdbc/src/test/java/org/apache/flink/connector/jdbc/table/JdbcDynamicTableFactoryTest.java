@@ -43,8 +43,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test for {@link JdbcTableSource} and {@link JdbcUpsertTableSink} created by {@link
- * JdbcTableSourceSinkFactory}.
+ * Test for {@link JdbcDynamicTableSource} and {@link JdbcDynamicTableSink} created by {@link
+ * JdbcDynamicTableFactory}.
  */
 public class JdbcDynamicTableFactoryTest {
 
