@@ -117,8 +117,8 @@ under the License.
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<!-- Default scala versions, must be overwritten by build profiles, so we set something
 		invalid here -->
-		<scala.version>2.11.12</scala.version>
-		<scala.binary.version>2.11</scala.binary.version>
+		<scala.version>2.12.7</scala.version>
+		<scala.binary.version>2.12</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
 		<zookeeper.version>3.4.14</zookeeper.version>
 		<!-- Only the curator2 TestingServer works with ZK 3.4 -->
