@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
-import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
+import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputerFactory;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
@@ -236,7 +236,7 @@ public class Int2SortMergeJoinOperatorTest {
                 new GeneratedNormalizedKeyComputer("", "") {
                     @Override
                     public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-                        return new IntNormalizedKeyComputer();
+                        return IntNormalizedKeyComputerFactory.createComputerInAscendingOrder();
                     }
                 },
                 new GeneratedRecordComparator("", "", new Object[0]) {
@@ -248,7 +248,7 @@ public class Int2SortMergeJoinOperatorTest {
                 new GeneratedNormalizedKeyComputer("", "") {
                     @Override
                     public NormalizedKeyComputer newInstance(ClassLoader classLoader) {
-                        return new IntNormalizedKeyComputer();
+                        return IntNormalizedKeyComputerFactory.createComputerInAscendingOrder();
                     }
                 },
                 new GeneratedRecordComparator("", "", new Object[0]) {

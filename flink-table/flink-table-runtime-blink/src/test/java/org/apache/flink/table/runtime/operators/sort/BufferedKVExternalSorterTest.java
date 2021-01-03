@@ -95,7 +95,7 @@ public class BufferedKVExternalSorterTest {
         this.keySerializer = new BinaryRowDataSerializer(2);
         this.valueSerializer = new BinaryRowDataSerializer(2);
 
-        this.computer = IntNormalizedKeyComputer.INSTANCE;
+        this.computer = IntNormalizedKeyComputerFactory.createComputerInAscendingOrder();
         this.comparator = IntRecordComparator.INSTANCE;
     }
 

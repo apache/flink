@@ -16,19 +16,26 @@
  * limitations under the License.
  */
 
+package org.apache.flink.runtime.operators.sort;
+
 /**
  * This file is based on source code from the Hadoop Project (http://hadoop.apache.org/), licensed
  * by the Apache Software Foundation (ASF) under the Apache License, Version 2.0. See the NOTICE
  * file distributed with this work for additional information regarding copyright ownership.
  */
-package org.apache.flink.runtime.operators.sort;
-
 public final class HeapSort implements IndexedSorter {
     public HeapSort() {}
 
-    private static void downHeap(final IndexedSortable s, final int b, int i, final int N) {
-        for (int idx = i << 1; idx < N; idx = i << 1) {
-            if (idx + 1 < N && s.compare(b + idx, b + idx + 1) < 0) {
+    /**
+     * @param s the record array to adjust the heap.
+     * @param b offset of the index. If the origin index in the array is 0 and it's logical location
+     *     is 1, it should set b -1 to adjust the logical index to physical index.
+     * @param i logical index in the heap
+     * @param recordNum boundary of the heap
+     */
+    public void downHeap(final IndexedSortable s, final int b, int i, final int recordNum) {
+        for (int idx = i << 1; idx < recordNum; idx = i << 1) {
+            if (idx + 1 < recordNum && s.compare(b + idx, b + idx + 1) < 0) {
                 if (s.compare(b + i, b + idx + 1) < 0) {
                     s.swap(b + i, b + idx + 1);
                 } else {
@@ -44,15 +51,31 @@ public final class HeapSort implements IndexedSorter {
         }
     }
 
-    public void sort(final IndexedSortable s, final int p, final int r) {
-        final int N = r - p;
+    /**
+     * Make the buffer as a heap.
+     *
+     * @param p the index of the first element to sort.
+     * @param r the last element index to sort (not included).
+     */
+    public void heapify(final IndexedSortable s, final int p, final int r) {
+        final int recordNum = r - p;
         // build heap w/ reverse comparator, then write in-place from end
-        final int t = Integer.highestOneBit(N);
+        final int t = Integer.highestOneBit(recordNum);
         for (int i = t; i > 1; i >>>= 1) {
             for (int j = i >>> 1; j < i; ++j) {
-                downHeap(s, p - 1, j, N + 1);
+                downHeap(s, p - 1, j, recordNum + 1);
             }
         }
+    }
+
+    /**
+     * Bottom-up heap sort. After building the heap, sort the data in memory.
+     *
+     * @param p the index of the first element to sort.
+     * @param r the last element index to sort (not included)
+     */
+    public void sort(final IndexedSortable s, final int p, final int r) {
+        heapify(s, p, r);
         for (int i = r - 1; i > p; --i) {
             s.swap(p, i);
             downHeap(s, p - 1, 1, i - p + 1);

@@ -32,7 +32,7 @@ import org.apache.flink.table.data.binary.BinaryRowDataUtil;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter;
-import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
+import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputerFactory;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -112,7 +112,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
                                     getIOManager(),
                                     new BinaryRowDataSerializer(keyTypes.length),
                                     new BinaryRowDataSerializer(aggBufferTypes.length),
-                                    new IntNormalizedKeyComputer(),
+                                    IntNormalizedKeyComputerFactory
+                                            .createComputerInAscendingOrder(),
                                     new IntRecordComparator(),
                                     getMemoryManager().getPageSize(),
                                     getConf());

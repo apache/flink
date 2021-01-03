@@ -36,17 +36,16 @@ import java.util.ArrayList;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** In memory sort buffer for binary row. */
-public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
+public class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
     private static final int MIN_REQUIRED_BUFFERS = 3;
 
-    private AbstractRowDataSerializer<RowData> inputSerializer;
+    protected final AbstractRowDataSerializer<RowData> inputSerializer;
     private final ArrayList<MemorySegment> recordBufferSegments;
     private final SimpleCollectingOutputView recordCollector;
     private final int totalNumBuffers;
 
     private long currentDataBufferOffset;
-    private long sortIndexBytes;
 
     /** Create a memory sorter in `insert` way. */
     public static BinaryInMemorySortBuffer createBuffer(
@@ -55,7 +54,6 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
             BinaryRowDataSerializer serializer,
             RecordComparator comparator,
             MemorySegmentPool memoryPool) {
-        checkArgument(memoryPool.freePages() >= MIN_REQUIRED_BUFFERS);
         int totalNumBuffers = memoryPool.freePages();
         ArrayList<MemorySegment> recordBufferSegments = new ArrayList<>(16);
         return new BinaryInMemorySortBuffer(
@@ -70,7 +68,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
                 totalNumBuffers);
     }
 
-    private BinaryInMemorySortBuffer(
+    protected BinaryInMemorySortBuffer(
             NormalizedKeyComputer normalizedKeyComputer,
             AbstractRowDataSerializer<RowData> inputSerializer,
             BinaryRowDataSerializer serializer,
@@ -80,6 +78,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
             MemorySegmentPool pool,
             int totalNumBuffers) {
         super(normalizedKeyComputer, serializer, comparator, recordBufferSegments, pool);
+        checkArgument(pool.freePages() >= MIN_REQUIRED_BUFFERS);
         this.inputSerializer = inputSerializer;
         this.recordBufferSegments = recordBufferSegments;
         this.recordCollector = recordCollector;
@@ -99,7 +98,6 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
         this.numRecords = 0;
         this.currentSortIndexOffset = 0;
         this.currentDataBufferOffset = 0;
-        this.sortIndexBytes = 0;
 
         // return all memory
         returnToSegmentPool();
@@ -136,7 +134,7 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
     }
 
     public long getOccupancy() {
-        return this.currentDataBufferOffset + this.sortIndexBytes;
+        return this.currentDataBufferOffset + this.currentSortIndexOffset;
     }
 
     /**
@@ -155,27 +153,16 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
         }
 
         // serialize the record into the data buffers
-        int skip;
+        long currOffset;
         try {
-            skip = this.inputSerializer.serializeToPages(record, this.recordCollector);
+            currOffset = writeRecordToBuffer(record);
         } catch (EOFException e) {
             return false;
         }
 
-        final long newOffset = this.recordCollector.getCurrentOffset();
-        long currOffset = currentDataBufferOffset + skip;
-
         writeIndexAndNormalizedKey(record, currOffset);
 
-        this.currentDataBufferOffset = newOffset;
-
         return true;
-    }
-
-    private BinaryRowData getRecordFromBuffer(BinaryRowData reuse, long pointer)
-            throws IOException {
-        this.recordBuffer.setReadPosition(pointer);
-        return this.serializer.mapFromPages(reuse, this.recordBuffer);
     }
 
     // -------------------------------------------------------------------------
@@ -185,42 +172,22 @@ public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
      *
      * @return An iterator returning the records in their logical order.
      */
-    public final MutableObjectIterator<BinaryRowData> getIterator() {
-        return new MutableObjectIterator<BinaryRowData>() {
-            private final int size = size();
-            private int current = 0;
-
-            private int currentSegment = 0;
-            private int currentOffset = 0;
-
-            private MemorySegment currentIndexSegment = sortIndex.get(0);
+    public MutableObjectIterator<BinaryRowData> getIterator() {
+        return new BinaryIndexedIterator<BinaryRowData>(0) {
 
             @Override
-            public BinaryRowData next(BinaryRowData target) {
-                if (this.current < this.size) {
-                    this.current++;
-                    if (this.currentOffset > lastIndexEntryOffset) {
-                        this.currentOffset = 0;
-                        this.currentIndexSegment = sortIndex.get(++this.currentSegment);
-                    }
-
-                    long pointer = this.currentIndexSegment.getLong(this.currentOffset);
-                    this.currentOffset += indexEntrySize;
-
-                    try {
-                        return getRecordFromBuffer(target, pointer);
-                    } catch (IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                } else {
-                    return null;
-                }
-            }
-
-            @Override
-            public BinaryRowData next() {
-                throw new RuntimeException("Not support!");
+            BinaryRowData getRecordFromBuffer(BinaryRowData target, long pointer)
+                    throws IOException {
+                recordBuffer.setReadPosition(pointer);
+                return serializer.mapFromPages(target, recordBuffer);
             }
         };
+    }
+
+    protected long writeRecordToBuffer(RowData record) throws IOException {
+        int skip = inputSerializer.serializeToPages(record, recordCollector);
+        long recordOffset = currentDataBufferOffset + skip;
+        currentDataBufferOffset = recordCollector.getCurrentOffset();
+        return recordOffset;
     }
 }

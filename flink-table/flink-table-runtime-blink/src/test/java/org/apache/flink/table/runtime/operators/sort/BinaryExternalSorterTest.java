@@ -26,9 +26,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
@@ -48,6 +46,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
+import static org.apache.flink.table.runtime.operators.sort.BinarySorterUtils.MockBinaryRowReader;
+import static org.apache.flink.table.runtime.operators.sort.BinarySorterUtils.getString;
 
 /** Sort test for binary row. */
 @RunWith(Parameterized.class)
@@ -78,14 +79,6 @@ public class BinaryExternalSorterTest {
                 new Boolean[] {false, true},
                 new Boolean[] {true, false},
                 new Boolean[] {true, true});
-    }
-
-    private static String getString(int count) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < 8; i++) {
-            builder.append(count);
-        }
-        return builder.toString();
     }
 
     @SuppressWarnings("unchecked")
@@ -131,7 +124,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(),
                         IntRecordComparator.INSTANCE,
                         conf,
                         1f);
@@ -171,7 +164,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(),
                         IntRecordComparator.INSTANCE,
                         conf,
                         0.7f);
@@ -207,12 +200,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        new IntNormalizedKeyComputer() {
-                            @Override
-                            public boolean isKeyFullyDetermines() {
-                                return false;
-                            }
-                        },
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(false),
                         IntRecordComparator.INSTANCE,
                         conf,
                         0.7f);
@@ -254,7 +242,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(),
                         IntRecordComparator.INSTANCE,
                         conf,
                         0.7f);
@@ -292,12 +280,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        new IntNormalizedKeyComputer() {
-                            @Override
-                            public boolean invertKey() {
-                                return true;
-                            }
-                        },
+                        IntNormalizedKeyComputerFactory.createComputerInDescendingOrder(),
                         new IntRecordComparator() {
                             @Override
                             public int compare(RowData o1, RowData o2) {
@@ -348,7 +331,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(),
                         IntRecordComparator.INSTANCE,
                         conf,
                         0.7f);
@@ -386,7 +369,7 @@ public class BinaryExternalSorterTest {
                         this.ioManager,
                         (AbstractRowDataSerializer) serializer,
                         serializer,
-                        IntNormalizedKeyComputer.INSTANCE,
+                        IntNormalizedKeyComputerFactory.createComputerInAscendingOrder(),
                         IntRecordComparator.INSTANCE,
                         conf,
                         0.7f);
@@ -417,38 +400,5 @@ public class BinaryExternalSorterTest {
         }
 
         sorter.close();
-    }
-
-    /** Mock reader for binary row. */
-    public class MockBinaryRowReader implements MutableObjectIterator<BinaryRowData> {
-
-        private int size;
-        private int count;
-        private BinaryRowData row;
-        private BinaryRowWriter writer;
-
-        public MockBinaryRowReader(int size) {
-            this.size = size;
-            this.row = new BinaryRowData(2);
-            this.writer = new BinaryRowWriter(row);
-        }
-
-        @Override
-        public BinaryRowData next(BinaryRowData reuse) {
-            return next();
-        }
-
-        @Override
-        public BinaryRowData next() {
-            if (count >= size) {
-                return null;
-            }
-            writer.reset();
-            writer.writeInt(0, count);
-            writer.writeString(1, StringData.fromString(getString(count)));
-            writer.complete();
-            count++;
-            return row;
-        }
     }
 }

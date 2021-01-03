@@ -116,50 +116,15 @@ public class BinaryKVInMemorySortBuffer extends BinaryIndexedSortable {
      * @return An iterator returning the records in their logical order.
      */
     public final MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>> getIterator() {
-        return new MutableObjectIterator<Tuple2<BinaryRowData, BinaryRowData>>() {
-            private final int size = size();
-            private int current = 0;
-
-            private int currentSegment = 0;
-            private int currentOffset = 0;
-
-            private MemorySegment currentIndexSegment = sortIndex.get(0);
-
+        return new BinaryIndexedIterator<Tuple2<BinaryRowData, BinaryRowData>>(0) {
             @Override
-            public Tuple2<BinaryRowData, BinaryRowData> next(
-                    Tuple2<BinaryRowData, BinaryRowData> kv) {
-                if (this.current < this.size) {
-                    this.current++;
-                    if (this.currentOffset > lastIndexEntryOffset) {
-                        this.currentOffset = 0;
-                        this.currentIndexSegment = sortIndex.get(++this.currentSegment);
-                    }
-
-                    long pointer = this.currentIndexSegment.getLong(this.currentOffset);
-                    this.currentOffset += indexEntrySize;
-
-                    try {
-                        return getRecordFromBuffer(kv.f0, kv.f1, pointer);
-                    } catch (IOException ioe) {
-                        throw new RuntimeException(ioe);
-                    }
-                } else {
-                    return null;
-                }
-            }
-
-            @Override
-            public Tuple2<BinaryRowData, BinaryRowData> next() {
-                throw new RuntimeException("Not support!");
+            Tuple2<BinaryRowData, BinaryRowData> getRecordFromBuffer(
+                    Tuple2<BinaryRowData, BinaryRowData> target, long pointer) throws IOException {
+                recordBuffer.setReadPosition(pointer);
+                serializer.mapFromPages(target.f0, recordBuffer);
+                serializer.mapFromPages(target.f1, recordBuffer);
+                return target;
             }
         };
-    }
-
-    private Tuple2<BinaryRowData, BinaryRowData> getRecordFromBuffer(
-            BinaryRowData reuseKey, BinaryRowData reuseValue, long pointer) throws IOException {
-        this.recordBuffer.setReadPosition(pointer);
-        reuseKey = this.serializer.mapFromPages(reuseKey, this.recordBuffer);
-        reuseValue = this.serializer.mapFromPages(reuseValue, this.recordBuffer);
-        return Tuple2.of(reuseKey, reuseValue);
     }
 }

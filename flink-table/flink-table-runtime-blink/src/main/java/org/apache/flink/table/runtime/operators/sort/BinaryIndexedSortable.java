@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
+import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,11 +41,11 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
     public static final int OFFSET_LEN = 8;
 
     // put/compare/swap normalized key
-    private final NormalizedKeyComputer normalizedKeyComputer;
+    protected final NormalizedKeyComputer normalizedKeyComputer;
     protected final BinaryRowDataSerializer serializer;
 
     // if normalized key not fully determines, need compare record.
-    private final RecordComparator comparator;
+    protected final RecordComparator comparator;
 
     protected final RandomAccessInputView recordBuffer;
     private final RandomAccessInputView recordBufferForComparison;
@@ -55,12 +56,12 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
     protected final ArrayList<MemorySegment> sortIndex;
 
     // normalized key attributes
-    private final int numKeyBytes;
+    protected final int numKeyBytes;
     protected final int indexEntrySize;
-    private final int indexEntriesPerSegment;
+    protected final int indexEntriesPerSegment;
     protected final int lastIndexEntryOffset;
-    private final boolean normalizedKeyFullyDetermines;
-    private final boolean useNormKeyUninverted;
+    protected final boolean normalizedKeyFullyDetermines;
+    protected final boolean useNormKeyUninverted;
 
     // for serialized comparison
     protected final BinaryRowDataSerializer serializer1;
@@ -249,5 +250,50 @@ public abstract class BinaryIndexedSortable implements IndexedSortable {
                 this.serializer.copyFromPagesToView(this.recordBuffer, output);
             }
         }
+    }
+
+    /** Abstract record iterator. It will only emit the records in the index area. */
+    protected abstract class BinaryIndexedIterator<E> implements MutableObjectIterator<E> {
+
+        private final int size = size();
+        private int current = 0;
+
+        private int currentSegment = 0;
+        private int currentOffset;
+
+        private MemorySegment currentIndexSegment = sortIndex.get(0);
+
+        public BinaryIndexedIterator(int initOffset) {
+            this.currentOffset = initOffset;
+        }
+
+        @Override
+        public E next(E target) {
+            if (this.current < this.size) {
+                this.current++;
+                if (this.currentOffset > lastIndexEntryOffset) {
+                    this.currentOffset = 0;
+                    this.currentIndexSegment = sortIndex.get(++this.currentSegment);
+                }
+
+                long pointer = this.currentIndexSegment.getLong(this.currentOffset);
+                this.currentOffset += indexEntrySize;
+
+                try {
+                    return getRecordFromBuffer(target, pointer);
+                } catch (IOException ioe) {
+                    throw new RuntimeException(ioe);
+                }
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public E next() {
+            throw new RuntimeException("Not support!");
+        }
+
+        abstract E getRecordFromBuffer(E target, long pointer) throws IOException;
     }
 }
