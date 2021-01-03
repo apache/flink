@@ -823,53 +823,6 @@ under the License.
 
 	<profiles>
 		<profile>
-			<id>scala-2.11</id>
-			<properties>
-				<scala.version>2.11.12</scala.version>
-				<scala.binary.version>2.11</scala.binary.version>
-			</properties>
-			<activation>
-				<property>
-					<name>!scala-2.12</name>
-				</property>
-			</activation>
-			<!-- Scala Shell doesn't currently work with Scala 2.12 so only include
-			when building for Scala 2.11. -->
-			<modules>
-				<module>flink-scala-shell</module>
-			</modules>
-			<build>
-				<plugins>
-					<!-- make sure we don't have any _2.10 or _2.12 dependencies when building
-					for Scala 2.11 -->
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-enforcer-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>enforce-versions</id>
-								<goals>
-									<goal>enforce</goal>
-								</goals>
-								<configuration>
-									<rules>
-										<bannedDependencies>
-											<excludes combine.children="append">
-												<exclude>*:*_2.12</exclude>
-												<exclude>*:*_2.10</exclude>
-											</excludes>
-										</bannedDependencies>
-									</rules>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-
-		<profile>
 			<id>scala-2.12</id>
 			<properties>
 				<scala.version>2.12.7</scala.version>
