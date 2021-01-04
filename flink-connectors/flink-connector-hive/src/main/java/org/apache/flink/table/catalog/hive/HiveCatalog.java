@@ -1374,7 +1374,7 @@ public class HiveCatalog extends AbstractCatalog {
             functionClassName = function.getClassName();
         } else if (function.getFunctionLanguage() == FunctionLanguage.SCALA) {
             functionClassName = FLINK_SCALA_FUNCTION_PREFIX + function.getClassName();
-        } else if (function.getFunctionLanguage().equals(FunctionLanguage.PYTHON)) {
+        } else if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
             functionClassName = FLINK_PYTHON_FUNCTION_PREFIX + function.getClassName();
         } else {
             throw new UnsupportedOperationException(
