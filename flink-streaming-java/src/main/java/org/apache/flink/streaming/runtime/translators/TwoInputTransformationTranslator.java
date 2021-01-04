@@ -43,15 +43,21 @@ public class TwoInputTransformationTranslator<IN1, IN2, OUT>
     protected Collection<Integer> translateForBatchInternal(
             final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
         Collection<Integer> ids = translateInternal(transformation, context);
-        boolean isKeyed =
+
+        StreamConfig.InputRequirement input1Requirement =
                 transformation.getStateKeySelector1() != null
-                        && transformation.getStateKeySelector2() != null;
-        if (isKeyed) {
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
+
+        StreamConfig.InputRequirement input2Requirement =
+                transformation.getStateKeySelector2() != null
+                        ? StreamConfig.InputRequirement.SORTED
+                        : StreamConfig.InputRequirement.PASS_THROUGH;
+
+        if (input1Requirement == StreamConfig.InputRequirement.SORTED
+                || input2Requirement == StreamConfig.InputRequirement.SORTED) {
             BatchExecutionUtils.applyBatchExecutionSettings(
-                    transformation.getId(),
-                    context,
-                    StreamConfig.InputRequirement.SORTED,
-                    StreamConfig.InputRequirement.SORTED);
+                    transformation.getId(), context, input1Requirement, input2Requirement);
         }
         return ids;
     }
