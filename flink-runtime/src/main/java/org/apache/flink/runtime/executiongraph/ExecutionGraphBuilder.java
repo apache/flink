@@ -79,7 +79,6 @@ public class ExecutionGraphBuilder {
             Executor ioExecutor,
             SlotProvider slotProvider,
             ClassLoader classLoader,
-            CheckpointRecoveryFactory recoveryFactory,
             CompletedCheckpointStore completedCheckpointStore,
             CheckpointIDCounter checkpointIdCounter,
             Time rpcTimeout,
