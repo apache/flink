@@ -744,7 +744,7 @@ about the type of the value that the state holds:
 ListStateDescriptor<Tuple2<String, Integer>> descriptor =
     new ListStateDescriptor<>(
         "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
+        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
 checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 {% endhighlight %}
