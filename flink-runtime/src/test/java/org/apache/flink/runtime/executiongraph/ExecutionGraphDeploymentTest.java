@@ -522,23 +522,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .getMaxNumberOfRetainedCheckpoints());
     }
 
-    @Test
-    public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
-
-        final int maxNumberOfCheckpointsToRetain = 10;
-        final Configuration jobManagerConfig = new Configuration();
-        jobManagerConfig.setInteger(
-                CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
-
-        final ExecutionGraph eg = createExecutionGraph(jobManagerConfig);
-
-        assertEquals(
-                maxNumberOfCheckpointsToRetain,
-                eg.getCheckpointCoordinator()
-                        .getCheckpointStore()
-                        .getMaxNumberOfRetainedCheckpoints());
-    }
-
     private SchedulerBase setupScheduler(JobVertex v1, int dop1, JobVertex v2, int dop2)
             throws Exception {
         v1.setParallelism(dop1);

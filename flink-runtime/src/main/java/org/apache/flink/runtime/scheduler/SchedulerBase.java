@@ -37,6 +37,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -280,18 +282,27 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         final JobID jobId = jobGraph.getJobID();
         final CheckpointIDCounter checkpointIdCounter;
+        final CompletedCheckpointStore completedCheckpointStore;
 
         if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
             try {
                 checkpointIdCounter =
                         ExecutionGraphBuilder.createCheckpointIdCounter(
                                 checkpointRecoveryFactory, jobId);
+                completedCheckpointStore =
+                        ExecutionGraphBuilder.createCompletedCheckpointStore(
+                                jobMasterConfiguration,
+                                userCodeLoader,
+                                checkpointRecoveryFactory,
+                                log,
+                                jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId, "Failed to initialize high-availability checkpoint handler", e);
             }
         } else {
             checkpointIdCounter = DeactivatedCheckpointIDCounter.INSTANCE;
+            completedCheckpointStore = DeactivatedCheckpointCompletedCheckpointStore.INSTANCE;
         }
 
         return ExecutionGraphBuilder.buildGraph(
@@ -302,6 +313,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 slotProvider,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                completedCheckpointStore,
                 checkpointIdCounter,
                 rpcTimeout,
                 currentJobManagerJobMetricGroup,

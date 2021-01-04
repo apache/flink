@@ -80,6 +80,7 @@ public class ExecutionGraphBuilder {
             SlotProvider slotProvider,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            CompletedCheckpointStore completedCheckpointStore,
             CheckpointIDCounter checkpointIdCounter,
             Time rpcTimeout,
             MetricGroup metrics,
@@ -209,17 +210,6 @@ public class ExecutionGraphBuilder {
             List<ExecutionJobVertex> confirmVertices =
                     idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
-            final CompletedCheckpointStore completedCheckpoints;
-
-            try {
-                completedCheckpoints =
-                        createCompletedCheckpointStore(
-                                jobManagerConfig, classLoader, recoveryFactory, log, jobId);
-            } catch (Exception e) {
-                throw new JobExecutionException(
-                        jobId, "Failed to initialize high-availability checkpoint handler", e);
-            }
-
             // Maximum number of remembered checkpoints
             int historySize = jobManagerConfig.getInteger(WebOptions.CHECKPOINTS_HISTORY_SIZE);
 
@@ -298,7 +288,7 @@ public class ExecutionGraphBuilder {
                     confirmVertices,
                     hooks,
                     checkpointIdCounter,
-                    completedCheckpoints,
+                    completedCheckpointStore,
                     rootBackend,
                     checkpointStatsTracker);
         }
@@ -321,7 +311,7 @@ public class ExecutionGraphBuilder {
         return recoveryFactory.createCheckpointIDCounter(jobId);
     }
 
-    private static CompletedCheckpointStore createCompletedCheckpointStore(
+    public static CompletedCheckpointStore createCompletedCheckpointStore(
             Configuration jobManagerConfig,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
