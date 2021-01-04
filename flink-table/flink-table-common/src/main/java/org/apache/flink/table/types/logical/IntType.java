@@ -27,67 +27,67 @@ import java.util.Set;
 /**
  * Logical type of a 4-byte signed integer with values from -2,147,483,648 to 2,147,483,647.
  *
- * <p>The serialized string representation is {@code INT}. {@code INTEGER} is a synonym for this type.
+ * <p>The serialized string representation is {@code INT}. {@code INTEGER} is a synonym for this
+ * type.
  */
 @PublicEvolving
 public final class IntType extends LogicalType {
 
-	public static final int PRECISION = 10;
+    public static final int PRECISION = 10;
 
-	private static final String FORMAT = "INT";
+    private static final String FORMAT = "INT";
 
-	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(
-		Integer.class.getName());
+    private static final Set<String> NULL_OUTPUT_CONVERSION =
+            conversionSet(Integer.class.getName());
 
-	private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION = conversionSet(
-		Integer.class.getName(),
-		int.class.getName());
+    private static final Set<String> NOT_NULL_INPUT_OUTPUT_CONVERSION =
+            conversionSet(Integer.class.getName(), int.class.getName());
 
-	private static final Class<?> DEFAULT_CONVERSION = Integer.class;
+    private static final Class<?> DEFAULT_CONVERSION = Integer.class;
 
-	public IntType(boolean isNullable) {
-		super(isNullable, LogicalTypeRoot.INTEGER);
-	}
+    public IntType(boolean isNullable) {
+        super(isNullable, LogicalTypeRoot.INTEGER);
+    }
 
-	public IntType() {
-		this(true);
-	}
+    public IntType() {
+        this(true);
+    }
 
-	@Override
-	public LogicalType copy(boolean isNullable) {
-		return new IntType(isNullable);
-	}
+    @Override
+    public LogicalType copy(boolean isNullable) {
+        return new IntType(isNullable);
+    }
 
-	@Override
-	public String asSerializableString() {
-		return withNullability(FORMAT);
-	}
+    @Override
+    public String asSerializableString() {
+        return withNullability(FORMAT);
+    }
 
-	@Override
-	public boolean supportsInputConversion(Class<?> clazz) {
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsInputConversion(Class<?> clazz) {
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public boolean supportsOutputConversion(Class<?> clazz) {
-		if (isNullable()) {
-			return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
-		}
-		return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
-	}
+    @Override
+    public boolean supportsOutputConversion(Class<?> clazz) {
+        if (isNullable()) {
+            return NULL_OUTPUT_CONVERSION.contains(clazz.getName());
+        }
+        return NOT_NULL_INPUT_OUTPUT_CONVERSION.contains(clazz.getName());
+    }
 
-	@Override
-	public Class<?> getDefaultConversion() {
-		return DEFAULT_CONVERSION;
-	}
+    @Override
+    public Class<?> getDefaultConversion() {
+        return DEFAULT_CONVERSION;
+    }
 
-	@Override
-	public List<LogicalType> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<LogicalType> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <R> R accept(LogicalTypeVisitor<R> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <R> R accept(LogicalTypeVisitor<R> visitor) {
+        return visitor.visit(this);
+    }
 }

@@ -25,15 +25,13 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * A No-Op implementation of the {@link PartitionProducerStateChecker}.
- */
+/** A No-Op implementation of the {@link PartitionProducerStateChecker}. */
 public class NoOpPartitionProducerStateChecker implements PartitionProducerStateChecker {
 
-	@Override
-	public CompletableFuture<ExecutionState> requestPartitionProducerState(
-			JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID r) {
+    @Override
+    public CompletableFuture<ExecutionState> requestPartitionProducerState(
+            JobID jobId, IntermediateDataSetID intermediateDataSetId, ResultPartitionID r) {
 
-		return null;
-	}
+        return null;
+    }
 }

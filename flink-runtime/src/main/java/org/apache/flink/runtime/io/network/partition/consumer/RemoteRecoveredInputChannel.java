@@ -28,53 +28,53 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An input channel reads recovered state from previous unaligned checkpoint snapshots
- * and then converts into {@link RemoteInputChannel} finally.
+ * An input channel reads recovered state from previous unaligned checkpoint snapshots and then
+ * converts into {@link RemoteInputChannel} finally.
  */
 public class RemoteRecoveredInputChannel extends RecoveredInputChannel {
-	private final ConnectionID connectionId;
-	private final ConnectionManager connectionManager;
+    private final ConnectionID connectionId;
+    private final ConnectionManager connectionManager;
 
-	RemoteRecoveredInputChannel(
-			SingleInputGate inputGate,
-			int channelIndex,
-			ResultPartitionID partitionId,
-			ConnectionID connectionId,
-			ConnectionManager connectionManager,
-			int initialBackOff,
-			int maxBackoff,
-			int networkBuffersPerChannel,
-			InputChannelMetrics metrics) {
-		super(
-			inputGate,
-			channelIndex,
-			partitionId,
-			initialBackOff,
-			maxBackoff,
-			metrics.getNumBytesInRemoteCounter(),
-			metrics.getNumBuffersInRemoteCounter(),
-			networkBuffersPerChannel);
+    RemoteRecoveredInputChannel(
+            SingleInputGate inputGate,
+            int channelIndex,
+            ResultPartitionID partitionId,
+            ConnectionID connectionId,
+            ConnectionManager connectionManager,
+            int initialBackOff,
+            int maxBackoff,
+            int networkBuffersPerChannel,
+            InputChannelMetrics metrics) {
+        super(
+                inputGate,
+                channelIndex,
+                partitionId,
+                initialBackOff,
+                maxBackoff,
+                metrics.getNumBytesInRemoteCounter(),
+                metrics.getNumBuffersInRemoteCounter(),
+                networkBuffersPerChannel);
 
-		this.connectionId = checkNotNull(connectionId);
-		this.connectionManager = checkNotNull(connectionManager);
-	}
+        this.connectionId = checkNotNull(connectionId);
+        this.connectionManager = checkNotNull(connectionManager);
+    }
 
-	@Override
-	protected InputChannel toInputChannelInternal() throws IOException {
-		RemoteInputChannel remoteInputChannel = new RemoteInputChannel(
-			inputGate,
-			getChannelIndex(),
-			partitionId,
-			connectionId,
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			networkBuffersPerChannel,
-			numBytesIn,
-			numBuffersIn,
-			channelStateWriter);
-		remoteInputChannel.setup();
-		return remoteInputChannel;
-	}
-
+    @Override
+    protected InputChannel toInputChannelInternal() throws IOException {
+        RemoteInputChannel remoteInputChannel =
+                new RemoteInputChannel(
+                        inputGate,
+                        getChannelIndex(),
+                        partitionId,
+                        connectionId,
+                        connectionManager,
+                        initialBackoff,
+                        maxBackoff,
+                        networkBuffersPerChannel,
+                        numBytesIn,
+                        numBuffersIn,
+                        channelStateWriter);
+        remoteInputChannel.setup();
+        return remoteInputChannel;
+    }
 }

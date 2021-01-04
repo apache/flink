@@ -30,45 +30,44 @@ import java.util.Objects;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based
- * collection.
+ * A pair of {@link JobID} and {@link TriggerId} used as a key to a hash based collection.
  *
  * @see AbstractAsynchronousOperationHandlers
  */
 @Immutable
 public class AsynchronousJobOperationKey extends OperationKey {
 
-	private final JobID jobId;
+    private final JobID jobId;
 
-	private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
-		super(triggerId);
-		this.jobId = requireNonNull(jobId);
-	}
+    private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
+        super(triggerId);
+        this.jobId = requireNonNull(jobId);
+    }
 
-	public static AsynchronousJobOperationKey of(final TriggerId triggerId, final JobID jobId) {
-		return new AsynchronousJobOperationKey(triggerId, jobId);
-	}
+    public static AsynchronousJobOperationKey of(final TriggerId triggerId, final JobID jobId) {
+        return new AsynchronousJobOperationKey(triggerId, jobId);
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
 
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
-		if (!super.equals(o)) {
-			return false;
-		}
+        if (!super.equals(o)) {
+            return false;
+        }
 
-		AsynchronousJobOperationKey that = (AsynchronousJobOperationKey) o;
-		return Objects.equals(jobId, that.jobId);
-	}
+        AsynchronousJobOperationKey that = (AsynchronousJobOperationKey) o;
+        return Objects.equals(jobId, that.jobId);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(super.hashCode(), jobId);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), jobId);
+    }
 }

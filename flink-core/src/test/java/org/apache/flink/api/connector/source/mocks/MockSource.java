@@ -31,68 +31,72 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * A mock {@link Source} for unit tests.
- */
+/** A mock {@link Source} for unit tests. */
 public class MockSource implements Source<Integer, MockSourceSplit, Set<MockSourceSplit>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final Boundedness boundedness;
-	private final int numSplits;
-	private final boolean readerWaitingForMoreSplits;
-	private final boolean readerMarkIdleOnNoSplits;
-	protected List<MockSourceReader> createdReaders;
+    private final Boundedness boundedness;
+    private final int numSplits;
+    private final boolean readerWaitingForMoreSplits;
+    private final boolean readerMarkIdleOnNoSplits;
+    protected List<MockSourceReader> createdReaders;
 
-	public MockSource(Boundedness boundedness, int numSplits) {
-		this(boundedness, numSplits, false, false);
-	}
+    public MockSource(Boundedness boundedness, int numSplits) {
+        this(boundedness, numSplits, false, false);
+    }
 
-	public MockSource(Boundedness boundedness, int numSplits, boolean readerWaitingForMoreSplits, boolean readerMarkIdleOnNoSplits) {
-		this.boundedness = boundedness;
-		this.numSplits = numSplits;
-		this.createdReaders = new ArrayList<>();
-		this.readerWaitingForMoreSplits = readerWaitingForMoreSplits;
-		this.readerMarkIdleOnNoSplits = readerMarkIdleOnNoSplits;
-	}
+    public MockSource(
+            Boundedness boundedness,
+            int numSplits,
+            boolean readerWaitingForMoreSplits,
+            boolean readerMarkIdleOnNoSplits) {
+        this.boundedness = boundedness;
+        this.numSplits = numSplits;
+        this.createdReaders = new ArrayList<>();
+        this.readerWaitingForMoreSplits = readerWaitingForMoreSplits;
+        this.readerMarkIdleOnNoSplits = readerMarkIdleOnNoSplits;
+    }
 
-	@Override
-	public Boundedness getBoundedness() {
-		return boundedness;
-	}
+    @Override
+    public Boundedness getBoundedness() {
+        return boundedness;
+    }
 
-	@Override
-	public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
-		MockSourceReader mockSourceReader = new MockSourceReader(readerWaitingForMoreSplits, readerMarkIdleOnNoSplits);
-		createdReaders.add(mockSourceReader);
-		return mockSourceReader;
-	}
+    @Override
+    public SourceReader<Integer, MockSourceSplit> createReader(SourceReaderContext readerContext) {
+        MockSourceReader mockSourceReader =
+                new MockSourceReader(readerWaitingForMoreSplits, readerMarkIdleOnNoSplits);
+        createdReaders.add(mockSourceReader);
+        return mockSourceReader;
+    }
 
-	@Override
-	public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> createEnumerator(SplitEnumeratorContext<MockSourceSplit> enumContext) {
-		return new MockSplitEnumerator(numSplits, enumContext);
-	}
+    @Override
+    public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> createEnumerator(
+            SplitEnumeratorContext<MockSourceSplit> enumContext) {
+        return new MockSplitEnumerator(numSplits, enumContext);
+    }
 
-	@Override
-	public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> restoreEnumerator(
-			SplitEnumeratorContext<MockSourceSplit> enumContext,
-			Set<MockSourceSplit> checkpoint) throws IOException {
-		return new MockSplitEnumerator(checkpoint, enumContext);
-	}
+    @Override
+    public SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> restoreEnumerator(
+            SplitEnumeratorContext<MockSourceSplit> enumContext, Set<MockSourceSplit> checkpoint)
+            throws IOException {
+        return new MockSplitEnumerator(checkpoint, enumContext);
+    }
 
-	@Override
-	public SimpleVersionedSerializer<MockSourceSplit> getSplitSerializer() {
-		return new MockSourceSplitSerializer();
-	}
+    @Override
+    public SimpleVersionedSerializer<MockSourceSplit> getSplitSerializer() {
+        return new MockSourceSplitSerializer();
+    }
 
-	@Override
-	public SimpleVersionedSerializer<Set<MockSourceSplit>> getEnumeratorCheckpointSerializer() {
-		return new MockSplitEnumeratorCheckpointSerializer();
-	}
+    @Override
+    public SimpleVersionedSerializer<Set<MockSourceSplit>> getEnumeratorCheckpointSerializer() {
+        return new MockSplitEnumeratorCheckpointSerializer();
+    }
 
-	// --------------- methods for testing -------------
+    // --------------- methods for testing -------------
 
-	public List<MockSourceReader> getCreatedReaders() {
-		return createdReaders;
-	}
+    public List<MockSourceReader> getCreatedReaders() {
+        return createdReaders;
+    }
 }

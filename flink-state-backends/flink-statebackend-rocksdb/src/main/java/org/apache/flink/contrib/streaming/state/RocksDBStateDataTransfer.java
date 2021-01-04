@@ -23,23 +23,21 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.concurrent.Executors.newDirectExecutorService;
 
-/**
- * Data transfer base class for {@link RocksDBKeyedStateBackend}.
- */
+/** Data transfer base class for {@link RocksDBKeyedStateBackend}. */
 class RocksDBStateDataTransfer implements Closeable {
 
-	protected final ExecutorService executorService;
+    protected final ExecutorService executorService;
 
-	RocksDBStateDataTransfer(int threadNum) {
-		if (threadNum > 1) {
-			executorService = Executors.newFixedThreadPool(threadNum);
-		} else {
-			executorService = newDirectExecutorService();
-		}
-	}
+    RocksDBStateDataTransfer(int threadNum) {
+        if (threadNum > 1) {
+            executorService = Executors.newFixedThreadPool(threadNum);
+        } else {
+            executorService = newDirectExecutorService();
+        }
+    }
 
-	@Override
-	public void close() {
-		executorService.shutdownNow();
-	}
+    @Override
+    public void close() {
+        executorService.shutdownNow();
+    }
 }

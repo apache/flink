@@ -24,43 +24,45 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 /**
- * Container for returning the {@link ArchivedExecutionGraph} and a flag whether the initialization has failed.
- * For initialization failures, the throwable is also attached, to avoid deserializing it from the ArchivedExecutionGraph.
+ * Container for returning the {@link ArchivedExecutionGraph} and a flag whether the initialization
+ * has failed. For initialization failures, the throwable is also attached, to avoid deserializing
+ * it from the ArchivedExecutionGraph.
  */
 final class DispatcherJobResult {
 
-	private final ArchivedExecutionGraph archivedExecutionGraph;
+    private final ArchivedExecutionGraph archivedExecutionGraph;
 
-	// if the throwable field is set, the job failed during initialization.
-	@Nullable
-	private final Throwable initializationFailure;
+    // if the throwable field is set, the job failed during initialization.
+    @Nullable private final Throwable initializationFailure;
 
-	private DispatcherJobResult(ArchivedExecutionGraph archivedExecutionGraph, @Nullable Throwable throwable) {
-		this.archivedExecutionGraph = archivedExecutionGraph;
-		this.initializationFailure = throwable;
-	}
+    private DispatcherJobResult(
+            ArchivedExecutionGraph archivedExecutionGraph, @Nullable Throwable throwable) {
+        this.archivedExecutionGraph = archivedExecutionGraph;
+        this.initializationFailure = throwable;
+    }
 
-	public boolean isInitializationFailure() {
-		return initializationFailure != null;
-	}
+    public boolean isInitializationFailure() {
+        return initializationFailure != null;
+    }
 
-	public ArchivedExecutionGraph getArchivedExecutionGraph() {
-		return archivedExecutionGraph;
-	}
+    public ArchivedExecutionGraph getArchivedExecutionGraph() {
+        return archivedExecutionGraph;
+    }
 
-	/**
-	 * @throws IllegalStateException if this DispatcherJobResult is a successful initialization.
-	 */
-	public Throwable getInitializationFailure() {
-		Preconditions.checkState(isInitializationFailure(), "This DispatcherJobResult does not represent a failed initialization.");
-		return initializationFailure;
-	}
+    /** @throws IllegalStateException if this DispatcherJobResult is a successful initialization. */
+    public Throwable getInitializationFailure() {
+        Preconditions.checkState(
+                isInitializationFailure(),
+                "This DispatcherJobResult does not represent a failed initialization.");
+        return initializationFailure;
+    }
 
-	public static DispatcherJobResult forInitializationFailure(ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) {
-		return new DispatcherJobResult(archivedExecutionGraph, throwable);
-	}
+    public static DispatcherJobResult forInitializationFailure(
+            ArchivedExecutionGraph archivedExecutionGraph, Throwable throwable) {
+        return new DispatcherJobResult(archivedExecutionGraph, throwable);
+    }
 
-	public static DispatcherJobResult forSuccess(ArchivedExecutionGraph archivedExecutionGraph) {
-		return new DispatcherJobResult(archivedExecutionGraph, null);
-	}
+    public static DispatcherJobResult forSuccess(ArchivedExecutionGraph archivedExecutionGraph) {
+        return new DispatcherJobResult(archivedExecutionGraph, null);
+    }
 }

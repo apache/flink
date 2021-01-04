@@ -27,87 +27,85 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.function.Consumer;
 
-/**
- * The default fetch task that fetches the records into the element queue.
- */
+/** The default fetch task that fetches the records into the element queue. */
 class FetchTask<E, SplitT extends SourceSplit> implements SplitFetcherTask {
-	private final SplitReader<E, SplitT> splitReader;
-	private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
-	private final Consumer<Collection<String>> splitFinishedCallback;
-	private final int fetcherIndex;
-	private volatile RecordsWithSplitIds<E> lastRecords;
-	private volatile boolean wakeup;
+    private final SplitReader<E, SplitT> splitReader;
+    private final FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue;
+    private final Consumer<Collection<String>> splitFinishedCallback;
+    private final int fetcherIndex;
+    private volatile RecordsWithSplitIds<E> lastRecords;
+    private volatile boolean wakeup;
 
-	FetchTask(
-			SplitReader<E, SplitT> splitReader,
-			FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
-			Consumer<Collection<String>> splitFinishedCallback,
-			int fetcherIndex) {
-		this.splitReader = splitReader;
-		this.elementsQueue = elementsQueue;
-		this.splitFinishedCallback = splitFinishedCallback;
-		this.lastRecords = null;
-		this.fetcherIndex = fetcherIndex;
-		this.wakeup = false;
-	}
+    FetchTask(
+            SplitReader<E, SplitT> splitReader,
+            FutureCompletingBlockingQueue<RecordsWithSplitIds<E>> elementsQueue,
+            Consumer<Collection<String>> splitFinishedCallback,
+            int fetcherIndex) {
+        this.splitReader = splitReader;
+        this.elementsQueue = elementsQueue;
+        this.splitFinishedCallback = splitFinishedCallback;
+        this.lastRecords = null;
+        this.fetcherIndex = fetcherIndex;
+        this.wakeup = false;
+    }
 
-	@Override
-	public boolean run() throws IOException {
-		try {
-			if (!isWakenUp() && lastRecords == null) {
-				lastRecords = splitReader.fetch();
-			}
+    @Override
+    public boolean run() throws IOException {
+        try {
+            if (!isWakenUp() && lastRecords == null) {
+                lastRecords = splitReader.fetch();
+            }
 
-			if (!isWakenUp()) {
-				// The order matters here. We must first put the last records into the queue.
-				// This ensures the handling of the fetched records is atomic to wakeup.
-				if (elementsQueue.put(fetcherIndex, lastRecords)) {
-					if (!lastRecords.finishedSplits().isEmpty()) {
-						// The callback does not throw InterruptedException.
-						splitFinishedCallback.accept(lastRecords.finishedSplits());
-					}
-					lastRecords = null;
-				}
-			}
-		} catch (InterruptedException e) {
-			// this should only happen on shutdown
-			throw new IOException("Source fetch execution was interrupted", e);
-		} finally {
-			// clean up the potential wakeup effect. It is possible that the fetcher is waken up
-			// after the clean up. In that case, either the wakeup flag will be set or the
-			// running thread will be interrupted. The next invocation of run() will see that and
-			// just skip.
-			if (isWakenUp()) {
-				wakeup = false;
-			}
-		}
-		// The return value of fetch task does not matter.
-		return true;
-	}
+            if (!isWakenUp()) {
+                // The order matters here. We must first put the last records into the queue.
+                // This ensures the handling of the fetched records is atomic to wakeup.
+                if (elementsQueue.put(fetcherIndex, lastRecords)) {
+                    if (!lastRecords.finishedSplits().isEmpty()) {
+                        // The callback does not throw InterruptedException.
+                        splitFinishedCallback.accept(lastRecords.finishedSplits());
+                    }
+                    lastRecords = null;
+                }
+            }
+        } catch (InterruptedException e) {
+            // this should only happen on shutdown
+            throw new IOException("Source fetch execution was interrupted", e);
+        } finally {
+            // clean up the potential wakeup effect. It is possible that the fetcher is waken up
+            // after the clean up. In that case, either the wakeup flag will be set or the
+            // running thread will be interrupted. The next invocation of run() will see that and
+            // just skip.
+            if (isWakenUp()) {
+                wakeup = false;
+            }
+        }
+        // The return value of fetch task does not matter.
+        return true;
+    }
 
-	@Override
-	public void wakeUp() {
-		// Set the wakeup flag first.
-		wakeup = true;
-		if (lastRecords == null) {
-			// Two possible cases:
-			// 1. The splitReader is reading or is about to read the records.
-			// 2. The records has been enqueued and set to null.
-			// In case 1, we just wakeup the split reader. In case 2, the next run might be skipped.
-			// In any case, the records won't be enqueued in the ongoing run().
-			splitReader.wakeUp();
-		} else {
-			// The task might be blocking on enqueuing the records, just interrupt.
-			elementsQueue.wakeUpPuttingThread(fetcherIndex);
-		}
-	}
+    @Override
+    public void wakeUp() {
+        // Set the wakeup flag first.
+        wakeup = true;
+        if (lastRecords == null) {
+            // Two possible cases:
+            // 1. The splitReader is reading or is about to read the records.
+            // 2. The records has been enqueued and set to null.
+            // In case 1, we just wakeup the split reader. In case 2, the next run might be skipped.
+            // In any case, the records won't be enqueued in the ongoing run().
+            splitReader.wakeUp();
+        } else {
+            // The task might be blocking on enqueuing the records, just interrupt.
+            elementsQueue.wakeUpPuttingThread(fetcherIndex);
+        }
+    }
 
-	private boolean isWakenUp() {
-		return wakeup;
-	}
+    private boolean isWakenUp() {
+        return wakeup;
+    }
 
-	@Override
-	public String toString() {
-		return "FetchTask";
-	}
+    @Override
+    public String toString() {
+        return "FetchTask";
+    }
 }

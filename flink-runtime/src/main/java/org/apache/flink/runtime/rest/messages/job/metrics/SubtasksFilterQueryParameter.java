@@ -20,27 +20,25 @@ package org.apache.flink.runtime.rest.messages.job.metrics;
 
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
 
-/**
- * {@link MessageQueryParameter} for selecting subtasks when aggregating metrics.
- */
+/** {@link MessageQueryParameter} for selecting subtasks when aggregating metrics. */
 public class SubtasksFilterQueryParameter extends MessageQueryParameter<String> {
 
-	SubtasksFilterQueryParameter() {
-		super("subtasks", MessageParameterRequisiteness.OPTIONAL);
-	}
+    SubtasksFilterQueryParameter() {
+        super("subtasks", MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public String convertStringToValue(String value) {
-		return value;
-	}
+    @Override
+    public String convertStringToValue(String value) {
+        return value;
+    }
 
-	@Override
-	public String convertValueToString(String value) {
-		return value;
-	}
+    @Override
+    public String convertValueToString(String value) {
+        return value;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to select specific subtasks.";
-	}
+    @Override
+    public String getDescription() {
+        return "Comma-separated list of integer ranges (e.g. \"1,3,5-9\") to select specific subtasks.";
+    }
 }

@@ -30,78 +30,73 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * and a number of records to skip after that offset. The offset is optional, it may take the value
  * {@link CheckpointedPosition#NO_OFFSET}, in which case only the records-to-skip count is used.
  *
- * <p>The combination of offset and records-to-skip makes it possible to represent the position of a wide
- * variety of readers. In the simplest case, readers might store no offset and only store how many
- * records they previously returned. On the other hand, readers that can precisely point to each
- * record via a position can store that in the checkpoint. Readers that have occasional addressable positions
- * (like sync markers, block starts, etc.) can store those together with the records skipped after the
- * last marker.
+ * <p>The combination of offset and records-to-skip makes it possible to represent the position of a
+ * wide variety of readers. In the simplest case, readers might store no offset and only store how
+ * many records they previously returned. On the other hand, readers that can precisely point to
+ * each record via a position can store that in the checkpoint. Readers that have occasional
+ * addressable positions (like sync markers, block starts, etc.) can store those together with the
+ * records skipped after the last marker.
  */
 @PublicEvolving
 public final class CheckpointedPosition implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Constant for the offset, reflecting that the position does not contain any offset information.
-	 * It is used in positions that are defined only by a number of records to skip.
-	 */
-	public static final long NO_OFFSET = -1L;
+    /**
+     * Constant for the offset, reflecting that the position does not contain any offset
+     * information. It is used in positions that are defined only by a number of records to skip.
+     */
+    public static final long NO_OFFSET = -1L;
 
-	private final long offset;
-	private final long recordsAfterOffset;
+    private final long offset;
+    private final long recordsAfterOffset;
 
-	/**
-	 * Creates a new CheckpointedPosition for given offset and records-to-skip.
-	 *
-	 * @param offset The offset that the reader will seek to when restored from this checkpoint.
-	 * @param recordsAfterOffset The records to skip after the offset.
-	 */
-	public CheckpointedPosition(long offset, long recordsAfterOffset) {
-		checkArgument(offset >= -1, "offset must be >= 0 or NO_OFFSET");
-		checkArgument(recordsAfterOffset >= 0, "recordsAfterOffset must be >= 0");
-		this.offset = offset;
-		this.recordsAfterOffset = recordsAfterOffset;
-	}
+    /**
+     * Creates a new CheckpointedPosition for given offset and records-to-skip.
+     *
+     * @param offset The offset that the reader will seek to when restored from this checkpoint.
+     * @param recordsAfterOffset The records to skip after the offset.
+     */
+    public CheckpointedPosition(long offset, long recordsAfterOffset) {
+        checkArgument(offset >= -1, "offset must be >= 0 or NO_OFFSET");
+        checkArgument(recordsAfterOffset >= 0, "recordsAfterOffset must be >= 0");
+        this.offset = offset;
+        this.recordsAfterOffset = recordsAfterOffset;
+    }
 
-	/**
-	 * Gets the offset that the reader will seek to when restored from this checkpoint.
-	 */
-	public long getOffset() {
-		return offset;
-	}
+    /** Gets the offset that the reader will seek to when restored from this checkpoint. */
+    public long getOffset() {
+        return offset;
+    }
 
-	/**
-	 * Gets the records to skip after the offset.
-	 */
-	public long getRecordsAfterOffset() {
-		return recordsAfterOffset;
-	}
+    /** Gets the records to skip after the offset. */
+    public long getRecordsAfterOffset() {
+        return recordsAfterOffset;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		final CheckpointedPosition that = (CheckpointedPosition) o;
-		return offset == that.offset &&
-			recordsAfterOffset == that.recordsAfterOffset;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        final CheckpointedPosition that = (CheckpointedPosition) o;
+        return offset == that.offset && recordsAfterOffset == that.recordsAfterOffset;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(offset, recordsAfterOffset);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(offset, recordsAfterOffset);
+    }
 
-	@Override
-	public String toString() {
-		return String.format("CheckpointedPosition: offset=%s, recordsToSkip=%d",
-				offset == NO_OFFSET ? "NO_OFFSET" : String.valueOf(offset),
-				recordsAfterOffset);
-	}
+    @Override
+    public String toString() {
+        return String.format(
+                "CheckpointedPosition: offset=%s, recordsToSkip=%d",
+                offset == NO_OFFSET ? "NO_OFFSET" : String.valueOf(offset), recordsAfterOffset);
+    }
 }

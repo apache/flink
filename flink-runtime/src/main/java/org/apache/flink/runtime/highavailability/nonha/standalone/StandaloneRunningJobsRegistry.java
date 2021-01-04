@@ -25,48 +25,46 @@ import java.util.HashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A registry for running jobs, not-highly available.
- */
+/** A registry for running jobs, not-highly available. */
 public class StandaloneRunningJobsRegistry implements RunningJobsRegistry {
 
-	/** The currently running jobs. */
-	private final HashMap<JobID, JobSchedulingStatus> jobStatus = new HashMap<>();
+    /** The currently running jobs. */
+    private final HashMap<JobID, JobSchedulingStatus> jobStatus = new HashMap<>();
 
-	@Override
-	public void setJobRunning(JobID jobID) {
-		checkNotNull(jobID);
+    @Override
+    public void setJobRunning(JobID jobID) {
+        checkNotNull(jobID);
 
-		synchronized (jobStatus) {
-			jobStatus.put(jobID, JobSchedulingStatus.RUNNING);
-		}
-	}
+        synchronized (jobStatus) {
+            jobStatus.put(jobID, JobSchedulingStatus.RUNNING);
+        }
+    }
 
-	@Override
-	public void setJobFinished(JobID jobID) {
-		checkNotNull(jobID);
+    @Override
+    public void setJobFinished(JobID jobID) {
+        checkNotNull(jobID);
 
-		synchronized (jobStatus) {
-			jobStatus.put(jobID, JobSchedulingStatus.DONE);
-		}
-	}
+        synchronized (jobStatus) {
+            jobStatus.put(jobID, JobSchedulingStatus.DONE);
+        }
+    }
 
-	@Override
-	public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
-		checkNotNull(jobID);
+    @Override
+    public JobSchedulingStatus getJobSchedulingStatus(JobID jobID) {
+        checkNotNull(jobID);
 
-		synchronized (jobStatus) {
-			JobSchedulingStatus status = jobStatus.get(jobID);
-			return status == null ? JobSchedulingStatus.PENDING : status;
-		}
-	}
+        synchronized (jobStatus) {
+            JobSchedulingStatus status = jobStatus.get(jobID);
+            return status == null ? JobSchedulingStatus.PENDING : status;
+        }
+    }
 
-	@Override
-	public void clearJob(JobID jobID) {
-		checkNotNull(jobID);
+    @Override
+    public void clearJob(JobID jobID) {
+        checkNotNull(jobID);
 
-		synchronized (jobStatus) {
-			jobStatus.remove(jobID);
-		}
-	}
+        synchronized (jobStatus) {
+            jobStatus.remove(jobID);
+        }
+    }
 }

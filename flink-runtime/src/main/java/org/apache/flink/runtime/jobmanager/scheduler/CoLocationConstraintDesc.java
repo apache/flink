@@ -24,35 +24,33 @@ import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A read-only and light weight version of {@link CoLocationConstraint}.
- */
+/** A read-only and light weight version of {@link CoLocationConstraint}. */
 public class CoLocationConstraintDesc {
 
-	private final AbstractID coLocationGroupId;
+    private final AbstractID coLocationGroupId;
 
-	private final int constraintIndex;
+    private final int constraintIndex;
 
-	CoLocationConstraintDesc(final AbstractID coLocationGroupId, final int constraintIndex) {
-		this.coLocationGroupId = checkNotNull(coLocationGroupId);
-		this.constraintIndex = constraintIndex;
-	}
+    CoLocationConstraintDesc(final AbstractID coLocationGroupId, final int constraintIndex) {
+        this.coLocationGroupId = checkNotNull(coLocationGroupId);
+        this.constraintIndex = constraintIndex;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == getClass()) {
-			CoLocationConstraintDesc that = (CoLocationConstraintDesc) obj;
-			return Objects.equals(that.coLocationGroupId, this.coLocationGroupId) &&
-				that.constraintIndex == this.constraintIndex;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == getClass()) {
+            CoLocationConstraintDesc that = (CoLocationConstraintDesc) obj;
+            return Objects.equals(that.coLocationGroupId, this.coLocationGroupId)
+                    && that.constraintIndex == this.constraintIndex;
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return 31 * coLocationGroupId.hashCode() + constraintIndex;
-	}
+    @Override
+    public int hashCode() {
+        return 31 * coLocationGroupId.hashCode() + constraintIndex;
+    }
 }

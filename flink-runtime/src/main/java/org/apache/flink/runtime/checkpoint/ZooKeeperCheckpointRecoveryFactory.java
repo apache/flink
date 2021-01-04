@@ -29,37 +29,33 @@ import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * {@link CheckpointCoordinator} components in {@link HighAvailabilityMode#ZOOKEEPER}.
- */
+/** {@link CheckpointCoordinator} components in {@link HighAvailabilityMode#ZOOKEEPER}. */
 public class ZooKeeperCheckpointRecoveryFactory implements CheckpointRecoveryFactory {
 
-	private final CuratorFramework client;
+    private final CuratorFramework client;
 
-	private final Configuration config;
+    private final Configuration config;
 
-	private final Executor executor;
+    private final Executor executor;
 
-	public ZooKeeperCheckpointRecoveryFactory(
-			CuratorFramework client,
-			Configuration config,
-			Executor executor) {
-		this.client = checkNotNull(client, "Curator client");
-		this.config = checkNotNull(config, "Configuration");
-		this.executor = checkNotNull(executor, "Executor");
-	}
+    public ZooKeeperCheckpointRecoveryFactory(
+            CuratorFramework client, Configuration config, Executor executor) {
+        this.client = checkNotNull(client, "Curator client");
+        this.config = checkNotNull(config, "Configuration");
+        this.executor = checkNotNull(executor, "Executor");
+    }
 
-	@Override
-	public CompletedCheckpointStore createCheckpointStore(JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
-			throws Exception {
+    @Override
+    public CompletedCheckpointStore createCheckpointStore(
+            JobID jobId, int maxNumberOfCheckpointsToRetain, ClassLoader userClassLoader)
+            throws Exception {
 
-		return ZooKeeperUtils.createCompletedCheckpoints(client, config, jobId,
-				maxNumberOfCheckpointsToRetain, executor);
-	}
+        return ZooKeeperUtils.createCompletedCheckpoints(
+                client, config, jobId, maxNumberOfCheckpointsToRetain, executor);
+    }
 
-	@Override
-	public CheckpointIDCounter createCheckpointIDCounter(JobID jobID) throws Exception {
-		return ZooKeeperUtils.createCheckpointIDCounter(client, config, jobID);
-	}
-
+    @Override
+    public CheckpointIDCounter createCheckpointIDCounter(JobID jobID) throws Exception {
+        return ZooKeeperUtils.createCheckpointIDCounter(client, config, jobID);
+    }
 }

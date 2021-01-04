@@ -40,101 +40,116 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Test for {@link PushPartitionIntoTableSourceScanRule}.
- */
-public class PushPartitionIntoTableSourceScanRuleTest extends PushPartitionIntoLegacyTableSourceScanRuleTest{
-	public PushPartitionIntoTableSourceScanRuleTest(boolean sourceFetchPartitions, boolean useFilter) {
-		super(sourceFetchPartitions, useFilter);
-	}
+/** Test for {@link PushPartitionIntoTableSourceScanRule}. */
+public class PushPartitionIntoTableSourceScanRuleTest
+        extends PushPartitionIntoLegacyTableSourceScanRuleTest {
+    public PushPartitionIntoTableSourceScanRuleTest(
+            boolean sourceFetchPartitions, boolean useFilter) {
+        super(sourceFetchPartitions, useFilter);
+    }
 
-	@Override
-	public void setup() throws Exception {
-		util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
-		CalciteConfig calciteConfig = TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
-		calciteConfig.getBatchProgram().get().addLast(
-			"rules",
-			FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
-				.setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
-				.setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-				.add(RuleSets.ofList(CoreRules.FILTER_PROJECT_TRANSPOSE,
-					PushPartitionIntoTableSourceScanRule.INSTANCE))
-				.build());
+    @Override
+    public void setup() throws Exception {
+        util().buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE());
+        CalciteConfig calciteConfig =
+                TableConfigUtils.getCalciteConfig(util().tableEnv().getConfig());
+        calciteConfig
+                .getBatchProgram()
+                .get()
+                .addLast(
+                        "rules",
+                        FlinkHepRuleSetProgramBuilder.<BatchOptimizeContext>newBuilder()
+                                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE())
+                                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                                .add(
+                                        RuleSets.ofList(
+                                                CoreRules.FILTER_PROJECT_TRANSPOSE,
+                                                PushPartitionIntoTableSourceScanRule.INSTANCE))
+                                .build());
 
-		// define ddl
-		String ddlTemp =
-			"CREATE TABLE MyTable (\n" +
-				"  id int,\n" +
-				"  name string,\n" +
-				"  part1 string,\n" +
-				"  part2 int)\n" +
-				"  partitioned by (part1, part2)\n" +
-				"  WITH (\n" +
-				" 'connector' = 'values',\n" +
-				" 'bounded' = 'true',\n" +
-				" 'partition-list' = '%s'" +
-				")";
+        // define ddl
+        String ddlTemp =
+                "CREATE TABLE MyTable (\n"
+                        + "  id int,\n"
+                        + "  name string,\n"
+                        + "  part1 string,\n"
+                        + "  part2 int)\n"
+                        + "  partitioned by (part1, part2)\n"
+                        + "  WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'partition-list' = '%s'"
+                        + ")";
 
-		String ddlTempWithVirtualColumn =
-			"CREATE TABLE VirtualTable (\n" +
-				"  id int,\n" +
-				"  name string,\n" +
-				"  part1 string,\n" +
-				"  part2 int,\n" +
-				"  virtualField AS part2 + 1)\n" +
-				"  partitioned by (part1, part2)\n" +
-				"  WITH (\n" +
-				" 'connector' = 'values',\n" +
-				" 'bounded' = 'true',\n" +
-				" 'partition-list' = '%s'" +
-				")";
+        String ddlTempWithVirtualColumn =
+                "CREATE TABLE VirtualTable (\n"
+                        + "  id int,\n"
+                        + "  name string,\n"
+                        + "  part1 string,\n"
+                        + "  part2 int,\n"
+                        + "  virtualField AS part2 + 1)\n"
+                        + "  partitioned by (part1, part2)\n"
+                        + "  WITH (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'bounded' = 'true',\n"
+                        + " 'partition-list' = '%s'"
+                        + ")";
 
-		if (sourceFetchPartitions()) {
-			String partitionString = "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1";
-			util().tableEnv().executeSql(String.format(ddlTemp, partitionString));
-			util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, partitionString));
-		} else {
-			TestValuesCatalog catalog =
-				new TestValuesCatalog("test_catalog", "test_database", useCatalogFilter());
-			util().tableEnv().registerCatalog("test_catalog", catalog);
-			util().tableEnv().useCatalog("test_catalog");
-			// register table without partitions
-			util().tableEnv().executeSql(String.format(ddlTemp, ""));
-			util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, ""));
-			ObjectPath mytablePath = ObjectPath.fromString("test_database.MyTable");
-			ObjectPath virtualTablePath = ObjectPath.fromString("test_database.VirtualTable");
-			// partition map
-			List<Map<String, String>> partitions = Arrays.asList(
-				new HashMap<String, String>(){{
-					put("part1", "A");
-					put("part2", "1");
-				}},
-				new HashMap<String, String>(){{
-					put("part1", "A");
-					put("part2", "2");
-				}},
-				new HashMap<String, String>(){{
-					put("part1", "B");
-					put("part2", "3");
-				}},
-				new HashMap<String, String>(){{
-					put("part1", "C");
-					put("part2", "1");
-				}}
-			);
-			for (Map<String, String> partition : partitions) {
-				CatalogPartitionSpec catalogPartitionSpec = new CatalogPartitionSpec(partition);
-				CatalogPartition catalogPartition = new CatalogPartitionImpl(new HashMap<>(), "");
-				catalog.createPartition(mytablePath, catalogPartitionSpec, catalogPartition, true);
-				catalog.createPartition(virtualTablePath, catalogPartitionSpec, catalogPartition, true);
-			}
-		}
-	}
+        if (sourceFetchPartitions()) {
+            String partitionString =
+                    "part1:A,part2:1;part1:A,part2:2;part1:B,part2:3;part1:C,part2:1";
+            util().tableEnv().executeSql(String.format(ddlTemp, partitionString));
+            util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, partitionString));
+        } else {
+            TestValuesCatalog catalog =
+                    new TestValuesCatalog("test_catalog", "test_database", useCatalogFilter());
+            util().tableEnv().registerCatalog("test_catalog", catalog);
+            util().tableEnv().useCatalog("test_catalog");
+            // register table without partitions
+            util().tableEnv().executeSql(String.format(ddlTemp, ""));
+            util().tableEnv().executeSql(String.format(ddlTempWithVirtualColumn, ""));
+            ObjectPath mytablePath = ObjectPath.fromString("test_database.MyTable");
+            ObjectPath virtualTablePath = ObjectPath.fromString("test_database.VirtualTable");
+            // partition map
+            List<Map<String, String>> partitions =
+                    Arrays.asList(
+                            new HashMap<String, String>() {
+                                {
+                                    put("part1", "A");
+                                    put("part2", "1");
+                                }
+                            },
+                            new HashMap<String, String>() {
+                                {
+                                    put("part1", "A");
+                                    put("part2", "2");
+                                }
+                            },
+                            new HashMap<String, String>() {
+                                {
+                                    put("part1", "B");
+                                    put("part2", "3");
+                                }
+                            },
+                            new HashMap<String, String>() {
+                                {
+                                    put("part1", "C");
+                                    put("part2", "1");
+                                }
+                            });
+            for (Map<String, String> partition : partitions) {
+                CatalogPartitionSpec catalogPartitionSpec = new CatalogPartitionSpec(partition);
+                CatalogPartition catalogPartition = new CatalogPartitionImpl(new HashMap<>(), "");
+                catalog.createPartition(mytablePath, catalogPartitionSpec, catalogPartition, true);
+                catalog.createPartition(
+                        virtualTablePath, catalogPartitionSpec, catalogPartition, true);
+            }
+        }
+    }
 
-	@Test
-	public void testUnconvertedExpression() {
-		String sql =
-			"select * from MyTable where trim(part1) = 'A' and part2 > 1";
-		util().verifyRelPlan(sql);
-	}
+    @Test
+    public void testUnconvertedExpression() {
+        String sql = "select * from MyTable where trim(part1) = 'A' and part2 > 1";
+        util().verifyRelPlan(sql);
+    }
 }

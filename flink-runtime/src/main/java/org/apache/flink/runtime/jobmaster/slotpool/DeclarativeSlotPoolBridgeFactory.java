@@ -24,25 +24,26 @@ import org.apache.flink.util.clock.Clock;
 
 import javax.annotation.Nonnull;
 
-/**
- * Factory for {@link DeclarativeSlotPoolBridge}.
- */
+/** Factory for {@link DeclarativeSlotPoolBridge}. */
 public class DeclarativeSlotPoolBridgeFactory extends AbstractSlotPoolFactory {
 
-	public DeclarativeSlotPoolBridgeFactory(@Nonnull Clock clock, @Nonnull Time rpcTimeout, @Nonnull Time slotIdleTimeout, @Nonnull Time batchSlotTimeout) {
-		super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
-	}
+    public DeclarativeSlotPoolBridgeFactory(
+            @Nonnull Clock clock,
+            @Nonnull Time rpcTimeout,
+            @Nonnull Time slotIdleTimeout,
+            @Nonnull Time batchSlotTimeout) {
+        super(clock, rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+    }
 
-	@Nonnull
-	@Override
-	public SlotPool createSlotPool(@Nonnull JobID jobId) {
-		return new DeclarativeSlotPoolBridge(
-			jobId,
-			new DefaultDeclarativeSlotPoolFactory(),
-			clock,
-			rpcTimeout,
-			slotIdleTimeout,
-			batchSlotTimeout
-		);
-	}
+    @Nonnull
+    @Override
+    public SlotPool createSlotPool(@Nonnull JobID jobId) {
+        return new DeclarativeSlotPoolBridge(
+                jobId,
+                new DefaultDeclarativeSlotPoolFactory(),
+                clock,
+                rpcTimeout,
+                slotIdleTimeout,
+                batchSlotTimeout);
+    }
 }

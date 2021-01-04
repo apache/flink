@@ -26,28 +26,25 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 /**
- * Provider of an {@link AsyncTableFunction} instance as a runtime implementation for {@link LookupTableSource}.
+ * Provider of an {@link AsyncTableFunction} instance as a runtime implementation for {@link
+ * LookupTableSource}.
  *
- * <p>The runtime will call the function with values describing the table's lookup keys (in the order
- * of declaration in {@link LookupTableSource.LookupContext#getKeys()}).
+ * <p>The runtime will call the function with values describing the table's lookup keys (in the
+ * order of declaration in {@link LookupTableSource.LookupContext#getKeys()}).
  *
- * <p>By default, input and output {@link DataType}s of the {@link AsyncTableFunction} are derived similar
- * to other {@link UserDefinedFunction}s. However, for convenience, in a {@link LookupTableSource} the
- * output type can simply be a {@link Row} or {@link RowData} in which case the input and output types
- * are derived from the table's schema with default conversion.
+ * <p>By default, input and output {@link DataType}s of the {@link AsyncTableFunction} are derived
+ * similar to other {@link UserDefinedFunction}s. However, for convenience, in a {@link
+ * LookupTableSource} the output type can simply be a {@link Row} or {@link RowData} in which case
+ * the input and output types are derived from the table's schema with default conversion.
  */
 @PublicEvolving
 public interface AsyncTableFunctionProvider<T> extends LookupTableSource.LookupRuntimeProvider {
 
-	/**
-	 * Helper method for creating a static provider.
-	 */
-	static <T> AsyncTableFunctionProvider<T> of(AsyncTableFunction<T> asyncTableFunction) {
-		return () -> asyncTableFunction;
-	}
+    /** Helper method for creating a static provider. */
+    static <T> AsyncTableFunctionProvider<T> of(AsyncTableFunction<T> asyncTableFunction) {
+        return () -> asyncTableFunction;
+    }
 
-	/**
-	 * Creates a {@link AsyncTableFunction} instance.
-	 */
-	AsyncTableFunction<T> createAsyncTableFunction();
+    /** Creates a {@link AsyncTableFunction} instance. */
+    AsyncTableFunction<T> createAsyncTableFunction();
 }

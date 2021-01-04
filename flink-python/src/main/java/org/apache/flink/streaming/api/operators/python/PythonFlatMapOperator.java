@@ -29,38 +29,39 @@ import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
  * The {@link PythonFlatMapOperator} is responsible for executing Python functions that gets one
  * input and produces zero/one or more outputs.
  *
- * @param <IN>  The type of the input elements
+ * @param <IN> The type of the input elements
  * @param <OUT> The type of the output elements
  */
 @Internal
-public class PythonFlatMapOperator<IN, OUT> extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
-	private static final long serialVersionUID = 1L;
+public class PythonFlatMapOperator<IN, OUT>
+        extends OneInputPythonFunctionOperator<IN, OUT, IN, OUT> {
+    private static final long serialVersionUID = 1L;
 
-	private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
+    private static final String FLAT_MAP_CODER_URN = "flink:coder:flat_map:v1";
 
-	public PythonFlatMapOperator(
-		Configuration config,
-		TypeInformation<IN> inputTypeInfo,
-		TypeInformation<OUT> outputTypeInfo,
-		DataStreamPythonFunctionInfo pythonFunctionInfo) {
-		super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
-	}
+    public PythonFlatMapOperator(
+            Configuration config,
+            TypeInformation<IN> inputTypeInfo,
+            TypeInformation<OUT> outputTypeInfo,
+            DataStreamPythonFunctionInfo pythonFunctionInfo) {
+        super(config, inputTypeInfo, outputTypeInfo, pythonFunctionInfo);
+    }
 
-	@Override
-	public String getCoderUrn() {
-		return FLAT_MAP_CODER_URN;
-	}
+    @Override
+    public String getCoderUrn() {
+        return FLAT_MAP_CODER_URN;
+    }
 
-	@Override
-	public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
-		if (PythonOperatorUtils.endOfLastFlatMap(resultTuple.f1, resultTuple.f0)) {
-			bufferedTimestamp.poll();
-		} else {
-			byte[] rawResult = resultTuple.f0;
-			int length = resultTuple.f1;
-			bais.setBuffer(rawResult, 0, length);
-			collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
-			collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
-		}
-	}
+    @Override
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        if (PythonOperatorUtils.endOfLastFlatMap(resultTuple.f1, resultTuple.f0)) {
+            bufferedTimestamp.poll();
+        } else {
+            byte[] rawResult = resultTuple.f0;
+            int length = resultTuple.f1;
+            bais.setBuffer(rawResult, 0, length);
+            collector.setAbsoluteTimestamp(bufferedTimestamp.peek());
+            collector.collect(runnerOutputTypeSerializer.deserialize(baisWrapper));
+        }
+    }
 }

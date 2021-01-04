@@ -32,53 +32,54 @@ import java.util.Random;
 /**
  * An {@link Output} that can be used to emit elements and other messages to multiple outputs.
  *
- * <p>The functionality of this class is similar to {@link OperatorChain#BroadcastingOutputCollector}.
+ * <p>The functionality of this class is similar to {@link
+ * OperatorChain#BroadcastingOutputCollector}.
  */
 public class BroadcastingOutput implements Output<StreamRecord<RowData>> {
-	protected final Output<StreamRecord<RowData>>[] outputs;
-	private final Random random = new XORShiftRandom();
+    protected final Output<StreamRecord<RowData>>[] outputs;
+    private final Random random = new XORShiftRandom();
 
-	public BroadcastingOutput(Output<StreamRecord<RowData>>[] outputs) {
-		this.outputs = outputs;
-	}
+    public BroadcastingOutput(Output<StreamRecord<RowData>>[] outputs) {
+        this.outputs = outputs;
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		for (Output<StreamRecord<RowData>> output : outputs) {
-			output.emitWatermark(mark);
-		}
-	}
+    @Override
+    public void emitWatermark(Watermark mark) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.emitWatermark(mark);
+        }
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		for (Output<StreamRecord<RowData>> output : outputs) {
-			output.collect(outputTag, record);
-		}
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.collect(outputTag, record);
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		if (outputs.length <= 0) {
-			// ignore
-		} else if (outputs.length == 1) {
-			outputs[0].emitLatencyMarker(latencyMarker);
-		} else {
-			// randomly select an output (see OperatorChain#BroadcastingOutputCollector)
-			outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
-		}
-	}
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        if (outputs.length <= 0) {
+            // ignore
+        } else if (outputs.length == 1) {
+            outputs[0].emitLatencyMarker(latencyMarker);
+        } else {
+            // randomly select an output (see OperatorChain#BroadcastingOutputCollector)
+            outputs[random.nextInt(outputs.length)].emitLatencyMarker(latencyMarker);
+        }
+    }
 
-	@Override
-	public void collect(StreamRecord<RowData> record) {
-		for (Output<StreamRecord<RowData>> output : outputs) {
-			output.collect(record);
-		}
-	}
+    @Override
+    public void collect(StreamRecord<RowData> record) {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.collect(record);
+        }
+    }
 
-	@Override
-	public void close() {
-		for (Output<StreamRecord<RowData>> output : outputs) {
-			output.close();
-		}
-	}
+    @Override
+    public void close() {
+        for (Output<StreamRecord<RowData>> output : outputs) {
+            output.close();
+        }
+    }
 }

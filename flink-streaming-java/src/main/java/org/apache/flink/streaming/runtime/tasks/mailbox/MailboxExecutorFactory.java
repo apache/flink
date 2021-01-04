@@ -21,18 +21,19 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 
 /**
- * A factory for creating mailbox executors with a given priority. The factory is usually bound to a specific task.
+ * A factory for creating mailbox executors with a given priority. The factory is usually bound to a
+ * specific task.
  */
 @FunctionalInterface
 @Internal
 public interface MailboxExecutorFactory {
 
-	/**
-	 * Creates a new executor for the given priority. The priority is used when enqueuing new mails as well as
-	 * yielding.
-	 *
-	 * @param priority the priority of the mailbox executor.
-	 * @return a mailbox executor with the bound priority.
-	 */
-	MailboxExecutor createExecutor(int priority);
+    /**
+     * Creates a new executor for the given priority. The priority is used when enqueuing new mails
+     * as well as yielding.
+     *
+     * @param priority the priority of the mailbox executor.
+     * @return a mailbox executor with the bound priority.
+     */
+    MailboxExecutor createExecutor(int priority);
 }

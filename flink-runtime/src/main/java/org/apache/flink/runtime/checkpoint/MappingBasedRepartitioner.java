@@ -31,7 +31,8 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A repartitioner that assigns the same channel state to multiple subtasks according to some mapping.
+ * A repartitioner that assigns the same channel state to multiple subtasks according to some
+ * mapping.
  *
  * <p>The replicated data will then be filtered before processing the record.
  *
@@ -39,36 +40,37 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 @NotThreadSafe
 public class MappingBasedRepartitioner<T> implements OperatorStateRepartitioner<T> {
-	private final Map<Integer, Set<Integer>> newToOldSubtasksMapping;
+    private final Map<Integer, Set<Integer>> newToOldSubtasksMapping;
 
-	public MappingBasedRepartitioner(Map<Integer, Set<Integer>> newToOldSubtasksMapping) {
-		this.newToOldSubtasksMapping = newToOldSubtasksMapping;
-	}
+    public MappingBasedRepartitioner(Map<Integer, Set<Integer>> newToOldSubtasksMapping) {
+        this.newToOldSubtasksMapping = newToOldSubtasksMapping;
+    }
 
-	private static <T> List<T> extractOldState(List<List<T>> previousParallelSubtaskStates, Set<Integer> oldIndexes) {
-		switch (oldIndexes.size()) {
-			case 0:
-				return Collections.emptyList();
-			case 1:
-				return previousParallelSubtaskStates.get(Iterables.getOnlyElement(oldIndexes));
-			default:
-				return oldIndexes.stream()
-					.flatMap(oldIndex -> previousParallelSubtaskStates.get(oldIndex).stream())
-					.collect(Collectors.toList());
-		}
-	}
+    private static <T> List<T> extractOldState(
+            List<List<T>> previousParallelSubtaskStates, Set<Integer> oldIndexes) {
+        switch (oldIndexes.size()) {
+            case 0:
+                return Collections.emptyList();
+            case 1:
+                return previousParallelSubtaskStates.get(Iterables.getOnlyElement(oldIndexes));
+            default:
+                return oldIndexes.stream()
+                        .flatMap(oldIndex -> previousParallelSubtaskStates.get(oldIndex).stream())
+                        .collect(Collectors.toList());
+        }
+    }
 
-	@Override
-	public List<List<T>> repartitionState(
-			List<List<T>> previousParallelSubtaskStates,
-			int oldParallelism,
-			int newParallelism) {
-		checkState(newParallelism == newToOldSubtasksMapping.size());
+    @Override
+    public List<List<T>> repartitionState(
+            List<List<T>> previousParallelSubtaskStates, int oldParallelism, int newParallelism) {
+        checkState(newParallelism == newToOldSubtasksMapping.size());
 
-		List<List<T>> repartitioned = new ArrayList<>();
-		for (int newIndex = 0; newIndex < newParallelism; newIndex++) {
-			repartitioned.add(extractOldState(previousParallelSubtaskStates, newToOldSubtasksMapping.get(newIndex)));
-		}
-		return repartitioned;
-	}
+        List<List<T>> repartitioned = new ArrayList<>();
+        for (int newIndex = 0; newIndex < newParallelism; newIndex++) {
+            repartitioned.add(
+                    extractOldState(
+                            previousParallelSubtaskStates, newToOldSubtasksMapping.get(newIndex)));
+        }
+        return repartitioned;
+    }
 }

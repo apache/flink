@@ -23,22 +23,24 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import java.util.function.BiConsumer;
 
 class TestingHeartbeatTarget<T> implements HeartbeatTarget<T> {
-	private final BiConsumer<ResourceID, T> receiveHeartbeatConsumer;
+    private final BiConsumer<ResourceID, T> receiveHeartbeatConsumer;
 
-	private final BiConsumer<ResourceID, T> requestHeartbeatConsumer;
+    private final BiConsumer<ResourceID, T> requestHeartbeatConsumer;
 
-	TestingHeartbeatTarget(BiConsumer<ResourceID, T> receiveHeartbeatConsumer, BiConsumer<ResourceID, T> requestHeartbeatConsumer) {
-		this.receiveHeartbeatConsumer = receiveHeartbeatConsumer;
-		this.requestHeartbeatConsumer = requestHeartbeatConsumer;
-	}
+    TestingHeartbeatTarget(
+            BiConsumer<ResourceID, T> receiveHeartbeatConsumer,
+            BiConsumer<ResourceID, T> requestHeartbeatConsumer) {
+        this.receiveHeartbeatConsumer = receiveHeartbeatConsumer;
+        this.requestHeartbeatConsumer = requestHeartbeatConsumer;
+    }
 
-	@Override
-	public void receiveHeartbeat(ResourceID heartbeatOrigin, T heartbeatPayload) {
-		receiveHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
-	}
+    @Override
+    public void receiveHeartbeat(ResourceID heartbeatOrigin, T heartbeatPayload) {
+        receiveHeartbeatConsumer.accept(heartbeatOrigin, heartbeatPayload);
+    }
 
-	@Override
-	public void requestHeartbeat(ResourceID requestOrigin, T heartbeatPayload) {
-		requestHeartbeatConsumer.accept(requestOrigin, heartbeatPayload);
-	}
+    @Override
+    public void requestHeartbeat(ResourceID requestOrigin, T heartbeatPayload) {
+        requestHeartbeatConsumer.accept(requestOrigin, heartbeatPayload);
+    }
 }

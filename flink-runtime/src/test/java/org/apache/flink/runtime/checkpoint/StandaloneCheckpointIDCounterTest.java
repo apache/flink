@@ -19,13 +19,13 @@
 package org.apache.flink.runtime.checkpoint;
 
 /**
- * Unit tests for the {@link StandaloneCheckpointIDCounter}.
- * The tests are inherited from the test base class {@link CheckpointIDCounterTestBase}.
+ * Unit tests for the {@link StandaloneCheckpointIDCounter}. The tests are inherited from the test
+ * base class {@link CheckpointIDCounterTestBase}.
  */
 public class StandaloneCheckpointIDCounterTest extends CheckpointIDCounterTestBase {
 
-	@Override
-	protected CheckpointIDCounter createCheckpointIdCounter() throws Exception {
-		return new StandaloneCheckpointIDCounter();
-	}
+    @Override
+    protected CheckpointIDCounter createCheckpointIdCounter() throws Exception {
+        return new StandaloneCheckpointIDCounter();
+    }
 }

@@ -44,220 +44,206 @@ import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
 /**
  * Test implementations for {@link DynamicTableSourceFactory} and {@link DynamicTableSinkFactory}.
  */
-public final class TestDynamicTableFactory implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public final class TestDynamicTableFactory
+        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
-	public static final String IDENTIFIER = "test-connector";
+    public static final String IDENTIFIER = "test-connector";
 
-	public static final ConfigOption<String> TARGET = ConfigOptions
-		.key("target")
-		.stringType()
-		.noDefaultValue();
+    public static final ConfigOption<String> TARGET =
+            ConfigOptions.key("target").stringType().noDefaultValue();
 
-	public static final ConfigOption<Long> BUFFER_SIZE = ConfigOptions
-		.key("buffer-size")
-		.longType()
-		.defaultValue(100L);
+    public static final ConfigOption<Long> BUFFER_SIZE =
+            ConfigOptions.key("buffer-size").longType().defaultValue(100L);
 
-	public static final ConfigOption<String> KEY_FORMAT = ConfigOptions
-		.key("key" + FORMAT_SUFFIX)
-		.stringType()
-		.noDefaultValue();
+    public static final ConfigOption<String> KEY_FORMAT =
+            ConfigOptions.key("key" + FORMAT_SUFFIX).stringType().noDefaultValue();
 
-	public static final ConfigOption<String> VALUE_FORMAT = ConfigOptions
-		.key("value" + FORMAT_SUFFIX)
-		.stringType()
-		.noDefaultValue();
+    public static final ConfigOption<String> VALUE_FORMAT =
+            ConfigOptions.key("value" + FORMAT_SUFFIX).stringType().noDefaultValue();
 
-	@Override
-	public DynamicTableSource createDynamicTableSource(Context context) {
-		final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSource createDynamicTableSource(Context context) {
+        final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyFormat = helper.discoverOptionalDecodingFormat(
-			DeserializationFormatFactory.class,
-			KEY_FORMAT);
-		final DecodingFormat<DeserializationSchema<RowData>> valueFormat = helper.discoverOptionalDecodingFormat(
-			DeserializationFormatFactory.class,
-			FORMAT).orElseGet(
-				() -> helper.discoverDecodingFormat(
-					DeserializationFormatFactory.class,
-					VALUE_FORMAT));
-		helper.validate();
+        final Optional<DecodingFormat<DeserializationSchema<RowData>>> keyFormat =
+                helper.discoverOptionalDecodingFormat(
+                        DeserializationFormatFactory.class, KEY_FORMAT);
+        final DecodingFormat<DeserializationSchema<RowData>> valueFormat =
+                helper.discoverOptionalDecodingFormat(DeserializationFormatFactory.class, FORMAT)
+                        .orElseGet(
+                                () ->
+                                        helper.discoverDecodingFormat(
+                                                DeserializationFormatFactory.class, VALUE_FORMAT));
+        helper.validate();
 
-		return new DynamicTableSourceMock(
-			helper.getOptions().get(TARGET),
-			keyFormat.orElse(null),
-			valueFormat);
-	}
+        return new DynamicTableSourceMock(
+                helper.getOptions().get(TARGET), keyFormat.orElse(null), valueFormat);
+    }
 
-	@Override
-	public DynamicTableSink createDynamicTableSink(Context context) {
-		final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+    @Override
+    public DynamicTableSink createDynamicTableSink(Context context) {
+        final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
 
-		final Optional<EncodingFormat<SerializationSchema<RowData>>> keyFormat = helper.discoverOptionalEncodingFormat(
-			SerializationFormatFactory.class,
-			KEY_FORMAT);
-		final EncodingFormat<SerializationSchema<RowData>> valueFormat = helper.discoverOptionalEncodingFormat(
-			SerializationFormatFactory.class,
-			FORMAT).orElseGet(
-				() -> helper.discoverEncodingFormat(
-					SerializationFormatFactory.class,
-					VALUE_FORMAT));
-		helper.validate();
+        final Optional<EncodingFormat<SerializationSchema<RowData>>> keyFormat =
+                helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT);
+        final EncodingFormat<SerializationSchema<RowData>> valueFormat =
+                helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, FORMAT)
+                        .orElseGet(
+                                () ->
+                                        helper.discoverEncodingFormat(
+                                                SerializationFormatFactory.class, VALUE_FORMAT));
+        helper.validate();
 
-		return new DynamicTableSinkMock(
-			helper.getOptions().get(TARGET),
-			helper.getOptions().get(BUFFER_SIZE),
-			keyFormat.orElse(null),
-			valueFormat);
-	}
+        return new DynamicTableSinkMock(
+                helper.getOptions().get(TARGET),
+                helper.getOptions().get(BUFFER_SIZE),
+                keyFormat.orElse(null),
+                valueFormat);
+    }
 
-	@Override
-	public String factoryIdentifier() {
-		return IDENTIFIER;
-	}
+    @Override
+    public String factoryIdentifier() {
+        return IDENTIFIER;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> requiredOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(TARGET);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(TARGET);
+        return options;
+    }
 
-	@Override
-	public Set<ConfigOption<?>> optionalOptions() {
-		final Set<ConfigOption<?>> options = new HashSet<>();
-		options.add(BUFFER_SIZE);
-		options.add(KEY_FORMAT);
-		options.add(FORMAT);
-		options.add(VALUE_FORMAT);
-		return options;
-	}
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        final Set<ConfigOption<?>> options = new HashSet<>();
+        options.add(BUFFER_SIZE);
+        options.add(KEY_FORMAT);
+        options.add(FORMAT);
+        options.add(VALUE_FORMAT);
+        return options;
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Table source
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Table source
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link DynamicTableSource} for testing.
-	 */
-	public static class DynamicTableSourceMock implements ScanTableSource {
+    /** {@link DynamicTableSource} for testing. */
+    public static class DynamicTableSourceMock implements ScanTableSource {
 
-		public final String target;
-		public final @Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat;
-		public final DecodingFormat<DeserializationSchema<RowData>> valueFormat;
+        public final String target;
+        public final @Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat;
+        public final DecodingFormat<DeserializationSchema<RowData>> valueFormat;
 
-		DynamicTableSourceMock(
-				String target,
-				@Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat,
-				DecodingFormat<DeserializationSchema<RowData>> valueFormat) {
-			this.target = target;
-			this.keyFormat = keyFormat;
-			this.valueFormat = valueFormat;
-		}
+        DynamicTableSourceMock(
+                String target,
+                @Nullable DecodingFormat<DeserializationSchema<RowData>> keyFormat,
+                DecodingFormat<DeserializationSchema<RowData>> valueFormat) {
+            this.target = target;
+            this.keyFormat = keyFormat;
+            this.valueFormat = valueFormat;
+        }
 
-		@Override
-		public ChangelogMode getChangelogMode() {
-			return null;
-		}
+        @Override
+        public ChangelogMode getChangelogMode() {
+            return null;
+        }
 
-		@Override
-		public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
-			return null;
-		}
+        @Override
+        public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
+            return null;
+        }
 
-		@Override
-		public DynamicTableSource copy() {
-			return null;
-		}
+        @Override
+        public DynamicTableSource copy() {
+            return null;
+        }
 
-		@Override
-		public String asSummaryString() {
-			return null;
-		}
+        @Override
+        public String asSummaryString() {
+            return null;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			DynamicTableSourceMock that = (DynamicTableSourceMock) o;
-			return target.equals(that.target) &&
-				Objects.equals(keyFormat, that.keyFormat) &&
-				valueFormat.equals(that.valueFormat);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            DynamicTableSourceMock that = (DynamicTableSourceMock) o;
+            return target.equals(that.target)
+                    && Objects.equals(keyFormat, that.keyFormat)
+                    && valueFormat.equals(that.valueFormat);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(target, keyFormat, valueFormat);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(target, keyFormat, valueFormat);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Table sink
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Table sink
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link DynamicTableSink} for testing.
-	 */
-	public static class DynamicTableSinkMock implements DynamicTableSink {
+    /** {@link DynamicTableSink} for testing. */
+    public static class DynamicTableSinkMock implements DynamicTableSink {
 
-		public final String target;
-		public final Long bufferSize;
-		public final @Nullable EncodingFormat<SerializationSchema<RowData>> keyFormat;
-		public final EncodingFormat<SerializationSchema<RowData>> valueFormat;
+        public final String target;
+        public final Long bufferSize;
+        public final @Nullable EncodingFormat<SerializationSchema<RowData>> keyFormat;
+        public final EncodingFormat<SerializationSchema<RowData>> valueFormat;
 
-		DynamicTableSinkMock(
-				String target,
-				Long bufferSize,
-				@Nullable EncodingFormat<SerializationSchema<RowData>> keyFormat,
-				EncodingFormat<SerializationSchema<RowData>> valueFormat) {
-			this.target = target;
-			this.bufferSize = bufferSize;
-			this.keyFormat = keyFormat;
-			this.valueFormat = valueFormat;
-		}
+        DynamicTableSinkMock(
+                String target,
+                Long bufferSize,
+                @Nullable EncodingFormat<SerializationSchema<RowData>> keyFormat,
+                EncodingFormat<SerializationSchema<RowData>> valueFormat) {
+            this.target = target;
+            this.bufferSize = bufferSize;
+            this.keyFormat = keyFormat;
+            this.valueFormat = valueFormat;
+        }
 
-		@Override
-		public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-			return null;
-		}
+        @Override
+        public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+            return null;
+        }
 
-		@Override
-		public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-			return null;
-		}
+        @Override
+        public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+            return null;
+        }
 
-		@Override
-		public DynamicTableSink copy() {
-			return null;
-		}
+        @Override
+        public DynamicTableSink copy() {
+            return null;
+        }
 
-		@Override
-		public String asSummaryString() {
-			return null;
-		}
+        @Override
+        public String asSummaryString() {
+            return null;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			DynamicTableSinkMock that = (DynamicTableSinkMock) o;
-			return target.equals(that.target) &&
-				bufferSize.equals(that.bufferSize) &&
-				Objects.equals(keyFormat, that.keyFormat) &&
-				valueFormat.equals(that.valueFormat);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            DynamicTableSinkMock that = (DynamicTableSinkMock) o;
+            return target.equals(that.target)
+                    && bufferSize.equals(that.bufferSize)
+                    && Objects.equals(keyFormat, that.keyFormat)
+                    && valueFormat.equals(that.valueFormat);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(target, bufferSize, keyFormat, valueFormat);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(target, bufferSize, keyFormat, valueFormat);
+        }
+    }
 }

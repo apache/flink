@@ -39,125 +39,129 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * Tests for {@link StreamGroupedReduceOperator}. These test that:
  *
  * <ul>
- *     <li>RichFunction methods are called correctly</li>
- *     <li>Timestamps of processed elements match the input timestamp</li>
- *     <li>Watermarks are correctly forwarded</li>
+ *   <li>RichFunction methods are called correctly
+ *   <li>Timestamps of processed elements match the input timestamp
+ *   <li>Watermarks are correctly forwarded
  * </ul>
  */
-
 public class StreamGroupedReduceOperatorTest {
 
-	@Test
-	public void testGroupedReduce() throws Exception {
+    @Test
+    public void testGroupedReduce() throws Exception {
 
-		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
+        KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
-		StreamGroupedReduceOperator<Integer> operator = new StreamGroupedReduceOperator<>(new MyReducer(), IntSerializer.INSTANCE);
+        StreamGroupedReduceOperator<Integer> operator =
+                new StreamGroupedReduceOperator<>(new MyReducer(), IntSerializer.INSTANCE);
 
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
-		testHarness.processWatermark(new Watermark(initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(2, initialTime + 3));
-		testHarness.processElement(new StreamRecord<>(2, initialTime + 4));
-		testHarness.processElement(new StreamRecord<>(3, initialTime + 5));
+        testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+        testHarness.processElement(new StreamRecord<>(1, initialTime + 2));
+        testHarness.processWatermark(new Watermark(initialTime + 2));
+        testHarness.processElement(new StreamRecord<>(2, initialTime + 3));
+        testHarness.processElement(new StreamRecord<>(2, initialTime + 4));
+        testHarness.processElement(new StreamRecord<>(3, initialTime + 5));
 
-		expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
-		expectedOutput.add(new Watermark(initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
-		expectedOutput.add(new StreamRecord<>(4, initialTime + 4));
-		expectedOutput.add(new StreamRecord<>(3, initialTime + 5));
+        expectedOutput.add(new StreamRecord<>(1, initialTime + 1));
+        expectedOutput.add(new StreamRecord<>(2, initialTime + 2));
+        expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(2, initialTime + 3));
+        expectedOutput.add(new StreamRecord<>(4, initialTime + 4));
+        expectedOutput.add(new StreamRecord<>(3, initialTime + 5));
 
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        TestHarnessUtil.assertOutputEquals(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testOpenClose() throws Exception {
+    @Test
+    public void testOpenClose() throws Exception {
 
-		KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
+        KeySelector<Integer, Integer> keySelector = new IntegerKeySelector();
 
-		StreamGroupedReduceOperator<Integer> operator =
-				new StreamGroupedReduceOperator<>(new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
-		OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new KeyedOneInputStreamOperatorTestHarness<>(operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
+        StreamGroupedReduceOperator<Integer> operator =
+                new StreamGroupedReduceOperator<>(
+                        new TestOpenCloseReduceFunction(), IntSerializer.INSTANCE);
+        OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        operator, keySelector, BasicTypeInfo.INT_TYPE_INFO);
 
-		long initialTime = 0L;
+        long initialTime = 0L;
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(1, initialTime));
-		testHarness.processElement(new StreamRecord<>(2, initialTime));
+        testHarness.processElement(new StreamRecord<>(1, initialTime));
+        testHarness.processElement(new StreamRecord<>(2, initialTime));
 
-		testHarness.close();
+        testHarness.close();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseReduceFunction.closeCalled);
-		Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
-	}
+        Assert.assertTrue(
+                "RichFunction methods where not called.", TestOpenCloseReduceFunction.closeCalled);
+        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+    }
 
-	// This must only be used in one test, otherwise the static fields will be changed
-	// by several tests concurrently
-	private static class TestOpenCloseReduceFunction extends RichReduceFunction<Integer> {
-		private static final long serialVersionUID = 1L;
+    // This must only be used in one test, otherwise the static fields will be changed
+    // by several tests concurrently
+    private static class TestOpenCloseReduceFunction extends RichReduceFunction<Integer> {
+        private static final long serialVersionUID = 1L;
 
-		public static boolean openCalled = false;
-		public static boolean closeCalled = false;
+        public static boolean openCalled = false;
+        public static boolean closeCalled = false;
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			super.open(parameters);
-			if (closeCalled) {
-				Assert.fail("Close called before open.");
-			}
-			openCalled = true;
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            super.open(parameters);
+            if (closeCalled) {
+                Assert.fail("Close called before open.");
+            }
+            openCalled = true;
+        }
 
-		@Override
-		public void close() throws Exception {
-			super.close();
-			if (!openCalled) {
-				Assert.fail("Open was not called before close.");
-			}
-			closeCalled = true;
-		}
+        @Override
+        public void close() throws Exception {
+            super.close();
+            if (!openCalled) {
+                Assert.fail("Open was not called before close.");
+            }
+            closeCalled = true;
+        }
 
-		@Override
-		public Integer reduce(Integer in1, Integer in2) throws Exception {
-			if (!openCalled) {
-				Assert.fail("Open was not called before run.");
-			}
-			return in1 + in2;
-		}
-	}
+        @Override
+        public Integer reduce(Integer in1, Integer in2) throws Exception {
+            if (!openCalled) {
+                Assert.fail("Open was not called before run.");
+            }
+            return in1 + in2;
+        }
+    }
 
-	// Utilities
+    // Utilities
 
-	private static class MyReducer implements ReduceFunction<Integer> {
+    private static class MyReducer implements ReduceFunction<Integer> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Integer reduce(Integer value1, Integer value2) throws Exception {
-			return value1 + value2;
-		}
+        @Override
+        public Integer reduce(Integer value1, Integer value2) throws Exception {
+            return value1 + value2;
+        }
+    }
 
-	}
+    private static class IntegerKeySelector implements KeySelector<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
 
-	private static class IntegerKeySelector implements KeySelector<Integer, Integer> {
-		private static final long serialVersionUID = 1L;
+        @Override
+        public Integer getKey(Integer value) throws Exception {
+            return value;
+        }
+    }
 
-		@Override
-		public Integer getKey(Integer value) throws Exception {
-			return value;
-		}
-	}
-
-	private static TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
+    private static TypeInformation<Integer> typeInfo = BasicTypeInfo.INT_TYPE_INFO;
 }

@@ -19,28 +19,30 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Query parameter for job's accumulator handler {@link org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
+ * Query parameter for job's accumulator handler {@link
+ * org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler}.
  */
-public class AccumulatorsIncludeSerializedValueQueryParameter extends MessageQueryParameter<Boolean> {
+public class AccumulatorsIncludeSerializedValueQueryParameter
+        extends MessageQueryParameter<Boolean> {
 
-	private static final String key = "includeSerializedValue";
+    private static final String key = "includeSerializedValue";
 
-	public AccumulatorsIncludeSerializedValueQueryParameter() {
-		super(key, MessageParameterRequisiteness.OPTIONAL);
-	}
+    public AccumulatorsIncludeSerializedValueQueryParameter() {
+        super(key, MessageParameterRequisiteness.OPTIONAL);
+    }
 
-	@Override
-	public String convertValueToString(Boolean value) {
-		return String.valueOf(value);
-	}
+    @Override
+    public String convertValueToString(Boolean value) {
+        return String.valueOf(value);
+    }
 
-	@Override
-	public Boolean convertStringToValue(String value) {
-		return Boolean.valueOf(value);
-	}
+    @Override
+    public Boolean convertStringToValue(String value) {
+        return Boolean.valueOf(value);
+    }
 
-	@Override
-	public String getDescription() {
-		return "Boolean value that specifies whether serialized user task accumulators should be included in the response.";
-	}
+    @Override
+    public String getDescription() {
+        return "Boolean value that specifies whether serialized user task accumulators should be included in the response.";
+    }
 }

@@ -35,7 +35,7 @@ under the License.
 ------------
 
 {% assign connector = site.data.sql-connectors['parquet'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 

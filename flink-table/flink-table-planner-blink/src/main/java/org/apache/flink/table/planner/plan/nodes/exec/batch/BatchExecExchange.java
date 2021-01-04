@@ -33,7 +33,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.HashCodeGenerator;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -44,7 +44,6 @@ import org.apache.flink.table.types.logical.RowType;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Optional;
 
 /**
@@ -52,108 +51,113 @@ import java.util.Optional;
  *
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
-public class BatchExecExchange extends BatchExecNode<RowData> implements CommonExecExchange {
-	// the required shuffle mode for reusable BatchExecExchange
-	// if it's None, use value from configuration
-	@Nullable
-	private ShuffleMode requiredShuffleMode;
+public class BatchExecExchange extends CommonExecExchange implements BatchExecNode<RowData> {
+    // the required shuffle mode for reusable BatchExecExchange
+    // if it's None, use value from configuration
+    @Nullable private ShuffleMode requiredShuffleMode;
 
-	public BatchExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-	}
+    public BatchExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
+        super(inputEdge, outputType, description);
+    }
 
-	public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
-		this.requiredShuffleMode = requiredShuffleMode;
-	}
+    public void setRequiredShuffleMode(@Nullable ShuffleMode requiredShuffleMode) {
+        this.requiredShuffleMode = requiredShuffleMode;
+    }
 
-	@Override
-	public String getDesc() {
-		// make sure the description be consistent with before, update this once plan is stable
-		ExecEdge.RequiredShuffle requiredShuffle = getInputEdges().get(0).getRequiredShuffle();
-		StringBuilder sb = new StringBuilder();
-		String type = requiredShuffle.getType().name().toLowerCase();
-		if (type.equals("singleton")) {
-			type = "single";
-		}
-		sb.append("distribution=[").append(type);
-		if (requiredShuffle.getType() == ExecEdge.ShuffleType.HASH) {
-			RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
-			String[] fieldNames = Arrays.stream(requiredShuffle.getKeys())
-					.mapToObj(i -> inputRowType.getFieldNames().get(i))
-					.toArray(String[]::new);
-			sb.append("[").append(String.join(", ", fieldNames)).append("]");
-		}
-		sb.append("]");
-		if (requiredShuffleMode == ShuffleMode.BATCH) {
-			sb.append(", shuffle_mode=[BATCH]");
-		}
-		return String.format("Exchange(%s)", sb.toString());
-	}
+    @Override
+    public String getDesc() {
+        // make sure the description be consistent with before, update this once plan is stable
+        ExecEdge.RequiredShuffle requiredShuffle = getInputEdges().get(0).getRequiredShuffle();
+        StringBuilder sb = new StringBuilder();
+        String type = requiredShuffle.getType().name().toLowerCase();
+        if (type.equals("singleton")) {
+            type = "single";
+        }
+        sb.append("distribution=[").append(type);
+        if (requiredShuffle.getType() == ExecEdge.ShuffleType.HASH) {
+            RowType inputRowType = (RowType) getInputNodes().get(0).getOutputType();
+            String[] fieldNames =
+                    Arrays.stream(requiredShuffle.getKeys())
+                            .mapToObj(i -> inputRowType.getFieldNames().get(i))
+                            .toArray(String[]::new);
+            sb.append("[").append(String.join(", ", fieldNames)).append("]");
+        }
+        sb.append("]");
+        if (requiredShuffleMode == ShuffleMode.BATCH) {
+            sb.append(", shuffle_mode=[BATCH]");
+        }
+        return String.format("Exchange(%s)", sb.toString());
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
-		final ExecNode<?> inputNode = getInputNodes().get(0);
-		final Transformation<RowData> inputTransform = (Transformation<RowData>) inputNode.translateToPlan(planner);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final ExecNode<?> inputNode = getInputNodes().get(0);
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) inputNode.translateToPlan(planner);
 
-		final StreamPartitioner<RowData> partitioner;
-		final int parallelism;
-		final ExecEdge inputEdge = getInputEdges().get(0);
-		final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
-		switch (shuffleType) {
-			case ANY:
-				partitioner = null;
-				parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-				break;
-			case BROADCAST:
-				partitioner = new BroadcastPartitioner<>();
-				parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-				break;
-			case SINGLETON:
-				partitioner = new GlobalPartitioner<>();
-				parallelism = 1;
-				break;
-			case HASH:
-				int[] keys = inputEdge.getRequiredShuffle().getKeys();
-				RowType inputType = (RowType) inputNode.getOutputType();
-				String[] fieldNames = Arrays.stream(keys)
-						.mapToObj(i -> inputType.getFieldNames().get(i))
-						.toArray(String[]::new);
-				partitioner = new BinaryHashPartitioner(
-						HashCodeGenerator.generateRowHash(
-								new CodeGeneratorContext(planner.getTableConfig()),
-								inputNode.getOutputType(),
-								"HashPartitioner",
-								keys),
-						fieldNames);
-				parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-				break;
-			default:
-				throw new TableException(shuffleType + "is not supported now!");
-		}
+        final StreamPartitioner<RowData> partitioner;
+        final int parallelism;
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
+        switch (shuffleType) {
+            case ANY:
+                partitioner = null;
+                parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            case BROADCAST:
+                partitioner = new BroadcastPartitioner<>();
+                parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            case SINGLETON:
+                partitioner = new GlobalPartitioner<>();
+                parallelism = 1;
+                break;
+            case HASH:
+                int[] keys = inputEdge.getRequiredShuffle().getKeys();
+                RowType inputType = (RowType) inputNode.getOutputType();
+                String[] fieldNames =
+                        Arrays.stream(keys)
+                                .mapToObj(i -> inputType.getFieldNames().get(i))
+                                .toArray(String[]::new);
+                partitioner =
+                        new BinaryHashPartitioner(
+                                HashCodeGenerator.generateRowHash(
+                                        new CodeGeneratorContext(planner.getTableConfig()),
+                                        inputNode.getOutputType(),
+                                        "HashPartitioner",
+                                        keys),
+                                fieldNames);
+                parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            default:
+                throw new TableException(shuffleType + "is not supported now!");
+        }
 
-		final ShuffleMode shuffleMode = getShuffleMode(planner.getTableConfig().getConfiguration(), requiredShuffleMode);
-		final Transformation<RowData> transformation =
-				new PartitionTransformation<>(inputTransform, partitioner, shuffleMode);
-		transformation.setParallelism(parallelism);
-		transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
-		return transformation;
-	}
+        final ShuffleMode shuffleMode =
+                getShuffleMode(planner.getTableConfig().getConfiguration(), requiredShuffleMode);
+        final Transformation<RowData> transformation =
+                new PartitionTransformation<>(inputTransform, partitioner, shuffleMode);
+        transformation.setParallelism(parallelism);
+        transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
+        return transformation;
+    }
 
-	public static ShuffleMode getShuffleMode(Configuration config, @Nullable ShuffleMode requiredShuffleMode) {
-		if (requiredShuffleMode == ShuffleMode.BATCH) {
-			return ShuffleMode.BATCH;
-		}
-		if (config.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
-				.equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString())) {
-			return ShuffleMode.BATCH;
-		} else {
-			return ShuffleMode.UNDEFINED;
-		}
-	}
+    public static ShuffleMode getShuffleMode(
+            Configuration config, @Nullable ShuffleMode requiredShuffleMode) {
+        if (requiredShuffleMode == ShuffleMode.BATCH) {
+            return ShuffleMode.BATCH;
+        }
+        if (config.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
+                .equalsIgnoreCase(GlobalDataExchangeMode.ALL_EDGES_BLOCKING.toString())) {
+            return ShuffleMode.BATCH;
+        } else {
+            return ShuffleMode.UNDEFINED;
+        }
+    }
 
-	@VisibleForTesting
-	public Optional<ShuffleMode> getRequiredShuffleMode() {
-		return Optional.ofNullable(requiredShuffleMode);
-	}
+    @VisibleForTesting
+    public Optional<ShuffleMode> getRequiredShuffleMode() {
+        return Optional.ofNullable(requiredShuffleMode);
+    }
 }

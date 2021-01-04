@@ -20,74 +20,70 @@ package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * An accumulator that finds the minimum {@code long} value.
- */
+/** An accumulator that finds the minimum {@code long} value. */
 @PublicEvolving
 public class LongMinimum implements SimpleAccumulator<Long> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private long min = Long.MAX_VALUE;
+    private long min = Long.MAX_VALUE;
 
-	public LongMinimum() {}
+    public LongMinimum() {}
 
-	public LongMinimum(long value) {
-		this.min = value;
-	}
+    public LongMinimum(long value) {
+        this.min = value;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Accumulator
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Accumulator
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Consider using {@link #add(long)} instead for primitive long values
-	 */
-	@Override
-	public void add(Long value) {
-		this.min = Math.min(this.min, value);
-	}
+    /** Consider using {@link #add(long)} instead for primitive long values */
+    @Override
+    public void add(Long value) {
+        this.min = Math.min(this.min, value);
+    }
 
-	@Override
-	public Long getLocalValue() {
-		return this.min;
-	}
+    @Override
+    public Long getLocalValue() {
+        return this.min;
+    }
 
-	@Override
-	public void merge(Accumulator<Long, Long> other) {
-		this.min = Math.min(this.min, other.getLocalValue());
-	}
+    @Override
+    public void merge(Accumulator<Long, Long> other) {
+        this.min = Math.min(this.min, other.getLocalValue());
+    }
 
-	@Override
-	public void resetLocal() {
-		this.min = Long.MAX_VALUE;
-	}
+    @Override
+    public void resetLocal() {
+        this.min = Long.MAX_VALUE;
+    }
 
-	@Override
-	public LongMinimum clone() {
-		LongMinimum clone = new LongMinimum();
-		clone.min = this.min;
-		return clone;
-	}
+    @Override
+    public LongMinimum clone() {
+        LongMinimum clone = new LongMinimum();
+        clone.min = this.min;
+        return clone;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Primitive Specializations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Primitive Specializations
+    // ------------------------------------------------------------------------
 
-	public void add(long value) {
-		this.min = Math.min(this.min, value);
-	}
+    public void add(long value) {
+        this.min = Math.min(this.min, value);
+    }
 
-	public long getLocalValuePrimitive() {
-		return this.min;
-	}
+    public long getLocalValuePrimitive() {
+        return this.min;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "LongMinimum " + this.min;
-	}
+    @Override
+    public String toString() {
+        return "LongMinimum " + this.min;
+    }
 }

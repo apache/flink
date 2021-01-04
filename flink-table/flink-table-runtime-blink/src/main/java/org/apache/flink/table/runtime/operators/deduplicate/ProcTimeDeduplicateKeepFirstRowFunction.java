@@ -24,21 +24,20 @@ import org.apache.flink.util.Collector;
 
 import static org.apache.flink.table.runtime.operators.deduplicate.DeduplicateFunctionHelper.processFirstRowOnProcTime;
 
-/**
- * This function is used to deduplicate on keys and keeps only first row.
- */
+/** This function is used to deduplicate on keys and keeps only first row. */
 public class ProcTimeDeduplicateKeepFirstRowFunction
-		extends DeduplicateFunctionBase<Boolean, RowData, RowData, RowData> {
+        extends DeduplicateFunctionBase<Boolean, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = 5865777137707602549L;
+    private static final long serialVersionUID = 5865777137707602549L;
 
-	// state stores a boolean flag to indicate whether key appears before.
-	public ProcTimeDeduplicateKeepFirstRowFunction(long stateRetentionTime) {
-		super(Types.BOOLEAN, null, stateRetentionTime);
-	}
+    // state stores a boolean flag to indicate whether key appears before.
+    public ProcTimeDeduplicateKeepFirstRowFunction(long stateRetentionTime) {
+        super(Types.BOOLEAN, null, stateRetentionTime);
+    }
 
-	@Override
-	public void processElement(RowData input, Context ctx, Collector<RowData> out) throws Exception {
-		processFirstRowOnProcTime(input, state, out);
-	}
+    @Override
+    public void processElement(RowData input, Context ctx, Collector<RowData> out)
+            throws Exception {
+        processFirstRowOnProcTime(input, state, out);
+    }
 }

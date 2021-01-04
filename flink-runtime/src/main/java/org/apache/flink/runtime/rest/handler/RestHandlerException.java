@@ -22,47 +22,49 @@ import org.apache.flink.util.FlinkException;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * An exception that is thrown if the failure of a REST operation was detected by a handler.
- */
+/** An exception that is thrown if the failure of a REST operation was detected by a handler. */
 public class RestHandlerException extends FlinkException {
-	private static final long serialVersionUID = -1358206297964070876L;
+    private static final long serialVersionUID = -1358206297964070876L;
 
-	private final int responseCode;
+    private final int responseCode;
 
-	// This flag indicates whether the AbstractHandler should log about this exception on INFO level or not.
-	private final LoggingBehavior loggingBehavior;
+    // This flag indicates whether the AbstractHandler should log about this exception on INFO level
+    // or not.
+    private final LoggingBehavior loggingBehavior;
 
-	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus) {
-		super(errorMessage);
-		this.responseCode = httpResponseStatus.code();
-		this.loggingBehavior = LoggingBehavior.LOG;
-	}
+    public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus) {
+        super(errorMessage);
+        this.responseCode = httpResponseStatus.code();
+        this.loggingBehavior = LoggingBehavior.LOG;
+    }
 
-	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus, LoggingBehavior loggingBehavior) {
-		super(errorMessage);
-		this.responseCode = httpResponseStatus.code();
-		this.loggingBehavior = loggingBehavior;
-	}
+    public RestHandlerException(
+            String errorMessage,
+            HttpResponseStatus httpResponseStatus,
+            LoggingBehavior loggingBehavior) {
+        super(errorMessage);
+        this.responseCode = httpResponseStatus.code();
+        this.loggingBehavior = loggingBehavior;
+    }
 
-	public RestHandlerException(String errorMessage, HttpResponseStatus httpResponseStatus, Throwable cause) {
-		super(errorMessage, cause);
-		this.responseCode = httpResponseStatus.code();
-		this.loggingBehavior = LoggingBehavior.LOG;
-	}
+    public RestHandlerException(
+            String errorMessage, HttpResponseStatus httpResponseStatus, Throwable cause) {
+        super(errorMessage, cause);
+        this.responseCode = httpResponseStatus.code();
+        this.loggingBehavior = LoggingBehavior.LOG;
+    }
 
-	public HttpResponseStatus getHttpResponseStatus() {
-		return HttpResponseStatus.valueOf(responseCode);
-	}
+    public HttpResponseStatus getHttpResponseStatus() {
+        return HttpResponseStatus.valueOf(responseCode);
+    }
 
-	public boolean logException() {
-		return LoggingBehavior.LOG == loggingBehavior;
-	}
+    public boolean logException() {
+        return LoggingBehavior.LOG == loggingBehavior;
+    }
 
-	/**
-	 * Enum to control logging behavior of RestHandlerExceptions.
-	 */
-	public enum LoggingBehavior {
-		LOG, IGNORE
-	}
+    /** Enum to control logging behavior of RestHandlerExceptions. */
+    public enum LoggingBehavior {
+        LOG,
+        IGNORE
+    }
 }

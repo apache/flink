@@ -23,52 +23,53 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * {@link MessageHeaders} for {@link JarRunHandler}.
- */
-public class JarRunHeaders implements MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
+/** {@link MessageHeaders} for {@link JarRunHandler}. */
+public class JarRunHeaders
+        implements MessageHeaders<JarRunRequestBody, JarRunResponseBody, JarRunMessageParameters> {
 
-	private static final JarRunHeaders INSTANCE = new JarRunHeaders();
+    private static final JarRunHeaders INSTANCE = new JarRunHeaders();
 
-	private JarRunHeaders() {}
+    private JarRunHeaders() {}
 
-	@Override
-	public Class<JarRunResponseBody> getResponseClass() {
-		return JarRunResponseBody.class;
-	}
+    @Override
+    public Class<JarRunResponseBody> getResponseClass() {
+        return JarRunResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<JarRunRequestBody> getRequestClass() {
-		return JarRunRequestBody.class;
-	}
+    @Override
+    public Class<JarRunRequestBody> getRequestClass() {
+        return JarRunRequestBody.class;
+    }
 
-	@Override
-	public JarRunMessageParameters getUnresolvedMessageParameters() {
-		return new JarRunMessageParameters();
-	}
+    @Override
+    public JarRunMessageParameters getUnresolvedMessageParameters() {
+        return new JarRunMessageParameters();
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.POST;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.POST;
+    }
 
-	@Override
-	public String getTargetRestEndpointURL() {
-		return "/jars/:" + JarIdPathParameter.KEY + "/run";
-	}
+    @Override
+    public String getTargetRestEndpointURL() {
+        return "/jars/:" + JarIdPathParameter.KEY + "/run";
+    }
 
-	public static JarRunHeaders getInstance() {
-		return INSTANCE;
-	}
+    public static JarRunHeaders getInstance() {
+        return INSTANCE;
+    }
 
-	@Override
-	public String getDescription() {
-		return "Submits a job by running a jar previously uploaded via '" + JarUploadHeaders.URL + "'. " +
-			"Program arguments can be passed both via the JSON request (recommended) or query parameters.";
-	}
+    @Override
+    public String getDescription() {
+        return "Submits a job by running a jar previously uploaded via '"
+                + JarUploadHeaders.URL
+                + "'. "
+                + "Program arguments can be passed both via the JSON request (recommended) or query parameters.";
+    }
 }

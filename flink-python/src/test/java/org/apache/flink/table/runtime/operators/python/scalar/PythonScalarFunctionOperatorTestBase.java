@@ -57,9 +57,9 @@ import static org.apache.flink.table.api.Expressions.call;
  * Base class for Python scalar function operator test. These test that:
  *
  * <ul>
- *     <li>Retraction flag is correctly forwarded to the downstream</li>
- *     <li>FinishBundle is called when checkpoint is encountered</li>
- *     <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
+ *   <li>Retraction flag is correctly forwarded to the downstream
+ *   <li>FinishBundle is called when checkpoint is encountered
+ *   <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered
  * </ul>
  *
  * @param <IN> Type of the input elements.
@@ -68,213 +68,229 @@ import static org.apache.flink.table.api.Expressions.call;
  */
 public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN> {
 
-	@Test
-	public void testRetractionFieldKept() throws Exception {
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(new Configuration());
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+    @Test
+    public void testRetractionFieldKept() throws Exception {
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
+                getTestHarness(new Configuration());
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(newRow(false, "c3", "c4", 1L), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(newRow(false, "c5", "c6", 2L), initialTime + 3));
-		testHarness.close();
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<>(newRow(false, "c3", "c4", 1L), initialTime + 2));
+        testHarness.processElement(
+                new StreamRecord<>(newRow(false, "c5", "c6", 2L), initialTime + 3));
+        testHarness.close();
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(false, "c3", "c4", 1L)));
-		expectedOutput.add(new StreamRecord<>(newRow(false, "c5", "c6", 2L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(false, "c3", "c4", 1L)));
+        expectedOutput.add(new StreamRecord<>(newRow(false, "c5", "c6", 2L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
 
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
+        // checkpoint trigger finishBundle
+        testHarness.prepareSnapshotPreBarrier(0L);
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByCount() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByCount() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 1L)));
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 1L), initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 1L)));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByTime() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByTime() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.setProcessingTime(1000L);
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        testHarness.setProcessingTime(1000L);
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testFinishBundleTriggeredByClose() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+    @Test
+    public void testFinishBundleTriggeredByClose() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
 
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		assertOutputEquals("FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        assertOutputEquals(
+                "FinishBundle should not be triggered.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
+        testHarness.close();
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+    }
 
-	@Test
-	public void testWatermarkProcessedOnFinishBundle() throws Exception {
-		Configuration conf = new Configuration();
-		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+    @Test
+    public void testWatermarkProcessedOnFinishBundle() throws Exception {
+        Configuration conf = new Configuration();
+        conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness(conf);
+        long initialTime = 0L;
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
-		testHarness.processWatermark(initialTime + 2);
-		assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
+        testHarness.processElement(
+                new StreamRecord<>(newRow(true, "c1", "c2", 0L), initialTime + 1));
+        testHarness.processWatermark(initialTime + 2);
+        assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
 
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
+        // checkpoint trigger finishBundle
+        testHarness.prepareSnapshotPreBarrier(0L);
 
-		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
-		expectedOutput.add(new Watermark(initialTime + 2));
+        expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
+        expectedOutput.add(new Watermark(initialTime + 2));
 
-		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+        assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
-		testHarness.close();
-	}
+        testHarness.close();
+    }
 
-	@Test
-	public void testPythonScalarFunctionOperatorIsChainedByDefault() {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
-		StreamTableEnvironment tEnv = createTableEnvironment(env);
-		tEnv.getConfig().getConfiguration().setString(
-			TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), "80mb");
-		tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
-		DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
-		Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));
-		// force generating the physical plan for the given table
-		tEnv.toAppendStream(t, BasicTypeInfo.INT_TYPE_INFO);
-		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-		List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-		Assert.assertEquals(1, vertices.size());
-	}
+    @Test
+    public void testPythonScalarFunctionOperatorIsChainedByDefault() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        StreamTableEnvironment tEnv = createTableEnvironment(env);
+        tEnv.getConfig()
+                .getConfiguration()
+                .setString(TaskManagerOptions.TASK_OFF_HEAP_MEMORY.key(), "80mb");
+        tEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"));
+        DataStream<Tuple2<Integer, Integer>> ds = env.fromElements(new Tuple2<>(1, 2));
+        Table t = tEnv.fromDataStream(ds, $("a"), $("b")).select(call("pyFunc", $("a"), $("b")));
+        // force generating the physical plan for the given table
+        tEnv.toAppendStream(t, BasicTypeInfo.INT_TYPE_INFO);
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
+        Assert.assertEquals(1, vertices.size());
+    }
 
-	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config) throws Exception {
-		RowType dataType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> operator = getTestOperator(
-			config,
-			new PythonFunctionInfo[] {
-				new PythonFunctionInfo(
-					DummyPythonFunction.INSTANCE,
-					new Integer[]{0})
-			},
-			dataType,
-			dataType,
-			new int[]{2},
-			new int[]{0, 1}
-		);
+    private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness(Configuration config)
+            throws Exception {
+        RowType dataType =
+                new RowType(
+                        Arrays.asList(
+                                new RowType.RowField("f1", new VarCharType()),
+                                new RowType.RowField("f2", new VarCharType()),
+                                new RowType.RowField("f3", new BigIntType())));
+        AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> operator =
+                getTestOperator(
+                        config,
+                        new PythonFunctionInfo[] {
+                            new PythonFunctionInfo(DummyPythonFunction.INSTANCE, new Integer[] {0})
+                        },
+                        dataType,
+                        dataType,
+                        new int[] {2},
+                        new int[] {0, 1});
 
-		OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator);
-		testHarness.getStreamConfig().setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
-		testHarness.setup(getOutputTypeSerializer(dataType));
-		return testHarness;
-	}
+        OneInputStreamOperatorTestHarness<IN, OUT> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
+        testHarness
+                .getStreamConfig()
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.PYTHON, 0.5);
+        testHarness.setup(getOutputTypeSerializer(dataType));
+        return testHarness;
+    }
 
-	public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> getTestOperator(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields);
+    public abstract AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN> getTestOperator(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields);
 
-	public abstract IN newRow(boolean accumulateMsg, Object... fields);
+    public abstract IN newRow(boolean accumulateMsg, Object... fields);
 
-	public abstract void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual);
+    public abstract void assertOutputEquals(
+            String message, Collection<Object> expected, Collection<Object> actual);
 
-	public abstract StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env);
+    public abstract StreamTableEnvironment createTableEnvironment(StreamExecutionEnvironment env);
 
-	public abstract TypeSerializer<OUT> getOutputTypeSerializer(RowType dataType);
+    public abstract TypeSerializer<OUT> getOutputTypeSerializer(RowType dataType);
 
-	/**
-	 * Dummy PythonFunction.
-	 */
-	public static class DummyPythonFunction implements PythonFunction {
+    /** Dummy PythonFunction. */
+    public static class DummyPythonFunction implements PythonFunction {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		public static final PythonFunction INSTANCE = new DummyPythonFunction();
+        public static final PythonFunction INSTANCE = new DummyPythonFunction();
 
-		@Override
-		public byte[] getSerializedPythonFunction() {
-			return new byte[0];
-		}
+        @Override
+        public byte[] getSerializedPythonFunction() {
+            return new byte[0];
+        }
 
-		@Override
-		public PythonEnv getPythonEnv() {
-			return new PythonEnv(PythonEnv.ExecType.PROCESS);
-		}
-	}
+        @Override
+        public PythonEnv getPythonEnv() {
+            return new PythonEnv(PythonEnv.ExecType.PROCESS);
+        }
+    }
 }

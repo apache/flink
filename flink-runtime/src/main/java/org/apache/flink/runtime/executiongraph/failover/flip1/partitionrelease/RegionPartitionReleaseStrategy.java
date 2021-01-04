@@ -37,82 +37,96 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Releases blocking intermediate result partitions that are incident to a {@link SchedulingPipelinedRegion},
- * as soon as the region's execution vertices are finished.
+ * Releases blocking intermediate result partitions that are incident to a {@link
+ * SchedulingPipelinedRegion}, as soon as the region's execution vertices are finished.
  */
 public class RegionPartitionReleaseStrategy implements PartitionReleaseStrategy {
 
-	private final SchedulingTopology schedulingTopology;
+    private final SchedulingTopology schedulingTopology;
 
-	private final Map<ExecutionVertexID, PipelinedRegionExecutionView> regionExecutionViewByVertex = new HashMap<>();
+    private final Map<ExecutionVertexID, PipelinedRegionExecutionView> regionExecutionViewByVertex =
+            new HashMap<>();
 
-	public RegionPartitionReleaseStrategy(final SchedulingTopology schedulingTopology) {
-		this.schedulingTopology = checkNotNull(schedulingTopology);
+    public RegionPartitionReleaseStrategy(final SchedulingTopology schedulingTopology) {
+        this.schedulingTopology = checkNotNull(schedulingTopology);
 
-		initRegionExecutionViewByVertex();
-	}
+        initRegionExecutionViewByVertex();
+    }
 
-	private void initRegionExecutionViewByVertex() {
-		for (SchedulingPipelinedRegion pipelinedRegion : schedulingTopology.getAllPipelinedRegions()) {
-			final PipelinedRegionExecutionView regionExecutionView = new PipelinedRegionExecutionView(pipelinedRegion);
-			for (SchedulingExecutionVertex executionVertexId : pipelinedRegion.getVertices()) {
-				regionExecutionViewByVertex.put(executionVertexId.getId(), regionExecutionView);
-			}
-		}
-	}
+    private void initRegionExecutionViewByVertex() {
+        for (SchedulingPipelinedRegion pipelinedRegion :
+                schedulingTopology.getAllPipelinedRegions()) {
+            final PipelinedRegionExecutionView regionExecutionView =
+                    new PipelinedRegionExecutionView(pipelinedRegion);
+            for (SchedulingExecutionVertex executionVertexId : pipelinedRegion.getVertices()) {
+                regionExecutionViewByVertex.put(executionVertexId.getId(), regionExecutionView);
+            }
+        }
+    }
 
-	@Override
-	public List<IntermediateResultPartitionID> vertexFinished(final ExecutionVertexID finishedVertex) {
-		final PipelinedRegionExecutionView regionExecutionView = getPipelinedRegionExecutionViewForVertex(finishedVertex);
-		regionExecutionView.vertexFinished(finishedVertex);
+    @Override
+    public List<IntermediateResultPartitionID> vertexFinished(
+            final ExecutionVertexID finishedVertex) {
+        final PipelinedRegionExecutionView regionExecutionView =
+                getPipelinedRegionExecutionViewForVertex(finishedVertex);
+        regionExecutionView.vertexFinished(finishedVertex);
 
-		if (regionExecutionView.isFinished()) {
-			final SchedulingPipelinedRegion pipelinedRegion = schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
-			return filterReleasablePartitions(pipelinedRegion.getConsumedResults());
-		}
-		return Collections.emptyList();
-	}
+        if (regionExecutionView.isFinished()) {
+            final SchedulingPipelinedRegion pipelinedRegion =
+                    schedulingTopology.getPipelinedRegionOfVertex(finishedVertex);
+            return filterReleasablePartitions(pipelinedRegion.getConsumedResults());
+        }
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void vertexUnfinished(final ExecutionVertexID executionVertexId) {
-		final PipelinedRegionExecutionView regionExecutionView = getPipelinedRegionExecutionViewForVertex(executionVertexId);
-		regionExecutionView.vertexUnfinished(executionVertexId);
-	}
+    @Override
+    public void vertexUnfinished(final ExecutionVertexID executionVertexId) {
+        final PipelinedRegionExecutionView regionExecutionView =
+                getPipelinedRegionExecutionViewForVertex(executionVertexId);
+        regionExecutionView.vertexUnfinished(executionVertexId);
+    }
 
-	private PipelinedRegionExecutionView getPipelinedRegionExecutionViewForVertex(final ExecutionVertexID executionVertexId) {
-		final PipelinedRegionExecutionView pipelinedRegionExecutionView = regionExecutionViewByVertex.get(executionVertexId);
-		checkState(pipelinedRegionExecutionView != null,
-			"PipelinedRegionExecutionView not found for execution vertex %s", executionVertexId);
-		return pipelinedRegionExecutionView;
-	}
+    private PipelinedRegionExecutionView getPipelinedRegionExecutionViewForVertex(
+            final ExecutionVertexID executionVertexId) {
+        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+                regionExecutionViewByVertex.get(executionVertexId);
+        checkState(
+                pipelinedRegionExecutionView != null,
+                "PipelinedRegionExecutionView not found for execution vertex %s",
+                executionVertexId);
+        return pipelinedRegionExecutionView;
+    }
 
-	private List<IntermediateResultPartitionID> filterReleasablePartitions(final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
-		return IterableUtils.toStream(schedulingResultPartitions)
-			.map(SchedulingResultPartition::getId)
-			.filter(this::areConsumerRegionsFinished)
-			.collect(Collectors.toList());
-	}
+    private List<IntermediateResultPartitionID> filterReleasablePartitions(
+            final Iterable<? extends SchedulingResultPartition> schedulingResultPartitions) {
+        return IterableUtils.toStream(schedulingResultPartitions)
+                .map(SchedulingResultPartition::getId)
+                .filter(this::areConsumerRegionsFinished)
+                .collect(Collectors.toList());
+    }
 
-	private boolean areConsumerRegionsFinished(final IntermediateResultPartitionID resultPartitionId) {
-		final SchedulingResultPartition resultPartition = schedulingTopology.getResultPartition(resultPartitionId);
-		return IterableUtils.toStream(resultPartition.getConsumers())
-			.map(SchedulingExecutionVertex::getId)
-			.allMatch(this::isRegionOfVertexFinished);
-	}
+    private boolean areConsumerRegionsFinished(
+            final IntermediateResultPartitionID resultPartitionId) {
+        final SchedulingResultPartition resultPartition =
+                schedulingTopology.getResultPartition(resultPartitionId);
+        return IterableUtils.toStream(resultPartition.getConsumers())
+                .map(SchedulingExecutionVertex::getId)
+                .allMatch(this::isRegionOfVertexFinished);
+    }
 
-	private boolean isRegionOfVertexFinished(final ExecutionVertexID executionVertexId) {
-		final PipelinedRegionExecutionView regionExecutionView = getPipelinedRegionExecutionViewForVertex(executionVertexId);
-		return regionExecutionView.isFinished();
-	}
+    private boolean isRegionOfVertexFinished(final ExecutionVertexID executionVertexId) {
+        final PipelinedRegionExecutionView regionExecutionView =
+                getPipelinedRegionExecutionViewForVertex(executionVertexId);
+        return regionExecutionView.isFinished();
+    }
 
-	/**
-	 * Factory for {@link PartitionReleaseStrategy}.
-	 */
-	public static class Factory implements PartitionReleaseStrategy.Factory {
+    /** Factory for {@link PartitionReleaseStrategy}. */
+    public static class Factory implements PartitionReleaseStrategy.Factory {
 
-		@Override
-		public PartitionReleaseStrategy createInstance(final SchedulingTopology schedulingStrategy) {
-			return new RegionPartitionReleaseStrategy(schedulingStrategy);
-		}
-	}
+        @Override
+        public PartitionReleaseStrategy createInstance(
+                final SchedulingTopology schedulingStrategy) {
+            return new RegionPartitionReleaseStrategy(schedulingStrategy);
+        }
+    }
 }

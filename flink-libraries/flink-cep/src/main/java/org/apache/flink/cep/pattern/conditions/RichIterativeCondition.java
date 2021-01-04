@@ -26,50 +26,49 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Rich variant of the {@link IterativeCondition}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  */
-public abstract class RichIterativeCondition<T>
-		extends IterativeCondition<T>
-		implements RichFunction {
+public abstract class RichIterativeCondition<T> extends IterativeCondition<T>
+        implements RichFunction {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// --------------------------------------------------------------------------------------------
-	//  Runtime context access
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Runtime context access
+    // --------------------------------------------------------------------------------------------
 
-	private transient RuntimeContext runtimeContext;
+    private transient RuntimeContext runtimeContext;
 
-	@Override
-	public void setRuntimeContext(RuntimeContext runtimeContext) {
-		Preconditions.checkNotNull(runtimeContext);
-		this.runtimeContext = runtimeContext;
-	}
+    @Override
+    public void setRuntimeContext(RuntimeContext runtimeContext) {
+        Preconditions.checkNotNull(runtimeContext);
+        this.runtimeContext = runtimeContext;
+    }
 
-	@Override
-	public RuntimeContext getRuntimeContext() {
-		if (this.runtimeContext != null) {
-			return this.runtimeContext;
-		} else {
-			throw new IllegalStateException("The runtime context has not been initialized.");
-		}
-	}
+    @Override
+    public RuntimeContext getRuntimeContext() {
+        if (this.runtimeContext != null) {
+            return this.runtimeContext;
+        } else {
+            throw new IllegalStateException("The runtime context has not been initialized.");
+        }
+    }
 
-	@Override
-	public IterationRuntimeContext getIterationRuntimeContext() {
-		throw new UnsupportedOperationException("Not support to get the IterationRuntimeContext in IterativeCondition.");
-	}
+    @Override
+    public IterationRuntimeContext getIterationRuntimeContext() {
+        throw new UnsupportedOperationException(
+                "Not support to get the IterationRuntimeContext in IterativeCondition.");
+    }
 
-	// --------------------------------------------------------------------------------------------
-	//  Default life cycle methods
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    //  Default life cycle methods
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public void open(Configuration parameters) throws Exception {}
+    @Override
+    public void open(Configuration parameters) throws Exception {}
 
-	@Override
-	public void close() throws Exception {}
-
+    @Override
+    public void close() throws Exception {}
 }

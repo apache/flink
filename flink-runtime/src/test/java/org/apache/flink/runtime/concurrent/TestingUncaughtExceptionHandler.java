@@ -21,19 +21,19 @@ package org.apache.flink.runtime.concurrent;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Testing implementation of the {@link java.lang.Thread.UncaughtExceptionHandler} which simply records
- * the uncaught exception.
+ * Testing implementation of the {@link java.lang.Thread.UncaughtExceptionHandler} which simply
+ * records the uncaught exception.
  */
 public class TestingUncaughtExceptionHandler implements Thread.UncaughtExceptionHandler {
 
-	private final CompletableFuture<Throwable> uncaughtExceptionFuture = new CompletableFuture<>();
+    private final CompletableFuture<Throwable> uncaughtExceptionFuture = new CompletableFuture<>();
 
-	@Override
-	public void uncaughtException(Thread t, Throwable e) {
-		uncaughtExceptionFuture.complete(e);
-	}
+    @Override
+    public void uncaughtException(Thread t, Throwable e) {
+        uncaughtExceptionFuture.complete(e);
+    }
 
-	public Throwable waitForUncaughtException() {
-		return uncaughtExceptionFuture.join();
-	}
+    public Throwable waitForUncaughtException() {
+        return uncaughtExceptionFuture.join();
+    }
 }

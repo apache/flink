@@ -36,92 +36,95 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
 
-/**
- * Savepoint metadata that can be modified.
- */
+/** Savepoint metadata that can be modified. */
 @Internal
 public class SavepointMetadata {
 
-	private final int maxParallelism;
+    private final int maxParallelism;
 
-	private final Collection<MasterState> masterStates;
+    private final Collection<MasterState> masterStates;
 
-	private final Map<OperatorID, OperatorStateSpec> operatorStateIndex;
+    private final Map<OperatorID, OperatorStateSpec> operatorStateIndex;
 
-	public SavepointMetadata(int maxParallelism, Collection<MasterState> masterStates, Collection<OperatorState> initialStates) {
-		Preconditions.checkArgument(maxParallelism > 0
-				&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-			"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
-				+ ". Found: " + maxParallelism);
-		this.maxParallelism = maxParallelism;
+    public SavepointMetadata(
+            int maxParallelism,
+            Collection<MasterState> masterStates,
+            Collection<OperatorState> initialStates) {
+        Preconditions.checkArgument(
+                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+                "Maximum parallelism must be between 1 and "
+                        + UPPER_BOUND_MAX_PARALLELISM
+                        + ". Found: "
+                        + maxParallelism);
+        this.maxParallelism = maxParallelism;
 
-		this.masterStates = Preconditions.checkNotNull(masterStates);
+        this.masterStates = Preconditions.checkNotNull(masterStates);
 
-		this.operatorStateIndex = new HashMap<>(initialStates.size());
-		initialStates.forEach(existingState -> operatorStateIndex.put(
-			existingState.getOperatorID(),
-			OperatorStateSpec.existing(existingState)));
-	}
+        this.operatorStateIndex = new HashMap<>(initialStates.size());
+        initialStates.forEach(
+                existingState ->
+                        operatorStateIndex.put(
+                                existingState.getOperatorID(),
+                                OperatorStateSpec.existing(existingState)));
+    }
 
-	public int getMaxParallelism() {
-		return maxParallelism;
-	}
+    public int getMaxParallelism() {
+        return maxParallelism;
+    }
 
-	public Collection<MasterState> getMasterStates() {
-		return masterStates;
-	}
+    public Collection<MasterState> getMasterStates() {
+        return masterStates;
+    }
 
-	/**
-	 * @return Operator state for the given UID.
-	 *
-	 * @throws IOException If the savepoint does not contain operator state with the given uid.
-	 */
-	public OperatorState getOperatorState(String uid) throws IOException {
-		OperatorID operatorID = OperatorIDGenerator.fromUid(uid);
+    /**
+     * @return Operator state for the given UID.
+     * @throws IOException If the savepoint does not contain operator state with the given uid.
+     */
+    public OperatorState getOperatorState(String uid) throws IOException {
+        OperatorID operatorID = OperatorIDGenerator.fromUid(uid);
 
-		OperatorStateSpec operatorState = operatorStateIndex.get(operatorID);
-		if (operatorState == null || operatorState.isNewStateTransformation()) {
-			throw new IOException("Savepoint does not contain state with operator uid " + uid);
-		}
+        OperatorStateSpec operatorState = operatorStateIndex.get(operatorID);
+        if (operatorState == null || operatorState.isNewStateTransformation()) {
+            throw new IOException("Savepoint does not contain state with operator uid " + uid);
+        }
 
-		return operatorState.asExistingState();
-	}
+        return operatorState.asExistingState();
+    }
 
-	public void removeOperator(String uid) {
-		operatorStateIndex.remove(OperatorIDGenerator.fromUid(uid));
-	}
+    public void removeOperator(String uid) {
+        operatorStateIndex.remove(OperatorIDGenerator.fromUid(uid));
+    }
 
-	public void addOperator(String uid, BootstrapTransformation<?> transformation) {
-		OperatorID id = OperatorIDGenerator.fromUid(uid);
+    public void addOperator(String uid, BootstrapTransformation<?> transformation) {
+        OperatorID id = OperatorIDGenerator.fromUid(uid);
 
-		if (operatorStateIndex.containsKey(id)) {
-			throw new IllegalArgumentException("The savepoint already contains uid " + uid + ". All uid's must be unique");
-		}
+        if (operatorStateIndex.containsKey(id)) {
+            throw new IllegalArgumentException(
+                    "The savepoint already contains uid " + uid + ". All uid's must be unique");
+        }
 
-		operatorStateIndex.put(id, OperatorStateSpec.newWithTransformation(new BootstrapTransformationWithID<>(id, transformation)));
-	}
+        operatorStateIndex.put(
+                id,
+                OperatorStateSpec.newWithTransformation(
+                        new BootstrapTransformationWithID<>(id, transformation)));
+    }
 
-	/**
-	 * @return List of {@link OperatorState} that already exists within the savepoint.
-	 */
-	public List<OperatorState> getExistingOperators() {
-		return operatorStateIndex
-			.values()
-			.stream()
-			.filter(OperatorStateSpec::isExistingState)
-			.map(OperatorStateSpec::asExistingState)
-			.collect(Collectors.toList());
-	}
+    /** @return List of {@link OperatorState} that already exists within the savepoint. */
+    public List<OperatorState> getExistingOperators() {
+        return operatorStateIndex.values().stream()
+                .filter(OperatorStateSpec::isExistingState)
+                .map(OperatorStateSpec::asExistingState)
+                .collect(Collectors.toList());
+    }
 
-	/**
-	 * @return List of new operator states for the savepoint, represented by their target {@link OperatorID} and {@link BootstrapTransformation}.
-	 */
-	public List<BootstrapTransformationWithID<?>> getNewOperators() {
-		return operatorStateIndex
-			.values()
-			.stream()
-			.filter(OperatorStateSpec::isNewStateTransformation)
-			.map(OperatorStateSpec::asNewStateTransformation)
-			.collect(Collectors.toList());
-	}
+    /**
+     * @return List of new operator states for the savepoint, represented by their target {@link
+     *     OperatorID} and {@link BootstrapTransformation}.
+     */
+    public List<BootstrapTransformationWithID<?>> getNewOperators() {
+        return operatorStateIndex.values().stream()
+                .filter(OperatorStateSpec::isNewStateTransformation)
+                .map(OperatorStateSpec::asNewStateTransformation)
+                .collect(Collectors.toList());
+    }
 }

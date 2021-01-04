@@ -29,68 +29,67 @@ import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests that the {@link AkkaRpcService} runs all RPCs in the {@link AkkaRpcActor}'s
- * main thread.
+ * Tests that the {@link AkkaRpcService} runs all RPCs in the {@link AkkaRpcActor}'s main thread.
  */
 public class MainThreadValidationTest extends TestLogger {
 
-	@Test
-	public void failIfNotInMainThread() throws Exception {
-		// test if assertions are activated. The test only works if assertions are loaded.
-		try {
-			assert false;
-			// apparently they are not activated
-			return;
-		} catch (AssertionError ignored) {}
+    @Test
+    public void failIfNotInMainThread() throws Exception {
+        // test if assertions are activated. The test only works if assertions are loaded.
+        try {
+            assert false;
+            // apparently they are not activated
+            return;
+        } catch (AssertionError ignored) {
+        }
 
-		// actual test
-		AkkaRpcService akkaRpcService = new AkkaRpcService(
-				AkkaUtils.createDefaultActorSystem(),
-				AkkaRpcServiceConfiguration.defaultConfiguration());
+        // actual test
+        AkkaRpcService akkaRpcService =
+                new AkkaRpcService(
+                        AkkaUtils.createDefaultActorSystem(),
+                        AkkaRpcServiceConfiguration.defaultConfiguration());
 
-		try {
-			TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService);
-			testEndpoint.start();
+        try {
+            TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService);
+            testEndpoint.start();
 
-			// this works, because it is executed as an RPC call
-			testEndpoint.getSelfGateway(TestGateway.class).someConcurrencyCriticalFunction();
+            // this works, because it is executed as an RPC call
+            testEndpoint.getSelfGateway(TestGateway.class).someConcurrencyCriticalFunction();
 
-			// this fails, because it is executed directly
-			boolean exceptionThrown;
-			try {
-				testEndpoint.someConcurrencyCriticalFunction();
-				exceptionThrown = false;
-			}
-			catch (AssertionError e) {
-				exceptionThrown = true;
-			}
-			assertTrue("should fail with an assertion error", exceptionThrown);
+            // this fails, because it is executed directly
+            boolean exceptionThrown;
+            try {
+                testEndpoint.someConcurrencyCriticalFunction();
+                exceptionThrown = false;
+            } catch (AssertionError e) {
+                exceptionThrown = true;
+            }
+            assertTrue("should fail with an assertion error", exceptionThrown);
 
-			testEndpoint.closeAsync();
-		}
-		finally {
-			akkaRpcService.stopService().get();
-		}
-	}
+            testEndpoint.closeAsync();
+        } finally {
+            akkaRpcService.stopService().get();
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  test RPC endpoint
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  test RPC endpoint
+    // ------------------------------------------------------------------------
 
-	interface TestGateway extends RpcGateway {
+    interface TestGateway extends RpcGateway {
 
-		void someConcurrencyCriticalFunction();
-	}
+        void someConcurrencyCriticalFunction();
+    }
 
-	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
+    private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
-		private TestEndpoint(RpcService rpcService) {
-			super(rpcService);
-		}
+        private TestEndpoint(RpcService rpcService) {
+            super(rpcService);
+        }
 
-		@Override
-		public void someConcurrencyCriticalFunction() {
-			validateRunsInMainThread();
-		}
-	}
+        @Override
+        public void someConcurrencyCriticalFunction() {
+            validateRunsInMainThread();
+        }
+    }
 }

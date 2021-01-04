@@ -26,25 +26,26 @@ import org.apache.flink.runtime.webmonitor.RestfulGateway;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link ExecutionGraphCache} which does nothing.
- */
+/** {@link ExecutionGraphCache} which does nothing. */
 public enum NoOpExecutionGraphCache implements ExecutionGraphCache {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public int size() {
-		return 0;
-	}
+    @Override
+    public int size() {
+        return 0;
+    }
 
-	@Override
-	public CompletableFuture<AccessExecutionGraph> getExecutionGraph(JobID jobId, RestfulGateway restfulGateway) {
-		return FutureUtils.completedExceptionally(new UnsupportedOperationException("NoOpExecutionGraphCache does not support to retrieve execution graphs"));
-	}
+    @Override
+    public CompletableFuture<AccessExecutionGraph> getExecutionGraph(
+            JobID jobId, RestfulGateway restfulGateway) {
+        return FutureUtils.completedExceptionally(
+                new UnsupportedOperationException(
+                        "NoOpExecutionGraphCache does not support to retrieve execution graphs"));
+    }
 
-	@Override
-	public void cleanup() {}
+    @Override
+    public void cleanup() {}
 
-	@Override
-	public void close() {}
+    @Override
+    public void close() {}
 }

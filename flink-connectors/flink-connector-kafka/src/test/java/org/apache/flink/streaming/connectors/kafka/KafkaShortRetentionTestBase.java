@@ -49,236 +49,246 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * A class containing a special Kafka broker which has a log retention of only 250 ms.
- * This way, we can make sure our consumer is properly handling cases where we run into out of offset
- * errors
+ * A class containing a special Kafka broker which has a log retention of only 250 ms. This way, we
+ * can make sure our consumer is properly handling cases where we run into out of offset errors
  */
 @SuppressWarnings("serial")
 public class KafkaShortRetentionTestBase implements Serializable {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(KafkaShortRetentionTestBase.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(KafkaShortRetentionTestBase.class);
 
-	protected static final int NUM_TMS = 1;
+    protected static final int NUM_TMS = 1;
 
-	protected static final int TM_SLOTS = 8;
+    protected static final int TM_SLOTS = 8;
 
-	protected static final int PARALLELISM = NUM_TMS * TM_SLOTS;
+    protected static final int PARALLELISM = NUM_TMS * TM_SLOTS;
 
-	private static KafkaTestEnvironment kafkaServer;
-	private static Properties standardProps;
+    private static KafkaTestEnvironment kafkaServer;
+    private static Properties standardProps;
 
-	@ClassRule
-	public static MiniClusterWithClientResource flink = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(TM_SLOTS)
-			.build());
+    @ClassRule
+    public static MiniClusterWithClientResource flink =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(NUM_TMS)
+                            .setNumberSlotsPerTaskManager(TM_SLOTS)
+                            .build());
 
-	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
-	protected static Properties secureProps = new Properties();
+    protected static Properties secureProps = new Properties();
 
-	private static Configuration getConfiguration() {
-		Configuration flinkConfig = new Configuration();
-		flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
-		return flinkConfig;
-	}
+    private static Configuration getConfiguration() {
+        Configuration flinkConfig = new Configuration();
+        flinkConfig.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
+        return flinkConfig;
+    }
 
-	@BeforeClass
-	public static void prepare() throws Exception {
-		LOG.info("-------------------------------------------------------------------------");
-		LOG.info("    Starting KafkaShortRetentionTestBase ");
-		LOG.info("-------------------------------------------------------------------------");
+    @BeforeClass
+    public static void prepare() throws Exception {
+        LOG.info("-------------------------------------------------------------------------");
+        LOG.info("    Starting KafkaShortRetentionTestBase ");
+        LOG.info("-------------------------------------------------------------------------");
 
-		// dynamically load the implementation for the test
-		Class<?> clazz = Class.forName("org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
-		kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
+        // dynamically load the implementation for the test
+        Class<?> clazz =
+                Class.forName(
+                        "org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");
+        kafkaServer = (KafkaTestEnvironment) InstantiationUtil.instantiate(clazz);
 
-		LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
+        LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
-		if (kafkaServer.isSecureRunSupported()) {
-			secureProps = kafkaServer.getSecureProperties();
-		}
+        if (kafkaServer.isSecureRunSupported()) {
+            secureProps = kafkaServer.getSecureProperties();
+        }
 
-		Properties specificProperties = new Properties();
-		specificProperties.setProperty("log.retention.hours", "0");
-		specificProperties.setProperty("log.retention.minutes", "0");
-		specificProperties.setProperty("log.retention.ms", "250");
-		specificProperties.setProperty("log.retention.check.interval.ms", "100");
-		kafkaServer.prepare(kafkaServer.createConfig().setKafkaServerProperties(specificProperties));
+        Properties specificProperties = new Properties();
+        specificProperties.setProperty("log.retention.hours", "0");
+        specificProperties.setProperty("log.retention.minutes", "0");
+        specificProperties.setProperty("log.retention.ms", "250");
+        specificProperties.setProperty("log.retention.check.interval.ms", "100");
+        kafkaServer.prepare(
+                kafkaServer.createConfig().setKafkaServerProperties(specificProperties));
 
-		standardProps = kafkaServer.getStandardProperties();
-	}
+        standardProps = kafkaServer.getStandardProperties();
+    }
 
-	@AfterClass
-	public static void shutDownServices() throws Exception {
-		kafkaServer.shutdown();
+    @AfterClass
+    public static void shutDownServices() throws Exception {
+        kafkaServer.shutdown();
 
-		secureProps.clear();
-	}
+        secureProps.clear();
+    }
 
-	/**
-	 * This test is concurrently reading and writing from a kafka topic.
-	 * The job will run for a while
-	 * In a special deserializationSchema, we make sure that the offsets from the topic
-	 * are non-continuous (because the data is expiring faster than its consumed --> with auto.offset.reset = 'earliest', some offsets will not show up)
-	 *
-	 */
-	private static boolean stopProducer = false;
+    /**
+     * This test is concurrently reading and writing from a kafka topic. The job will run for a
+     * while In a special deserializationSchema, we make sure that the offsets from the topic are
+     * non-continuous (because the data is expiring faster than its consumed --> with
+     * auto.offset.reset = 'earliest', some offsets will not show up)
+     */
+    private static boolean stopProducer = false;
 
-	public void runAutoOffsetResetTest() throws Exception {
-		final String topic = "auto-offset-reset-test";
+    public void runAutoOffsetResetTest() throws Exception {
+        final String topic = "auto-offset-reset-test";
 
-		final int parallelism = 1;
-		final int elementsPerPartition = 50000;
+        final int parallelism = 1;
+        final int elementsPerPartition = 50000;
 
-		Properties tprops = new Properties();
-		tprops.setProperty("retention.ms", "250");
-		kafkaServer.createTestTopic(topic, parallelism, 1, tprops);
+        Properties tprops = new Properties();
+        tprops.setProperty("retention.ms", "250");
+        kafkaServer.createTestTopic(topic, parallelism, 1, tprops);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(parallelism);
+        env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 
-		// ----------- add producer dataflow ----------
+        // ----------- add producer dataflow ----------
 
-		DataStream<String> stream = env.addSource(new RichParallelSourceFunction<String>() {
+        DataStream<String> stream =
+                env.addSource(
+                        new RichParallelSourceFunction<String>() {
 
-			private boolean running = true;
+                            private boolean running = true;
 
-			@Override
-			public void run(SourceContext<String> ctx) throws InterruptedException {
-				int cnt = getRuntimeContext().getIndexOfThisSubtask() * elementsPerPartition;
-				int limit = cnt + elementsPerPartition;
+                            @Override
+                            public void run(SourceContext<String> ctx) throws InterruptedException {
+                                int cnt =
+                                        getRuntimeContext().getIndexOfThisSubtask()
+                                                * elementsPerPartition;
+                                int limit = cnt + elementsPerPartition;
 
-				while (running && !stopProducer && cnt < limit) {
-					ctx.collect("element-" + cnt);
-					cnt++;
-					Thread.sleep(10);
-				}
-				LOG.info("Stopping producer");
-			}
+                                while (running && !stopProducer && cnt < limit) {
+                                    ctx.collect("element-" + cnt);
+                                    cnt++;
+                                    Thread.sleep(10);
+                                }
+                                LOG.info("Stopping producer");
+                            }
 
-			@Override
-			public void cancel() {
-				running = false;
-			}
-		});
-		Properties props = new Properties();
-		props.putAll(standardProps);
-		props.putAll(secureProps);
-		kafkaServer.produceIntoKafka(stream, topic, new SimpleStringSchema(), props, null);
+                            @Override
+                            public void cancel() {
+                                running = false;
+                            }
+                        });
+        Properties props = new Properties();
+        props.putAll(standardProps);
+        props.putAll(secureProps);
+        kafkaServer.produceIntoKafka(stream, topic, new SimpleStringSchema(), props, null);
 
-		// ----------- add consumer dataflow ----------
+        // ----------- add consumer dataflow ----------
 
-		NonContinousOffsetsDeserializationSchema deserSchema = new NonContinousOffsetsDeserializationSchema();
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, props);
+        NonContinousOffsetsDeserializationSchema deserSchema =
+                new NonContinousOffsetsDeserializationSchema();
+        FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, deserSchema, props);
 
-		DataStreamSource<String> consuming = env.addSource(source);
-		consuming.addSink(new DiscardingSink<String>());
+        DataStreamSource<String> consuming = env.addSource(source);
+        consuming.addSink(new DiscardingSink<String>());
 
-		tryExecute(env, "run auto offset reset test");
+        tryExecute(env, "run auto offset reset test");
 
-		kafkaServer.deleteTestTopic(topic);
-	}
+        kafkaServer.deleteTestTopic(topic);
+    }
 
-	private class NonContinousOffsetsDeserializationSchema implements KafkaDeserializationSchema<String> {
-		private int numJumps;
-		long nextExpected = 0;
+    private class NonContinousOffsetsDeserializationSchema
+            implements KafkaDeserializationSchema<String> {
+        private int numJumps;
+        long nextExpected = 0;
 
-		@Override
-		public String deserialize(ConsumerRecord<byte[], byte[]> record) {
-			final long offset = record.offset();
-			if (offset != nextExpected) {
-				numJumps++;
-				nextExpected = offset;
-				LOG.info("Registered now jump at offset {}", offset);
-			}
-			nextExpected++;
-			try {
-				Thread.sleep(10); // slow down data consumption to trigger log eviction
-			} catch (InterruptedException e) {
-				throw new RuntimeException("Stopping it");
-			}
-			return "";
-		}
+        @Override
+        public String deserialize(ConsumerRecord<byte[], byte[]> record) {
+            final long offset = record.offset();
+            if (offset != nextExpected) {
+                numJumps++;
+                nextExpected = offset;
+                LOG.info("Registered now jump at offset {}", offset);
+            }
+            nextExpected++;
+            try {
+                Thread.sleep(10); // slow down data consumption to trigger log eviction
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Stopping it");
+            }
+            return "";
+        }
 
-		@Override
-		public boolean isEndOfStream(String nextElement) {
-			if (numJumps >= 5) {
-				// we saw 5 jumps and no failures --> consumer can handle auto.offset.reset
-				stopProducer = true;
-				return true;
-			}
-			return false;
-		}
+        @Override
+        public boolean isEndOfStream(String nextElement) {
+            if (numJumps >= 5) {
+                // we saw 5 jumps and no failures --> consumer can handle auto.offset.reset
+                stopProducer = true;
+                return true;
+            }
+            return false;
+        }
 
-		@Override
-		public TypeInformation<String> getProducedType() {
-			return Types.STRING;
-		}
-	}
+        @Override
+        public TypeInformation<String> getProducedType() {
+            return Types.STRING;
+        }
+    }
 
-	/**
-	 * Ensure that the consumer is properly failing if "auto.offset.reset" is set to "none".
-	 */
-	public void runFailOnAutoOffsetResetNone() throws Exception {
-		final String topic = "auto-offset-reset-none-test";
-		final int parallelism = 1;
+    /** Ensure that the consumer is properly failing if "auto.offset.reset" is set to "none". */
+    public void runFailOnAutoOffsetResetNone() throws Exception {
+        final String topic = "auto-offset-reset-none-test";
+        final int parallelism = 1;
 
-		kafkaServer.createTestTopic(topic, parallelism, 1);
+        kafkaServer.createTestTopic(topic, parallelism, 1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(parallelism);
-		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(parallelism);
+        env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
 
-		// ----------- add consumer ----------
+        // ----------- add consumer ----------
 
-		Properties customProps = new Properties();
-		customProps.putAll(standardProps);
-		customProps.putAll(secureProps);
-		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
-		FlinkKafkaConsumerBase<String> source = kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
+        Properties customProps = new Properties();
+        customProps.putAll(standardProps);
+        customProps.putAll(secureProps);
+        customProps.setProperty(
+                "auto.offset.reset", "none"); // test that "none" leads to an exception
+        FlinkKafkaConsumerBase<String> source =
+                kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
 
-		DataStreamSource<String> consuming = env.addSource(source);
-		consuming.addSink(new DiscardingSink<String>());
+        DataStreamSource<String> consuming = env.addSource(source);
+        consuming.addSink(new DiscardingSink<String>());
 
-		try {
-			env.execute("Test auto offset reset none");
-		} catch (Throwable e) {
-			// check if correct exception has been thrown
-			if (!e.getCause().getCause().getMessage().contains("Undefined offset with no reset policy for partition")) {
-				throw e;
-			}
-		}
+        try {
+            env.execute("Test auto offset reset none");
+        } catch (Throwable e) {
+            // check if correct exception has been thrown
+            if (!e.getCause()
+                    .getCause()
+                    .getMessage()
+                    .contains("Undefined offset with no reset policy for partition")) {
+                throw e;
+            }
+        }
 
-		kafkaServer.deleteTestTopic(topic);
-	}
+        kafkaServer.deleteTestTopic(topic);
+    }
 
-	public void runFailOnAutoOffsetResetNoneEager() throws Exception {
-		final String topic = "auto-offset-reset-none-test";
-		final int parallelism = 1;
+    public void runFailOnAutoOffsetResetNoneEager() throws Exception {
+        final String topic = "auto-offset-reset-none-test";
+        final int parallelism = 1;
 
-		kafkaServer.createTestTopic(topic, parallelism, 1);
+        kafkaServer.createTestTopic(topic, parallelism, 1);
 
-		// ----------- add consumer ----------
+        // ----------- add consumer ----------
 
-		Properties customProps = new Properties();
-		customProps.putAll(standardProps);
-		customProps.putAll(secureProps);
-		customProps.setProperty("auto.offset.reset", "none"); // test that "none" leads to an exception
+        Properties customProps = new Properties();
+        customProps.putAll(standardProps);
+        customProps.putAll(secureProps);
+        customProps.setProperty(
+                "auto.offset.reset", "none"); // test that "none" leads to an exception
 
-		try {
-			kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
-			fail("should fail with an exception");
-		}
-		catch (IllegalArgumentException e) {
-			// expected
-			assertTrue(e.getMessage().contains("none"));
-		}
+        try {
+            kafkaServer.getConsumer(topic, new SimpleStringSchema(), customProps);
+            fail("should fail with an exception");
+        } catch (IllegalArgumentException e) {
+            // expected
+            assertTrue(e.getMessage().contains("none"));
+        }
 
-		kafkaServer.deleteTestTopic(topic);
-	}
+        kafkaServer.deleteTestTopic(topic);
+    }
 }

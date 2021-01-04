@@ -23,41 +23,46 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 
-/**
- * An {@link InputGate} with a specific index.
- */
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
+
+/** An {@link InputGate} with a specific index. */
 public abstract class IndexedInputGate extends InputGate implements CheckpointableInput {
-	/**
-	 * Returns the index of this input gate. Only supported on
-	 */
-	public abstract int getGateIndex();
+    /** Returns the index of this input gate. Only supported on */
+    public abstract int getGateIndex();
 
-	@Override
-	public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
-			getChannel(index).checkpointStarted(barrier);
-		}
-	}
+    @Override
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+        if (!getStateConsumedFuture().isDone()) {
+            throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
+        }
+        for (int index = 0, numChannels = getNumberOfInputChannels();
+                index < numChannels;
+                index++) {
+            getChannel(index).checkpointStarted(barrier);
+        }
+    }
 
-	@Override
-	public void checkpointStopped(long cancelledCheckpointId) {
-		for (int index = 0, numChannels = getNumberOfInputChannels(); index < numChannels; index++) {
-			getChannel(index).checkpointStopped(cancelledCheckpointId);
-		}
-	}
+    @Override
+    public void checkpointStopped(long cancelledCheckpointId) {
+        for (int index = 0, numChannels = getNumberOfInputChannels();
+                index < numChannels;
+                index++) {
+            getChannel(index).checkpointStopped(cancelledCheckpointId);
+        }
+    }
 
-	@Override
-	public int getInputGateIndex() {
-		return getGateIndex();
-	}
+    @Override
+    public int getInputGateIndex() {
+        return getGateIndex();
+    }
 
-	@Override
-	public void blockConsumption(InputChannelInfo channelInfo) {
-		// Unused. Network stack is blocking consumption automatically by revoking credits.
-	}
+    @Override
+    public void blockConsumption(InputChannelInfo channelInfo) {
+        // Unused. Network stack is blocking consumption automatically by revoking credits.
+    }
 
-	@Override
-	public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
-		getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
-	}
+    @Override
+    public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
+        getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
+    }
 }

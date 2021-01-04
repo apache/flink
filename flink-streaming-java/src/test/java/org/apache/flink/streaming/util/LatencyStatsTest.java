@@ -37,142 +37,169 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * Tests for the {@link LatencyStats}.
- */
+/** Tests for the {@link LatencyStats}. */
 public class LatencyStatsTest extends TestLogger {
 
-	private static final OperatorID OPERATOR_ID = new OperatorID();
-	private static final OperatorID SOURCE_ID_1 = new OperatorID();
-	private static final OperatorID SOURCE_ID_2 = new OperatorID();
+    private static final OperatorID OPERATOR_ID = new OperatorID();
+    private static final OperatorID SOURCE_ID_1 = new OperatorID();
+    private static final OperatorID SOURCE_ID_2 = new OperatorID();
 
-	private static final int OPERATOR_SUBTASK_INDEX = 64;
+    private static final int OPERATOR_SUBTASK_INDEX = 64;
 
-	private static final String PARENT_GROUP_NAME = "parent";
+    private static final String PARENT_GROUP_NAME = "parent";
 
-	@Test
-	public void testLatencyStatsSingle() {
-		testLatencyStats(LatencyStats.Granularity.SINGLE, registrations -> {
-			Assert.assertEquals(1, registrations.size());
+    @Test
+    public void testLatencyStatsSingle() {
+        testLatencyStats(
+                LatencyStats.Granularity.SINGLE,
+                registrations -> {
+                    Assert.assertEquals(1, registrations.size());
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(0);
-				assertName(registration.f0);
-				Assert.assertEquals(5, registration.f1.getCount());
-			}
-		});
-	}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(0);
+                        assertName(registration.f0);
+                        Assert.assertEquals(5, registration.f1.getCount());
+                    }
+                });
+    }
 
-	@Test
-	public void testLatencyStatsOperator() {
-		testLatencyStats(LatencyStats.Granularity.OPERATOR, registrations -> {
-			Assert.assertEquals(2, registrations.size());
+    @Test
+    public void testLatencyStatsOperator() {
+        testLatencyStats(
+                LatencyStats.Granularity.OPERATOR,
+                registrations -> {
+                    Assert.assertEquals(2, registrations.size());
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(0);
-				assertName(registration.f0, SOURCE_ID_1);
-				Assert.assertEquals(3, registration.f1.getCount());
-			}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(0);
+                        assertName(registration.f0, SOURCE_ID_1);
+                        Assert.assertEquals(3, registration.f1.getCount());
+                    }
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(1);
-				assertName(registration.f0, SOURCE_ID_2);
-				Assert.assertEquals(2, registration.f1.getCount());
-			}
-		});
-	}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(1);
+                        assertName(registration.f0, SOURCE_ID_2);
+                        Assert.assertEquals(2, registration.f1.getCount());
+                    }
+                });
+    }
 
-	@Test
-	public void testLatencyStatsSubtask() {
-		testLatencyStats(LatencyStats.Granularity.SUBTASK, registrations -> {
-			Assert.assertEquals(4, registrations.size());
+    @Test
+    public void testLatencyStatsSubtask() {
+        testLatencyStats(
+                LatencyStats.Granularity.SUBTASK,
+                registrations -> {
+                    Assert.assertEquals(4, registrations.size());
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(0);
-				assertName(registration.f0, SOURCE_ID_1, 0);
-				Assert.assertEquals(2, registration.f1.getCount());
-			}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(0);
+                        assertName(registration.f0, SOURCE_ID_1, 0);
+                        Assert.assertEquals(2, registration.f1.getCount());
+                    }
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(1);
-				assertName(registration.f0, SOURCE_ID_1, 1);
-				Assert.assertEquals(1, registration.f1.getCount());
-			}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(1);
+                        assertName(registration.f0, SOURCE_ID_1, 1);
+                        Assert.assertEquals(1, registration.f1.getCount());
+                    }
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(2);
-				assertName(registration.f0, SOURCE_ID_2, 2);
-				Assert.assertEquals(1, registration.f1.getCount());
-			}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(2);
+                        assertName(registration.f0, SOURCE_ID_2, 2);
+                        Assert.assertEquals(1, registration.f1.getCount());
+                    }
 
-			{
-				final Tuple2<String, Histogram> registration = registrations.get(3);
-				assertName(registration.f0, SOURCE_ID_2, 3);
-				Assert.assertEquals(1, registration.f1.getCount());
-			}
-		});
-	}
+                    {
+                        final Tuple2<String, Histogram> registration = registrations.get(3);
+                        assertName(registration.f0, SOURCE_ID_2, 3);
+                        Assert.assertEquals(1, registration.f1.getCount());
+                    }
+                });
+    }
 
-	private static void testLatencyStats(
-		final LatencyStats.Granularity granularity,
-		final Consumer<List<Tuple2<String, Histogram>>> verifier) {
+    private static void testLatencyStats(
+            final LatencyStats.Granularity granularity,
+            final Consumer<List<Tuple2<String, Histogram>>> verifier) {
 
-		final AbstractMetricGroup<?> dummyGroup = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+        final AbstractMetricGroup<?> dummyGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
 
-		final List<Tuple2<String, Histogram>> latencyHistograms = new ArrayList<>(4);
-		final TestingMetricRegistry registry = TestingMetricRegistry.builder()
-			.setRegisterConsumer((metric, metricName, group) -> {
-				if (metric instanceof Histogram) {
-					latencyHistograms.add(Tuple2.of(group.getMetricIdentifier(metricName), (Histogram) metric));
-				}
-			})
-			.build();
-		final MetricGroup parentGroup = new GenericMetricGroup(registry, dummyGroup, PARENT_GROUP_NAME);
+        final List<Tuple2<String, Histogram>> latencyHistograms = new ArrayList<>(4);
+        final TestingMetricRegistry registry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, metricName, group) -> {
+                                    if (metric instanceof Histogram) {
+                                        latencyHistograms.add(
+                                                Tuple2.of(
+                                                        group.getMetricIdentifier(metricName),
+                                                        (Histogram) metric));
+                                    }
+                                })
+                        .build();
+        final MetricGroup parentGroup =
+                new GenericMetricGroup(registry, dummyGroup, PARENT_GROUP_NAME);
 
-		final LatencyStats latencyStats = new LatencyStats(
-			parentGroup,
-			MetricOptions.LATENCY_HISTORY_SIZE.defaultValue(),
-			OPERATOR_SUBTASK_INDEX,
-			OPERATOR_ID,
-			granularity);
+        final LatencyStats latencyStats =
+                new LatencyStats(
+                        parentGroup,
+                        MetricOptions.LATENCY_HISTORY_SIZE.defaultValue(),
+                        OPERATOR_SUBTASK_INDEX,
+                        OPERATOR_ID,
+                        granularity);
 
-		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 0));
-		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 0));
-		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 1));
-		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 2));
-		latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 3));
+        latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 0));
+        latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 0));
+        latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_1, 1));
+        latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 2));
+        latencyStats.reportLatency(new LatencyMarker(0L, SOURCE_ID_2, 3));
 
-		verifier.accept(latencyHistograms);
-	}
+        verifier.accept(latencyHistograms);
+    }
 
-	/**
-	 * Removes all parts from the metric identifier preceding the latency-related parts.
-	 */
-	private static String sanitizeName(final String registrationName) {
-		return registrationName.substring(registrationName.lastIndexOf(PARENT_GROUP_NAME) + PARENT_GROUP_NAME.length() + 1);
-	}
+    /** Removes all parts from the metric identifier preceding the latency-related parts. */
+    private static String sanitizeName(final String registrationName) {
+        return registrationName.substring(
+                registrationName.lastIndexOf(PARENT_GROUP_NAME) + PARENT_GROUP_NAME.length() + 1);
+    }
 
-	private static void assertName(final String registrationName) {
-		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("operator_id." + OPERATOR_ID +
-			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
-			".latency", sanitizedName);
-	}
+    private static void assertName(final String registrationName) {
+        final String sanitizedName = sanitizeName(registrationName);
+        Assert.assertEquals(
+                "operator_id."
+                        + OPERATOR_ID
+                        + ".operator_subtask_index."
+                        + OPERATOR_SUBTASK_INDEX
+                        + ".latency",
+                sanitizedName);
+    }
 
-	private static void assertName(final String registrationName, final OperatorID sourceId) {
-		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("source_id." + sourceId +
-			".operator_id." + OPERATOR_ID +
-			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
-			".latency", sanitizedName);
-	}
+    private static void assertName(final String registrationName, final OperatorID sourceId) {
+        final String sanitizedName = sanitizeName(registrationName);
+        Assert.assertEquals(
+                "source_id."
+                        + sourceId
+                        + ".operator_id."
+                        + OPERATOR_ID
+                        + ".operator_subtask_index."
+                        + OPERATOR_SUBTASK_INDEX
+                        + ".latency",
+                sanitizedName);
+    }
 
-	private static void assertName(final String registrationName, final OperatorID sourceId, final int sourceIndex) {
-		final String sanitizedName = sanitizeName(registrationName);
-		Assert.assertEquals("source_id." + sourceId +
-			".source_subtask_index." + sourceIndex +
-			".operator_id." + OPERATOR_ID +
-			".operator_subtask_index." + OPERATOR_SUBTASK_INDEX +
-			".latency", sanitizedName);
-	}
+    private static void assertName(
+            final String registrationName, final OperatorID sourceId, final int sourceIndex) {
+        final String sanitizedName = sanitizeName(registrationName);
+        Assert.assertEquals(
+                "source_id."
+                        + sourceId
+                        + ".source_subtask_index."
+                        + sourceIndex
+                        + ".operator_id."
+                        + OPERATOR_ID
+                        + ".operator_subtask_index."
+                        + OPERATOR_SUBTASK_INDEX
+                        + ".latency",
+                sanitizedName);
+    }
 }

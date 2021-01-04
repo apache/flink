@@ -22,7 +22,9 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
-import org.apache.flink.table.planner.delegation.BatchPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
@@ -33,53 +35,54 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Batch exec node to connect a given bounded {@link DataStream} and consume data from it.
+ * Batch {@link ExecNode} to connect a given bounded {@link DataStream} and consume data from it.
  */
-public class BatchExecBoundedStreamScan extends BatchExecNode<RowData> {
-	private final DataStream<?> dataStream;
-	private final DataType sourceType;
-	private final int[] fieldIndexes;
-	private final List<String> qualifiedName;
+public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
+        implements BatchExecNode<RowData> {
+    private final DataStream<?> dataStream;
+    private final DataType sourceType;
+    private final int[] fieldIndexes;
+    private final List<String> qualifiedName;
 
-	public BatchExecBoundedStreamScan(
-			DataStream<?> dataStream,
-			DataType sourceType,
-			int[] fieldIndexes,
-			List<String> qualifiedName,
-			RowType outputType,
-			String description) {
-		super(Collections.emptyList(), outputType, description);
-		this.dataStream = dataStream;
-		this.sourceType = sourceType;
-		this.fieldIndexes = fieldIndexes;
-		this.qualifiedName = qualifiedName;
-	}
+    public BatchExecBoundedStreamScan(
+            DataStream<?> dataStream,
+            DataType sourceType,
+            int[] fieldIndexes,
+            List<String> qualifiedName,
+            RowType outputType,
+            String description) {
+        super(Collections.emptyList(), outputType, description);
+        this.dataStream = dataStream;
+        this.sourceType = sourceType;
+        this.fieldIndexes = fieldIndexes;
+        this.qualifiedName = qualifiedName;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(BatchPlanner planner) {
-		final Transformation<?> sourceTransform = dataStream.getTransformation();
-		if (needInternalConversion()) {
-			return ScanUtil.convertToInternalRow(
-					new CodeGeneratorContext(planner.getTableConfig()),
-					(Transformation<Object>) sourceTransform,
-					fieldIndexes,
-					sourceType,
-					(RowType) getOutputType(),
-					qualifiedName,
-					JavaScalaConversionUtil.toScala(Optional.empty()),
-					"",
-					"");
-		} else {
-			return (Transformation<RowData>) sourceTransform;
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<?> sourceTransform = dataStream.getTransformation();
+        if (needInternalConversion()) {
+            return ScanUtil.convertToInternalRow(
+                    new CodeGeneratorContext(planner.getTableConfig()),
+                    (Transformation<Object>) sourceTransform,
+                    fieldIndexes,
+                    sourceType,
+                    (RowType) getOutputType(),
+                    qualifiedName,
+                    JavaScalaConversionUtil.toScala(Optional.empty()),
+                    "",
+                    "");
+        } else {
+            return (Transformation<RowData>) sourceTransform;
+        }
+    }
 
-	private boolean needInternalConversion() {
-		return ScanUtil.hasTimeAttributeField(fieldIndexes) || ScanUtil.needsConversion(sourceType);
-	}
+    private boolean needInternalConversion() {
+        return ScanUtil.hasTimeAttributeField(fieldIndexes) || ScanUtil.needsConversion(sourceType);
+    }
 
-	public DataStream<?> getDataStream() {
-		return dataStream;
-	}
+    public DataStream<?> getDataStream() {
+        return dataStream;
+    }
 }

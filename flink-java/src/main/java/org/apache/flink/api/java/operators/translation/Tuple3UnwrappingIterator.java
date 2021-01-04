@@ -25,57 +25,58 @@ import org.apache.flink.util.TraversableOnceException;
 import java.util.Iterator;
 
 /**
- * An iterator that reads 3-tuples (groupKey, sortKey, value) and returns only the values (third field).
- * The iterator also tracks the groupKeys, as the triples flow though it.
+ * An iterator that reads 3-tuples (groupKey, sortKey, value) and returns only the values (third
+ * field). The iterator also tracks the groupKeys, as the triples flow though it.
  */
 @Internal
-public class Tuple3UnwrappingIterator<T, K1, K2> implements Iterator<T>, Iterable<T>, java.io.Serializable {
+public class Tuple3UnwrappingIterator<T, K1, K2>
+        implements Iterator<T>, Iterable<T>, java.io.Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private K1 lastGroupKey;
-	private K2 lastSortKey;
-	private Iterator<Tuple3<K1, K2, T>> iterator;
-	private boolean iteratorAvailable;
+    private K1 lastGroupKey;
+    private K2 lastSortKey;
+    private Iterator<Tuple3<K1, K2, T>> iterator;
+    private boolean iteratorAvailable;
 
-	public void set(Iterator<Tuple3<K1, K2, T>> iterator) {
-		this.iterator = iterator;
-		this.iteratorAvailable = true;
-	}
+    public void set(Iterator<Tuple3<K1, K2, T>> iterator) {
+        this.iterator = iterator;
+        this.iteratorAvailable = true;
+    }
 
-	public K1 getLastGroupKey() {
-		return lastGroupKey;
-	}
+    public K1 getLastGroupKey() {
+        return lastGroupKey;
+    }
 
-	public K2 getLastSortKey() {
-		return lastSortKey;
-	}
+    public K2 getLastSortKey() {
+        return lastSortKey;
+    }
 
-	@Override
-	public boolean hasNext() {
-		return iterator.hasNext();
-	}
+    @Override
+    public boolean hasNext() {
+        return iterator.hasNext();
+    }
 
-	@Override
-	public T next() {
-		Tuple3<K1, K2, T> t = iterator.next();
-		this.lastGroupKey = t.f0;
-		this.lastSortKey = t.f1;
-		return t.f2;
-	}
+    @Override
+    public T next() {
+        Tuple3<K1, K2, T> t = iterator.next();
+        this.lastGroupKey = t.f0;
+        this.lastSortKey = t.f1;
+        return t.f2;
+    }
 
-	@Override
-	public void remove() {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public void remove() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public Iterator<T> iterator() {
-		if (iteratorAvailable) {
-			iteratorAvailable = false;
-			return this;
-		} else {
-			throw new TraversableOnceException();
-		}
-	}
+    @Override
+    public Iterator<T> iterator() {
+        if (iteratorAvailable) {
+            iteratorAvailable = false;
+            return this;
+        } else {
+            throw new TraversableOnceException();
+        }
+    }
 }

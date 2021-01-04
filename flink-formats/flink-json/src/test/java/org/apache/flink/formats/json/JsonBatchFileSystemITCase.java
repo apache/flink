@@ -34,81 +34,81 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * ITCase to test json format for {@link JsonFormatFactory}.
- */
+/** ITCase to test json format for {@link JsonFormatFactory}. */
 public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
 
-	@Override
-	public String[] formatProperties() {
-		List<String> ret = new ArrayList<>();
-		ret.add("'format'='json'");
-		ret.add("'json.ignore-parse-errors'='true'");
-		return ret.toArray(new String[0]);
-	}
+    @Override
+    public String[] formatProperties() {
+        List<String> ret = new ArrayList<>();
+        ret.add("'format'='json'");
+        ret.add("'json.ignore-parse-errors'='true'");
+        return ret.toArray(new String[0]);
+    }
 
-	@Test
-	public void testParseError() throws Exception {
-		String path = new URI(resultPath()).getPath();
-		new File(path).mkdirs();
-		File file = new File(path, "temp_file");
-		file.createNewFile();
-		FileUtils.writeFileUtf8(file,
-			"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n" +
-				"{I am a wrong json.}\n" +
-				"{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}");
+    @Test
+    public void testParseError() throws Exception {
+        String path = new URI(resultPath()).getPath();
+        new File(path).mkdirs();
+        File file = new File(path, "temp_file");
+        file.createNewFile();
+        FileUtils.writeFileUtf8(
+                file,
+                "{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}\n"
+                        + "{I am a wrong json.}\n"
+                        + "{\"x\":\"x5\",\"y\":5,\"a\":1,\"b\":1}");
 
-		check("select * from nonPartitionedTable",
-			Arrays.asList(
-				Row.of("x5,5,1,1"),
-				Row.of("x5,5,1,1")));
-	}
+        check(
+                "select * from nonPartitionedTable",
+                Arrays.asList(Row.of("x5,5,1,1"), Row.of("x5,5,1,1")));
+    }
 
-	@Test
-	public void bigDataTest() throws IOException {
-		int numRecords = 1000;
-		File dir = generateTestData(numRecords);
+    @Test
+    public void bigDataTest() throws IOException {
+        int numRecords = 1000;
+        File dir = generateTestData(numRecords);
 
-		env().setParallelism(1);
+        env().setParallelism(1);
 
-		String sql = String.format(
-				"CREATE TABLE bigdata_source ( " +
-						"	id INT, " +
-						"	content STRING" +
-						") PARTITIONED by (id) WITH (" +
-						"	'connector' = 'filesystem'," +
-						"	'path' = '%s'," +
-						"	'format' = 'json'" +
-						")", dir);
-		tEnv().executeSql(sql);
-		TableResult result = tEnv().executeSql("select * from bigdata_source");
-		List<String> elements = new ArrayList<>();
-		result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
-		Assert.assertEquals(numRecords, elements.size());
-		elements.sort(String::compareTo);
+        String sql =
+                String.format(
+                        "CREATE TABLE bigdata_source ( "
+                                + "	id INT, "
+                                + "	content STRING"
+                                + ") PARTITIONED by (id) WITH ("
+                                + "	'connector' = 'filesystem',"
+                                + "	'path' = '%s',"
+                                + "	'format' = 'json'"
+                                + ")",
+                        dir);
+        tEnv().executeSql(sql);
+        TableResult result = tEnv().executeSql("select * from bigdata_source");
+        List<String> elements = new ArrayList<>();
+        result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
+        Assert.assertEquals(numRecords, elements.size());
+        elements.sort(String::compareTo);
 
-		List<String> expected = new ArrayList<>();
-		for (int i = 0; i < numRecords; i++) {
-			expected.add(String.valueOf(i));
-		}
-		expected.sort(String::compareTo);
+        List<String> expected = new ArrayList<>();
+        for (int i = 0; i < numRecords; i++) {
+            expected.add(String.valueOf(i));
+        }
+        expected.sort(String::compareTo);
 
-		Assert.assertEquals(expected, elements);
-	}
+        Assert.assertEquals(expected, elements);
+    }
 
-	private static File generateTestData(int numRecords) throws IOException {
-		File tempDir = TEMPORARY_FOLDER.newFolder();
+    private static File generateTestData(int numRecords) throws IOException {
+        File tempDir = TEMPORARY_FOLDER.newFolder();
 
-		File root = new File(tempDir, "id=0");
-		root.mkdir();
+        File root = new File(tempDir, "id=0");
+        root.mkdir();
 
-		File dataFile = new File(root, "testdata");
-		try (PrintWriter writer = new PrintWriter(dataFile)) {
-			for (int i = 0; i < numRecords; ++i) {
-				writer.println(String.format("{\"content\":\"%s\"}", i));
-			}
-		}
+        File dataFile = new File(root, "testdata");
+        try (PrintWriter writer = new PrintWriter(dataFile)) {
+            for (int i = 0; i < numRecords; ++i) {
+                writer.println(String.format("{\"content\":\"%s\"}", i));
+            }
+        }
 
-		return tempDir;
-	}
+        return tempDir;
+    }
 }

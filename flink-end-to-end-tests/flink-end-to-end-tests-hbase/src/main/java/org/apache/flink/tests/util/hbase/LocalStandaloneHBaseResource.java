@@ -40,192 +40,207 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-/**
- * {@link HBaseResource} that downloads hbase and set up a local hbase cluster.
- */
+/** {@link HBaseResource} that downloads hbase and set up a local hbase cluster. */
 public class LocalStandaloneHBaseResource implements HBaseResource {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneHBaseResource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LocalStandaloneHBaseResource.class);
 
-	private static final int MAX_RETRIES = 3;
-	private static final int RETRY_INTERVAL_SECONDS = 30;
-	private final TemporaryFolder tmp = new TemporaryFolder();
+    private static final int MAX_RETRIES = 3;
+    private static final int RETRY_INTERVAL_SECONDS = 30;
+    private final TemporaryFolder tmp = new TemporaryFolder();
 
-	private final DownloadCache downloadCache = DownloadCache.get();
-	private final String hbaseVersion;
-	private Path hbaseDir;
+    private final DownloadCache downloadCache = DownloadCache.get();
+    private final String hbaseVersion;
+    private Path hbaseDir;
 
-	LocalStandaloneHBaseResource(String hbaseVersion) {
-		OperatingSystemRestriction.forbid(
-			String.format("The %s relies on UNIX utils and shell scripts.", getClass().getSimpleName()),
-			OperatingSystem.WINDOWS);
-		this.hbaseVersion = hbaseVersion;
-	}
+    LocalStandaloneHBaseResource(String hbaseVersion) {
+        OperatingSystemRestriction.forbid(
+                String.format(
+                        "The %s relies on UNIX utils and shell scripts.",
+                        getClass().getSimpleName()),
+                OperatingSystem.WINDOWS);
+        this.hbaseVersion = hbaseVersion;
+    }
 
-	private String getHBaseDownloadUrl() {
-		return String.format("https://archive.apache.org/dist/hbase/%1$s/hbase-%1$s-bin.tar.gz", hbaseVersion);
-	}
+    private String getHBaseDownloadUrl() {
+        return String.format(
+                "https://archive.apache.org/dist/hbase/%1$s/hbase-%1$s-bin.tar.gz", hbaseVersion);
+    }
 
-	@Override
-	public void before() throws Exception {
-		tmp.create();
-		downloadCache.before();
+    @Override
+    public void before() throws Exception {
+        tmp.create();
+        downloadCache.before();
 
-		this.hbaseDir = tmp.newFolder("hbase-" + hbaseVersion).toPath().toAbsolutePath();
-		setupHBaseDist();
-		setupHBaseCluster();
-	}
+        this.hbaseDir = tmp.newFolder("hbase-" + hbaseVersion).toPath().toAbsolutePath();
+        setupHBaseDist();
+        setupHBaseCluster();
+    }
 
-	private void setupHBaseDist() throws IOException {
-		final Path downloadDirectory = tmp.newFolder("getOrDownload").toPath();
-		final Path hbaseArchive = downloadCache.getOrDownload(getHBaseDownloadUrl(), downloadDirectory);
+    private void setupHBaseDist() throws IOException {
+        final Path downloadDirectory = tmp.newFolder("getOrDownload").toPath();
+        final Path hbaseArchive =
+                downloadCache.getOrDownload(getHBaseDownloadUrl(), downloadDirectory);
 
-		LOG.info("HBase location: {}", hbaseDir.toAbsolutePath());
-		AutoClosableProcess.runBlocking(CommandLineWrapper
-			.tar(hbaseArchive)
-			.extract()
-			.zipped()
-			.strip(1)
-			.targetDir(hbaseDir)
-			.build());
+        LOG.info("HBase location: {}", hbaseDir.toAbsolutePath());
+        AutoClosableProcess.runBlocking(
+                CommandLineWrapper.tar(hbaseArchive)
+                        .extract()
+                        .zipped()
+                        .strip(1)
+                        .targetDir(hbaseDir)
+                        .build());
 
-		LOG.info("Configure {} as hbase.tmp.dir", hbaseDir.toAbsolutePath());
-		final String tmpDirConfig = "<configuration><property><name>hbase.tmp.dir</name><value>" + hbaseDir + "</value></property></configuration>";
-		Files.write(hbaseDir.resolve(Paths.get("conf", "hbase-site.xml")), tmpDirConfig.getBytes());
-	}
+        LOG.info("Configure {} as hbase.tmp.dir", hbaseDir.toAbsolutePath());
+        final String tmpDirConfig =
+                "<configuration><property><name>hbase.tmp.dir</name><value>"
+                        + hbaseDir
+                        + "</value></property></configuration>";
+        Files.write(hbaseDir.resolve(Paths.get("conf", "hbase-site.xml")), tmpDirConfig.getBytes());
+    }
 
-	private void setupHBaseCluster() throws IOException {
-		LOG.info("Starting HBase cluster...");
-		runHBaseProcessWithRetry("start-hbase.sh", () -> !isHMasterRunning());
-		LOG.info("Start HBase cluster success");
-	}
+    private void setupHBaseCluster() throws IOException {
+        LOG.info("Starting HBase cluster...");
+        runHBaseProcessWithRetry("start-hbase.sh", () -> !isHMasterRunning());
+        LOG.info("Start HBase cluster success");
+    }
 
-	@Override
-	public void afterTestSuccess() {
-		shutdownResource();
-		downloadCache.afterTestSuccess();
-		tmp.delete();
-	}
+    @Override
+    public void afterTestSuccess() {
+        shutdownResource();
+        downloadCache.afterTestSuccess();
+        tmp.delete();
+    }
 
-	private void shutdownResource() {
-		LOG.info("Stopping HBase Cluster...");
-		try {
-			runHBaseProcessWithRetry("stop-hbase.sh", () -> isHMasterAlive());
-		} catch (IOException ioe) {
-			LOG.warn("Error when shutting down HBase Cluster.", ioe);
-		}
-		LOG.info("Stop HBase Cluster success");
-	}
+    private void shutdownResource() {
+        LOG.info("Stopping HBase Cluster...");
+        try {
+            runHBaseProcessWithRetry("stop-hbase.sh", () -> isHMasterAlive());
+        } catch (IOException ioe) {
+            LOG.warn("Error when shutting down HBase Cluster.", ioe);
+        }
+        LOG.info("Stop HBase Cluster success");
+    }
 
-	private void runHBaseProcessWithRetry(String command, Supplier<Boolean> processStatusChecker) throws IOException {
-		LOG.info("Execute {} for HBase Cluster", command);
+    private void runHBaseProcessWithRetry(String command, Supplier<Boolean> processStatusChecker)
+            throws IOException {
+        LOG.info("Execute {} for HBase Cluster", command);
 
-		for (int i = 1; i <= MAX_RETRIES; i++) {
-			try {
-				AutoClosableProcess.runBlocking(
-						hbaseDir.resolve(Paths.get("bin", command)).toString());
-			} catch (IOException ioe) {
-				LOG.warn("Get exception when execute {} ", command, ioe);
-			}
+        for (int i = 1; i <= MAX_RETRIES; i++) {
+            try {
+                AutoClosableProcess.runBlocking(
+                        hbaseDir.resolve(Paths.get("bin", command)).toString());
+            } catch (IOException ioe) {
+                LOG.warn("Get exception when execute {} ", command, ioe);
+            }
 
-			int waitSecond = 0;
-			while (processStatusChecker.get()) {
-				try {
-					LOG.info("Waiting for HBase {} works", command);
-					Thread.sleep(1000L);
-				} catch (InterruptedException e) {
-					LOG.warn("sleep interrupted", e);
-				}
-				waitSecond++;
-				if (waitSecond > RETRY_INTERVAL_SECONDS) {
-					break;
-				}
-			}
+            int waitSecond = 0;
+            while (processStatusChecker.get()) {
+                try {
+                    LOG.info("Waiting for HBase {} works", command);
+                    Thread.sleep(1000L);
+                } catch (InterruptedException e) {
+                    LOG.warn("sleep interrupted", e);
+                }
+                waitSecond++;
+                if (waitSecond > RETRY_INTERVAL_SECONDS) {
+                    break;
+                }
+            }
 
-			if (waitSecond < RETRY_INTERVAL_SECONDS) {
-				break;
-			} else {
-				if (i == MAX_RETRIES) {
-					LOG.error("Execute {} failed, retry times {}", command, i);
-					throw new IllegalArgumentException(String.format(
-							"Execute %s failed aftert retry %s times", command, i));
-				} else {
-					LOG.warn("Execute {} failed, retry times {}", command, i);
-				}
-			}
-		}
-	}
+            if (waitSecond < RETRY_INTERVAL_SECONDS) {
+                break;
+            } else {
+                if (i == MAX_RETRIES) {
+                    LOG.error("Execute {} failed, retry times {}", command, i);
+                    throw new IllegalArgumentException(
+                            String.format("Execute %s failed aftert retry %s times", command, i));
+                } else {
+                    LOG.warn("Execute {} failed, retry times {}", command, i);
+                }
+            }
+        }
+    }
 
-	private boolean isHMasterRunning() {
-		try {
-			final AtomicBoolean atomicHMasterStarted = new AtomicBoolean(false);
-			queryHBaseStatus(line ->
-					atomicHMasterStarted.compareAndSet(false, line.contains("hbase:namespace")));
-			return atomicHMasterStarted.get();
-		} catch (IOException ioe) {
-			return false;
-		}
-	}
+    private boolean isHMasterRunning() {
+        try {
+            final AtomicBoolean atomicHMasterStarted = new AtomicBoolean(false);
+            queryHBaseStatus(
+                    line ->
+                            atomicHMasterStarted.compareAndSet(
+                                    false, line.contains("hbase:namespace")));
+            return atomicHMasterStarted.get();
+        } catch (IOException ioe) {
+            return false;
+        }
+    }
 
-	private void queryHBaseStatus(final Consumer<String> stdoutProcessor) throws IOException {
-		executeHBaseShell("scan 'hbase:meta'", stdoutProcessor);
-	}
+    private void queryHBaseStatus(final Consumer<String> stdoutProcessor) throws IOException {
+        executeHBaseShell("scan 'hbase:meta'", stdoutProcessor);
+    }
 
-	private boolean isHMasterAlive() {
-		try {
-			final AtomicBoolean atomicHMasterStarted = new AtomicBoolean(false);
-			queryHBaseProcess(line ->
-					atomicHMasterStarted.compareAndSet(false, line.contains("HMaster")));
-			return atomicHMasterStarted.get();
-		} catch (IOException ioe) {
-			return false;
-		}
-	}
+    private boolean isHMasterAlive() {
+        try {
+            final AtomicBoolean atomicHMasterStarted = new AtomicBoolean(false);
+            queryHBaseProcess(
+                    line -> atomicHMasterStarted.compareAndSet(false, line.contains("HMaster")));
+            return atomicHMasterStarted.get();
+        } catch (IOException ioe) {
+            return false;
+        }
+    }
 
-	private void queryHBaseProcess(final Consumer<String> stdoutProcessor) throws IOException {
-		AutoClosableProcess
-				.create("jps")
-				.setStdoutProcessor(stdoutProcessor)
-				.runBlocking();
-	}
+    private void queryHBaseProcess(final Consumer<String> stdoutProcessor) throws IOException {
+        AutoClosableProcess.create("jps").setStdoutProcessor(stdoutProcessor).runBlocking();
+    }
 
-	@Override
-	public void createTable(String tableName, String... columnFamilies) throws IOException {
-		final String createTable = String.format("create '%s',", tableName) +
-			Arrays.stream(columnFamilies)
-				.map(cf -> String.format("{NAME=>'%s'}", cf))
-				.collect(Collectors.joining(","));
+    @Override
+    public void createTable(String tableName, String... columnFamilies) throws IOException {
+        final String createTable =
+                String.format("create '%s',", tableName)
+                        + Arrays.stream(columnFamilies)
+                                .map(cf -> String.format("{NAME=>'%s'}", cf))
+                                .collect(Collectors.joining(","));
 
-		executeHBaseShell(createTable);
-	}
+        executeHBaseShell(createTable);
+    }
 
-	@Override
-	public List<String> scanTable(String tableName) throws IOException {
-		final List<String> result = new ArrayList<>();
-		executeHBaseShell(String.format("scan '%s'", tableName), line -> {
-			if (line.contains("value=")) {
-				result.add(line);
-			}
-		});
-		return result;
-	}
+    @Override
+    public List<String> scanTable(String tableName) throws IOException {
+        final List<String> result = new ArrayList<>();
+        executeHBaseShell(
+                String.format("scan '%s'", tableName),
+                line -> {
+                    if (line.contains("value=")) {
+                        result.add(line);
+                    }
+                });
+        return result;
+    }
 
-	@Override
-	public void putData(String tableName, String rowKey, String columnFamily, String columnQualifier, String value) throws IOException {
-		executeHBaseShell(
-			String.format("put '%s','%s','%s:%s','%s'", tableName, rowKey, columnFamily, columnQualifier, value));
-	}
+    @Override
+    public void putData(
+            String tableName,
+            String rowKey,
+            String columnFamily,
+            String columnQualifier,
+            String value)
+            throws IOException {
+        executeHBaseShell(
+                String.format(
+                        "put '%s','%s','%s:%s','%s'",
+                        tableName, rowKey, columnFamily, columnQualifier, value));
+    }
 
-	private void executeHBaseShell(String cmd) throws IOException {
-		executeHBaseShell(cmd, line -> {
-		});
-	}
+    private void executeHBaseShell(String cmd) throws IOException {
+        executeHBaseShell(cmd, line -> {});
+    }
 
-	private void executeHBaseShell(String cmd, Consumer<String> stdoutProcessor) throws IOException {
-		AutoClosableProcess
-			.create(hbaseDir.resolve(Paths.get("bin", "hbase")).toString(), "shell")
-			.setStdoutProcessor(stdoutProcessor)
-			.setStdInputs(cmd)
-			.runBlocking();
-	}
+    private void executeHBaseShell(String cmd, Consumer<String> stdoutProcessor)
+            throws IOException {
+        AutoClosableProcess.create(hbaseDir.resolve(Paths.get("bin", "hbase")).toString(), "shell")
+                .setStdoutProcessor(stdoutProcessor)
+                .setStdInputs(cmd)
+                .runBlocking();
+    }
 }

@@ -29,68 +29,68 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.function.Consumer;
 
-/**
- * Miscellaneous utilities for the file source.
- */
+/** Miscellaneous utilities for the file source. */
 @PublicEvolving
 public final class Utils {
 
-	/**
-	 * Runs the given {@code SupplierWithException} (a piece of code producing a result).
-	 * If an exception happens during that, the given closable is quietly closed.
-	 */
-	public static <E> E doWithCleanupOnException(
-			final Closeable toCleanUp,
-			final SupplierWithException<E, IOException> code) throws IOException {
+    /**
+     * Runs the given {@code SupplierWithException} (a piece of code producing a result). If an
+     * exception happens during that, the given closable is quietly closed.
+     */
+    public static <E> E doWithCleanupOnException(
+            final Closeable toCleanUp, final SupplierWithException<E, IOException> code)
+            throws IOException {
 
-		try {
-			return code.get();
-		}
-		catch (Throwable t) {
-			IOUtils.closeQuietly(toCleanUp);
-			ExceptionUtils.rethrowIOException(t);
-			return null; // silence the compiler
-		}
-	}
+        try {
+            return code.get();
+        } catch (Throwable t) {
+            IOUtils.closeQuietly(toCleanUp);
+            ExceptionUtils.rethrowIOException(t);
+            return null; // silence the compiler
+        }
+    }
 
-	/**
-	 * Runs the given {@code Runnable}. If an exception happens during that, the given closable
-	 * is quietly closed.
-	 */
-	public static void doWithCleanupOnException(
-			final Closeable toCleanUp,
-			final ThrowingRunnable<IOException> code) throws IOException {
+    /**
+     * Runs the given {@code Runnable}. If an exception happens during that, the given closable is
+     * quietly closed.
+     */
+    public static void doWithCleanupOnException(
+            final Closeable toCleanUp, final ThrowingRunnable<IOException> code)
+            throws IOException {
 
-		doWithCleanupOnException(toCleanUp, (SupplierWithException<Void, IOException>) () -> {
-			code.run();
-			return null;
-		});
-	}
+        doWithCleanupOnException(
+                toCleanUp,
+                (SupplierWithException<Void, IOException>)
+                        () -> {
+                            code.run();
+                            return null;
+                        });
+    }
 
-	/**
-	 * Performs the given action for each remaining element in {@link BulkFormat.Reader} until all
-	 * elements have been processed or the action throws an exception.
-	 */
-	public static <T> void forEachRemaining(
-			final BulkFormat.Reader<T> reader,
-			final Consumer<? super T> action) throws IOException {
-		BulkFormat.RecordIterator<T> batch;
-		RecordAndPosition<T> record;
+    /**
+     * Performs the given action for each remaining element in {@link BulkFormat.Reader} until all
+     * elements have been processed or the action throws an exception.
+     */
+    public static <T> void forEachRemaining(
+            final BulkFormat.Reader<T> reader, final Consumer<? super T> action)
+            throws IOException {
+        BulkFormat.RecordIterator<T> batch;
+        RecordAndPosition<T> record;
 
-		try {
-			while ((batch = reader.readBatch()) != null) {
-				while ((record = batch.next()) != null) {
-					action.accept(record.getRecord());
-				}
-				batch.releaseBatch();
-			}
-		} finally {
-			reader.close();
-		}
-	}
+        try {
+            while ((batch = reader.readBatch()) != null) {
+                while ((record = batch.next()) != null) {
+                    action.accept(record.getRecord());
+                }
+                batch.releaseBatch();
+            }
+        } finally {
+            reader.close();
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** This class is not meant to be instantiated. */
-	private Utils() {}
+    /** This class is not meant to be instantiated. */
+    private Utils() {}
 }

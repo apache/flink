@@ -32,23 +32,25 @@ import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
- * This is the only executor that {@link org.apache.flink.table.planner.delegation.BatchPlanner} supports.
+ * This is the only executor that {@link org.apache.flink.table.planner.delegation.BatchPlanner}
+ * supports.
  */
 @Internal
 public class BatchExecutor extends ExecutorBase {
 
-	@VisibleForTesting
-	public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
-		super(executionEnvironment);
-	}
+    @VisibleForTesting
+    public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
+        super(executionEnvironment);
+    }
 
-	@Override
-	public Pipeline createPipeline(List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
-		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		ExecutorUtils.setBatchProperties(execEnv, tableConfig);
-		StreamGraph streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations);
-		streamGraph.setJobName(getNonEmptyJobName(jobName));
-		ExecutorUtils.setBatchProperties(streamGraph, tableConfig);
-		return streamGraph;
-	}
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+        StreamExecutionEnvironment execEnv = getExecutionEnvironment();
+        ExecutorUtils.setBatchProperties(execEnv, tableConfig);
+        StreamGraph streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations);
+        streamGraph.setJobName(getNonEmptyJobName(jobName));
+        ExecutorUtils.setBatchProperties(streamGraph, tableConfig);
+        return streamGraph;
+    }
 }

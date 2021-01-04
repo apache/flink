@@ -23,21 +23,21 @@ import java.util.List;
 /** ConstantRankRangeWithoutEnd is a RankRange which not specify RankEnd. */
 public class ConstantRankRangeWithoutEnd implements RankRange {
 
-	private static final long serialVersionUID = -1944057111062598696L;
+    private static final long serialVersionUID = -1944057111062598696L;
 
-	private final long rankStart;
+    private final long rankStart;
 
-	public ConstantRankRangeWithoutEnd(long rankStart) {
-		this.rankStart = rankStart;
-	}
+    public ConstantRankRangeWithoutEnd(long rankStart) {
+        this.rankStart = rankStart;
+    }
 
-	@Override
-	public String toString(List<String> inputFieldNames) {
-		return toString();
-	}
+    @Override
+    public String toString(List<String> inputFieldNames) {
+        return toString();
+    }
 
-	@Override
-	public String toString() {
-		return "rankStart=" + rankStart;
-	}
+    @Override
+    public String toString() {
+        return "rankStart=" + rankStart;
+    }
 }

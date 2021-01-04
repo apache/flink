@@ -25,45 +25,44 @@ import java.util.Collections;
 import java.util.HashMap;
 
 /**
- * Special, internal kind of {@link ModifyOperation} that
- * collects the content of {@link QueryOperation} to local.
+ * Special, internal kind of {@link ModifyOperation} that collects the content of {@link
+ * QueryOperation} to local.
  */
 @Internal
 public class SelectSinkOperation implements ModifyOperation {
 
-	private final QueryOperation child;
-	// help the client to get the execute result from a specific sink.
-	private SelectResultProvider resultProvider;
+    private final QueryOperation child;
+    // help the client to get the execute result from a specific sink.
+    private SelectResultProvider resultProvider;
 
-	public SelectSinkOperation(QueryOperation child) {
-		this.child = child;
-	}
+    public SelectSinkOperation(QueryOperation child) {
+        this.child = child;
+    }
 
-	public void setSelectResultProvider(SelectResultProvider resultProvider) {
-		this.resultProvider = resultProvider;
-	}
+    public void setSelectResultProvider(SelectResultProvider resultProvider) {
+        this.resultProvider = resultProvider;
+    }
 
-	public SelectResultProvider getSelectResultProvider() {
-		return resultProvider;
-	}
+    public SelectResultProvider getSelectResultProvider() {
+        return resultProvider;
+    }
 
-	@Override
-	public QueryOperation getChild() {
-		return child;
-	}
+    @Override
+    public QueryOperation getChild() {
+        return child;
+    }
 
-	@Override
-	public <T> T accept(ModifyOperationVisitor<T> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <T> T accept(ModifyOperationVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return OperationUtils.formatWithChildren(
-			"SelectSink",
-			new HashMap<>(),
-			Collections.singletonList(child),
-			Operation::asSummaryString);
-	}
-
+    @Override
+    public String asSummaryString() {
+        return OperationUtils.formatWithChildren(
+                "SelectSink",
+                new HashMap<>(),
+                Collections.singletonList(child),
+                Operation::asSummaryString);
+    }
 }

@@ -30,127 +30,112 @@ import java.util.List;
  */
 public enum ProcessorArchitecture {
 
-	/**
-	 * The Intel x86 processor architecture.
-	 */
-	X86(MemoryAddressSize._32_BIT, "x86", "i386", "i486", "i586", "i686"),
+    /** The Intel x86 processor architecture. */
+    X86(MemoryAddressSize._32_BIT, "x86", "i386", "i486", "i586", "i686"),
 
-	/**
-	 * The AMD 64 bit processor architecture.
-	 */
-	AMD64(MemoryAddressSize._64_BIT, "amd64", "x86_64"),
+    /** The AMD 64 bit processor architecture. */
+    AMD64(MemoryAddressSize._64_BIT, "amd64", "x86_64"),
 
-	/**
-	 * The ARM 32 bit processor architecture.
-	 */
-	ARMv7(MemoryAddressSize._32_BIT, "armv7", "arm"),
+    /** The ARM 32 bit processor architecture. */
+    ARMv7(MemoryAddressSize._32_BIT, "armv7", "arm"),
 
-	/**
-	 * The 64 bit ARM processor architecture.
-	 */
-	AARCH64(MemoryAddressSize._64_BIT, "aarch64"),
+    /** The 64 bit ARM processor architecture. */
+    AARCH64(MemoryAddressSize._64_BIT, "aarch64"),
 
-	/**
-	 * The little-endian mode of the 64 bit Power-PC architecture.
-	 */
-	PPC64_LE(MemoryAddressSize._64_BIT, "ppc64le"),
+    /** The little-endian mode of the 64 bit Power-PC architecture. */
+    PPC64_LE(MemoryAddressSize._64_BIT, "ppc64le"),
 
-	/**
-	 * Unknown architecture, could not be determined. This one conservatively assumes 32 bit,
-	 * because 64 bit platforms typically support 32 bit memory spaces.
-	 */
-	UNKNOWN(MemoryAddressSize._32_BIT, "unknown");
+    /**
+     * Unknown architecture, could not be determined. This one conservatively assumes 32 bit,
+     * because 64 bit platforms typically support 32 bit memory spaces.
+     */
+    UNKNOWN(MemoryAddressSize._32_BIT, "unknown");
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final ProcessorArchitecture CURRENT = readArchFromSystemProperties();
+    private static final ProcessorArchitecture CURRENT = readArchFromSystemProperties();
 
-	private final MemoryAddressSize addressSize;
+    private final MemoryAddressSize addressSize;
 
-	private final String name;
+    private final String name;
 
-	private final List<String> alternativeNames;
+    private final List<String> alternativeNames;
 
-	ProcessorArchitecture(MemoryAddressSize addressSize, String name, String... alternativeNames) {
-		this.addressSize = addressSize;
-		this.name = name;
-		this.alternativeNames = Collections.unmodifiableList(Arrays.asList(alternativeNames));
-	}
+    ProcessorArchitecture(MemoryAddressSize addressSize, String name, String... alternativeNames) {
+        this.addressSize = addressSize;
+        this.name = name;
+        this.alternativeNames = Collections.unmodifiableList(Arrays.asList(alternativeNames));
+    }
 
-	/**
-	 * Gets the address size of the memory (32 bit, 64 bit).
-	 */
-	public MemoryAddressSize getAddressSize() {
-		return addressSize;
-	}
+    /** Gets the address size of the memory (32 bit, 64 bit). */
+    public MemoryAddressSize getAddressSize() {
+        return addressSize;
+    }
 
-	/**
-	 * Gets the primary name of the processor architecture.
-	 * The primary name would for example be "x86" or "amd64".
-	 */
-	public String getArchitectureName() {
-		return name;
-	}
+    /**
+     * Gets the primary name of the processor architecture. The primary name would for example be
+     * "x86" or "amd64".
+     */
+    public String getArchitectureName() {
+        return name;
+    }
 
-	/**
-	 * Gets the alternative names for the processor architecture.
-	 * Alternative names are for example "i586" for "x86", or "x86_64" for "amd64".
-	 */
-	public List<String> getAlternativeNames() {
-		return alternativeNames;
-	}
+    /**
+     * Gets the alternative names for the processor architecture. Alternative names are for example
+     * "i586" for "x86", or "x86_64" for "amd64".
+     */
+    public List<String> getAlternativeNames() {
+        return alternativeNames;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Gets the ProcessorArchitecture of the system running this process.
-	 */
-	public static ProcessorArchitecture getProcessorArchitecture() {
-		return CURRENT;
-	}
+    /** Gets the ProcessorArchitecture of the system running this process. */
+    public static ProcessorArchitecture getProcessorArchitecture() {
+        return CURRENT;
+    }
 
-	/**
-	 * Gets the MemorySize of the ProcessorArchitecture of this process.
-	 *
-	 * <p>Note that the memory address size might be different than the actual hardware architecture,
-	 * due to the installed OS (32bit OS) or when installing a 32 bit JRE in a 64 bit OS.
-	 */
-	public static MemoryAddressSize getMemoryAddressSize() {
-		return getProcessorArchitecture().getAddressSize();
-	}
+    /**
+     * Gets the MemorySize of the ProcessorArchitecture of this process.
+     *
+     * <p>Note that the memory address size might be different than the actual hardware
+     * architecture, due to the installed OS (32bit OS) or when installing a 32 bit JRE in a 64 bit
+     * OS.
+     */
+    public static MemoryAddressSize getMemoryAddressSize() {
+        return getProcessorArchitecture().getAddressSize();
+    }
 
-	private static ProcessorArchitecture readArchFromSystemProperties() {
-		final String sysArchName = System.getProperty("os.arch");
-		if (sysArchName == null) {
-			return UNKNOWN;
-		}
+    private static ProcessorArchitecture readArchFromSystemProperties() {
+        final String sysArchName = System.getProperty("os.arch");
+        if (sysArchName == null) {
+            return UNKNOWN;
+        }
 
-		for (ProcessorArchitecture arch : values()) {
-			if (sysArchName.equalsIgnoreCase(arch.name)) {
-				return arch;
-			}
+        for (ProcessorArchitecture arch : values()) {
+            if (sysArchName.equalsIgnoreCase(arch.name)) {
+                return arch;
+            }
 
-			for (String altName : arch.alternativeNames) {
-				if (sysArchName.equalsIgnoreCase(altName)) {
-					return arch;
-				}
-			}
-		}
+            for (String altName : arch.alternativeNames) {
+                if (sysArchName.equalsIgnoreCase(altName)) {
+                    return arch;
+                }
+            }
+        }
 
-		return UNKNOWN;
-	}
+        return UNKNOWN;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/**
-	 * The memory address size of the processor.
-	 */
-	public enum MemoryAddressSize {
+    /** The memory address size of the processor. */
+    public enum MemoryAddressSize {
 
-		/** 32 bit memory address size. */
-		_32_BIT,
+        /** 32 bit memory address size. */
+        _32_BIT,
 
-		/** 64 bit memory address size. */
-		_64_BIT,
-	}
+        /** 64 bit memory address size. */
+        _64_BIT,
+    }
 }

@@ -24,78 +24,72 @@ import org.apache.flink.table.data.RowData;
 
 import org.apache.arrow.vector.DateDayVector;
 
-/**
- * {@link ArrowFieldWriter} for Date.
- */
+/** {@link ArrowFieldWriter} for Date. */
 @Internal
 public abstract class DateWriter<T> extends ArrowFieldWriter<T> {
 
-	public static DateWriter<RowData> forRow(DateDayVector dateDayVector) {
-		return new DateWriterForRow(dateDayVector);
-	}
+    public static DateWriter<RowData> forRow(DateDayVector dateDayVector) {
+        return new DateWriterForRow(dateDayVector);
+    }
 
-	public static DateWriter<ArrayData> forArray(DateDayVector dateDayVector) {
-		return new DateWriterForArray(dateDayVector);
-	}
+    public static DateWriter<ArrayData> forArray(DateDayVector dateDayVector) {
+        return new DateWriterForArray(dateDayVector);
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	private DateWriter(DateDayVector dateDayVector) {
-		super(dateDayVector);
-	}
+    private DateWriter(DateDayVector dateDayVector) {
+        super(dateDayVector);
+    }
 
-	abstract boolean isNullAt(T in, int ordinal);
+    abstract boolean isNullAt(T in, int ordinal);
 
-	abstract int readDate(T in, int ordinal);
+    abstract int readDate(T in, int ordinal);
 
-	@Override
-	public void doWrite(T in, int ordinal) {
-		if (isNullAt(in, ordinal)) {
-			((DateDayVector) getValueVector()).setNull(getCount());
-		} else {
-			((DateDayVector) getValueVector()).setSafe(getCount(), readDate(in, ordinal));
-		}
-	}
+    @Override
+    public void doWrite(T in, int ordinal) {
+        if (isNullAt(in, ordinal)) {
+            ((DateDayVector) getValueVector()).setNull(getCount());
+        } else {
+            ((DateDayVector) getValueVector()).setSafe(getCount(), readDate(in, ordinal));
+        }
+    }
 
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
 
-	/**
-	 * {@link DateWriter} for {@link RowData} input.
-	 */
-	public static final class DateWriterForRow extends DateWriter<RowData> {
+    /** {@link DateWriter} for {@link RowData} input. */
+    public static final class DateWriterForRow extends DateWriter<RowData> {
 
-		private DateWriterForRow(DateDayVector dateDayVector) {
-			super(dateDayVector);
-		}
+        private DateWriterForRow(DateDayVector dateDayVector) {
+            super(dateDayVector);
+        }
 
-		@Override
-		boolean isNullAt(RowData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(RowData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		int readDate(RowData in, int ordinal) {
-			return in.getInt(ordinal);
-		}
-	}
+        @Override
+        int readDate(RowData in, int ordinal) {
+            return in.getInt(ordinal);
+        }
+    }
 
-	/**
-	 * {@link DateWriter} for {@link ArrayData} input.
-	 */
-	public static final class DateWriterForArray extends DateWriter<ArrayData> {
+    /** {@link DateWriter} for {@link ArrayData} input. */
+    public static final class DateWriterForArray extends DateWriter<ArrayData> {
 
-		private DateWriterForArray(DateDayVector dateDayVector) {
-			super(dateDayVector);
-		}
+        private DateWriterForArray(DateDayVector dateDayVector) {
+            super(dateDayVector);
+        }
 
-		@Override
-		boolean isNullAt(ArrayData in, int ordinal) {
-			return in.isNullAt(ordinal);
-		}
+        @Override
+        boolean isNullAt(ArrayData in, int ordinal) {
+            return in.isNullAt(ordinal);
+        }
 
-		@Override
-		int readDate(ArrayData in, int ordinal) {
-			return in.getInt(ordinal);
-		}
-	}
+        @Override
+        int readDate(ArrayData in, int ordinal) {
+            return in.getInt(ordinal);
+        }
+    }
 }

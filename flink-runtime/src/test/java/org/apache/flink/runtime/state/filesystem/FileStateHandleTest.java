@@ -33,54 +33,51 @@ import java.util.Random;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link FileStateHandle}.
- */
+/** Tests for the {@link FileStateHandle}. */
 public class FileStateHandleTest {
 
-	@Rule
-	public final TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testDisposeDeletesFile() throws Exception {
-		File file = tempFolder.newFile();
-		writeTestData(file);
-		assertTrue(file.exists());
+    @Test
+    public void testDisposeDeletesFile() throws Exception {
+        File file = tempFolder.newFile();
+        writeTestData(file);
+        assertTrue(file.exists());
 
-		FileStateHandle handle = new FileStateHandle(Path.fromLocalFile(file), file.length());
-		handle.discardState();
-		assertFalse(file.exists());
-	}
+        FileStateHandle handle = new FileStateHandle(Path.fromLocalFile(file), file.length());
+        handle.discardState();
+        assertFalse(file.exists());
+    }
 
-	/**
-	 * Tests that the file state handle does not attempt to check and clean up the parent directory.
-	 * Doing directory contents checks and cleaning up the parent directory in the state handle disposal
-	 * has previously led to excessive file system metadata requests, which especially on systems like
-	 * Amazon S3 is prohibitively expensive.
-	 */
-	@Test
-	public void testDisposeDoesNotDeleteParentDirectory() throws Exception {
-		File parentDir = tempFolder.newFolder();
-		assertTrue(parentDir.exists());
+    /**
+     * Tests that the file state handle does not attempt to check and clean up the parent directory.
+     * Doing directory contents checks and cleaning up the parent directory in the state handle
+     * disposal has previously led to excessive file system metadata requests, which especially on
+     * systems like Amazon S3 is prohibitively expensive.
+     */
+    @Test
+    public void testDisposeDoesNotDeleteParentDirectory() throws Exception {
+        File parentDir = tempFolder.newFolder();
+        assertTrue(parentDir.exists());
 
-		File file = new File(parentDir, "test");
-		writeTestData(file);
-		assertTrue(file.exists());
+        File file = new File(parentDir, "test");
+        writeTestData(file);
+        assertTrue(file.exists());
 
-		FileStateHandle handle = new FileStateHandle(Path.fromLocalFile(file), file.length());
-		handle.discardState();
-		assertFalse(file.exists());
-		assertTrue(parentDir.exists());
-	}
+        FileStateHandle handle = new FileStateHandle(Path.fromLocalFile(file), file.length());
+        handle.discardState();
+        assertFalse(file.exists());
+        assertTrue(parentDir.exists());
+    }
 
-	private static void writeTestData(File file) throws IOException {
-		final Random rnd = new Random();
+    private static void writeTestData(File file) throws IOException {
+        final Random rnd = new Random();
 
-		byte[] data = new byte[rnd.nextInt(1024) + 1];
-		rnd.nextBytes(data);
+        byte[] data = new byte[rnd.nextInt(1024) + 1];
+        rnd.nextBytes(data);
 
-		try (OutputStream out = new FileOutputStream(file)) {
-			out.write(data);
-		}
-	}
+        try (OutputStream out = new FileOutputStream(file)) {
+            out.write(data);
+        }
+    }
 }

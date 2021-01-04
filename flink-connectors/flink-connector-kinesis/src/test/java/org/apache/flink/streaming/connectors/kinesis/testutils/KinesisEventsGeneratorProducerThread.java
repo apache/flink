@@ -33,87 +33,100 @@ import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * A thread that runs a topology with a manual data generator as source, and the FlinkKinesisProducer as sink.
+ * A thread that runs a topology with a manual data generator as source, and the
+ * FlinkKinesisProducer as sink.
  */
 public class KinesisEventsGeneratorProducerThread {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KinesisEventsGeneratorProducerThread.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(KinesisEventsGeneratorProducerThread.class);
 
-	public static Thread create(final int totalEventCount,
-								final int parallelism,
-								final String awsAccessKey,
-								final String awsSecretKey,
-								final String awsRegion,
-								final String kinesisStreamName,
-								final AtomicReference<Throwable> errorHandler,
-								final int flinkPort,
-								final Configuration flinkConfig) {
-		Runnable kinesisEventsGeneratorProducer = new Runnable() {
-			@Override
-			public void run() {
-				try {
-					StreamExecutionEnvironment see = StreamExecutionEnvironment.createRemoteEnvironment("localhost", flinkPort, flinkConfig);
-					see.setParallelism(parallelism);
+    public static Thread create(
+            final int totalEventCount,
+            final int parallelism,
+            final String awsAccessKey,
+            final String awsSecretKey,
+            final String awsRegion,
+            final String kinesisStreamName,
+            final AtomicReference<Throwable> errorHandler,
+            final int flinkPort,
+            final Configuration flinkConfig) {
+        Runnable kinesisEventsGeneratorProducer =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            StreamExecutionEnvironment see =
+                                    StreamExecutionEnvironment.createRemoteEnvironment(
+                                            "localhost", flinkPort, flinkConfig);
+                            see.setParallelism(parallelism);
 
-					// start data generator
-					DataStream<String> simpleStringStream = see.addSource(new KinesisEventsGeneratorProducerThread.EventsGenerator(totalEventCount)).setParallelism(1);
+                            // start data generator
+                            DataStream<String> simpleStringStream =
+                                    see.addSource(
+                                                    new KinesisEventsGeneratorProducerThread
+                                                            .EventsGenerator(totalEventCount))
+                                            .setParallelism(1);
 
-					Properties producerProps = new Properties();
-					producerProps.setProperty(AWSConfigConstants.AWS_ACCESS_KEY_ID, awsAccessKey);
-					producerProps.setProperty(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, awsSecretKey);
-					producerProps.setProperty(AWSConfigConstants.AWS_REGION, awsRegion);
+                            Properties producerProps = new Properties();
+                            producerProps.setProperty(
+                                    AWSConfigConstants.AWS_ACCESS_KEY_ID, awsAccessKey);
+                            producerProps.setProperty(
+                                    AWSConfigConstants.AWS_SECRET_ACCESS_KEY, awsSecretKey);
+                            producerProps.setProperty(AWSConfigConstants.AWS_REGION, awsRegion);
 
-					FlinkKinesisProducer<String> kinesis = new FlinkKinesisProducer<>(new SimpleStringSchema(),
-						producerProps);
+                            FlinkKinesisProducer<String> kinesis =
+                                    new FlinkKinesisProducer<>(
+                                            new SimpleStringSchema(), producerProps);
 
-					kinesis.setFailOnError(true);
-					kinesis.setDefaultStream(kinesisStreamName);
-					kinesis.setDefaultPartition("0");
-					simpleStringStream.addSink(kinesis);
+                            kinesis.setFailOnError(true);
+                            kinesis.setDefaultStream(kinesisStreamName);
+                            kinesis.setDefaultPartition("0");
+                            simpleStringStream.addSink(kinesis);
 
-					LOG.info("Starting producing topology");
-					see.execute("Producing topology");
-					LOG.info("Producing topo finished");
-				} catch (Exception e) {
-					LOG.warn("Error while running producing topology", e);
-					errorHandler.set(e);
-				}
-			}
-		};
+                            LOG.info("Starting producing topology");
+                            see.execute("Producing topology");
+                            LOG.info("Producing topo finished");
+                        } catch (Exception e) {
+                            LOG.warn("Error while running producing topology", e);
+                            errorHandler.set(e);
+                        }
+                    }
+                };
 
-		return new Thread(kinesisEventsGeneratorProducer);
-	}
+        return new Thread(kinesisEventsGeneratorProducer);
+    }
 
-	private static class EventsGenerator implements SourceFunction<String> {
+    private static class EventsGenerator implements SourceFunction<String> {
 
-		private static final Logger LOG = LoggerFactory.getLogger(EventsGenerator.class);
+        private static final Logger LOG = LoggerFactory.getLogger(EventsGenerator.class);
 
-		private boolean running = true;
-		private final long limit;
+        private boolean running = true;
+        private final long limit;
 
-		public EventsGenerator(long limit) {
-			this.limit = limit;
-		}
+        public EventsGenerator(long limit) {
+            this.limit = limit;
+        }
 
-		@Override
-		public void run(SourceContext<String> ctx) throws Exception {
-			long seq = 0;
-			while (running) {
-				Thread.sleep(10);
-				String evt = (seq++) + "-" + RandomStringUtils.randomAlphabetic(12);
-				ctx.collect(evt);
-				LOG.info("Emitting event {}", evt);
-				if (seq >= limit) {
-					break;
-				}
-			}
-			ctx.close();
-			LOG.info("Stopping events generator");
-		}
+        @Override
+        public void run(SourceContext<String> ctx) throws Exception {
+            long seq = 0;
+            while (running) {
+                Thread.sleep(10);
+                String evt = (seq++) + "-" + RandomStringUtils.randomAlphabetic(12);
+                ctx.collect(evt);
+                LOG.info("Emitting event {}", evt);
+                if (seq >= limit) {
+                    break;
+                }
+            }
+            ctx.close();
+            LOG.info("Stopping events generator");
+        }
 
-		@Override
-		public void cancel() {
-			running = false;
-		}
-	}
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
 }

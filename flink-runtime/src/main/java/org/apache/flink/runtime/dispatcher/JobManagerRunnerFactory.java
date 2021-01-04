@@ -28,20 +28,19 @@ import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFact
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 
-/**
- * Factory for a {@link JobManagerRunner}.
- */
+/** Factory for a {@link JobManagerRunner}. */
 @FunctionalInterface
 public interface JobManagerRunnerFactory {
 
-	JobManagerRunner createJobManagerRunner(
-		JobGraph jobGraph,
-		Configuration configuration,
-		RpcService rpcService,
-		HighAvailabilityServices highAvailabilityServices,
-		HeartbeatServices heartbeatServices,
-		JobManagerSharedServices jobManagerServices,
-		JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-		FatalErrorHandler fatalErrorHandler,
-		long initializationTimestamp) throws Exception;
+    JobManagerRunner createJobManagerRunner(
+            JobGraph jobGraph,
+            Configuration configuration,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            JobManagerSharedServices jobManagerServices,
+            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+            FatalErrorHandler fatalErrorHandler,
+            long initializationTimestamp)
+            throws Exception;
 }

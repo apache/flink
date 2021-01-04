@@ -33,36 +33,34 @@ import java.util.Map;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link ComponentFactoryService}.
- */
+/** Tests for {@link ComponentFactoryService}. */
 public class ComponentFactoryServiceTest {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testLookingUpAmbiguousPlanners() {
-		Map<String, String> properties = new HashMap<>();
-		properties.put(EnvironmentSettings.CLASS_NAME, TestPlannerFactory.class.getCanonicalName());
-		properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
-		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
+    @Test
+    public void testLookingUpAmbiguousPlanners() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put(EnvironmentSettings.CLASS_NAME, TestPlannerFactory.class.getCanonicalName());
+        properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
+        properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
-		PlannerFactory plannerFactory = ComponentFactoryService.find(PlannerFactory.class, properties);
+        PlannerFactory plannerFactory =
+                ComponentFactoryService.find(PlannerFactory.class, properties);
 
-		assertThat(plannerFactory, instanceOf(TestPlannerFactory.class));
-	}
+        assertThat(plannerFactory, instanceOf(TestPlannerFactory.class));
+    }
 
-	@Test
-	public void testLookingUpNonExistentClass() {
-		thrown.expect(NoMatchingTableFactoryException.class);
-		thrown.expectMessage("Reason: No factory supports the additional filters");
+    @Test
+    public void testLookingUpNonExistentClass() {
+        thrown.expect(NoMatchingTableFactoryException.class);
+        thrown.expectMessage("Reason: No factory supports the additional filters");
 
-		Map<String, String> properties = new HashMap<>();
-		properties.put(EnvironmentSettings.CLASS_NAME, "NoSuchClass");
-		properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
-		properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
+        Map<String, String> properties = new HashMap<>();
+        properties.put(EnvironmentSettings.CLASS_NAME, "NoSuchClass");
+        properties.put(EnvironmentSettings.STREAMING_MODE, Boolean.toString(false));
+        properties.put(TestPlannerFactory.PLANNER_TYPE_KEY, TestPlannerFactory.PLANNER_TYPE_VALUE);
 
-		ComponentFactoryService.find(PlannerFactory.class, properties);
-	}
+        ComponentFactoryService.find(PlannerFactory.class, properties);
+    }
 }

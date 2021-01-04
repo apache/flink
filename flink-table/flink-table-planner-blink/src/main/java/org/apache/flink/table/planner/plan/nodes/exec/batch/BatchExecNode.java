@@ -18,22 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.delegation.BatchPlanner;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.types.logical.LogicalType;
 
-import java.util.List;
-
-/**
- * Base class for batch {@link ExecNode}.
- */
-public abstract class BatchExecNode<T> extends ExecNodeBase<BatchPlanner, T> {
-	public BatchExecNode(
-			List<ExecEdge> inputEdges,
-			LogicalType outputType,
-			String description) {
-		super(inputEdges, outputType, description);
-	}
-}
+/** Base class for batch {@link ExecNode}. */
+public interface BatchExecNode<T> extends ExecNode<T> {}

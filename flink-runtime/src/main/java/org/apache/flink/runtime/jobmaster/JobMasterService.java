@@ -20,22 +20,29 @@ package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.util.AutoCloseableAsync;
 
-/**
- * Interface which specifies the JobMaster service.
- */
+import java.util.concurrent.CompletableFuture;
+
+/** Interface which specifies the JobMaster service. */
 public interface JobMasterService extends AutoCloseableAsync {
 
-	/**
-	 * Get the {@link JobMasterGateway} belonging to this service.
-	 *
-	 * @return JobMasterGateway belonging to this service
-	 */
-	JobMasterGateway getGateway();
+    /**
+     * Get the {@link JobMasterGateway} belonging to this service.
+     *
+     * @return JobMasterGateway belonging to this service
+     */
+    JobMasterGateway getGateway();
 
-	/**
-	 * Get the address of the JobMaster service under which it is reachable.
-	 *
-	 * @return Address of the JobMaster service
-	 */
-	String getAddress();
+    /**
+     * Get the address of the JobMaster service under which it is reachable.
+     *
+     * @return Address of the JobMaster service
+     */
+    String getAddress();
+
+    /**
+     * Get the termination future of this job master service.
+     *
+     * @return future which is completed once the JobMasterService completes termination
+     */
+    CompletableFuture<Void> getTerminationFuture();
 }

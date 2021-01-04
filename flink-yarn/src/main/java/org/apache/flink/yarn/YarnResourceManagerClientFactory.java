@@ -21,19 +21,17 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
 
-/**
- * Factory interface for {@link AMRMClientAsync}.
- */
+/** Factory interface for {@link AMRMClientAsync}. */
 public interface YarnResourceManagerClientFactory {
 
-	/**
-	 * Create YARN ResourceManager client with the given callback handler.
-	 *
-	 * @param yarnHeartbeatIntervalMillis heartbeat interval between the client and the YARN ResourceManager.
-	 * @param callbackHandler which handles the events from YARN ResourceManager.
-	 * @return an {@link AMRMClientAsync} instance.
-	 */
-	AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
-		int yarnHeartbeatIntervalMillis,
-		AMRMClientAsync.CallbackHandler callbackHandler);
+    /**
+     * Create YARN ResourceManager client with the given callback handler.
+     *
+     * @param yarnHeartbeatIntervalMillis heartbeat interval between the client and the YARN
+     *     ResourceManager.
+     * @param callbackHandler which handles the events from YARN ResourceManager.
+     * @return an {@link AMRMClientAsync} instance.
+     */
+    AMRMClientAsync<AMRMClient.ContainerRequest> createResourceManagerClient(
+            int yarnHeartbeatIntervalMillis, AMRMClientAsync.CallbackHandler callbackHandler);
 }

@@ -40,102 +40,151 @@ import static org.apache.flink.connector.jdbc.utils.JdbcUtils.getPrimaryKey;
 import static org.apache.flink.connector.jdbc.utils.JdbcUtils.setRecordToStatement;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-class TableJdbcUpsertOutputFormat extends JdbcBatchingOutputFormat<Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
-	private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
+class TableJdbcUpsertOutputFormat
+        extends JdbcBatchingOutputFormat<
+                Tuple2<Boolean, Row>, Row, JdbcBatchStatementExecutor<Row>> {
+    private static final Logger LOG = LoggerFactory.getLogger(TableJdbcUpsertOutputFormat.class);
 
-	private JdbcBatchStatementExecutor<Row> deleteExecutor;
-	private final JdbcDmlOptions dmlOptions;
+    private JdbcBatchStatementExecutor<Row> deleteExecutor;
+    private final JdbcDmlOptions dmlOptions;
 
-	TableJdbcUpsertOutputFormat(JdbcConnectionProvider connectionProvider, JdbcDmlOptions dmlOptions, JdbcExecutionOptions batchOptions) {
-		super(connectionProvider, batchOptions, ctx -> createUpsertRowExecutor(dmlOptions, ctx), tuple2 -> tuple2.f1);
-		this.dmlOptions = dmlOptions;
-	}
+    TableJdbcUpsertOutputFormat(
+            JdbcConnectionProvider connectionProvider,
+            JdbcDmlOptions dmlOptions,
+            JdbcExecutionOptions batchOptions) {
+        super(
+                connectionProvider,
+                batchOptions,
+                ctx -> createUpsertRowExecutor(dmlOptions, ctx),
+                tuple2 -> tuple2.f1);
+        this.dmlOptions = dmlOptions;
+    }
 
-	@Override
-	public void open(int taskNumber, int numTasks) throws IOException {
-		super.open(taskNumber, numTasks);
-		deleteExecutor = createDeleteExecutor();
-		try {
-			deleteExecutor.prepareStatements(connection);
-		} catch (SQLException e) {
-			throw new IOException(e);
-		}
-	}
+    @Override
+    public void open(int taskNumber, int numTasks) throws IOException {
+        super.open(taskNumber, numTasks);
+        deleteExecutor = createDeleteExecutor();
+        try {
+            deleteExecutor.prepareStatements(connectionProvider.getConnection());
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+    }
 
-	private JdbcBatchStatementExecutor<Row> createDeleteExecutor() {
-		int[] pkFields = Arrays.stream(dmlOptions.getFieldNames()).mapToInt(Arrays.asList(dmlOptions.getFieldNames())::indexOf).toArray();
-		int[] pkTypes = dmlOptions.getFieldTypes() == null ? null :
-				Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
-		String deleteSql = FieldNamedPreparedStatementImpl.parseNamedStatement(
-			dmlOptions.getDialect().getDeleteStatement(dmlOptions.getTableName(), dmlOptions.getFieldNames()),
-			new HashMap<>());
-		return createKeyedRowExecutor(pkFields, pkTypes, deleteSql);
-	}
+    private JdbcBatchStatementExecutor<Row> createDeleteExecutor() {
+        int[] pkFields =
+                Arrays.stream(dmlOptions.getFieldNames())
+                        .mapToInt(Arrays.asList(dmlOptions.getFieldNames())::indexOf)
+                        .toArray();
+        int[] pkTypes =
+                dmlOptions.getFieldTypes() == null
+                        ? null
+                        : Arrays.stream(pkFields).map(f -> dmlOptions.getFieldTypes()[f]).toArray();
+        String deleteSql =
+                FieldNamedPreparedStatementImpl.parseNamedStatement(
+                        dmlOptions
+                                .getDialect()
+                                .getDeleteStatement(
+                                        dmlOptions.getTableName(), dmlOptions.getFieldNames()),
+                        new HashMap<>());
+        return createKeyedRowExecutor(pkFields, pkTypes, deleteSql);
+    }
 
-	@Override
-	protected void addToBatch(Tuple2<Boolean, Row> original, Row extracted) throws SQLException {
-		if (original.f0) {
-			super.addToBatch(original, extracted);
-		} else {
-			deleteExecutor.addToBatch(extracted);
-		}
-	}
+    @Override
+    protected void addToBatch(Tuple2<Boolean, Row> original, Row extracted) throws SQLException {
+        if (original.f0) {
+            super.addToBatch(original, extracted);
+        } else {
+            deleteExecutor.addToBatch(extracted);
+        }
+    }
 
-	@Override
-	public synchronized void close() {
-		try {
-			super.close();
-		} finally {
-			try {
-				if (deleteExecutor != null){
-					deleteExecutor.closeStatements();
-				}
-			} catch (SQLException e) {
-				LOG.warn("unable to close delete statement runner", e);
-			}
-		}
-	}
+    @Override
+    public synchronized void close() {
+        try {
+            super.close();
+        } finally {
+            try {
+                if (deleteExecutor != null) {
+                    deleteExecutor.closeStatements();
+                }
+            } catch (SQLException e) {
+                LOG.warn("unable to close delete statement runner", e);
+            }
+        }
+    }
 
-	@Override
-	protected void attemptFlush() throws SQLException {
-		super.attemptFlush();
-		deleteExecutor.executeBatch();
-	}
+    @Override
+    protected void attemptFlush() throws SQLException {
+        super.attemptFlush();
+        deleteExecutor.executeBatch();
+    }
 
-	private static JdbcBatchStatementExecutor<Row> createKeyedRowExecutor(int[] pkFields, int[] pkTypes, String sql) {
-		return JdbcBatchStatementExecutor.keyed(
-			sql,
-			createRowKeyExtractor(pkFields),
-			(st, record) -> setRecordToStatement(st, pkTypes, createRowKeyExtractor(pkFields).apply(record)));
-	}
+    private static JdbcBatchStatementExecutor<Row> createKeyedRowExecutor(
+            int[] pkFields, int[] pkTypes, String sql) {
+        return JdbcBatchStatementExecutor.keyed(
+                sql,
+                createRowKeyExtractor(pkFields),
+                (st, record) ->
+                        setRecordToStatement(
+                                st, pkTypes, createRowKeyExtractor(pkFields).apply(record)));
+    }
 
-	private static JdbcBatchStatementExecutor<Row> createUpsertRowExecutor(JdbcDmlOptions opt, RuntimeContext ctx) {
-		checkArgument(opt.getKeyFields().isPresent());
+    private static JdbcBatchStatementExecutor<Row> createUpsertRowExecutor(
+            JdbcDmlOptions opt, RuntimeContext ctx) {
+        checkArgument(opt.getKeyFields().isPresent());
 
-		int[] pkFields = Arrays.stream(opt.getKeyFields().get()).mapToInt(Arrays.asList(opt.getFieldNames())::indexOf).toArray();
-		int[] pkTypes = opt.getFieldTypes() == null ? null : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
+        int[] pkFields =
+                Arrays.stream(opt.getKeyFields().get())
+                        .mapToInt(Arrays.asList(opt.getFieldNames())::indexOf)
+                        .toArray();
+        int[] pkTypes =
+                opt.getFieldTypes() == null
+                        ? null
+                        : Arrays.stream(pkFields).map(f -> opt.getFieldTypes()[f]).toArray();
 
-		return opt.getDialect()
-			.getUpsertStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
-			.map(sql -> createSimpleRowExecutor(parseNamedStatement(sql), opt.getFieldTypes(), ctx.getExecutionConfig().isObjectReuseEnabled()))
-			.orElseGet(() ->
-				new InsertOrUpdateJdbcExecutor<>(
-					parseNamedStatement(opt.getDialect().getRowExistsStatement(opt.getTableName(), opt.getKeyFields().get())),
-					parseNamedStatement(opt.getDialect().getInsertIntoStatement(opt.getTableName(), opt.getFieldNames())),
-					parseNamedStatement(opt.getDialect().getUpdateStatement(opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())),
-					createRowJdbcStatementBuilder(pkTypes),
-					createRowJdbcStatementBuilder(opt.getFieldTypes()),
-					createRowJdbcStatementBuilder(opt.getFieldTypes()),
-					createRowKeyExtractor(pkFields),
-					ctx.getExecutionConfig().isObjectReuseEnabled() ? Row::copy : Function.identity()));
-	}
+        return opt.getDialect()
+                .getUpsertStatement(
+                        opt.getTableName(), opt.getFieldNames(), opt.getKeyFields().get())
+                .map(
+                        sql ->
+                                createSimpleRowExecutor(
+                                        parseNamedStatement(sql),
+                                        opt.getFieldTypes(),
+                                        ctx.getExecutionConfig().isObjectReuseEnabled()))
+                .orElseGet(
+                        () ->
+                                new InsertOrUpdateJdbcExecutor<>(
+                                        parseNamedStatement(
+                                                opt.getDialect()
+                                                        .getRowExistsStatement(
+                                                                opt.getTableName(),
+                                                                opt.getKeyFields().get())),
+                                        parseNamedStatement(
+                                                opt.getDialect()
+                                                        .getInsertIntoStatement(
+                                                                opt.getTableName(),
+                                                                opt.getFieldNames())),
+                                        parseNamedStatement(
+                                                opt.getDialect()
+                                                        .getUpdateStatement(
+                                                                opt.getTableName(),
+                                                                opt.getFieldNames(),
+                                                                opt.getKeyFields().get())),
+                                        createRowJdbcStatementBuilder(pkTypes),
+                                        createRowJdbcStatementBuilder(opt.getFieldTypes()),
+                                        createRowJdbcStatementBuilder(opt.getFieldTypes()),
+                                        createRowKeyExtractor(pkFields),
+                                        ctx.getExecutionConfig().isObjectReuseEnabled()
+                                                ? Row::copy
+                                                : Function.identity()));
+    }
 
-	private static String parseNamedStatement(String statement) {
-		return FieldNamedPreparedStatementImpl.parseNamedStatement(statement, new HashMap<>());
-	}
+    private static String parseNamedStatement(String statement) {
+        return FieldNamedPreparedStatementImpl.parseNamedStatement(statement, new HashMap<>());
+    }
 
-	private static Function<Row, Row> createRowKeyExtractor(int[] pkFields) {
-		return row -> getPrimaryKey(row, pkFields);
-	}
-
+    private static Function<Row, Row> createRowKeyExtractor(int[] pkFields) {
+        return row -> getPrimaryKey(row, pkFields);
+    }
 }

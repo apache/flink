@@ -31,43 +31,46 @@ import java.io.IOException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for
- * {@link BatchCommitterOperator}.
+ * A {@link org.apache.flink.streaming.api.operators.StreamOperatorFactory} for {@link
+ * BatchCommitterOperator}.
  *
  * @param <CommT> The committable type of the {@link Committer}.
  */
 public final class BatchCommitterOperatorFactory<CommT> extends AbstractStreamOperatorFactory<CommT>
-		implements OneInputStreamOperatorFactory<CommT, CommT> {
+        implements OneInputStreamOperatorFactory<CommT, CommT> {
 
-	private final Sink<?, CommT, ?, ?> sink;
+    private final Sink<?, CommT, ?, ?> sink;
 
-	public BatchCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
-		this.sink = checkNotNull(sink);
-	}
+    public BatchCommitterOperatorFactory(Sink<?, CommT, ?, ?> sink) {
+        this.sink = checkNotNull(sink);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T extends StreamOperator<CommT>> T createStreamOperator(
-			StreamOperatorParameters<CommT> parameters) {
-		final BatchCommitterOperator<CommT> committerOperator;
-		try {
-			committerOperator = new BatchCommitterOperator<>(
-					sink.createCommitter().orElseThrow(
-							() -> new IllegalStateException(
-									"Could not create committer from the sink")));
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Could not create the Committer.", e);
-		}
-		committerOperator.setup(
-				parameters.getContainingTask(),
-				parameters.getStreamConfig(),
-				parameters.getOutput());
-		return (T) committerOperator;
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends StreamOperator<CommT>> T createStreamOperator(
+            StreamOperatorParameters<CommT> parameters) {
+        final BatchCommitterOperator<CommT> committerOperator;
+        try {
+            committerOperator =
+                    new BatchCommitterOperator<>(
+                            sink.createCommitter()
+                                    .orElseThrow(
+                                            () ->
+                                                    new IllegalStateException(
+                                                            "Could not create committer from the sink")));
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Could not create the Committer.", e);
+        }
+        committerOperator.setup(
+                parameters.getContainingTask(),
+                parameters.getStreamConfig(),
+                parameters.getOutput());
+        return (T) committerOperator;
+    }
 
-	@Override
-	@SuppressWarnings("rawtypes")
-	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-		return BatchCommitterOperator.class;
-	}
+    @Override
+    @SuppressWarnings("rawtypes")
+    public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+        return BatchCommitterOperator.class;
+    }
 }

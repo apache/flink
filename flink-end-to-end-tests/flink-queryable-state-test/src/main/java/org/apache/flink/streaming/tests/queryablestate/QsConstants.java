@@ -17,13 +17,11 @@
 
 package org.apache.flink.streaming.tests.queryablestate;
 
-/**
- * A class containing the constants used in the end-to-end test.
- */
+/** A class containing the constants used in the end-to-end test. */
 public class QsConstants {
 
-	public static final String QUERY_NAME = "state";
-	public static final String STATE_NAME = "state";
+    public static final String QUERY_NAME = "state";
+    public static final String STATE_NAME = "state";
 
-	public static final String KEY = "";
+    public static final String KEY = "";
 }

@@ -28,26 +28,28 @@ import org.apache.flink.configuration.Configuration;
  */
 public class RollingAdditionMapper extends RichMapFunction<KafkaEvent, KafkaEvent> {
 
-	private static final long serialVersionUID = 1180234853172462378L;
+    private static final long serialVersionUID = 1180234853172462378L;
 
-	private transient ValueState<Integer> currentTotalCount;
+    private transient ValueState<Integer> currentTotalCount;
 
-	@Override
-	public KafkaEvent map(KafkaEvent event) throws Exception {
-		Integer totalCount = currentTotalCount.value();
+    @Override
+    public KafkaEvent map(KafkaEvent event) throws Exception {
+        Integer totalCount = currentTotalCount.value();
 
-		if (totalCount == null) {
-			totalCount = 0;
-		}
-		totalCount += event.getFrequency();
+        if (totalCount == null) {
+            totalCount = 0;
+        }
+        totalCount += event.getFrequency();
 
-		currentTotalCount.update(totalCount);
+        currentTotalCount.update(totalCount);
 
-		return new KafkaEvent(event.getWord(), totalCount, event.getTimestamp());
-	}
+        return new KafkaEvent(event.getWord(), totalCount, event.getTimestamp());
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		currentTotalCount = getRuntimeContext().getState(new ValueStateDescriptor<>("currentTotalCount", Integer.class));
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        currentTotalCount =
+                getRuntimeContext()
+                        .getState(new ValueStateDescriptor<>("currentTotalCount", Integer.class));
+    }
 }

@@ -39,126 +39,121 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Implementation of {@link Output} that sends data using a {@link RecordWriter}.
- */
+/** Implementation of {@link Output} that sends data using a {@link RecordWriter}. */
 @Internal
 public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<StreamRecord<OUT>> {
 
-	private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
+    private RecordWriter<SerializationDelegate<StreamElement>> recordWriter;
 
-	private SerializationDelegate<StreamElement> serializationDelegate;
+    private SerializationDelegate<StreamElement> serializationDelegate;
 
-	private final StreamStatusProvider streamStatusProvider;
+    private final StreamStatusProvider streamStatusProvider;
 
-	private final OutputTag outputTag;
+    private final OutputTag outputTag;
 
-	private final WatermarkGauge watermarkGauge = new WatermarkGauge();
+    private final WatermarkGauge watermarkGauge = new WatermarkGauge();
 
-	@SuppressWarnings("unchecked")
-	public RecordWriterOutput(
-			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
-			TypeSerializer<OUT> outSerializer,
-			OutputTag outputTag,
-			StreamStatusProvider streamStatusProvider) {
+    @SuppressWarnings("unchecked")
+    public RecordWriterOutput(
+            RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
+            TypeSerializer<OUT> outSerializer,
+            OutputTag outputTag,
+            StreamStatusProvider streamStatusProvider) {
 
-		checkNotNull(recordWriter);
-		this.outputTag = outputTag;
-		// generic hack: cast the writer to generic Object type so we can use it
-		// with multiplexed records and watermarks
-		this.recordWriter = (RecordWriter<SerializationDelegate<StreamElement>>)
-				(RecordWriter<?>) recordWriter;
+        checkNotNull(recordWriter);
+        this.outputTag = outputTag;
+        // generic hack: cast the writer to generic Object type so we can use it
+        // with multiplexed records and watermarks
+        this.recordWriter =
+                (RecordWriter<SerializationDelegate<StreamElement>>) (RecordWriter<?>) recordWriter;
 
-		TypeSerializer<StreamElement> outRecordSerializer =
-				new StreamElementSerializer<>(outSerializer);
+        TypeSerializer<StreamElement> outRecordSerializer =
+                new StreamElementSerializer<>(outSerializer);
 
-		if (outSerializer != null) {
-			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
-		}
+        if (outSerializer != null) {
+            serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
+        }
 
-		this.streamStatusProvider = checkNotNull(streamStatusProvider);
-	}
+        this.streamStatusProvider = checkNotNull(streamStatusProvider);
+    }
 
-	@Override
-	public void collect(StreamRecord<OUT> record) {
-		if (this.outputTag != null) {
-			// we are not responsible for emitting to the main output.
-			return;
-		}
+    @Override
+    public void collect(StreamRecord<OUT> record) {
+        if (this.outputTag != null) {
+            // we are not responsible for emitting to the main output.
+            return;
+        }
 
-		pushToRecordWriter(record);
-	}
+        pushToRecordWriter(record);
+    }
 
-	@Override
-	public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
-		if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
-			pushToRecordWriter(record);
-		}
-	}
+    @Override
+    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+        if (OutputTag.isResponsibleFor(this.outputTag, outputTag)) {
+            pushToRecordWriter(record);
+        }
+    }
 
-	private <X> void pushToRecordWriter(StreamRecord<X> record) {
-		serializationDelegate.setInstance(record);
+    private <X> void pushToRecordWriter(StreamRecord<X> record) {
+        serializationDelegate.setInstance(record);
 
-		try {
-			recordWriter.emit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+        try {
+            recordWriter.emit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public void emitWatermark(Watermark mark) {
-		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
-		serializationDelegate.setInstance(mark);
+    @Override
+    public void emitWatermark(Watermark mark) {
+        watermarkGauge.setCurrentWatermark(mark.getTimestamp());
+        serializationDelegate.setInstance(mark);
 
-		if (streamStatusProvider.getStreamStatus().isActive()) {
-			try {
-				recordWriter.broadcastEmit(serializationDelegate);
-			} catch (Exception e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
-		}
-	}
+        if (streamStatusProvider.getStreamStatus().isActive()) {
+            try {
+                recordWriter.broadcastEmit(serializationDelegate);
+            } catch (Exception e) {
+                throw new RuntimeException(e.getMessage(), e);
+            }
+        }
+    }
 
-	public void emitStreamStatus(StreamStatus streamStatus) {
-		serializationDelegate.setInstance(streamStatus);
+    public void emitStreamStatus(StreamStatus streamStatus) {
+        serializationDelegate.setInstance(streamStatus);
 
-		try {
-			recordWriter.broadcastEmit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+        try {
+            recordWriter.broadcastEmit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	@Override
-	public void emitLatencyMarker(LatencyMarker latencyMarker) {
-		serializationDelegate.setInstance(latencyMarker);
+    @Override
+    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+        serializationDelegate.setInstance(latencyMarker);
 
-		try {
-			recordWriter.randomEmit(serializationDelegate);
-		}
-		catch (Exception e) {
-			throw new RuntimeException(e.getMessage(), e);
-		}
-	}
+        try {
+            recordWriter.randomEmit(serializationDelegate);
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
 
-	public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
-		recordWriter.broadcastEvent(event, isPriorityEvent);
-	}
+    public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {
+        recordWriter.broadcastEvent(event, isPriorityEvent);
+    }
 
-	public void flush() throws IOException {
-		recordWriter.flushAll();
-	}
+    public void flush() throws IOException {
+        recordWriter.flushAll();
+    }
 
-	@Override
-	public void close() {
-		recordWriter.close();
-	}
+    @Override
+    public void close() {
+        recordWriter.close();
+    }
 
-	@Override
-	public Gauge<Long> getWatermarkGauge() {
-		return watermarkGauge;
-	}
+    @Override
+    public Gauge<Long> getWatermarkGauge() {
+        return watermarkGauge;
+    }
 }

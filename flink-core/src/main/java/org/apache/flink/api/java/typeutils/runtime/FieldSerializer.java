@@ -26,32 +26,34 @@ import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 
 /**
- * This class is for the serialization of java.lang.reflect.Field, which doesn't implement Serializable, therefore
- * readObject/writeObject need to be implemented in classes where there is a field of type java.lang.reflect.Field.
- * The two static methods in this class are to be called from these readObject/writeObject methods.
+ * This class is for the serialization of java.lang.reflect.Field, which doesn't implement
+ * Serializable, therefore readObject/writeObject need to be implemented in classes where there is a
+ * field of type java.lang.reflect.Field. The two static methods in this class are to be called from
+ * these readObject/writeObject methods.
  */
 @Internal
 public class FieldSerializer {
 
-	public static void serializeField(Field field, ObjectOutputStream out) throws IOException {
-		out.writeObject(field.getDeclaringClass());
-		out.writeUTF(field.getName());
-	}
+    public static void serializeField(Field field, ObjectOutputStream out) throws IOException {
+        out.writeObject(field.getDeclaringClass());
+        out.writeUTF(field.getName());
+    }
 
-	public static Field deserializeField(ObjectInputStream in) throws IOException, ClassNotFoundException  {
-		Class<?> clazz = (Class<?>) in.readObject();
-		String fieldName = in.readUTF();
-		// try superclasses as well
-		while (clazz != null) {
-			try {
-				Field field = clazz.getDeclaredField(fieldName);
-				field.setAccessible(true);
-				return field;
-			} catch (NoSuchFieldException e) {
-				clazz = clazz.getSuperclass();
-			}
-		}
+    public static Field deserializeField(ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+        Class<?> clazz = (Class<?>) in.readObject();
+        String fieldName = in.readUTF();
+        // try superclasses as well
+        while (clazz != null) {
+            try {
+                Field field = clazz.getDeclaredField(fieldName);
+                field.setAccessible(true);
+                return field;
+            } catch (NoSuchFieldException e) {
+                clazz = clazz.getSuperclass();
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 }

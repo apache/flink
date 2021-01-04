@@ -23,60 +23,64 @@ import org.apache.flink.util.AbstractID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
-
 /**
- * Unique identifier for the attempt to execute a tasks. Multiple attempts happen
- * in cases of failures and recovery.
+ * Unique identifier for the attempt to execute a tasks. Multiple attempts happen in cases of
+ * failures and recovery.
  */
 public class ExecutionAttemptID implements java.io.Serializable {
 
-	private static final long serialVersionUID = -1169683445778281344L;
+    private static final long serialVersionUID = -1169683445778281344L;
+    // Represent the number of bytes occupied when writes ExecutionAttemptID to the ByteBuf.
+    // It is the sum of two long types(lowerPart and upperPart of the executionAttemptId).
+    private static final int BYTEBUF_LEN = 16;
 
-	private final AbstractID executionAttemptId;
+    private final AbstractID executionAttemptId;
 
-	public ExecutionAttemptID() {
-		this(new AbstractID());
-	}
+    public ExecutionAttemptID() {
+        this(new AbstractID());
+    }
 
-	private ExecutionAttemptID(AbstractID id) {
-		this.executionAttemptId = id;
-	}
+    private ExecutionAttemptID(AbstractID id) {
+        this.executionAttemptId = id;
+    }
 
-	@VisibleForTesting
-	public ExecutionAttemptID(ExecutionAttemptID toCopy) {
-		this.executionAttemptId = new AbstractID(toCopy.executionAttemptId);
-	}
+    @VisibleForTesting
+    public ExecutionAttemptID(ExecutionAttemptID toCopy) {
+        this.executionAttemptId = new AbstractID(toCopy.executionAttemptId);
+    }
 
-	public void writeTo(ByteBuf buf) {
-		buf.writeLong(this.executionAttemptId.getLowerPart());
-		buf.writeLong(this.executionAttemptId.getUpperPart());
-	}
+    public void writeTo(ByteBuf buf) {
+        buf.writeLong(this.executionAttemptId.getLowerPart());
+        buf.writeLong(this.executionAttemptId.getUpperPart());
+    }
 
-	public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
-		return new ExecutionAttemptID(new AbstractID(buf.readLong(), buf.readLong()));
-	}
+    public static ExecutionAttemptID fromByteBuf(ByteBuf buf) {
+        return new ExecutionAttemptID(new AbstractID(buf.readLong(), buf.readLong()));
+    }
 
+    public static int getByteBufLength() {
+        return BYTEBUF_LEN;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		} else if (obj != null && obj.getClass() == getClass()) {
-			ExecutionAttemptID that = (ExecutionAttemptID) obj;
-			return that.executionAttemptId.equals(this.executionAttemptId);
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        } else if (obj != null && obj.getClass() == getClass()) {
+            ExecutionAttemptID that = (ExecutionAttemptID) obj;
+            return that.executionAttemptId.equals(this.executionAttemptId);
+        } else {
+            return false;
+        }
+    }
 
-	@Override
-	public int hashCode() {
-		return executionAttemptId.hashCode();
-	}
+    @Override
+    public int hashCode() {
+        return executionAttemptId.hashCode();
+    }
 
-	@Override
-	public String toString() {
-		return executionAttemptId.toString();
-	}
-
+    @Override
+    public String toString() {
+        return executionAttemptId.toString();
+    }
 }

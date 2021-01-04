@@ -26,22 +26,22 @@ import java.util.Iterator;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A pair of an {@link Iterator} to receive results from a streaming application and a
- * {@link JobClient} to interact with the program.
+ * A pair of an {@link Iterator} to receive results from a streaming application and a {@link
+ * JobClient} to interact with the program.
  */
 @Internal
 public final class ClientAndIterator<E> implements AutoCloseable {
 
-	public final JobClient client;
-	public final CloseableIterator<E> iterator;
+    public final JobClient client;
+    public final CloseableIterator<E> iterator;
 
-	public ClientAndIterator(JobClient client, CloseableIterator<E> iterator) {
-		this.client = checkNotNull(client);
-		this.iterator = checkNotNull(iterator);
-	}
+    public ClientAndIterator(JobClient client, CloseableIterator<E> iterator) {
+        this.client = checkNotNull(client);
+        this.iterator = checkNotNull(iterator);
+    }
 
-	@Override
-	public void close() throws Exception {
-		iterator.close();
-	}
+    @Override
+    public void close() throws Exception {
+        iterator.close();
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,23 +18,21 @@
 
 package org.apache.flink.runtime.util.jartestprogram;
 
-/**
- * anonymous inner class in non static method accessing a field of its enclosing class.
- */
+/** anonymous inner class in non static method accessing a field of its enclosing class. */
 public class AnonymousInNonStaticMethod2 {
-	//
-	public void testMethod() {
-		new A(){
-			@Override
-			public void t() {
-				System.out.println(s);
-			}
-		};
-	}
+    //
+    public void testMethod() {
+        new A() {
+            @Override
+            public void t() {
+                System.out.println(s);
+            }
+        };
+    }
 
-	private int s = 1;
+    private int s = 1;
 
-	public interface A {
-		void t();
-	}
+    public interface A {
+        void t();
+    }
 }

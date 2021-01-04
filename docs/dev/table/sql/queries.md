@@ -683,8 +683,12 @@ The example above will join all orders with their corresponding shipments if the
     	<td>
         <p>Unnesting WITH ORDINALITY is not supported yet.</p>
 {% highlight sql %}
+-- Array elements are basic type.
 SELECT users, tag
 FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
+-- Array elements are ROW type. (eg. tags ARRAY<ROW<tag_id INT, tag_name STRING>>)
+SELECT users, tag_id, tag_name
+FROM Orders CROSS JOIN UNNEST(tags) AS t (tag_id, tag_name)
 {% endhighlight %}
       </td>
     </tr>

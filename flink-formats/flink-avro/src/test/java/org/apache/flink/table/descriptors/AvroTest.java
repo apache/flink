@@ -28,50 +28,47 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Tests for the {@link Avro} descriptor.
- */
+/** Tests for the {@link Avro} descriptor. */
 public class AvroTest extends DescriptorTestBase {
 
-	@Test(expected = ValidationException.class)
-	public void testMissingRecordClass() {
-		removePropertyAndVerify(descriptors().get(0), "format.record-class");
-	}
+    @Test(expected = ValidationException.class)
+    public void testMissingRecordClass() {
+        removePropertyAndVerify(descriptors().get(0), "format.record-class");
+    }
 
-	@Test(expected = ValidationException.class)
-	public void testRecordClassAndAvroSchema() {
-		addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
-	}
+    @Test(expected = ValidationException.class)
+    public void testRecordClassAndAvroSchema() {
+        addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	public List<Descriptor> descriptors() {
-		final Descriptor desc1 = new Avro().recordClass(User.class);
+    @Override
+    public List<Descriptor> descriptors() {
+        final Descriptor desc1 = new Avro().recordClass(User.class);
 
-		final Descriptor desc2 = new Avro().avroSchema("{...}");
+        final Descriptor desc2 = new Avro().avroSchema("{...}");
 
-		return Arrays.asList(desc1, desc2);
-	}
+        return Arrays.asList(desc1, desc2);
+    }
 
-	@Override
-	public List<Map<String, String>> properties() {
-		final Map<String, String> props1 = new HashMap<>();
-		props1.put("format.type", "avro");
-		props1.put("format.property-version", "1");
-		props1.put("format.record-class", "org.apache.flink.formats.avro.generated.User");
+    @Override
+    public List<Map<String, String>> properties() {
+        final Map<String, String> props1 = new HashMap<>();
+        props1.put("format.type", "avro");
+        props1.put("format.property-version", "1");
+        props1.put("format.record-class", "org.apache.flink.formats.avro.generated.User");
 
-		final Map<String, String> props2 = new HashMap<>();
-		props2.put("format.type", "avro");
-		props2.put("format.property-version", "1");
-		props2.put("format.avro-schema", "{...}");
+        final Map<String, String> props2 = new HashMap<>();
+        props2.put("format.type", "avro");
+        props2.put("format.property-version", "1");
+        props2.put("format.avro-schema", "{...}");
 
-		return Arrays.asList(props1, props2);
-	}
+        return Arrays.asList(props1, props2);
+    }
 
-	@Override
-	public DescriptorValidator validator() {
-		return new AvroValidator();
-	}
-
+    @Override
+    public DescriptorValidator validator() {
+        return new AvroValidator();
+    }
 }

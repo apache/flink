@@ -42,77 +42,76 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Catalog factory for an in-memory catalog that contains a single non-empty table.
- * The contents of the table are equal to {@link SimpleCatalogFactory#TABLE_CONTENTS}.
+ * Catalog factory for an in-memory catalog that contains a single non-empty table. The contents of
+ * the table are equal to {@link SimpleCatalogFactory#TABLE_CONTENTS}.
  */
 public class SimpleCatalogFactory implements CatalogFactory {
 
-	public static final String CATALOG_TYPE_VALUE = "simple-catalog";
+    public static final String CATALOG_TYPE_VALUE = "simple-catalog";
 
-	public static final String TEST_TABLE_NAME = "test-table";
+    public static final String TEST_TABLE_NAME = "test-table";
 
-	public static final List<Row> TABLE_CONTENTS = Arrays.asList(
-		Row.of(1, "Hello"),
-		Row.of(2, "Hello world"),
-		Row.of(3, "Hello world! Hello!")
-	);
+    public static final List<Row> TABLE_CONTENTS =
+            Arrays.asList(
+                    Row.of(1, "Hello"), Row.of(2, "Hello world"), Row.of(3, "Hello world! Hello!"));
 
-	@Override
-	public Catalog createCatalog(String name, Map<String, String> properties) {
-		String database = properties.getOrDefault(
-			CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE,
-			"default_database");
-		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog(name, database);
+    @Override
+    public Catalog createCatalog(String name, Map<String, String> properties) {
+        String database =
+                properties.getOrDefault(
+                        CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, "default_database");
+        GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog(name, database);
 
-		String tableName = properties.getOrDefault(TEST_TABLE_NAME, TEST_TABLE_NAME);
-		StreamTableSource<Row> tableSource = new StreamTableSource<Row>() {
-			@Override
-			public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-				return execEnv.fromCollection(TABLE_CONTENTS)
-					.returns(new RowTypeInfo(
-						new TypeInformation[]{Types.INT(), Types.STRING()},
-						new String[]{"id", "string"}));
-			}
+        String tableName = properties.getOrDefault(TEST_TABLE_NAME, TEST_TABLE_NAME);
+        StreamTableSource<Row> tableSource =
+                new StreamTableSource<Row>() {
+                    @Override
+                    public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+                        return execEnv.fromCollection(TABLE_CONTENTS)
+                                .returns(
+                                        new RowTypeInfo(
+                                                new TypeInformation[] {Types.INT(), Types.STRING()},
+                                                new String[] {"id", "string"}));
+                    }
 
-			@Override
-			public TableSchema getTableSchema() {
-				return TableSchema.builder()
-					.field("id", DataTypes.INT())
-					.field("string", DataTypes.STRING())
-					.build();
-			}
+                    @Override
+                    public TableSchema getTableSchema() {
+                        return TableSchema.builder()
+                                .field("id", DataTypes.INT())
+                                .field("string", DataTypes.STRING())
+                                .build();
+                    }
 
-			@Override
-			public DataType getProducedDataType() {
-				return DataTypes.ROW(
-					DataTypes.FIELD("id", DataTypes.INT()),
-					DataTypes.FIELD("string", DataTypes.STRING()))
-					.notNull();
-			}
-		};
+                    @Override
+                    public DataType getProducedDataType() {
+                        return DataTypes.ROW(
+                                        DataTypes.FIELD("id", DataTypes.INT()),
+                                        DataTypes.FIELD("string", DataTypes.STRING()))
+                                .notNull();
+                    }
+                };
 
-		try {
-			genericInMemoryCatalog.createTable(
-				new ObjectPath(database, tableName),
-				ConnectorCatalogTable.source(tableSource, false),
-				false
-			);
-		} catch (Exception e) {
-			throw new WrappingRuntimeException(e);
-		}
+        try {
+            genericInMemoryCatalog.createTable(
+                    new ObjectPath(database, tableName),
+                    ConnectorCatalogTable.source(tableSource, false),
+                    false);
+        } catch (Exception e) {
+            throw new WrappingRuntimeException(e);
+        }
 
-		return genericInMemoryCatalog;
-	}
+        return genericInMemoryCatalog;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		Map<String, String> context = new HashMap<>();
-		context.put(CatalogDescriptorValidator.CATALOG_TYPE, CATALOG_TYPE_VALUE);
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        Map<String, String> context = new HashMap<>();
+        context.put(CatalogDescriptorValidator.CATALOG_TYPE, CATALOG_TYPE_VALUE);
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_NAME);
-	}
+    @Override
+    public List<String> supportedProperties() {
+        return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_NAME);
+    }
 }

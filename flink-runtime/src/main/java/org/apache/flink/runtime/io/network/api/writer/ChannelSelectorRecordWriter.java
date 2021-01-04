@@ -28,46 +28,47 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A regular record-oriented runtime result writer.
  *
- * <p>The ChannelSelectorRecordWriter extends the {@link RecordWriter} and emits records to the channel
- * selected by the {@link ChannelSelector} for regular {@link #emit(IOReadableWritable)}.
+ * <p>The ChannelSelectorRecordWriter extends the {@link RecordWriter} and emits records to the
+ * channel selected by the {@link ChannelSelector} for regular {@link #emit(IOReadableWritable)}.
  *
  * @param <T> the type of the record that can be emitted with this record writer
  */
-public final class ChannelSelectorRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
+public final class ChannelSelectorRecordWriter<T extends IOReadableWritable>
+        extends RecordWriter<T> {
 
-	private final ChannelSelector<T> channelSelector;
+    private final ChannelSelector<T> channelSelector;
 
-	ChannelSelectorRecordWriter(
-			ResultPartitionWriter writer,
-			ChannelSelector<T> channelSelector,
-			long timeout,
-			String taskName) {
-		super(writer, timeout, taskName);
+    ChannelSelectorRecordWriter(
+            ResultPartitionWriter writer,
+            ChannelSelector<T> channelSelector,
+            long timeout,
+            String taskName) {
+        super(writer, timeout, taskName);
 
-		this.channelSelector = checkNotNull(channelSelector);
-		this.channelSelector.setup(numberOfChannels);
-	}
+        this.channelSelector = checkNotNull(channelSelector);
+        this.channelSelector.setup(numberOfChannels);
+    }
 
-	@Override
-	public void emit(T record) throws IOException {
-		emit(record, channelSelector.selectChannel(record));
-	}
+    @Override
+    public void emit(T record) throws IOException {
+        emit(record, channelSelector.selectChannel(record));
+    }
 
-	@Override
-	public void broadcastEmit(T record) throws IOException {
-		checkErroneous();
+    @Override
+    public void broadcastEmit(T record) throws IOException {
+        checkErroneous();
 
-		// Emitting to all channels in a for loop can be better than calling
-		// ResultPartitionWriter#broadcastRecord because the broadcastRecord
-		// method incurs extra overhead.
-		ByteBuffer serializedRecord = serializeRecord(serializer, record);
-		for (int channelIndex = 0; channelIndex < numberOfChannels; channelIndex++) {
-			serializedRecord.rewind();
-			emit(record, channelIndex);
-		}
+        // Emitting to all channels in a for loop can be better than calling
+        // ResultPartitionWriter#broadcastRecord because the broadcastRecord
+        // method incurs extra overhead.
+        ByteBuffer serializedRecord = serializeRecord(serializer, record);
+        for (int channelIndex = 0; channelIndex < numberOfChannels; channelIndex++) {
+            serializedRecord.rewind();
+            emit(record, channelIndex);
+        }
 
-		if (flushAlways) {
-			flushAll();
-		}
-	}
+        if (flushAlways) {
+            flushAll();
+        }
+    }
 }

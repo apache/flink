@@ -24,19 +24,17 @@ import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * {@link MetricQueryServiceRetriever} implementation for rpc based {@link MetricQueryService}.
- */
+/** {@link MetricQueryServiceRetriever} implementation for rpc based {@link MetricQueryService}. */
 public class RpcMetricQueryServiceRetriever implements MetricQueryServiceRetriever {
 
-	private RpcService rpcService;
+    private RpcService rpcService;
 
-	public RpcMetricQueryServiceRetriever(RpcService rpcService) {
-		this.rpcService = rpcService;
-	}
+    public RpcMetricQueryServiceRetriever(RpcService rpcService) {
+        this.rpcService = rpcService;
+    }
 
-	@Override
-	public CompletableFuture<MetricQueryServiceGateway> retrieveService(String rpcServiceAddress) {
-		return rpcService.connect(rpcServiceAddress, MetricQueryServiceGateway.class);
-	}
+    @Override
+    public CompletableFuture<MetricQueryServiceGateway> retrieveService(String rpcServiceAddress) {
+        return rpcService.connect(rpcServiceAddress, MetricQueryServiceGateway.class);
+    }
 }

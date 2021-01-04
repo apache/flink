@@ -45,55 +45,75 @@ import java.util.concurrent.Executor;
  *
  * @param <R> type of the response
  */
-public abstract class AbstractCheckpointHandler<R extends ResponseBody, M extends CheckpointMessageParameters> extends AbstractExecutionGraphHandler<R, M> {
+public abstract class AbstractCheckpointHandler<
+                R extends ResponseBody, M extends CheckpointMessageParameters>
+        extends AbstractExecutionGraphHandler<R, M> {
 
-	private final CheckpointStatsCache checkpointStatsCache;
+    private final CheckpointStatsCache checkpointStatsCache;
 
-	protected AbstractCheckpointHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor,
-			CheckpointStatsCache checkpointStatsCache) {
-		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+    protected AbstractCheckpointHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, R, M> messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor,
+            CheckpointStatsCache checkpointStatsCache) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
 
-		this.checkpointStatsCache = Preconditions.checkNotNull(checkpointStatsCache);
-	}
+        this.checkpointStatsCache = Preconditions.checkNotNull(checkpointStatsCache);
+    }
 
-	@Override
-	protected R handleRequest(HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph) throws RestHandlerException {
-		final long checkpointId = request.getPathParameter(CheckpointIdPathParameter.class);
+    @Override
+    protected R handleRequest(
+            HandlerRequest<EmptyRequestBody, M> request, AccessExecutionGraph executionGraph)
+            throws RestHandlerException {
+        final long checkpointId = request.getPathParameter(CheckpointIdPathParameter.class);
 
-		final CheckpointStatsSnapshot checkpointStatsSnapshot = executionGraph.getCheckpointStatsSnapshot();
+        final CheckpointStatsSnapshot checkpointStatsSnapshot =
+                executionGraph.getCheckpointStatsSnapshot();
 
-		if (checkpointStatsSnapshot != null) {
-			AbstractCheckpointStats checkpointStats = checkpointStatsSnapshot.getHistory().getCheckpointById(checkpointId);
+        if (checkpointStatsSnapshot != null) {
+            AbstractCheckpointStats checkpointStats =
+                    checkpointStatsSnapshot.getHistory().getCheckpointById(checkpointId);
 
-			if (checkpointStats != null) {
-				checkpointStatsCache.tryAdd(checkpointStats);
-			} else {
-				checkpointStats = checkpointStatsCache.tryGet(checkpointId);
-			}
+            if (checkpointStats != null) {
+                checkpointStatsCache.tryAdd(checkpointStats);
+            } else {
+                checkpointStats = checkpointStatsCache.tryGet(checkpointId);
+            }
 
-			if (checkpointStats != null) {
-				return handleCheckpointRequest(request, checkpointStats);
-			} else {
-				throw new RestHandlerException("Could not find checkpointing statistics for checkpoint " + checkpointId + '.', HttpResponseStatus.NOT_FOUND);
-			}
-		} else {
-			throw new RestHandlerException("Checkpointing was not enabled for job " + executionGraph.getJobID() + '.', HttpResponseStatus.NOT_FOUND);
-		}
-	}
+            if (checkpointStats != null) {
+                return handleCheckpointRequest(request, checkpointStats);
+            } else {
+                throw new RestHandlerException(
+                        "Could not find checkpointing statistics for checkpoint "
+                                + checkpointId
+                                + '.',
+                        HttpResponseStatus.NOT_FOUND);
+            }
+        } else {
+            throw new RestHandlerException(
+                    "Checkpointing was not enabled for job " + executionGraph.getJobID() + '.',
+                    HttpResponseStatus.NOT_FOUND);
+        }
+    }
 
-	/**
-	 * Called for each request with the corresponding {@link AbstractCheckpointStats} instance.
-	 *
-	 * @param request for further information
-	 * @param checkpointStats for which the handler is called
-	 * @return Response
-	 * @throws RestHandlerException if the handler could not handle the request
-	 */
-	protected abstract R handleCheckpointRequest(HandlerRequest<EmptyRequestBody, M> request, AbstractCheckpointStats checkpointStats) throws RestHandlerException;
+    /**
+     * Called for each request with the corresponding {@link AbstractCheckpointStats} instance.
+     *
+     * @param request for further information
+     * @param checkpointStats for which the handler is called
+     * @return Response
+     * @throws RestHandlerException if the handler could not handle the request
+     */
+    protected abstract R handleCheckpointRequest(
+            HandlerRequest<EmptyRequestBody, M> request, AbstractCheckpointStats checkpointStats)
+            throws RestHandlerException;
 }

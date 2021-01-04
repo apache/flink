@@ -25,24 +25,19 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * Base {@link MessageParameters} class for aggregating metrics.
- */
-public abstract class AbstractAggregatedMetricsParameters<M extends MessageQueryParameter<?>> extends MessageParameters {
-	private final MetricsFilterParameter metrics = new MetricsFilterParameter();
-	private final MetricsAggregationParameter aggs = new MetricsAggregationParameter();
-	private final M selector;
+/** Base {@link MessageParameters} class for aggregating metrics. */
+public abstract class AbstractAggregatedMetricsParameters<M extends MessageQueryParameter<?>>
+        extends MessageParameters {
+    private final MetricsFilterParameter metrics = new MetricsFilterParameter();
+    private final MetricsAggregationParameter aggs = new MetricsAggregationParameter();
+    private final M selector;
 
-	AbstractAggregatedMetricsParameters(M selector) {
-		this.selector = selector;
-	}
+    AbstractAggregatedMetricsParameters(M selector) {
+        this.selector = selector;
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.unmodifiableCollection(Arrays.asList(
-			metrics,
-			aggs,
-			selector
-		));
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.unmodifiableCollection(Arrays.asList(metrics, aggs, selector));
+    }
 }

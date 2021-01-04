@@ -24,24 +24,20 @@ import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
 
-/**
- * Built-in vector types.
- */
+/** Built-in vector types. */
 public class VectorTypes {
-	/**
-	 * <code>DenseVector</code> type information.
-	 */
-	public static final TypeInformation<DenseVector> DENSE_VECTOR = TypeInformation.of(DenseVector.class);
+    /** <code>DenseVector</code> type information. */
+    public static final TypeInformation<DenseVector> DENSE_VECTOR =
+            TypeInformation.of(DenseVector.class);
 
-	/**
-	 * <code>SparseVector</code> type information.
-	 */
-	public static final TypeInformation<SparseVector> SPARSE_VECTOR = TypeInformation.of(SparseVector.class);
+    /** <code>SparseVector</code> type information. */
+    public static final TypeInformation<SparseVector> SPARSE_VECTOR =
+            TypeInformation.of(SparseVector.class);
 
-	/**
-	 * <code>Vector</code> type information.
-	 * For efficiency, use type information of sub-class <code>DenseVector</code> and <code>SparseVector</code>
-	 * as much as possible. When an operator output both sub-class type of vectors, use this one.
-	 */
-	public static final TypeInformation<Vector> VECTOR = TypeInformation.of(Vector.class);
+    /**
+     * <code>Vector</code> type information. For efficiency, use type information of sub-class
+     * <code>DenseVector</code> and <code>SparseVector</code> as much as possible. When an operator
+     * output both sub-class type of vectors, use this one.
+     */
+    public static final TypeInformation<Vector> VECTOR = TypeInformation.of(Vector.class);
 }

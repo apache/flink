@@ -28,51 +28,49 @@ import java.io.Serializable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Wrapper class for both type of committables in {@link FileSink}. One
- * committable might be either one pending files to commit, or one
- * in-progress file to cleanup.
+ * Wrapper class for both type of committables in {@link FileSink}. One committable might be either
+ * one pending files to commit, or one in-progress file to cleanup.
  */
 @Internal
 public class FileSinkCommittable implements Serializable {
 
-	@Nullable
-	private final InProgressFileWriter.PendingFileRecoverable pendingFile;
+    @Nullable private final InProgressFileWriter.PendingFileRecoverable pendingFile;
 
-	@Nullable
-	private final InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup;
+    @Nullable private final InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup;
 
-	public FileSinkCommittable(InProgressFileWriter.PendingFileRecoverable pendingFile) {
-		this.pendingFile = checkNotNull(pendingFile);
-		this.inProgressFileToCleanup = null;
-	}
+    public FileSinkCommittable(InProgressFileWriter.PendingFileRecoverable pendingFile) {
+        this.pendingFile = checkNotNull(pendingFile);
+        this.inProgressFileToCleanup = null;
+    }
 
-	public FileSinkCommittable(InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
-		this.pendingFile = null;
-		this.inProgressFileToCleanup = checkNotNull(inProgressFileToCleanup);
-	}
+    public FileSinkCommittable(
+            InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
+        this.pendingFile = null;
+        this.inProgressFileToCleanup = checkNotNull(inProgressFileToCleanup);
+    }
 
-	FileSinkCommittable(
-			@Nullable InProgressFileWriter.PendingFileRecoverable pendingFile,
-			@Nullable InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
-		this.pendingFile = pendingFile;
-		this.inProgressFileToCleanup = inProgressFileToCleanup;
-	}
+    FileSinkCommittable(
+            @Nullable InProgressFileWriter.PendingFileRecoverable pendingFile,
+            @Nullable InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
+        this.pendingFile = pendingFile;
+        this.inProgressFileToCleanup = inProgressFileToCleanup;
+    }
 
-	public boolean hasPendingFile() {
-		return pendingFile != null;
-	}
+    public boolean hasPendingFile() {
+        return pendingFile != null;
+    }
 
-	@Nullable
-	public InProgressFileWriter.PendingFileRecoverable getPendingFile() {
-		return pendingFile;
-	}
+    @Nullable
+    public InProgressFileWriter.PendingFileRecoverable getPendingFile() {
+        return pendingFile;
+    }
 
-	public boolean hasInProgressFileToCleanup() {
-		return inProgressFileToCleanup != null;
-	}
+    public boolean hasInProgressFileToCleanup() {
+        return inProgressFileToCleanup != null;
+    }
 
-	@Nullable
-	public InProgressFileWriter.InProgressFileRecoverable getInProgressFileToCleanup() {
-		return inProgressFileToCleanup;
-	}
+    @Nullable
+    public InProgressFileWriter.InProgressFileRecoverable getInProgressFileToCleanup() {
+        return inProgressFileToCleanup;
+    }
 }

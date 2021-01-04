@@ -24,30 +24,28 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import java.util.Collection;
 import java.util.Set;
 
-/**
- * Represents a bulk of physical slot requests.
- */
+/** Represents a bulk of physical slot requests. */
 public interface PhysicalSlotRequestBulk {
-	/**
-	 * Returns {@link ResourceProfile}s of pending physical slot requests.
-	 *
-	 * <p>If a request is pending, it is not fulfilled and vice versa.
-	 * {@link #getAllocationIdsOfFulfilledRequests()} should not return a pending request.
-	 */
-	Collection<ResourceProfile> getPendingRequests();
+    /**
+     * Returns {@link ResourceProfile}s of pending physical slot requests.
+     *
+     * <p>If a request is pending, it is not fulfilled and vice versa. {@link
+     * #getAllocationIdsOfFulfilledRequests()} should not return a pending request.
+     */
+    Collection<ResourceProfile> getPendingRequests();
 
-	/**
-	 * Returns {@link AllocationID}s of fulfilled physical slot requests.
-	 *
-	 * <p>If a request is fulfilled, it is not pending and vice versa.
-	 * {@link #getPendingRequests()} should not return a fulfilled request.
-	 */
-	Set<AllocationID> getAllocationIdsOfFulfilledRequests();
+    /**
+     * Returns {@link AllocationID}s of fulfilled physical slot requests.
+     *
+     * <p>If a request is fulfilled, it is not pending and vice versa. {@link #getPendingRequests()}
+     * should not return a fulfilled request.
+     */
+    Set<AllocationID> getAllocationIdsOfFulfilledRequests();
 
-	/**
-	 * Cancels all requests of this bulk.
-	 *
-	 * <p>Canceled bulk is not valid and should not be used afterwards.
-	 */
-	void cancel(Throwable cause);
+    /**
+     * Cancels all requests of this bulk.
+     *
+     * <p>Canceled bulk is not valid and should not be used afterwards.
+     */
+    void cancel(Throwable cause);
 }

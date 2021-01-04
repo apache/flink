@@ -28,13 +28,13 @@ Flink SQL makes it simple to develop streaming applications using standard SQL. 
 {:toc}
 
 
-### Prerequisetes 
+### Prerequisites 
 
 You only need to have basic knowledge of SQL to follow along. No other programming experience is assumed. 
 
 ### Installation
 
-There are multiple ways to install Flink. For experimentation, the most common option is to download the binaries and run them locally. You can follow the steps in [local nstallation]({%link try-flink/local_installation.md %}) to set up an environment for the rest of the tutorial. 
+There are multiple ways to install Flink. For experimentation, the most common option is to download the binaries and run them locally. You can follow the steps in [local installation]({% link try-flink/local_installation.md %}) to set up an environment for the rest of the tutorial. 
 
 Once you're all set, use the following command to start a local cluster from the installation folder:
 
@@ -54,7 +54,7 @@ To start the SQL client, run the `sql-client` script from the installation folde
  {% endhighlight %} 
 
 ### Hello World
- 
+
 Once the SQL client, our query editor, is up and running, it's time to start writing queries.
 Let's start with printing 'Hello World', using the following simple query:
  
@@ -88,7 +88,7 @@ Flink data processing pipelines begin with source tables. Source tables produce 
 
 Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({% link dev/table/sql/index.md %}) similar to traditional SQL. Standard SQL DDL is used to [create]({% link dev/table/sql/create.md %}), [alter]({% link dev/table/sql/alter.md %}), [drop]({% link dev/table/sql/drop.md %}) tables. 
 
-Flink has a support for different [connectors]({% link dev/table/connect.md %}) and [formats]({% link dev/table/connectors/formats/index.md %}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({%link dev/table/connectors/formats/csv.md %}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
+Flink has a support for different [connectors]({% link dev/table/connect.md %}) and [formats]({% link dev/table/connectors/formats/index.md %}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({% link dev/table/connectors/formats/csv.md %}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
 
 {% highlight sql %}
 CREATE TABLE employee_information (
@@ -122,7 +122,7 @@ A [continuous query]({% link dev/table/streaming/dynamic_tables.md %}#continuous
 Aggregations on continuous streams need to store aggregated results continuously during the execution of the query. For example, suppose you need to count the number of employees for each department from an incoming data stream. The query needs to maintain the most up to date count for each department to output timely results as new rows are processed.
 
  {% highlight sql %}
- SELECT 
+SELECT 
 	dept_id,
 	COUNT(*) as emp_count 
 FROM employee_information 
@@ -136,7 +136,7 @@ Such queries are considered _stateful_. Flink's advanced fault-tolerance mechani
 When running this query, the SQL client provides output in real-time but in a read-only fashion. Storing results - to power a report or dashboard - requires writing out to another table. This can be achieved using an `INSERT INTO` statement. The table referenced in this clause is known as a sink table. An `INSERT INTO` statement will be submitted as a detached query to the Flink cluster. 
 
  {% highlight sql %}
- INSERT INTO department_counts
+INSERT INTO department_counts
  SELECT 
 	dept_id,
 	COUNT(*) as emp_count 

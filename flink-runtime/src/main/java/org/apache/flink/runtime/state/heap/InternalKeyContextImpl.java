@@ -29,49 +29,49 @@ import javax.annotation.Nonnull;
  * @param <K> Type of the key.
  */
 public class InternalKeyContextImpl<K> implements InternalKeyContext<K> {
-	/** Range of key-groups for which this backend is responsible. */
-	private final KeyGroupRange keyGroupRange;
-	/** The number of key-groups aka max parallelism. */
-	private final int numberOfKeyGroups;
+    /** Range of key-groups for which this backend is responsible. */
+    private final KeyGroupRange keyGroupRange;
+    /** The number of key-groups aka max parallelism. */
+    private final int numberOfKeyGroups;
 
-	/** The currently active key. */
-	private K currentKey;
-	/** The key group of the currently active key. */
-	private int currentKeyGroupIndex;
+    /** The currently active key. */
+    private K currentKey;
+    /** The key group of the currently active key. */
+    private int currentKeyGroupIndex;
 
-	public InternalKeyContextImpl(@Nonnull KeyGroupRange keyGroupRange, @Nonnegative int numberOfKeyGroups) {
-		this.keyGroupRange = keyGroupRange;
-		this.numberOfKeyGroups = numberOfKeyGroups;
-	}
+    public InternalKeyContextImpl(
+            @Nonnull KeyGroupRange keyGroupRange, @Nonnegative int numberOfKeyGroups) {
+        this.keyGroupRange = keyGroupRange;
+        this.numberOfKeyGroups = numberOfKeyGroups;
+    }
 
-	@Override
-	public K getCurrentKey() {
-		return currentKey;
-	}
+    @Override
+    public K getCurrentKey() {
+        return currentKey;
+    }
 
-	@Override
-	public int getCurrentKeyGroupIndex() {
-		return currentKeyGroupIndex;
-	}
+    @Override
+    public int getCurrentKeyGroupIndex() {
+        return currentKeyGroupIndex;
+    }
 
-	@Override
-	public int getNumberOfKeyGroups() {
-		return numberOfKeyGroups;
-	}
+    @Override
+    public int getNumberOfKeyGroups() {
+        return numberOfKeyGroups;
+    }
 
-	@Override
-	public KeyGroupRange getKeyGroupRange() {
-		return keyGroupRange;
-	}
+    @Override
+    public KeyGroupRange getKeyGroupRange() {
+        return keyGroupRange;
+    }
 
-	@Override
-	public void setCurrentKey(@Nonnull K currentKey) {
-		this.currentKey = currentKey;
-	}
+    @Override
+    public void setCurrentKey(@Nonnull K currentKey) {
+        this.currentKey = currentKey;
+    }
 
-	@Override
-	public void setCurrentKeyGroupIndex(int currentKeyGroupIndex) {
-		this.currentKeyGroupIndex = currentKeyGroupIndex;
-	}
-
+    @Override
+    public void setCurrentKeyGroupIndex(int currentKeyGroupIndex) {
+        this.currentKeyGroupIndex = currentKeyGroupIndex;
+    }
 }

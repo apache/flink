@@ -19,62 +19,62 @@
 package org.apache.flink.runtime.messages.webmonitor;
 
 /**
- * This message requests an overview of the jobs on the JobManager,
- * including running jobs and/or finished jobs.
- * <p>
- * The response to this message is a
- * {@link org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails} message.
+ * This message requests an overview of the jobs on the JobManager, including running jobs and/or
+ * finished jobs.
+ *
+ * <p>The response to this message is a {@link
+ * org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails} message.
  */
 public class RequestJobDetails implements InfoMessage {
 
-	private static final long serialVersionUID = 5208137000412166747L;
-	
-	private final boolean includeRunning;
-	private final boolean includeFinished;
+    private static final long serialVersionUID = 5208137000412166747L;
 
-	public RequestJobDetails(boolean includeRunning, boolean includeFinished) {
-		this.includeRunning = includeRunning;
-		this.includeFinished = includeFinished;
-	}
-	
-	// ------------------------------------------------------------------------
+    private final boolean includeRunning;
+    private final boolean includeFinished;
 
-	public boolean shouldIncludeFinished() {
-		return includeFinished;
-	}
+    public RequestJobDetails(boolean includeRunning, boolean includeFinished) {
+        this.includeRunning = includeRunning;
+        this.includeFinished = includeFinished;
+    }
 
-	public boolean shouldIncludeRunning() {
-		return includeRunning;
-	}
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		else if (o instanceof RequestJobDetails) {
-			RequestJobDetails that = (RequestJobDetails) o;
+    public boolean shouldIncludeFinished() {
+        return includeFinished;
+    }
 
-			return this.includeFinished == that.includeFinished &&
-					this.includeRunning == that.includeRunning;
-		}
-		else {
-			return false;
-		}
-	}
+    public boolean shouldIncludeRunning() {
+        return includeRunning;
+    }
 
-	@Override
-	public int hashCode() {
-		return (includeRunning ? 31 : 0) + (includeFinished ? 1 : 0);
-	}
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "RequestJobDetails{" +
-				"includeRunning=" + includeRunning +
-				", includeFinished=" + includeFinished +
-				'}';
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        } else if (o instanceof RequestJobDetails) {
+            RequestJobDetails that = (RequestJobDetails) o;
+
+            return this.includeFinished == that.includeFinished
+                    && this.includeRunning == that.includeRunning;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return (includeRunning ? 31 : 0) + (includeFinished ? 1 : 0);
+    }
+
+    @Override
+    public String toString() {
+        return "RequestJobDetails{"
+                + "includeRunning="
+                + includeRunning
+                + ", includeFinished="
+                + includeFinished
+                + '}';
+    }
 }

@@ -29,43 +29,46 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 public class ExecutionGraphVariousFailuesTest extends TestLogger {
 
-	/**
-	 * Tests that a failing scheduleOrUpdateConsumers call with a non-existing execution attempt
-	 * id, will not fail the execution graph.
-	 */
-	@Test
-	public void testFailingScheduleOrUpdateConsumers() throws Exception {
-		final SchedulerBase scheduler = SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
-		scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		scheduler.startScheduling();
+    /**
+     * Tests that a failing notifyPartitionDataAvailable call with a non-existing execution attempt
+     * id, will not fail the execution graph.
+     */
+    @Test
+    public void testFailingNotifyPartitionDataAvailable() throws Exception {
+        final SchedulerBase scheduler =
+                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
+        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+        scheduler.startScheduling();
 
-		final ExecutionGraph eg = scheduler.getExecutionGraph();
+        final ExecutionGraph eg = scheduler.getExecutionGraph();
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-		ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
+        assertEquals(JobStatus.RUNNING, eg.getState());
+        ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
 
-		IntermediateResultPartitionID intermediateResultPartitionId = new IntermediateResultPartitionID();
-		ExecutionAttemptID producerId = new ExecutionAttemptID();
-		ResultPartitionID resultPartitionId = new ResultPartitionID(intermediateResultPartitionId, producerId);
+        IntermediateResultPartitionID intermediateResultPartitionId =
+                new IntermediateResultPartitionID();
+        ExecutionAttemptID producerId = new ExecutionAttemptID();
+        ResultPartitionID resultPartitionId =
+                new ResultPartitionID(intermediateResultPartitionId, producerId);
 
-		// The execution attempt id does not exist and thus the scheduleOrUpdateConsumers call
-		// should fail
+        // The execution attempt id does not exist and thus the notifyPartitionDataAvailable call
+        // should fail
 
-		try {
-			scheduler.scheduleOrUpdateConsumers(resultPartitionId);
-			fail("Expected ExecutionGraphException.");
-		} catch (RuntimeException e) {
-			// we've expected this exception to occur
-			assertThat(e.getCause(), instanceOf(ExecutionGraphException.class));
-		}
+        try {
+            scheduler.notifyPartitionDataAvailable(resultPartitionId);
+            fail("Error expected.");
+        } catch (IllegalStateException e) {
+            // we've expected this exception to occur
+            assertThat(e.getMessage(), containsString("Cannot find execution for execution Id"));
+        }
 
-		assertEquals(JobStatus.RUNNING, eg.getState());
-	}
+        assertEquals(JobStatus.RUNNING, eg.getState());
+    }
 }

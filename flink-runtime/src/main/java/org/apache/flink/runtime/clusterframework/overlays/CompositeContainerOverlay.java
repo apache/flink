@@ -25,25 +25,23 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * A composite overlay that delegates to a set of inner overlays.
- */
+/** A composite overlay that delegates to a set of inner overlays. */
 public class CompositeContainerOverlay implements ContainerOverlay {
 
-	private final List<ContainerOverlay> overlays;
+    private final List<ContainerOverlay> overlays;
 
-	public CompositeContainerOverlay(ContainerOverlay... overlays) {
-		this(Arrays.asList(overlays));
-	}
+    public CompositeContainerOverlay(ContainerOverlay... overlays) {
+        this(Arrays.asList(overlays));
+    }
 
-	public CompositeContainerOverlay(List<ContainerOverlay> overlays) {
-		this.overlays = Collections.unmodifiableList(overlays);
-	}
+    public CompositeContainerOverlay(List<ContainerOverlay> overlays) {
+        this.overlays = Collections.unmodifiableList(overlays);
+    }
 
-	@Override
-	public void configure(ContainerSpecification containerConfig) throws IOException {
-		for(ContainerOverlay overlay : overlays) {
-			overlay.configure(containerConfig);
-		}
-	}
+    @Override
+    public void configure(ContainerSpecification containerConfig) throws IOException {
+        for (ContainerOverlay overlay : overlays) {
+            overlay.configure(containerConfig);
+        }
+    }
 }

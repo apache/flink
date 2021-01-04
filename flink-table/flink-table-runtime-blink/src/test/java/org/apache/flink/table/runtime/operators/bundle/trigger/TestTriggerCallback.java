@@ -18,19 +18,17 @@
 
 package org.apache.flink.table.runtime.operators.bundle.trigger;
 
-/**
- * A bundle trigger callback which simply track the number of triggers.
- */
+/** A bundle trigger callback which simply track the number of triggers. */
 public class TestTriggerCallback implements BundleTriggerCallback {
 
-	private int triggerCount = 0;
+    private int triggerCount = 0;
 
-	@Override
-	public void finishBundle() throws Exception {
-		triggerCount++;
-	}
+    @Override
+    public void finishBundle() throws Exception {
+        triggerCount++;
+    }
 
-	int getTriggerCount() {
-		return triggerCount;
-	}
+    int getTriggerCount() {
+        return triggerCount;
+    }
 }

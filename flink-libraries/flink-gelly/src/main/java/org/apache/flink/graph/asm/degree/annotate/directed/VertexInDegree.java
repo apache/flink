@@ -38,74 +38,75 @@ import org.apache.flink.types.LongValue;
  * @param <EV> edge value type
  */
 public class VertexInDegree<K, VV, EV>
-extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
+        extends GraphAlgorithmWrappingDataSet<K, VV, EV, Vertex<K, LongValue>> {
 
-	// Optional configuration
-	private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
+    // Optional configuration
+    private OptionalBoolean includeZeroDegreeVertices = new OptionalBoolean(false, true);
 
-	/**
-	 * By default only the edge set is processed for the computation of degree.
-	 * When this flag is set an additional join is performed against the vertex
-	 * set in order to output vertices with an in-degree of zero.
-	 *
-	 * @param includeZeroDegreeVertices whether to output vertices with an
-	 *                                  in-degree of zero
-	 * @return this
-	 */
-	public VertexInDegree<K, VV, EV> setIncludeZeroDegreeVertices(boolean includeZeroDegreeVertices) {
-		this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
+    /**
+     * By default only the edge set is processed for the computation of degree. When this flag is
+     * set an additional join is performed against the vertex set in order to output vertices with
+     * an in-degree of zero.
+     *
+     * @param includeZeroDegreeVertices whether to output vertices with an in-degree of zero
+     * @return this
+     */
+    public VertexInDegree<K, VV, EV> setIncludeZeroDegreeVertices(
+            boolean includeZeroDegreeVertices) {
+        this.includeZeroDegreeVertices.set(includeZeroDegreeVertices);
 
-		return this;
-	}
+        return this;
+    }
 
-	@Override
-	protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
-		if (!super.canMergeConfigurationWith(other)) {
-			return false;
-		}
+    @Override
+    protected boolean canMergeConfigurationWith(GraphAlgorithmWrappingBase other) {
+        if (!super.canMergeConfigurationWith(other)) {
+            return false;
+        }
 
-		VertexInDegree rhs = (VertexInDegree) other;
+        VertexInDegree rhs = (VertexInDegree) other;
 
-		return !includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices);
-	}
+        return !includeZeroDegreeVertices.conflictsWith(rhs.includeZeroDegreeVertices);
+    }
 
-	@Override
-	protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
-		super.mergeConfiguration(other);
+    @Override
+    protected void mergeConfiguration(GraphAlgorithmWrappingBase other) {
+        super.mergeConfiguration(other);
 
-		VertexInDegree rhs = (VertexInDegree) other;
+        VertexInDegree rhs = (VertexInDegree) other;
 
-		includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
-	}
+        includeZeroDegreeVertices.mergeWith(rhs.includeZeroDegreeVertices);
+    }
 
-	@Override
-	public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input)
-			throws Exception {
-		// t
-		DataSet<Vertex<K, LongValue>> targetIds = input
-			.getEdges()
-			.map(new MapEdgeToTargetId<>())
-				.setParallelism(parallelism)
-				.name("Edge to target ID");
+    @Override
+    public DataSet<Vertex<K, LongValue>> runInternal(Graph<K, VV, EV> input) throws Exception {
+        // t
+        DataSet<Vertex<K, LongValue>> targetIds =
+                input.getEdges()
+                        .map(new MapEdgeToTargetId<>())
+                        .setParallelism(parallelism)
+                        .name("Edge to target ID");
 
-		// t, d(t)
-		DataSet<Vertex<K, LongValue>> targetDegree = targetIds
-			.groupBy(0)
-			.reduce(new DegreeCount<>())
-			.setCombineHint(CombineHint.HASH)
-				.setParallelism(parallelism)
-				.name("Degree count");
+        // t, d(t)
+        DataSet<Vertex<K, LongValue>> targetDegree =
+                targetIds
+                        .groupBy(0)
+                        .reduce(new DegreeCount<>())
+                        .setCombineHint(CombineHint.HASH)
+                        .setParallelism(parallelism)
+                        .name("Degree count");
 
-		if (includeZeroDegreeVertices.get()) {
-			targetDegree = input.getVertices()
-				.leftOuterJoin(targetDegree)
-				.where(0)
-				.equalTo(0)
-				.with(new JoinVertexWithVertexDegree<>())
-					.setParallelism(parallelism)
-					.name("Zero degree vertices");
-		}
+        if (includeZeroDegreeVertices.get()) {
+            targetDegree =
+                    input.getVertices()
+                            .leftOuterJoin(targetDegree)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new JoinVertexWithVertexDegree<>())
+                            .setParallelism(parallelism)
+                            .name("Zero degree vertices");
+        }
 
-		return targetDegree;
-	}
+        return targetDegree;
+    }
 }

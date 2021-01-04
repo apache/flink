@@ -31,22 +31,26 @@ import java.util.List;
 /**
  * A {@link DAGProcessor} that finds out all deadlocks in the DAG and resolves them.
  *
- * <p>NOTE: This processor can be only applied on {@link LegacyBatchExecNode} DAG or {@link BatchExecNode} DAG.
+ * <p>NOTE: This processor can be only applied on {@link LegacyBatchExecNode} DAG or {@link
+ * BatchExecNode} DAG.
  */
 public class DeadlockBreakupProcessor implements DAGProcessor {
 
-	@Override
-	public List<ExecNode<?>> process(List<ExecNode<?>> rootNodes, DAGProcessContext context) {
-		if (!rootNodes.stream().allMatch(r -> r instanceof LegacyBatchExecNode || r instanceof BatchExecNode)) {
-			throw new TableException("Only LegacyBatchExecNode DAG or BatchExecNode DAG are supported now.");
-		}
+    @Override
+    public List<ExecNode<?>> process(List<ExecNode<?>> rootNodes, DAGProcessContext context) {
+        if (!rootNodes.stream()
+                .allMatch(r -> r instanceof LegacyBatchExecNode || r instanceof BatchExecNode)) {
+            throw new TableException(
+                    "Only LegacyBatchExecNode DAG or BatchExecNode DAG are supported now.");
+        }
 
-		InputPriorityConflictResolver resolver = new InputPriorityConflictResolver(
-			rootNodes,
-			ExecEdge.DamBehavior.END_INPUT,
-			ShuffleMode.BATCH,
-			context.getPlanner().getTableConfig().getConfiguration());
-		resolver.detectAndResolve();
-		return rootNodes;
-	}
+        InputPriorityConflictResolver resolver =
+                new InputPriorityConflictResolver(
+                        rootNodes,
+                        ExecEdge.DamBehavior.END_INPUT,
+                        ShuffleMode.BATCH,
+                        context.getPlanner().getTableConfig().getConfiguration());
+        resolver.detectAndResolve();
+        return rootNodes;
+    }
 }

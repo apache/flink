@@ -50,97 +50,110 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * Testing job for localizing resources of LocalResourceType.ARCHIVE in per job cluster mode.
- */
+/** Testing job for localizing resources of LocalResourceType.ARCHIVE in per job cluster mode. */
 public class YarnTestArchiveJob {
-	private static final List<String> LIST = ImmutableList.of("test1", "test2");
+    private static final List<String> LIST = ImmutableList.of("test1", "test2");
 
-	private static final Map<String, String> srcFiles = new HashMap<String, String>() {{
-			put("local1.txt", "Local text Content1");
-			put("local2.txt", "Local text Content2");
-		}};
+    private static final Map<String, String> srcFiles =
+            new HashMap<String, String>() {
+                {
+                    put("local1.txt", "Local text Content1");
+                    put("local2.txt", "Local text Content2");
+                }
+            };
 
-	private static void archiveFilesInDirectory(File directory, String target) throws IOException {
-		for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
-			Files.write(
-					Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()),
-					entry.getValue().getBytes());
-		}
+    private static void archiveFilesInDirectory(File directory, String target) throws IOException {
+        for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
+            Files.write(
+                    Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()),
+                    entry.getValue().getBytes());
+        }
 
-		try (FileOutputStream fos = new FileOutputStream(target);
-				GzipCompressorOutputStream gos = new GzipCompressorOutputStream(new BufferedOutputStream(fos));
-				TarArchiveOutputStream taros = new TarArchiveOutputStream(gos)) {
+        try (FileOutputStream fos = new FileOutputStream(target);
+                GzipCompressorOutputStream gos =
+                        new GzipCompressorOutputStream(new BufferedOutputStream(fos));
+                TarArchiveOutputStream taros = new TarArchiveOutputStream(gos)) {
 
-			taros.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
-			for (File f : directory.listFiles()) {
-				taros.putArchiveEntry(new TarArchiveEntry(f, directory.getName() + File.separator + f.getName()));
+            taros.setLongFileMode(TarArchiveOutputStream.LONGFILE_GNU);
+            for (File f : directory.listFiles()) {
+                taros.putArchiveEntry(
+                        new TarArchiveEntry(f, directory.getName() + File.separator + f.getName()));
 
-				try (FileInputStream fis = new FileInputStream(f); BufferedInputStream bis = new BufferedInputStream(fis)) {
-					IOUtils.copy(bis, taros);
-					taros.closeArchiveEntry();
-				}
-			}
-		}
+                try (FileInputStream fis = new FileInputStream(f);
+                        BufferedInputStream bis = new BufferedInputStream(fis)) {
+                    IOUtils.copy(bis, taros);
+                    taros.closeArchiveEntry();
+                }
+            }
+        }
 
-		for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
-			Files.delete(Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()));
-		}
+        for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
+            Files.delete(Paths.get(directory.getAbsolutePath() + File.separator + entry.getKey()));
+        }
+    }
 
-	}
+    public static JobGraph getArchiveJobGraph(File testDirectory, Configuration config)
+            throws IOException {
 
-	public static JobGraph getArchiveJobGraph(File testDirectory, Configuration config) throws IOException {
+        final String archive = testDirectory.getAbsolutePath().concat(".tar.gz");
+        archiveFilesInDirectory(testDirectory, archive);
+        config.set(YarnConfigOptions.SHIP_ARCHIVES, Collections.singletonList(archive));
 
-		final String archive = testDirectory.getAbsolutePath().concat(".tar.gz");
-		archiveFilesInDirectory(testDirectory, archive);
-		config.set(YarnConfigOptions.SHIP_ARCHIVES, Collections.singletonList(archive));
+        final String localizedPath =
+                testDirectory.getName().concat(".tar.gz")
+                        + File.separator
+                        + testDirectory.getName();
 
-		final String localizedPath = testDirectory.getName().concat(".tar.gz") + File.separator + testDirectory.getName();
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        env.addSource(
+                        new SourceFunctionWithArchive<>(
+                                LIST, localizedPath, TypeInformation.of(String.class)))
+                .addSink(new DiscardingSink<>());
 
-		env.addSource(new SourceFunctionWithArchive<>(LIST, localizedPath, TypeInformation.of(String.class)))
-			.addSink(new DiscardingSink<>());
+        return env.getStreamGraph().getJobGraph();
+    }
 
-		return env.getStreamGraph().getJobGraph();
-	}
+    private static class SourceFunctionWithArchive<T> extends RichSourceFunction<T>
+            implements ResultTypeQueryable<T> {
 
-	private static class SourceFunctionWithArchive<T> extends RichSourceFunction<T> implements ResultTypeQueryable<T> {
+        private final List<T> inputDataset;
+        private final String resourcePath;
+        private final TypeInformation<T> returnType;
 
-		private final List<T> inputDataset;
-		private final String resourcePath;
-		private final TypeInformation<T> returnType;
+        SourceFunctionWithArchive(
+                List<T> inputDataset, String resourcePath, TypeInformation<T> returnType) {
+            this.inputDataset = inputDataset;
+            this.resourcePath = resourcePath;
+            this.returnType = returnType;
+        }
 
-		SourceFunctionWithArchive(List<T> inputDataset, String resourcePath, TypeInformation<T> returnType) {
-			this.inputDataset = inputDataset;
-			this.resourcePath = resourcePath;
-			this.returnType = returnType;
-		}
+        public void open(Configuration parameters) throws Exception {
+            for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
+                Path path = Paths.get(resourcePath + File.separator + entry.getKey());
+                String content = new String(Files.readAllBytes(path));
+                checkArgument(
+                        entry.getValue().equals(content),
+                        "The content of the unpacked file should be identical to the original file's.");
+            }
+        }
 
-		public void open(Configuration parameters) throws Exception {
-			for (Map.Entry<String, String> entry : srcFiles.entrySet()) {
-				Path path = Paths.get(resourcePath + File.separator + entry.getKey());
-				String content = new String(Files.readAllBytes(path));
-				checkArgument(entry.getValue().equals(content), "The content of the unpacked file should be identical to the original file's.");
-			}
-		}
+        @Override
+        public void run(SourceContext<T> ctx) {
+            for (T t : inputDataset) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(t);
+                }
+            }
+        }
 
-		@Override
-		public void run(SourceContext<T> ctx) {
-			for (T t : inputDataset) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(t);
-				}
-			}
-		}
+        @Override
+        public void cancel() {}
 
-		@Override
-		public void cancel() {}
-
-		@Override
-		public TypeInformation<T> getProducedType() {
-			return this.returnType;
-		}
-	}
+        @Override
+        public TypeInformation<T> getProducedType() {
+            return this.returnType;
+        }
+    }
 }

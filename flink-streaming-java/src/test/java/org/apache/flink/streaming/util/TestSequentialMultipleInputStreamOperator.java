@@ -24,43 +24,40 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 
-/**
- * A test operator class for sequential reading.
- */
-public class TestSequentialMultipleInputStreamOperator extends TestAnyModeMultipleInputStreamOperator
-	implements BoundedMultiInput {
+/** A test operator class for sequential reading. */
+public class TestSequentialMultipleInputStreamOperator
+        extends TestAnyModeMultipleInputStreamOperator implements BoundedMultiInput {
 
-	private InputSelection inputSelection = InputSelection.FIRST;
+    private InputSelection inputSelection = InputSelection.FIRST;
 
-	public TestSequentialMultipleInputStreamOperator(StreamOperatorParameters<String> parameters) {
-		super(parameters);
-	}
+    public TestSequentialMultipleInputStreamOperator(StreamOperatorParameters<String> parameters) {
+        super(parameters);
+    }
 
-	@Override
-	public InputSelection nextSelection() {
-		return inputSelection;
-	}
+    @Override
+    public InputSelection nextSelection() {
+        return inputSelection;
+    }
 
-	@Override
-	public void endInput(int inputId) {
-		if (inputId == 1) {
-			inputSelection = InputSelection.SECOND;
-		}
-	}
+    @Override
+    public void endInput(int inputId) {
+        if (inputId == 1) {
+            inputSelection = InputSelection.SECOND;
+        }
+    }
 
-	/**
-	 * Factory to construct {@link TestSequentialMultipleInputStreamOperator}.
-	 */
-	public static class Factory extends AbstractStreamOperatorFactory<String> {
+    /** Factory to construct {@link TestSequentialMultipleInputStreamOperator}. */
+    public static class Factory extends AbstractStreamOperatorFactory<String> {
 
-		@Override
-		public <T extends StreamOperator<String>> T createStreamOperator(StreamOperatorParameters<String> parameters) {
-			return (T) new TestSequentialMultipleInputStreamOperator(parameters);
-		}
+        @Override
+        public <T extends StreamOperator<String>> T createStreamOperator(
+                StreamOperatorParameters<String> parameters) {
+            return (T) new TestSequentialMultipleInputStreamOperator(parameters);
+        }
 
-		@Override
-		public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
-			return TestSequentialMultipleInputStreamOperator.class;
-		}
-	}
+        @Override
+        public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+            return TestSequentialMultipleInputStreamOperator.class;
+        }
+    }
 }

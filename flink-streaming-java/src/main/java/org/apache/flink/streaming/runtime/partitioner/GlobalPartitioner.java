@@ -29,25 +29,25 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  */
 @Internal
 public class GlobalPartitioner<T> extends StreamPartitioner<T> {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
-		return 0;
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<T>> record) {
+        return 0;
+    }
 
-	@Override
-	public StreamPartitioner<T> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<T> copy() {
+        return this;
+    }
 
-	@Override
-	public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
-		return SubtaskStateMapper.FIRST;
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.FIRST;
+    }
 
-	@Override
-	public String toString() {
-		return "GLOBAL";
-	}
+    @Override
+    public String toString() {
+        return "GLOBAL";
+    }
 }

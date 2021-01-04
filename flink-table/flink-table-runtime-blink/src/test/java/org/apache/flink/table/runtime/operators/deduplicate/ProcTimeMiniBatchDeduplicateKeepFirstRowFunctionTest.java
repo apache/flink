@@ -35,71 +35,71 @@ import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 
-/**
- * Tests for {@link ProcTimeMiniBatchDeduplicateKeepFirstRowFunction}.
- */
-public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest extends ProcTimeDeduplicateFunctionTestBase {
+/** Tests for {@link ProcTimeMiniBatchDeduplicateKeepFirstRowFunction}. */
+public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
+        extends ProcTimeDeduplicateFunctionTestBase {
 
-	private TypeSerializer<RowData> typeSerializer = inputRowType.createSerializer(new ExecutionConfig());
+    private TypeSerializer<RowData> typeSerializer =
+            inputRowType.createSerializer(new ExecutionConfig());
 
-	private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
-			ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func)
-			throws Exception {
-		CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
-		KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
-		return new KeyedOneInputStreamOperatorTestHarness<>(op, rowKeySelector, rowKeySelector.getProducedType());
-	}
+    private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(
+            ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func) throws Exception {
+        CountBundleTrigger<Tuple2<String, String>> trigger = new CountBundleTrigger<>(3);
+        KeyedMapBundleOperator op = new KeyedMapBundleOperator(func, trigger);
+        return new KeyedOneInputStreamOperatorTestHarness<>(
+                op, rowKeySelector, rowKeySelector.getProducedType());
+    }
 
-	@Test
-	public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func = new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-				typeSerializer,
-				minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
+    @Test
+    public void testKeepFirstRowWithGenerateUpdateBefore() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
+                new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
+                        typeSerializer, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
 
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
 
-		testHarness.processElement(insertRecord("book", 1L, 13));
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		// Keep FirstRow in deduplicate will not send retraction
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 1L, 12));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-		testHarness.close();
-	}
+        // Keep FirstRow in deduplicate will not send retraction
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
 
-	@Test
-	public void testKeepFirstRowWithStateTtl() throws Exception {
-		ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func = new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
-				typeSerializer,
-				minTime.toMilliseconds());
-		OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
-		testHarness.setup();
-		testHarness.open();
-		testHarness.processElement(insertRecord("book", 1L, 12));
-		testHarness.processElement(insertRecord("book", 2L, 11));
-		// output is empty because bundle not trigger yet.
-		Assert.assertTrue(testHarness.getOutput().isEmpty());
-		testHarness.processElement(insertRecord("book", 1L, 13));
+    @Test
+    public void testKeepFirstRowWithStateTtl() throws Exception {
+        ProcTimeMiniBatchDeduplicateKeepFirstRowFunction func =
+                new ProcTimeMiniBatchDeduplicateKeepFirstRowFunction(
+                        typeSerializer, minTime.toMilliseconds());
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
+        testHarness.setup();
+        testHarness.open();
+        testHarness.processElement(insertRecord("book", 1L, 12));
+        testHarness.processElement(insertRecord("book", 2L, 11));
+        // output is empty because bundle not trigger yet.
+        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        testHarness.processElement(insertRecord("book", 1L, 13));
 
-		testHarness.setStateTtlProcessingTime(30);
-		testHarness.processElement(insertRecord("book", 1L, 17));
-		testHarness.processElement(insertRecord("book", 2L, 18));
-		testHarness.processElement(insertRecord("book", 1L, 19));
+        testHarness.setStateTtlProcessingTime(30);
+        testHarness.processElement(insertRecord("book", 1L, 17));
+        testHarness.processElement(insertRecord("book", 2L, 18));
+        testHarness.processElement(insertRecord("book", 1L, 19));
 
-		// Keep FirstRow in deduplicate
-		List<Object> expectedOutput = new ArrayList<>();
-		expectedOutput.add(insertRecord("book", 1L, 12));
-		expectedOutput.add(insertRecord("book", 2L, 11));
-		//(1L,12),(2L,11) has retired, so output (1L,17) and (2L,18)
-		expectedOutput.add(insertRecord("book", 1L, 17));
-		expectedOutput.add(insertRecord("book", 2L, 18));
-		assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
-		testHarness.close();
-	}
+        // Keep FirstRow in deduplicate
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord("book", 1L, 12));
+        expectedOutput.add(insertRecord("book", 2L, 11));
+        // (1L,12),(2L,11) has retired, so output (1L,17) and (2L,18)
+        expectedOutput.add(insertRecord("book", 1L, 17));
+        expectedOutput.add(insertRecord("book", 2L, 18));
+        assertor.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
 }

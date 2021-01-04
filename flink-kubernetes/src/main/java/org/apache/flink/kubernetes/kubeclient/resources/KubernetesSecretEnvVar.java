@@ -23,28 +23,27 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 
 import java.util.Map;
 
-/**
- * Represents EnvVar resource in Kubernetes.
- */
+/** Represents EnvVar resource in Kubernetes. */
 public class KubernetesSecretEnvVar extends KubernetesResource<EnvVar> {
 
-	private static final String ENV = "env";
-	private static final String SECRET = "secret";
-	private static final String KEY = "key";
+    private static final String ENV = "env";
+    private static final String SECRET = "secret";
+    private static final String KEY = "key";
 
-	private KubernetesSecretEnvVar(EnvVar envVar) {
-		super(envVar);
-	}
+    private KubernetesSecretEnvVar(EnvVar envVar) {
+        super(envVar);
+    }
 
-	public static KubernetesSecretEnvVar fromMap(Map<String, String> stringMap) {
-		final EnvVarBuilder envVarBuilder = new EnvVarBuilder()
-			.withName(stringMap.get(ENV))
-			.withNewValueFrom()
-				.withNewSecretKeyRef()
-					.withName(stringMap.get(SECRET))
-					.withKey(stringMap.get(KEY))
-				.endSecretKeyRef()
-			.endValueFrom();
-		return new KubernetesSecretEnvVar(envVarBuilder.build());
-	}
+    public static KubernetesSecretEnvVar fromMap(Map<String, String> stringMap) {
+        final EnvVarBuilder envVarBuilder =
+                new EnvVarBuilder()
+                        .withName(stringMap.get(ENV))
+                        .withNewValueFrom()
+                        .withNewSecretKeyRef()
+                        .withName(stringMap.get(SECRET))
+                        .withKey(stringMap.get(KEY))
+                        .endSecretKeyRef()
+                        .endValueFrom();
+        return new KubernetesSecretEnvVar(envVarBuilder.build());
+    }
 }

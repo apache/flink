@@ -30,90 +30,100 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-/**
- * {@link PartitionComputer} for {@link RowData}.
- */
+/** {@link PartitionComputer} for {@link RowData}. */
 @Internal
 public class RowDataPartitionComputer implements PartitionComputer<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	protected final String defaultPartValue;
-	protected final String[] partitionColumns;
-	protected final int[] partitionIndexes;
-	protected final LogicalType[] partitionTypes;
-	protected final RowData.FieldGetter[] partitionFieldGetters;
+    protected final String defaultPartValue;
+    protected final String[] partitionColumns;
+    protected final int[] partitionIndexes;
+    protected final LogicalType[] partitionTypes;
+    protected final RowData.FieldGetter[] partitionFieldGetters;
 
-	private final int[] nonPartitionIndexes;
-	private final LogicalType[] nonPartitionTypes;
-	protected final RowData.FieldGetter[] nonPartitionFieldGetters;
+    private final int[] nonPartitionIndexes;
+    private final LogicalType[] nonPartitionTypes;
+    protected final RowData.FieldGetter[] nonPartitionFieldGetters;
 
-	private transient GenericRowData reuseRow;
+    private transient GenericRowData reuseRow;
 
-	public RowDataPartitionComputer(
-			String defaultPartValue,
-			String[] columnNames,
-			DataType[] columnTypes,
-			String[] partitionColumns) {
-		this.defaultPartValue = defaultPartValue;
-		this.partitionColumns = partitionColumns;
+    public RowDataPartitionComputer(
+            String defaultPartValue,
+            String[] columnNames,
+            DataType[] columnTypes,
+            String[] partitionColumns) {
+        this.defaultPartValue = defaultPartValue;
+        this.partitionColumns = partitionColumns;
 
-		List<String> columnList = Arrays.asList(columnNames);
-		List<LogicalType> columnTypeList = Arrays.stream(columnTypes)
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList());
+        List<String> columnList = Arrays.asList(columnNames);
+        List<LogicalType> columnTypeList =
+                Arrays.stream(columnTypes)
+                        .map(DataType::getLogicalType)
+                        .collect(Collectors.toList());
 
-		this.partitionIndexes = Arrays.stream(partitionColumns)
-				.mapToInt(columnList::indexOf)
-				.toArray();
-		this.partitionTypes = Arrays.stream(partitionIndexes)
-				.mapToObj(columnTypeList::get)
-				.toArray(LogicalType[]::new);
-		this.partitionFieldGetters = IntStream.range(0, partitionTypes.length)
-			.mapToObj(i -> RowData.createFieldGetter(partitionTypes[i], partitionIndexes[i]))
-			.toArray(RowData.FieldGetter[]::new);
+        this.partitionIndexes =
+                Arrays.stream(partitionColumns).mapToInt(columnList::indexOf).toArray();
+        this.partitionTypes =
+                Arrays.stream(partitionIndexes)
+                        .mapToObj(columnTypeList::get)
+                        .toArray(LogicalType[]::new);
+        this.partitionFieldGetters =
+                IntStream.range(0, partitionTypes.length)
+                        .mapToObj(
+                                i ->
+                                        RowData.createFieldGetter(
+                                                partitionTypes[i], partitionIndexes[i]))
+                        .toArray(RowData.FieldGetter[]::new);
 
-		List<Integer> partitionIndexList = Arrays.stream(partitionIndexes).boxed().collect(Collectors.toList());
-		this.nonPartitionIndexes = IntStream.range(0, columnNames.length)
-				.filter(c -> !partitionIndexList.contains(c))
-				.toArray();
-		this.nonPartitionTypes = Arrays.stream(nonPartitionIndexes)
-				.mapToObj(columnTypeList::get)
-				.toArray(LogicalType[]::new);
-		this.nonPartitionFieldGetters = IntStream.range(0, nonPartitionTypes.length)
-			.mapToObj(i -> RowData.createFieldGetter(nonPartitionTypes[i], nonPartitionIndexes[i]))
-			.toArray(RowData.FieldGetter[]::new);
-	}
+        List<Integer> partitionIndexList =
+                Arrays.stream(partitionIndexes).boxed().collect(Collectors.toList());
+        this.nonPartitionIndexes =
+                IntStream.range(0, columnNames.length)
+                        .filter(c -> !partitionIndexList.contains(c))
+                        .toArray();
+        this.nonPartitionTypes =
+                Arrays.stream(nonPartitionIndexes)
+                        .mapToObj(columnTypeList::get)
+                        .toArray(LogicalType[]::new);
+        this.nonPartitionFieldGetters =
+                IntStream.range(0, nonPartitionTypes.length)
+                        .mapToObj(
+                                i ->
+                                        RowData.createFieldGetter(
+                                                nonPartitionTypes[i], nonPartitionIndexes[i]))
+                        .toArray(RowData.FieldGetter[]::new);
+    }
 
-	@Override
-	public LinkedHashMap<String, String> generatePartValues(RowData in) {
-		LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
+    @Override
+    public LinkedHashMap<String, String> generatePartValues(RowData in) {
+        LinkedHashMap<String, String> partSpec = new LinkedHashMap<>();
 
-		for (int i = 0; i < partitionIndexes.length; i++) {
-			Object field = partitionFieldGetters[i].getFieldOrNull(in);
-			String partitionValue = field != null ? field.toString() : null;
-			if (partitionValue == null || "".equals(partitionValue)) {
-				partitionValue = defaultPartValue;
-			}
-			partSpec.put(partitionColumns[i], partitionValue);
-		}
-		return partSpec;
-	}
+        for (int i = 0; i < partitionIndexes.length; i++) {
+            Object field = partitionFieldGetters[i].getFieldOrNull(in);
+            String partitionValue = field != null ? field.toString() : null;
+            if (partitionValue == null || "".equals(partitionValue)) {
+                partitionValue = defaultPartValue;
+            }
+            partSpec.put(partitionColumns[i], partitionValue);
+        }
+        return partSpec;
+    }
 
-	@Override
-	public RowData projectColumnsToWrite(RowData in) {
-		if (partitionIndexes.length == 0) {
-			return in;
-		}
+    @Override
+    public RowData projectColumnsToWrite(RowData in) {
+        if (partitionIndexes.length == 0) {
+            return in;
+        }
 
-		if (reuseRow == null) {
-			this.reuseRow = new GenericRowData(nonPartitionIndexes.length);
-		}
+        if (reuseRow == null) {
+            this.reuseRow = new GenericRowData(nonPartitionIndexes.length);
+        }
 
-		for (int i = 0; i < nonPartitionIndexes.length; i++) {
-			reuseRow.setField(i, nonPartitionFieldGetters[i].getFieldOrNull(in));
-		}
-		reuseRow.setRowKind(in.getRowKind());
-		return reuseRow;
-	}
+        for (int i = 0; i < nonPartitionIndexes.length; i++) {
+            reuseRow.setField(i, nonPartitionFieldGetters[i].getFieldOrNull(in));
+        }
+        reuseRow.setRowKind(in.getRowKind());
+        return reuseRow;
+    }
 }

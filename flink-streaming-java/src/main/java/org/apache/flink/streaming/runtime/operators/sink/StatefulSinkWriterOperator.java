@@ -47,94 +47,92 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <WriterStateT> The type of the {@link SinkWriter Writer's} state.
  */
 @Internal
-final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT> extends AbstractSinkWriterOperator<InputT, CommT> {
+final class StatefulSinkWriterOperator<InputT, CommT, WriterStateT>
+        extends AbstractSinkWriterOperator<InputT, CommT> {
 
-	/** The operator's state descriptor. */
-	private static final ListStateDescriptor<byte[]> WRITER_RAW_STATES_DESC =
-			new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
+    /** The operator's state descriptor. */
+    private static final ListStateDescriptor<byte[]> WRITER_RAW_STATES_DESC =
+            new ListStateDescriptor<>("writer_raw_states", BytePrimitiveArraySerializer.INSTANCE);
 
-	/** Used to create the stateful {@link SinkWriter}. */
-	private final Sink<InputT, CommT, WriterStateT, ?> sink;
+    /** Used to create the stateful {@link SinkWriter}. */
+    private final Sink<InputT, CommT, WriterStateT, ?> sink;
 
-	/** The writer operator's state serializer. */
-	private final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer;
+    /** The writer operator's state serializer. */
+    private final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer;
 
-	/**
-	 * The previous sink operator's state name. We allow restoring state from a different
-	 * (compatible) sink implementation such as {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}.
-	 * This allows migration to newer Sink implementations.
-	 */
-	@Nullable
-	private final String previousSinkStateName;
+    /**
+     * The previous sink operator's state name. We allow restoring state from a different
+     * (compatible) sink implementation such as {@link
+     * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
+     * migration to newer Sink implementations.
+     */
+    @Nullable private final String previousSinkStateName;
 
-	// ------------------------------- runtime fields ---------------------------------------
+    // ------------------------------- runtime fields ---------------------------------------
 
-	/**
-	 * The previous sink operator's state. We allow restoring state from a different (compatible)
-	 * sink implementation such as {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}.
-	 * This allows migration to newer Sink implementations.
-	 */
-	@Nullable
-	private ListState<WriterStateT> previousSinkState;
+    /**
+     * The previous sink operator's state. We allow restoring state from a different (compatible)
+     * sink implementation such as {@link
+     * org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink}. This allows
+     * migration to newer Sink implementations.
+     */
+    @Nullable private ListState<WriterStateT> previousSinkState;
 
-	/** The operator's state. */
-	private ListState<WriterStateT> writerState;
+    /** The operator's state. */
+    private ListState<WriterStateT> writerState;
 
-	StatefulSinkWriterOperator(
-			@Nullable final String previousSinkStateName,
-			final ProcessingTimeService processingTimeService,
-			final Sink<InputT, CommT, WriterStateT, ?> sink,
-			final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
-		super(processingTimeService);
-		this.sink = sink;
-		this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
-		this.previousSinkStateName = previousSinkStateName;
-	}
+    StatefulSinkWriterOperator(
+            @Nullable final String previousSinkStateName,
+            final ProcessingTimeService processingTimeService,
+            final Sink<InputT, CommT, WriterStateT, ?> sink,
+            final SimpleVersionedSerializer<WriterStateT> writerStateSimpleVersionedSerializer) {
+        super(processingTimeService);
+        this.sink = sink;
+        this.writerStateSimpleVersionedSerializer = writerStateSimpleVersionedSerializer;
+        this.previousSinkStateName = previousSinkStateName;
+    }
 
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		super.initializeState(context);
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
 
-		final ListState<byte[]> rawState = context
-				.getOperatorStateStore()
-				.getListState(WRITER_RAW_STATES_DESC);
-		writerState = new SimpleVersionedListState<>(
-				rawState,
-				writerStateSimpleVersionedSerializer);
+        final ListState<byte[]> rawState =
+                context.getOperatorStateStore().getListState(WRITER_RAW_STATES_DESC);
+        writerState =
+                new SimpleVersionedListState<>(rawState, writerStateSimpleVersionedSerializer);
 
-		if (previousSinkStateName != null) {
-			final ListStateDescriptor<byte[]> preSinkStateDesc = new ListStateDescriptor<>(
-					previousSinkStateName,
-					BytePrimitiveArraySerializer.INSTANCE);
+        if (previousSinkStateName != null) {
+            final ListStateDescriptor<byte[]> preSinkStateDesc =
+                    new ListStateDescriptor<>(
+                            previousSinkStateName, BytePrimitiveArraySerializer.INSTANCE);
 
-			final ListState<byte[]> preRawState = context
-					.getOperatorStateStore()
-					.getListState(preSinkStateDesc);
-			this.previousSinkState = new SimpleVersionedListState<>(
-					preRawState,
-					writerStateSimpleVersionedSerializer);
-		}
-	}
+            final ListState<byte[]> preRawState =
+                    context.getOperatorStateStore().getListState(preSinkStateDesc);
+            this.previousSinkState =
+                    new SimpleVersionedListState<>(
+                            preRawState, writerStateSimpleVersionedSerializer);
+        }
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-		writerState.update((List<WriterStateT>) sinkWriter.snapshotState());
-		if (previousSinkState != null) {
-			previousSinkState.clear();
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        writerState.update((List<WriterStateT>) sinkWriter.snapshotState());
+        if (previousSinkState != null) {
+            previousSinkState.clear();
+        }
+    }
 
-	@Override
-	SinkWriter<InputT, CommT, WriterStateT> createWriter() throws Exception {
-		final List<WriterStateT> writerStates = CollectionUtil.iterableToList(writerState.get());
-		final List<WriterStateT> states = new ArrayList<>(writerStates);
-		if (previousSinkStateName != null) {
-			checkNotNull(previousSinkState);
-			final List<WriterStateT> previousSinkStates = CollectionUtil.iterableToList(
-					previousSinkState.get());
-			states.addAll(previousSinkStates);
-		}
-		return sink.createWriter(createInitContext(), states);
-	}
+    @Override
+    SinkWriter<InputT, CommT, WriterStateT> createWriter() throws Exception {
+        final List<WriterStateT> writerStates = CollectionUtil.iterableToList(writerState.get());
+        final List<WriterStateT> states = new ArrayList<>(writerStates);
+        if (previousSinkStateName != null) {
+            checkNotNull(previousSinkState);
+            final List<WriterStateT> previousSinkStates =
+                    CollectionUtil.iterableToList(previousSinkState.get());
+            states.addAll(previousSinkStates);
+        }
+        return sink.createWriter(createInitContext(), states);
+    }
 }

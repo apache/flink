@@ -18,11 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import static org.junit.Assert.*;
-
-import java.util.List;
-import java.util.Random;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -42,225 +37,237 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Test;
 
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.*;
+
 public class LargeRecordHandlerTest {
 
-	@Test
-	public void testEmptyRecordHandler() {
-		final int PAGE_SIZE = 4 * 1024;
-		final int NUM_PAGES = 50;
-		
-		try (final IOManager ioMan = new IOManagerAsync()) {
-			final MemoryManager memMan = MemoryManagerBuilder
-				.newBuilder()
-				.setMemorySize(NUM_PAGES * PAGE_SIZE)
-				.setPageSize(PAGE_SIZE)
-				.build();
-			final AbstractInvokable owner = new DummyInvokable();
-			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
-			
-			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>) 
-					TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
+    @Test
+    public void testEmptyRecordHandler() {
+        final int PAGE_SIZE = 4 * 1024;
+        final int NUM_PAGES = 50;
 
-			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
-					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
-			
-			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
-					serializer, comparator, ioMan, memMan, memory, owner, 128);
-			
-			assertFalse(handler.hasData());
-			
-			handler.close();
-			
-			assertFalse(handler.hasData());
-			
-			handler.close();
-			
-			try {
-				handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			assertTrue(memMan.verifyEmpty());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testRecordHandlerSingleKey() {
-		final int PAGE_SIZE = 4 * 1024;
-		final int NUM_PAGES = 24;
-		final int NUM_RECORDS = 25000;
-		
-		try (final IOManager ioMan = new IOManagerAsync()) {
-			final MemoryManager memMan = MemoryManagerBuilder
-				.newBuilder()
-				.setMemorySize(NUM_PAGES * PAGE_SIZE)
-				.setPageSize(PAGE_SIZE)
-				.build();
-			final AbstractInvokable owner = new DummyInvokable();
-			
-			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
-			final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
-			
-			final TupleTypeInfo<Tuple2<Long, String>> typeInfo = (TupleTypeInfo<Tuple2<Long, String>>)
-					TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){});
+        try (final IOManager ioMan = new IOManagerAsync()) {
+            final MemoryManager memMan =
+                    MemoryManagerBuilder.newBuilder()
+                            .setMemorySize(NUM_PAGES * PAGE_SIZE)
+                            .setPageSize(PAGE_SIZE)
+                            .build();
+            final AbstractInvokable owner = new DummyInvokable();
+            final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
 
-			final TypeSerializer<Tuple2<Long, String>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-			final TypeComparator<Tuple2<Long, String>> comparator = typeInfo.createComparator(
-					new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
-			
-			LargeRecordHandler<Tuple2<Long, String>> handler = new LargeRecordHandler<Tuple2<Long, String>>(
-					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
-			
-			assertFalse(handler.hasData());
-			
-			
-			// add the test data
-			Random rnd = new Random();
-			
-			for (int i = 0; i < NUM_RECORDS; i++) {
-				long val = rnd.nextLong();
-				handler.addRecord(new Tuple2<Long, String>(val, String.valueOf(val)));
-				assertTrue(handler.hasData());
-			}
-			
-			MutableObjectIterator<Tuple2<Long, String>> sorted = handler.finishWriteAndSortKeys(sortMemory);
-			
-			try {
-				handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			Tuple2<Long, String> previous = null;
-			Tuple2<Long, String> next;
-			
-			while ((next = sorted.next(null)) != null) {
-				// key and value must be equal
-				assertTrue(next.f0.equals(Long.parseLong(next.f1)));
-				
-				// order must be correct
-				if (previous != null) {
-					assertTrue(previous.f0 <= next.f0);
-				}
-				previous = next;
-			}
-			
-			handler.close();
-			
-			assertFalse(handler.hasData());
-			
-			handler.close();
-			
-			try {
-				handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			assertTrue(memMan.verifyEmpty());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void testRecordHandlerCompositeKey() {
-		final int PAGE_SIZE = 4 * 1024;
-		final int NUM_PAGES = 24;
-		final int NUM_RECORDS = 25000;
-		
-		try (final IOManager ioMan = new IOManagerAsync()) {
-			final MemoryManager memMan = MemoryManagerBuilder
-				.newBuilder()
-				.setMemorySize(NUM_PAGES * PAGE_SIZE)
-				.setPageSize(PAGE_SIZE)
-				.build();
-			final AbstractInvokable owner = new DummyInvokable();
-			
-			final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
-			final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
-			
-			final TupleTypeInfo<Tuple3<Long, String, Byte>> typeInfo = (TupleTypeInfo<Tuple3<Long, String, Byte>>)
-					TypeInformation.of(new TypeHint<Tuple3<Long, String, Byte>>(){});
+            final TupleTypeInfo<Tuple2<Long, String>> typeInfo =
+                    (TupleTypeInfo<Tuple2<Long, String>>)
+                            TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {});
 
-			final TypeSerializer<Tuple3<Long, String, Byte>> serializer = typeInfo.createSerializer(new ExecutionConfig());
-			final TypeComparator<Tuple3<Long, String, Byte>> comparator = typeInfo.createComparator(
-					new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
-			
-			LargeRecordHandler<Tuple3<Long, String, Byte>> handler = new LargeRecordHandler<Tuple3<Long, String, Byte>>(
-					serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
-			
-			assertFalse(handler.hasData());
-			
-			
-			// add the test data
-			Random rnd = new Random();
-			
-			for (int i = 0; i < NUM_RECORDS; i++) {
-				long val = rnd.nextLong();
-				handler.addRecord(new Tuple3<Long, String, Byte>(val, String.valueOf(val), (byte) val));
-				assertTrue(handler.hasData());
-			}
-			
-			MutableObjectIterator<Tuple3<Long, String, Byte>> sorted = handler.finishWriteAndSortKeys(sortMemory);
-			
-			try {
-				handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			Tuple3<Long, String, Byte> previous = null;
-			Tuple3<Long, String, Byte> next;
-			
-			while ((next = sorted.next(null)) != null) {
-				// key and value must be equal
-				assertTrue(next.f0.equals(Long.parseLong(next.f1)));
-				assertTrue(next.f0.byteValue() == next.f2);
-				
-				// order must be correct
-				if (previous != null) {
-					assertTrue(previous.f2 <= next.f2);
-					assertTrue(previous.f2.byteValue() != next.f2.byteValue() || previous.f0 <= next.f0);
-				}
-				previous = next;
-			}
-			
-			handler.close();
-			
-			assertFalse(handler.hasData());
-			
-			handler.close();
-			
-			try {
-				handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));
-				fail("should throw an exception");
-			}
-			catch (IllegalStateException e) {
-				// expected
-			}
-			
-			assertTrue(memMan.verifyEmpty());
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            final TypeSerializer<Tuple2<Long, String>> serializer =
+                    typeInfo.createSerializer(new ExecutionConfig());
+            final TypeComparator<Tuple2<Long, String>> comparator =
+                    typeInfo.createComparator(
+                            new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
+
+            LargeRecordHandler<Tuple2<Long, String>> handler =
+                    new LargeRecordHandler<Tuple2<Long, String>>(
+                            serializer, comparator, ioMan, memMan, memory, owner, 128);
+
+            assertFalse(handler.hasData());
+
+            handler.close();
+
+            assertFalse(handler.hasData());
+
+            handler.close();
+
+            try {
+                handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
+                fail("should throw an exception");
+            } catch (IllegalStateException e) {
+                // expected
+            }
+
+            assertTrue(memMan.verifyEmpty());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testRecordHandlerSingleKey() {
+        final int PAGE_SIZE = 4 * 1024;
+        final int NUM_PAGES = 24;
+        final int NUM_RECORDS = 25000;
+
+        try (final IOManager ioMan = new IOManagerAsync()) {
+            final MemoryManager memMan =
+                    MemoryManagerBuilder.newBuilder()
+                            .setMemorySize(NUM_PAGES * PAGE_SIZE)
+                            .setPageSize(PAGE_SIZE)
+                            .build();
+            final AbstractInvokable owner = new DummyInvokable();
+
+            final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
+            final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
+
+            final TupleTypeInfo<Tuple2<Long, String>> typeInfo =
+                    (TupleTypeInfo<Tuple2<Long, String>>)
+                            TypeInformation.of(new TypeHint<Tuple2<Long, String>>() {});
+
+            final TypeSerializer<Tuple2<Long, String>> serializer =
+                    typeInfo.createSerializer(new ExecutionConfig());
+            final TypeComparator<Tuple2<Long, String>> comparator =
+                    typeInfo.createComparator(
+                            new int[] {0}, new boolean[] {true}, 0, new ExecutionConfig());
+
+            LargeRecordHandler<Tuple2<Long, String>> handler =
+                    new LargeRecordHandler<Tuple2<Long, String>>(
+                            serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+
+            assertFalse(handler.hasData());
+
+            // add the test data
+            Random rnd = new Random();
+
+            for (int i = 0; i < NUM_RECORDS; i++) {
+                long val = rnd.nextLong();
+                handler.addRecord(new Tuple2<Long, String>(val, String.valueOf(val)));
+                assertTrue(handler.hasData());
+            }
+
+            MutableObjectIterator<Tuple2<Long, String>> sorted =
+                    handler.finishWriteAndSortKeys(sortMemory);
+
+            try {
+                handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
+                fail("should throw an exception");
+            } catch (IllegalStateException e) {
+                // expected
+            }
+
+            Tuple2<Long, String> previous = null;
+            Tuple2<Long, String> next;
+
+            while ((next = sorted.next(null)) != null) {
+                // key and value must be equal
+                assertTrue(next.f0.equals(Long.parseLong(next.f1)));
+
+                // order must be correct
+                if (previous != null) {
+                    assertTrue(previous.f0 <= next.f0);
+                }
+                previous = next;
+            }
+
+            handler.close();
+
+            assertFalse(handler.hasData());
+
+            handler.close();
+
+            try {
+                handler.addRecord(new Tuple2<Long, String>(92L, "peter pepper"));
+                fail("should throw an exception");
+            } catch (IllegalStateException e) {
+                // expected
+            }
+
+            assertTrue(memMan.verifyEmpty());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testRecordHandlerCompositeKey() {
+        final int PAGE_SIZE = 4 * 1024;
+        final int NUM_PAGES = 24;
+        final int NUM_RECORDS = 25000;
+
+        try (final IOManager ioMan = new IOManagerAsync()) {
+            final MemoryManager memMan =
+                    MemoryManagerBuilder.newBuilder()
+                            .setMemorySize(NUM_PAGES * PAGE_SIZE)
+                            .setPageSize(PAGE_SIZE)
+                            .build();
+            final AbstractInvokable owner = new DummyInvokable();
+
+            final List<MemorySegment> initialMemory = memMan.allocatePages(owner, 6);
+            final List<MemorySegment> sortMemory = memMan.allocatePages(owner, NUM_PAGES - 6);
+
+            final TupleTypeInfo<Tuple3<Long, String, Byte>> typeInfo =
+                    (TupleTypeInfo<Tuple3<Long, String, Byte>>)
+                            TypeInformation.of(new TypeHint<Tuple3<Long, String, Byte>>() {});
+
+            final TypeSerializer<Tuple3<Long, String, Byte>> serializer =
+                    typeInfo.createSerializer(new ExecutionConfig());
+            final TypeComparator<Tuple3<Long, String, Byte>> comparator =
+                    typeInfo.createComparator(
+                            new int[] {2, 0}, new boolean[] {true, true}, 0, new ExecutionConfig());
+
+            LargeRecordHandler<Tuple3<Long, String, Byte>> handler =
+                    new LargeRecordHandler<Tuple3<Long, String, Byte>>(
+                            serializer, comparator, ioMan, memMan, initialMemory, owner, 128);
+
+            assertFalse(handler.hasData());
+
+            // add the test data
+            Random rnd = new Random();
+
+            for (int i = 0; i < NUM_RECORDS; i++) {
+                long val = rnd.nextLong();
+                handler.addRecord(
+                        new Tuple3<Long, String, Byte>(val, String.valueOf(val), (byte) val));
+                assertTrue(handler.hasData());
+            }
+
+            MutableObjectIterator<Tuple3<Long, String, Byte>> sorted =
+                    handler.finishWriteAndSortKeys(sortMemory);
+
+            try {
+                handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));
+                fail("should throw an exception");
+            } catch (IllegalStateException e) {
+                // expected
+            }
+
+            Tuple3<Long, String, Byte> previous = null;
+            Tuple3<Long, String, Byte> next;
+
+            while ((next = sorted.next(null)) != null) {
+                // key and value must be equal
+                assertTrue(next.f0.equals(Long.parseLong(next.f1)));
+                assertTrue(next.f0.byteValue() == next.f2);
+
+                // order must be correct
+                if (previous != null) {
+                    assertTrue(previous.f2 <= next.f2);
+                    assertTrue(
+                            previous.f2.byteValue() != next.f2.byteValue()
+                                    || previous.f0 <= next.f0);
+                }
+                previous = next;
+            }
+
+            handler.close();
+
+            assertFalse(handler.hasData());
+
+            handler.close();
+
+            try {
+                handler.addRecord(new Tuple3<Long, String, Byte>(92L, "peter pepper", (byte) 1));
+                fail("should throw an exception");
+            } catch (IllegalStateException e) {
+                // expected
+            }
+
+            assertTrue(memMan.verifyEmpty());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 }

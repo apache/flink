@@ -20,74 +20,70 @@ package org.apache.flink.api.common.accumulators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/**
- * An accumulator that finds the minimum {@code double} value.
- */
+/** An accumulator that finds the minimum {@code double} value. */
 @PublicEvolving
 public class DoubleMinimum implements SimpleAccumulator<Double> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private double min = Double.POSITIVE_INFINITY;
+    private double min = Double.POSITIVE_INFINITY;
 
-	public DoubleMinimum() {}
+    public DoubleMinimum() {}
 
-	public DoubleMinimum(double value) {
-		this.min = value;
-	}
+    public DoubleMinimum(double value) {
+        this.min = value;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Accumulator
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Accumulator
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Consider using {@link #add(double)} instead for primitive double values
-	 */
-	@Override
-	public void add(Double value) {
-		this.min = Math.min(this.min, value);
-	}
+    /** Consider using {@link #add(double)} instead for primitive double values */
+    @Override
+    public void add(Double value) {
+        this.min = Math.min(this.min, value);
+    }
 
-	@Override
-	public Double getLocalValue() {
-		return this.min;
-	}
+    @Override
+    public Double getLocalValue() {
+        return this.min;
+    }
 
-	@Override
-	public void merge(Accumulator<Double, Double> other) {
-		this.min = Math.min(this.min, other.getLocalValue());
-	}
+    @Override
+    public void merge(Accumulator<Double, Double> other) {
+        this.min = Math.min(this.min, other.getLocalValue());
+    }
 
-	@Override
-	public void resetLocal() {
-		this.min = Double.POSITIVE_INFINITY;
-	}
+    @Override
+    public void resetLocal() {
+        this.min = Double.POSITIVE_INFINITY;
+    }
 
-	@Override
-	public DoubleMinimum clone() {
-		DoubleMinimum clone = new DoubleMinimum();
-		clone.min = this.min;
-		return clone;
-	}
+    @Override
+    public DoubleMinimum clone() {
+        DoubleMinimum clone = new DoubleMinimum();
+        clone.min = this.min;
+        return clone;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Primitive Specializations
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Primitive Specializations
+    // ------------------------------------------------------------------------
 
-	public void add(double value) {
-		this.min = Math.min(this.min, value);
-	}
+    public void add(double value) {
+        this.min = Math.min(this.min, value);
+    }
 
-	public double getLocalValuePrimitive() {
-		return this.min;
-	}
+    public double getLocalValuePrimitive() {
+        return this.min;
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "DoubleMinimum " + this.min;
-	}
+    @Override
+    public String toString() {
+        return "DoubleMinimum " + this.min;
+    }
 }

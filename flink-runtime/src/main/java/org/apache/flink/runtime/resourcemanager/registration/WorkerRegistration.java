@@ -24,55 +24,54 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorMemoryConfiguration;
 import org.apache.flink.util.Preconditions;
 
-/**
- * This class extends the {@link TaskExecutorConnection}, adding the worker information.
- */
-public class WorkerRegistration<WorkerType extends ResourceIDRetrievable> extends TaskExecutorConnection {
+/** This class extends the {@link TaskExecutorConnection}, adding the worker information. */
+public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
+        extends TaskExecutorConnection {
 
-	private final WorkerType worker;
+    private final WorkerType worker;
 
-	private final int dataPort;
+    private final int dataPort;
 
-	private final int jmxPort;
+    private final int jmxPort;
 
-	private final HardwareDescription hardwareDescription;
+    private final HardwareDescription hardwareDescription;
 
-	private final TaskExecutorMemoryConfiguration memoryConfiguration;
+    private final TaskExecutorMemoryConfiguration memoryConfiguration;
 
-	public WorkerRegistration(
-			TaskExecutorGateway taskExecutorGateway,
-			WorkerType worker,
-			int dataPort,
-			int jmxPort,
-			HardwareDescription hardwareDescription,
-			TaskExecutorMemoryConfiguration memoryConfiguration) {
+    public WorkerRegistration(
+            TaskExecutorGateway taskExecutorGateway,
+            WorkerType worker,
+            int dataPort,
+            int jmxPort,
+            HardwareDescription hardwareDescription,
+            TaskExecutorMemoryConfiguration memoryConfiguration) {
 
-		super(worker.getResourceID(), taskExecutorGateway);
+        super(worker.getResourceID(), taskExecutorGateway);
 
-		this.worker = Preconditions.checkNotNull(worker);
-		this.dataPort = dataPort;
-		this.jmxPort = jmxPort;
-		this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
-		this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
-	}
+        this.worker = Preconditions.checkNotNull(worker);
+        this.dataPort = dataPort;
+        this.jmxPort = jmxPort;
+        this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
+        this.memoryConfiguration = Preconditions.checkNotNull(memoryConfiguration);
+    }
 
-	public WorkerType getWorker() {
-		return worker;
-	}
+    public WorkerType getWorker() {
+        return worker;
+    }
 
-	public int getDataPort() {
-		return dataPort;
-	}
+    public int getDataPort() {
+        return dataPort;
+    }
 
-	public int getJmxPort() {
-		return jmxPort;
-	}
+    public int getJmxPort() {
+        return jmxPort;
+    }
 
-	public HardwareDescription getHardwareDescription() {
-		return hardwareDescription;
-	}
+    public HardwareDescription getHardwareDescription() {
+        return hardwareDescription;
+    }
 
-	public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
-		return memoryConfiguration;
-	}
+    public TaskExecutorMemoryConfiguration getMemoryConfiguration() {
+        return memoryConfiguration;
+    }
 }

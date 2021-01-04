@@ -32,9 +32,9 @@ import java.util.Map;
 /**
  * A generator that generates a {@link ExecNode} graph from a graph of {@link FlinkPhysicalRel}s.
  *
- * <p>This traverses the tree of {@link FlinkPhysicalRel} starting from the sinks. At each
- * rel we recursively transform the inputs, then create a {@link ExecNode}.
- * Each rel will be visited only once, that means a rel will only generate one ExecNode instance.
+ * <p>This traverses the tree of {@link FlinkPhysicalRel} starting from the sinks. At each rel we
+ * recursively transform the inputs, then create a {@link ExecNode}. Each rel will be visited only
+ * once, that means a rel will only generate one ExecNode instance.
  *
  * <p>Exchange and Union will create a actual node in the {@link ExecNode} graph as the first step,
  * once all ExecNodes' implementation are separated from physical rel, we will use {@link ExecEdge}
@@ -42,45 +42,44 @@ import java.util.Map;
  */
 public class ExecGraphGenerator {
 
-	private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
+    private final Map<FlinkPhysicalRel, ExecNode<?>> visitedRels;
 
-	public ExecGraphGenerator() {
-		this.visitedRels = new IdentityHashMap<>();
-	}
+    public ExecGraphGenerator() {
+        this.visitedRels = new IdentityHashMap<>();
+    }
 
-	public List<ExecNode<?>> generate(List<FlinkPhysicalRel> relNodes) {
-		List<ExecNode<?>> execNodes = new ArrayList<>(relNodes.size());
-		for (FlinkPhysicalRel relNode : relNodes) {
-			execNodes.add(generate(relNode));
-		}
-		return execNodes;
-	}
+    public List<ExecNode<?>> generate(List<FlinkPhysicalRel> relNodes) {
+        List<ExecNode<?>> execNodes = new ArrayList<>(relNodes.size());
+        for (FlinkPhysicalRel relNode : relNodes) {
+            execNodes.add(generate(relNode));
+        }
+        return execNodes;
+    }
 
-	private ExecNode<?> generate(FlinkPhysicalRel rel) {
-		ExecNode<?> execNode = visitedRels.get(rel);
-		if (execNode != null) {
-			return execNode;
-		}
+    private ExecNode<?> generate(FlinkPhysicalRel rel) {
+        ExecNode<?> execNode = visitedRels.get(rel);
+        if (execNode != null) {
+            return execNode;
+        }
 
-		if (rel instanceof CommonIntermediateTableScan) {
-			throw new TableException("Intermediate RelNode can't be converted to ExecNode.");
-		}
+        if (rel instanceof CommonIntermediateTableScan) {
+            throw new TableException("Intermediate RelNode can't be converted to ExecNode.");
+        }
 
-		List<ExecNode<?>> inputNodes = new ArrayList<>();
-		for (RelNode input : rel.getInputs()) {
-			inputNodes.add(generate((FlinkPhysicalRel) input));
-		}
+        List<ExecNode<?>> inputNodes = new ArrayList<>();
+        for (RelNode input : rel.getInputs()) {
+            inputNodes.add(generate((FlinkPhysicalRel) input));
+        }
 
-		execNode = rel.translateToExecNode();
-		if (rel instanceof LegacyExecNodeBase) {
-			((LegacyExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
-		} else {
-			// connects the input/output nodes
-			((ExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
-		}
+        execNode = rel.translateToExecNode();
+        if (rel instanceof LegacyExecNodeBase) {
+            ((LegacyExecNodeBase<?, ?>) execNode).setInputNodes(inputNodes);
+        } else {
+            // connects the input/output nodes
+            ((ExecNodeBase<?>) execNode).setInputNodes(inputNodes);
+        }
 
-		visitedRels.put(rel, execNode);
-		return execNode;
-	}
-
+        visitedRels.put(rel, execNode);
+        return execNode;
+    }
 }

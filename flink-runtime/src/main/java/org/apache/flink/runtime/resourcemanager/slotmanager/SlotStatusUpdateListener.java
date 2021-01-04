@@ -22,23 +22,24 @@ import org.apache.flink.api.common.JobID;
 /**
  * Interface for components that want to listen to updates to the status of a slot.
  *
- * <p>This interface must only be used for updating data-structures, NOT for initiating new resource allocations. The
- * event that caused the state transition may also have triggered a series of transitions, which new allocations would
- * interfere with.
+ * <p>This interface must only be used for updating data-structures, NOT for initiating new resource
+ * allocations. The event that caused the state transition may also have triggered a series of
+ * transitions, which new allocations would interfere with.
  */
 interface SlotStatusUpdateListener {
 
-	/**
-	 * Notification for the status of a slot having changed.
-	 *
-	 * <p>If the slot is being freed ({@code current == FREE} then {@code jobId} is that of the job the slot was
-	 * allocated for. If the slot was already acquired by a job ({@code current != FREE}, then {@code jobId} is the ID of
-	 * this very job.
-	 *
-	 * @param slot slot whose status has changed
-	 * @param previous state before the change
-	 * @param current state after the change
-	 * @param jobId job for which the slot was/is allocated for
-	 */
-	void notifySlotStatusChange(TaskManagerSlotInformation slot, SlotState previous, SlotState current, JobID jobId);
+    /**
+     * Notification for the status of a slot having changed.
+     *
+     * <p>If the slot is being freed ({@code current == FREE} then {@code jobId} is that of the job
+     * the slot was allocated for. If the slot was already acquired by a job ({@code current !=
+     * FREE}, then {@code jobId} is the ID of this very job.
+     *
+     * @param slot slot whose status has changed
+     * @param previous state before the change
+     * @param current state after the change
+     * @param jobId job for which the slot was/is allocated for
+     */
+    void notifySlotStatusChange(
+            TaskManagerSlotInformation slot, SlotState previous, SlotState current, JobID jobId);
 }

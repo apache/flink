@@ -27,50 +27,49 @@ import javax.annotation.Nullable;
 
 import java.util.Objects;
 
-/** A {@link SchemaCoder.SchemaCoderProvider} that uses a cached schema registry
- * client underlying. **/
+/**
+ * A {@link SchemaCoder.SchemaCoderProvider} that uses a cached schema registry client underlying. *
+ */
 @Internal
 class CachedSchemaCoderProvider implements SchemaCoder.SchemaCoderProvider {
 
-	private static final long serialVersionUID = 8610401613495438381L;
-	private final String subject;
-	private final String url;
-	private final int identityMapCapacity;
+    private static final long serialVersionUID = 8610401613495438381L;
+    private final String subject;
+    private final String url;
+    private final int identityMapCapacity;
 
-	CachedSchemaCoderProvider(String url, int identityMapCapacity) {
-		this(null, url, identityMapCapacity);
-	}
+    CachedSchemaCoderProvider(String url, int identityMapCapacity) {
+        this(null, url, identityMapCapacity);
+    }
 
-	CachedSchemaCoderProvider(@Nullable String subject, String url, int identityMapCapacity) {
-		this.subject = subject;
-		this.url = Objects.requireNonNull(url);
-		this.identityMapCapacity = identityMapCapacity;
-	}
+    CachedSchemaCoderProvider(@Nullable String subject, String url, int identityMapCapacity) {
+        this.subject = subject;
+        this.url = Objects.requireNonNull(url);
+        this.identityMapCapacity = identityMapCapacity;
+    }
 
-	@Override
-	public SchemaCoder get() {
-		return new ConfluentSchemaRegistryCoder(this.subject,
-				new CachedSchemaRegistryClient(
-						url,
-						identityMapCapacity));
-	}
+    @Override
+    public SchemaCoder get() {
+        return new ConfluentSchemaRegistryCoder(
+                this.subject, new CachedSchemaRegistryClient(url, identityMapCapacity));
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		CachedSchemaCoderProvider that = (CachedSchemaCoderProvider) o;
-		return identityMapCapacity == that.identityMapCapacity &&
-				Objects.equals(subject, that.subject) &&
-				url.equals(that.url);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CachedSchemaCoderProvider that = (CachedSchemaCoderProvider) o;
+        return identityMapCapacity == that.identityMapCapacity
+                && Objects.equals(subject, that.subject)
+                && url.equals(that.url);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(subject, url, identityMapCapacity);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(subject, url, identityMapCapacity);
+    }
 }

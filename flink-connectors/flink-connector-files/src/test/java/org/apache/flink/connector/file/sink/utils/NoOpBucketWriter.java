@@ -25,38 +25,38 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.WriterProperties
 
 import java.io.IOException;
 
-/**
- * An empty bucket writer that does nothing.
- */
+/** An empty bucket writer that does nothing. */
 public class NoOpBucketWriter implements BucketWriter<String, String> {
-	@Override
-	public InProgressFileWriter<String, String> openNewInProgressFile(
-			String s,
-			Path path,
-			long creationTime) throws IOException {
-		return null;
-	}
+    @Override
+    public InProgressFileWriter<String, String> openNewInProgressFile(
+            String s, Path path, long creationTime) throws IOException {
+        return null;
+    }
 
-	@Override
-	public InProgressFileWriter<String, String> resumeInProgressFileFrom(
-			String s,
-			InProgressFileWriter.InProgressFileRecoverable inProgressFileSnapshot,
-			long creationTime) throws IOException {
-		return null;
-	}
+    @Override
+    public InProgressFileWriter<String, String> resumeInProgressFileFrom(
+            String s,
+            InProgressFileWriter.InProgressFileRecoverable inProgressFileSnapshot,
+            long creationTime)
+            throws IOException {
+        return null;
+    }
 
-	@Override
-	public WriterProperties getProperties() {
-		return null;
-	}
+    @Override
+    public WriterProperties getProperties() {
+        return null;
+    }
 
-	@Override
-	public PendingFile recoverPendingFile(InProgressFileWriter.PendingFileRecoverable pendingFileRecoverable) throws IOException {
-		return null;
-	}
+    @Override
+    public PendingFile recoverPendingFile(
+            InProgressFileWriter.PendingFileRecoverable pendingFileRecoverable) throws IOException {
+        return null;
+    }
 
-	@Override
-	public boolean cleanupInProgressFileRecoverable(InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable) throws IOException {
-		return false;
-	}
+    @Override
+    public boolean cleanupInProgressFileRecoverable(
+            InProgressFileWriter.InProgressFileRecoverable inProgressFileRecoverable)
+            throws IOException {
+        return false;
+    }
 }

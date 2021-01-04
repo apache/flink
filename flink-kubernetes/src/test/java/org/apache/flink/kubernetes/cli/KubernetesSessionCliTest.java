@@ -44,239 +44,253 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link KubernetesSessionCli}.
- */
+/** Tests for the {@link KubernetesSessionCli}. */
 public class KubernetesSessionCliTest {
 
-	@Rule
-	public TemporaryFolder tmp = new TemporaryFolder();
+    @Rule public TemporaryFolder tmp = new TemporaryFolder();
 
-	@Test
-	public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
-		final KubernetesSessionCli cli = new KubernetesSessionCli(
-				new Configuration(),
-				tmp.getRoot().getAbsolutePath());
+    @Test
+    public void testKubernetesSessionCliSetsDeploymentTargetCorrectly() throws CliArgsException {
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(new Configuration(), tmp.getRoot().getAbsolutePath());
 
-		final String[] args = {};
-		final Configuration configuration = cli.getEffectiveConfiguration(args);
+        final String[] args = {};
+        final Configuration configuration = cli.getEffectiveConfiguration(args);
 
-		assertEquals(KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
-	}
+        assertEquals(
+                KubernetesSessionClusterExecutor.NAME, configuration.get(DeploymentOptions.TARGET));
+    }
 
-	@Test
-	public void testDynamicProperties() throws Exception {
+    @Test
+    public void testDynamicProperties() throws Exception {
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(
-				new Configuration(),
-				tmp.getRoot().getAbsolutePath());
-		final String[] args = new String[] {
-			"-e", KubernetesSessionClusterExecutor.NAME,
-			"-Dakka.ask.timeout=5 min",
-			"-Denv.java.opts=-DappName=foobar"
-		};
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(new Configuration(), tmp.getRoot().getAbsolutePath());
+        final String[] args =
+                new String[] {
+                    "-e",
+                    KubernetesSessionClusterExecutor.NAME,
+                    "-Dakka.ask.timeout=5 min",
+                    "-Denv.java.opts=-DappName=foobar"
+                };
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
 
-		Assert.assertNotNull(clientFactory);
+        Assert.assertNotNull(clientFactory);
 
-		final Map<String, String> executorConfigMap = executorConfig.toMap();
-		assertEquals(4, executorConfigMap.size());
-		assertEquals("5 min", executorConfigMap.get("akka.ask.timeout"));
-		assertEquals("-DappName=foobar", executorConfigMap.get("env.java.opts"));
-		assertEquals(tmp.getRoot().getAbsolutePath(), executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
-		assertTrue(executorConfigMap.containsKey(DeploymentOptions.TARGET.key()));
-	}
+        final Map<String, String> executorConfigMap = executorConfig.toMap();
+        assertEquals(4, executorConfigMap.size());
+        assertEquals("5 min", executorConfigMap.get("akka.ask.timeout"));
+        assertEquals("-DappName=foobar", executorConfigMap.get("env.java.opts"));
+        assertEquals(
+                tmp.getRoot().getAbsolutePath(),
+                executorConfig.get(DeploymentOptionsInternal.CONF_DIR));
+        assertTrue(executorConfigMap.containsKey(DeploymentOptions.TARGET.key()));
+    }
 
-	@Test
-	public void testCorrectSettingOfMaxSlots() throws Exception {
-		final String[] params = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
-				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=3"};
+    @Test
+    public void testCorrectSettingOfMaxSlots() throws Exception {
+        final String[] params =
+                new String[] {
+                    "-e",
+                    KubernetesSessionClusterExecutor.NAME,
+                    "-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=3"
+                };
 
-		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1234);
+        final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1234);
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(params);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(params);
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
-		assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
-	}
+        // each task manager has 3 slots but the parallelism is 7. Thus the slots should be
+        // increased.
+        assertEquals(3, clusterSpecification.getSlotsPerTaskManager());
+    }
 
-	@Test
-	public void testResumeFromKubernetesID() throws Exception {
-		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
+    @Test
+    public void testResumeFromKubernetesID() throws Exception {
+        final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
 
-		final String clusterId = "my-test-CLUSTER_ID";
-		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
-				"-D" + KubernetesConfigOptions.CLUSTER_ID.key() + "=" + clusterId};
+        final String clusterId = "my-test-CLUSTER_ID";
+        final String[] args =
+                new String[] {
+                    "-e",
+                    KubernetesSessionClusterExecutor.NAME,
+                    "-D" + KubernetesConfigOptions.CLUSTER_ID.key() + "=" + clusterId
+                };
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		final ClusterClientFactory clientFactory = getClusterClientFactory(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        final ClusterClientFactory clientFactory = getClusterClientFactory(executorConfig);
 
-		assertEquals(clusterId, clientFactory.getClusterId(executorConfig));
-	}
+        assertEquals(clusterId, clientFactory.getClusterId(executorConfig));
+    }
 
-	/**
-	 * Tests that the command line arguments override the configuration settings
-	 * when the {@link ClusterSpecification} is created.
-	 */
-	@Test
-	public void testCommandLineClusterSpecification() throws Exception {
-		final Configuration configuration = new Configuration();
-		final int jobManagerMemory = 1337;
-		final int taskManagerMemory = 7331;
-		final int slotsPerTaskManager = 30;
+    /**
+     * Tests that the command line arguments override the configuration settings when the {@link
+     * ClusterSpecification} is created.
+     */
+    @Test
+    public void testCommandLineClusterSpecification() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int jobManagerMemory = 1337;
+        final int taskManagerMemory = 7331;
+        final int slotsPerTaskManager = 30;
 
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+        configuration.set(
+                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
+        configuration.set(
+                TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
+        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {
-				"-e", KubernetesSessionClusterExecutor.NAME,
-				"-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + jobManagerMemory + "m",
-				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + taskManagerMemory + "m",
-				"-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=" + slotsPerTaskManager
-		};
+        final String[] args = {
+            "-e",
+            KubernetesSessionClusterExecutor.NAME,
+            "-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + jobManagerMemory + "m",
+            "-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=" + taskManagerMemory + "m",
+            "-D" + TaskManagerOptions.NUM_TASK_SLOTS.key() + "=" + slotsPerTaskManager
+        };
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(
-				configuration,
-				tmp.getRoot().getAbsolutePath());
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
 
-		Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
-		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
+        assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
+    }
 
-	/**
-	 * Tests that the configuration settings are used to create the
-	 * {@link ClusterSpecification}.
-	 */
-	@Test
-	public void testConfigurationClusterSpecification() throws Exception {
-		final Configuration configuration = new Configuration();
-		final int jobManagerMemory = 1337;
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
-		final int taskManagerMemory = 7331;
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
-		final int slotsPerTaskManager = 42;
-		configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
+    /**
+     * Tests that the configuration settings are used to create the {@link ClusterSpecification}.
+     */
+    @Test
+    public void testConfigurationClusterSpecification() throws Exception {
+        final Configuration configuration = new Configuration();
+        final int jobManagerMemory = 1337;
+        configuration.set(
+                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(jobManagerMemory));
+        final int taskManagerMemory = 7331;
+        configuration.set(
+                TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(taskManagerMemory));
+        final int slotsPerTaskManager = 42;
+        configuration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, slotsPerTaskManager);
 
-		final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
-		final KubernetesSessionCli cli = new KubernetesSessionCli(
-				configuration,
-				tmp.getRoot().getAbsolutePath());
+        final String[] args = {"-e", KubernetesSessionClusterExecutor.NAME};
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
 
-		Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
-		assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(jobManagerMemory));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(taskManagerMemory));
+        assertThat(clusterSpecification.getSlotsPerTaskManager(), is(slotsPerTaskManager));
+    }
 
-	/**
-	 * Tests the specifying heap memory with unit (MB) for job manager and task manager.
-	 */
-	@Test
-	public void testHeapMemoryPropertyWithUnitMB() throws Exception {
-		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
-				"-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=1024m",
-				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=2048m"
-		};
+    /** Tests the specifying heap memory with unit (MB) for job manager and task manager. */
+    @Test
+    public void testHeapMemoryPropertyWithUnitMB() throws Exception {
+        final String[] args =
+                new String[] {
+                    "-e",
+                    KubernetesSessionClusterExecutor.NAME,
+                    "-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=1024m",
+                    "-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=2048m"
+                };
 
-		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
+        final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(2048));
+    }
 
-	/**
-	 * Tests the specifying heap memory with arbitrary unit for job manager and task manager.
-	 */
-	@Test
-	public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
-		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME,
-				"-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=1g",
-				"-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=3g"
-		};
+    /** Tests the specifying heap memory with arbitrary unit for job manager and task manager. */
+    @Test
+    public void testHeapMemoryPropertyWithArbitraryUnit() throws Exception {
+        final String[] args =
+                new String[] {
+                    "-e",
+                    KubernetesSessionClusterExecutor.NAME,
+                    "-D" + JobManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=1g",
+                    "-D" + TaskManagerOptions.TOTAL_PROCESS_MEMORY.key() + "=3g"
+                };
 
-		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
+        final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(3072));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(3072));
+    }
 
-	/**
-	 * Tests the specifying heap memory with old config key for job manager and task manager.
-	 */
-	@Test
-	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
-		Configuration configuration = new Configuration();
-		configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
-		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
-		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
+    /** Tests the specifying heap memory with old config key for job manager and task manager. */
+    @Test
+    public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
+        Configuration configuration = new Configuration();
+        configuration.set(DeploymentOptions.TARGET, KubernetesSessionClusterExecutor.NAME);
+        configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
+        configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
 
-		final KubernetesSessionCli cli = new KubernetesSessionCli(
-				configuration,
-				tmp.getRoot().getAbsolutePath());
+        final KubernetesSessionCli cli =
+                new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(new String[]{});
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(new String[] {});
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(2048));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(4096));
+    }
 
-	/**
-	 * Tests the specifying heap memory with config default value for job manager and task manager.
-	 */
-	@Test
-	public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
-		final String[] args = new String[] {
-				"-e", KubernetesSessionClusterExecutor.NAME
-		};
+    /**
+     * Tests the specifying heap memory with config default value for job manager and task manager.
+     */
+    @Test
+    public void testHeapMemoryPropertyWithConfigDefaultValue() throws Exception {
+        final String[] args = new String[] {"-e", KubernetesSessionClusterExecutor.NAME};
 
-		final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
+        final KubernetesSessionCli cli = createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(1024);
 
-		final Configuration executorConfig = cli.getEffectiveConfiguration(args);
-		final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
-		final ClusterSpecification clusterSpecification = clientFactory.getClusterSpecification(executorConfig);
+        final Configuration executorConfig = cli.getEffectiveConfiguration(args);
+        final ClusterClientFactory<String> clientFactory = getClusterClientFactory(executorConfig);
+        final ClusterSpecification clusterSpecification =
+                clientFactory.getClusterSpecification(executorConfig);
 
-		assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
-		assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
-	}
+        assertThat(clusterSpecification.getMasterMemoryMB(), is(1024));
+        assertThat(clusterSpecification.getTaskManagerMemoryMB(), is(1024));
+    }
 
-	private ClusterClientFactory<String> getClusterClientFactory(final Configuration executorConfig) {
-		final ClusterClientServiceLoader clusterClientServiceLoader = new DefaultClusterClientServiceLoader();
-		return clusterClientServiceLoader.getClusterClientFactory(executorConfig);
-	}
+    private ClusterClientFactory<String> getClusterClientFactory(
+            final Configuration executorConfig) {
+        final ClusterClientServiceLoader clusterClientServiceLoader =
+                new DefaultClusterClientServiceLoader();
+        return clusterClientServiceLoader.getClusterClientFactory(executorConfig);
+    }
 
-	private KubernetesSessionCli createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(int totalMemory) {
-		Configuration configuration = new Configuration();
-		configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
-		configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
-		return new KubernetesSessionCli(
-				configuration,
-				tmp.getRoot().getAbsolutePath());
-	}
+    private KubernetesSessionCli createFlinkKubernetesCustomCliWithJmAndTmTotalMemory(
+            int totalMemory) {
+        Configuration configuration = new Configuration();
+        configuration.set(
+                JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
+        configuration.set(
+                TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(totalMemory));
+        return new KubernetesSessionCli(configuration, tmp.getRoot().getAbsolutePath());
+    }
 }

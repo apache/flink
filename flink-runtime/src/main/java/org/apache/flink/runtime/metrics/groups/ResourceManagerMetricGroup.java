@@ -21,15 +21,14 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 
-/**
- * Metric group which is used by the {@link ResourceManager} to register metrics.
- */
+/** Metric group which is used by the {@link ResourceManager} to register metrics. */
 public class ResourceManagerMetricGroup extends AbstractImitatingJobManagerMetricGroup {
-	ResourceManagerMetricGroup(MetricRegistry registry, String hostname) {
-		super(registry, hostname);
-	}
+    ResourceManagerMetricGroup(MetricRegistry registry, String hostname) {
+        super(registry, hostname);
+    }
 
-	public static ResourceManagerMetricGroup create(MetricRegistry metricRegistry, String hostname) {
-		return new ResourceManagerMetricGroup(metricRegistry, hostname);
-	}
+    public static ResourceManagerMetricGroup create(
+            MetricRegistry metricRegistry, String hostname) {
+        return new ResourceManagerMetricGroup(metricRegistry, hostname);
+    }
 }

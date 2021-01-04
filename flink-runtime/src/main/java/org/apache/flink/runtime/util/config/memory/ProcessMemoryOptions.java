@@ -27,39 +27,37 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Common Flink's options to describe its JVM process memory configuration for JM or TM.
- */
+/** Common Flink's options to describe its JVM process memory configuration for JM or TM. */
 public class ProcessMemoryOptions {
-	private final List<ConfigOption<MemorySize>> requiredFineGrainedOptions;
-	private final ConfigOption<MemorySize> totalFlinkMemoryOption;
-	private final ConfigOption<MemorySize> totalProcessMemoryOption;
-	private final JvmMetaspaceAndOverheadOptions jvmOptions;
+    private final List<ConfigOption<MemorySize>> requiredFineGrainedOptions;
+    private final ConfigOption<MemorySize> totalFlinkMemoryOption;
+    private final ConfigOption<MemorySize> totalProcessMemoryOption;
+    private final JvmMetaspaceAndOverheadOptions jvmOptions;
 
-	public ProcessMemoryOptions(
-			List<ConfigOption<MemorySize>> requiredFineGrainedOptions,
-			ConfigOption<MemorySize> totalFlinkMemoryOption,
-			ConfigOption<MemorySize> totalProcessMemoryOption,
-			JvmMetaspaceAndOverheadOptions jvmOptions) {
-		this.requiredFineGrainedOptions = new ArrayList<>(checkNotNull(requiredFineGrainedOptions));
-		this.totalFlinkMemoryOption = checkNotNull(totalFlinkMemoryOption);
-		this.totalProcessMemoryOption = checkNotNull(totalProcessMemoryOption);
-		this.jvmOptions = checkNotNull(jvmOptions);
-	}
+    public ProcessMemoryOptions(
+            List<ConfigOption<MemorySize>> requiredFineGrainedOptions,
+            ConfigOption<MemorySize> totalFlinkMemoryOption,
+            ConfigOption<MemorySize> totalProcessMemoryOption,
+            JvmMetaspaceAndOverheadOptions jvmOptions) {
+        this.requiredFineGrainedOptions = new ArrayList<>(checkNotNull(requiredFineGrainedOptions));
+        this.totalFlinkMemoryOption = checkNotNull(totalFlinkMemoryOption);
+        this.totalProcessMemoryOption = checkNotNull(totalProcessMemoryOption);
+        this.jvmOptions = checkNotNull(jvmOptions);
+    }
 
-	List<ConfigOption<MemorySize>> getRequiredFineGrainedOptions() {
-		return Collections.unmodifiableList(requiredFineGrainedOptions);
-	}
+    List<ConfigOption<MemorySize>> getRequiredFineGrainedOptions() {
+        return Collections.unmodifiableList(requiredFineGrainedOptions);
+    }
 
-	ConfigOption<MemorySize> getTotalFlinkMemoryOption() {
-		return totalFlinkMemoryOption;
-	}
+    ConfigOption<MemorySize> getTotalFlinkMemoryOption() {
+        return totalFlinkMemoryOption;
+    }
 
-	ConfigOption<MemorySize> getTotalProcessMemoryOption() {
-		return totalProcessMemoryOption;
-	}
+    ConfigOption<MemorySize> getTotalProcessMemoryOption() {
+        return totalProcessMemoryOption;
+    }
 
-	JvmMetaspaceAndOverheadOptions getJvmOptions() {
-		return jvmOptions;
-	}
+    JvmMetaspaceAndOverheadOptions getJvmOptions() {
+        return jvmOptions;
+    }
 }

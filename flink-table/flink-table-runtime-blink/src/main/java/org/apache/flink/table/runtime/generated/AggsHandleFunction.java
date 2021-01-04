@@ -30,9 +30,10 @@ import org.apache.flink.table.functions.AggregateFunction;
  */
 public interface AggsHandleFunction extends AggsHandleFunctionBase {
 
-	/**
-	 * Gets the result of the aggregation from the current accumulators.
-	 * @return the final result (saved in a row) of the current accumulators.
-	 */
-	RowData getValue() throws Exception;
+    /**
+     * Gets the result of the aggregation from the current accumulators.
+     *
+     * @return the final result (saved in a row) of the current accumulators.
+     */
+    RowData getValue() throws Exception;
 }

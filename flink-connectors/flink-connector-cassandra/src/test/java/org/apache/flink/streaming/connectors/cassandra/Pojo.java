@@ -22,48 +22,48 @@ import com.datastax.driver.mapping.annotations.Table;
 
 import java.io.Serializable;
 
-/**
- * Test Pojo with DataStax annotations used.
- */
+/** Test Pojo with DataStax annotations used. */
 @Table(keyspace = "flink", name = "test")
 public class Pojo implements Serializable {
 
-	private static final long serialVersionUID = 1038054554690916991L;
+    private static final long serialVersionUID = 1038054554690916991L;
 
-	@Column(name = "id")
-	private String id;
-	@Column(name = "counter")
-	private int counter;
-	@Column(name = "batch_id")
-	private int batchID;
+    @Column(name = "id")
+    private String id;
 
-	public Pojo(String id, int counter, int batchID) {
-		this.id = id;
-		this.counter = counter;
-		this.batchID = batchID;
-	}
+    @Column(name = "counter")
+    private int counter;
 
-	public String getId() {
-		return id;
-	}
+    @Column(name = "batch_id")
+    private int batchID;
 
-	public void setId(String id) {
-		this.id = id;
-	}
+    public Pojo(String id, int counter, int batchID) {
+        this.id = id;
+        this.counter = counter;
+        this.batchID = batchID;
+    }
 
-	public int getCounter() {
-		return counter;
-	}
+    public String getId() {
+        return id;
+    }
 
-	public void setCounter(int counter) {
-		this.counter = counter;
-	}
+    public void setId(String id) {
+        this.id = id;
+    }
 
-	public int getBatchID() {
-		return batchID;
-	}
+    public int getCounter() {
+        return counter;
+    }
 
-	public void setBatchID(int batchId) {
-		this.batchID = batchId;
-	}
+    public void setCounter(int counter) {
+        this.counter = counter;
+    }
+
+    public int getBatchID() {
+        return batchID;
+    }
+
+    public void setBatchID(int batchId) {
+        this.batchID = batchId;
+    }
 }

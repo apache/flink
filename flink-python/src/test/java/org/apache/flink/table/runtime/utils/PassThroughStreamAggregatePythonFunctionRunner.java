@@ -35,49 +35,63 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * A {@link PassThroughStreamAggregatePythonFunctionRunner} runner that help to test the Python stream group
- * aggregate operators. It will process the input data with the provided `processFunction`.
+ * A {@link PassThroughStreamAggregatePythonFunctionRunner} runner that help to test the Python
+ * stream group aggregate operators. It will process the input data with the provided
+ * `processFunction`.
  */
-public class PassThroughStreamAggregatePythonFunctionRunner extends BeamTableStatefulPythonFunctionRunner {
+public class PassThroughStreamAggregatePythonFunctionRunner
+        extends BeamTableStatefulPythonFunctionRunner {
 
-	private final List<byte[]> buffer;
+    private final List<byte[]> buffer;
 
-	private final Function<byte[], byte[]> processFunction;
+    private final Function<byte[], byte[]> processFunction;
 
-	public PassThroughStreamAggregatePythonFunctionRunner(
-			String taskName,
-			PythonEnvironmentManager environmentManager,
-			RowType inputType,
-			RowType outputType,
-			String functionUrn,
-			FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
-			String coderUrn,
-			Map<String, String> jobOptions,
-			FlinkMetricContainer flinkMetricContainer,
-			KeyedStateBackend keyedStateBackend,
-			TypeSerializer keySerializer,
-			Function<byte[], byte[]> processFunction) {
-		super(taskName, environmentManager, inputType, outputType, functionUrn, userDefinedFunctions,
-			coderUrn, jobOptions, flinkMetricContainer, keyedStateBackend, keySerializer, null, 0.0);
-		this.buffer = new LinkedList<>();
-		this.processFunction = processFunction;
-	}
+    public PassThroughStreamAggregatePythonFunctionRunner(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedAggregateFunctions userDefinedFunctions,
+            String coderUrn,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer,
+            KeyedStateBackend keyedStateBackend,
+            TypeSerializer keySerializer,
+            Function<byte[], byte[]> processFunction) {
+        super(
+                taskName,
+                environmentManager,
+                inputType,
+                outputType,
+                functionUrn,
+                userDefinedFunctions,
+                coderUrn,
+                jobOptions,
+                flinkMetricContainer,
+                keyedStateBackend,
+                keySerializer,
+                null,
+                0.0);
+        this.buffer = new LinkedList<>();
+        this.processFunction = processFunction;
+    }
 
-	@Override
-	protected void startBundle() {
-		super.startBundle();
-		this.mainInputReceiver = input -> buffer.add(processFunction.apply(input.getValue()));
-	}
+    @Override
+    protected void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver = input -> buffer.add(processFunction.apply(input.getValue()));
+    }
 
-	@Override
-	public void flush() throws Exception {
-		super.flush();
-		resultBuffer.addAll(buffer);
-		buffer.clear();
-	}
+    @Override
+    public void flush() throws Exception {
+        super.flush();
+        resultBuffer.addAll(buffer);
+        buffer.clear();
+    }
 
-	@Override
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-		return PythonTestUtils.createMockJobBundleFactory();
-	}
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return PythonTestUtils.createMockJobBundleFactory();
+    }
 }

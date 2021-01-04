@@ -26,52 +26,47 @@ import org.apache.flink.table.api.ValidationException;
 
 import static org.apache.flink.formats.json.debezium.DebeziumJsonFormatFactory.IDENTIFIER;
 
-/**
- * Option utils for debezium-json format.
- */
+/** Option utils for debezium-json format. */
 public class DebeziumJsonOptions {
 
-	public static final ConfigOption<Boolean> SCHEMA_INCLUDE = ConfigOptions
-		.key("schema-include")
-		.booleanType()
-		.defaultValue(false)
-		.withDescription("When setting up a Debezium Kafka Connect, users can enable " +
-			"a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. " +
-			"This option indicates the Debezium JSON data include the schema in the message or not. " +
-			"Default is false.");
+    public static final ConfigOption<Boolean> SCHEMA_INCLUDE =
+            ConfigOptions.key("schema-include")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When setting up a Debezium Kafka Connect, users can enable "
+                                    + "a Kafka configuration 'value.converter.schemas.enable' to include schema in the message. "
+                                    + "This option indicates the Debezium JSON data include the schema in the message or not. "
+                                    + "Default is false.");
 
-	public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
+    public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS = JsonOptions.IGNORE_PARSE_ERRORS;
 
-	public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
+    public static final ConfigOption<String> TIMESTAMP_FORMAT = JsonOptions.TIMESTAMP_FORMAT;
 
-	public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
+    public static final ConfigOption<String> JSON_MAP_NULL_KEY_MODE = JsonOptions.MAP_NULL_KEY_MODE;
 
-	public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL = JsonOptions.MAP_NULL_KEY_LITERAL;
+    public static final ConfigOption<String> JSON_MAP_NULL_KEY_LITERAL =
+            JsonOptions.MAP_NULL_KEY_LITERAL;
 
-	// --------------------------------------------------------------------------------------------
-	// Validation
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Validation
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Validator for debezium decoding format.
-	 */
-	public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
-		JsonOptions.validateDecodingFormatOptions(tableOptions);
-	}
+    /** Validator for debezium decoding format. */
+    public static void validateDecodingFormatOptions(ReadableConfig tableOptions) {
+        JsonOptions.validateDecodingFormatOptions(tableOptions);
+    }
 
-	/**
-	 * Validator for debezium encoding format.
-	 */
-	public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
-		JsonOptions.validateEncodingFormatOptions(tableOptions);
+    /** Validator for debezium encoding format. */
+    public static void validateEncodingFormatOptions(ReadableConfig tableOptions) {
+        JsonOptions.validateEncodingFormatOptions(tableOptions);
 
-		// validator for {@link SCHEMA_INCLUDE}
-		if (tableOptions.get(SCHEMA_INCLUDE)) {
-			throw new ValidationException(String.format(
-				"Debezium JSON serialization doesn't support '%s.%s' option been set to true.",
-				IDENTIFIER,
-				SCHEMA_INCLUDE.key()
-			));
-		}
-	}
+        // validator for {@link SCHEMA_INCLUDE}
+        if (tableOptions.get(SCHEMA_INCLUDE)) {
+            throw new ValidationException(
+                    String.format(
+                            "Debezium JSON serialization doesn't support '%s.%s' option been set to true.",
+                            IDENTIFIER, SCHEMA_INCLUDE.key()));
+        }
+    }
 }

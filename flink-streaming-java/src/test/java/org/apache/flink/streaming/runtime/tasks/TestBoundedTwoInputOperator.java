@@ -23,45 +23,45 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-/**
- * A test operator class implementing {@link BoundedMultiInput}.
- */
+/** A test operator class implementing {@link BoundedMultiInput}. */
 public class TestBoundedTwoInputOperator extends AbstractStreamOperator<String>
-	implements TwoInputStreamOperator<String, String, String>, BoundedMultiInput {
+        implements TwoInputStreamOperator<String, String, String>, BoundedMultiInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String name;
+    private final String name;
 
-	public TestBoundedTwoInputOperator(String name) {
-		this.name = name;
-	}
+    public TestBoundedTwoInputOperator(String name) {
+        this.name = name;
+    }
 
-	@Override
-	public void processElement1(StreamRecord<String> element) {
-		output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-	}
+    @Override
+    public void processElement1(StreamRecord<String> element) {
+        output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
+    }
 
-	@Override
-	public void processElement2(StreamRecord<String> element) {
-		output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-	}
+    @Override
+    public void processElement2(StreamRecord<String> element) {
+        output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
+    }
 
-	@Override
-	public void endInput(int inputId) {
-		output("[" + name + "-" + inputId + "]: End of input");
-	}
+    @Override
+    public void endInput(int inputId) {
+        output("[" + name + "-" + inputId + "]: End of input");
+    }
 
-	@Override
-	public void close() throws Exception {
-		ProcessingTimeService timeService = getProcessingTimeService();
-		timeService.registerTimer(timeService.getCurrentProcessingTime(), t -> output("[" + name + "]: Timer registered in close"));
+    @Override
+    public void close() throws Exception {
+        ProcessingTimeService timeService = getProcessingTimeService();
+        timeService.registerTimer(
+                timeService.getCurrentProcessingTime(),
+                t -> output("[" + name + "]: Timer registered in close"));
 
-		output.collect(new StreamRecord<>("[" + name + "]: Bye"));
-		super.close();
-	}
+        output.collect(new StreamRecord<>("[" + name + "]: Bye"));
+        super.close();
+    }
 
-	private void output(String record) {
-		output.collect(new StreamRecord<>(record));
-	}
+    private void output(String record) {
+        output.collect(new StreamRecord<>(record));
+    }
 }

@@ -22,55 +22,53 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.function.BiConsumer;
 
-/**
- * Testing implementation of {@link UserCodeClassLoader}.
- */
+/** Testing implementation of {@link UserCodeClassLoader}. */
 public class TestingUserCodeClassLoader implements UserCodeClassLoader {
 
-	private final ClassLoader classLoader;
+    private final ClassLoader classLoader;
 
-	private final BiConsumer<String, Runnable> registerReleaseHookConsumer;
+    private final BiConsumer<String, Runnable> registerReleaseHookConsumer;
 
-	public TestingUserCodeClassLoader(ClassLoader classLoader, BiConsumer<String, Runnable> registerReleaseHookConsumer) {
-		this.classLoader = classLoader;
-		this.registerReleaseHookConsumer = registerReleaseHookConsumer;
-	}
+    public TestingUserCodeClassLoader(
+            ClassLoader classLoader, BiConsumer<String, Runnable> registerReleaseHookConsumer) {
+        this.classLoader = classLoader;
+        this.registerReleaseHookConsumer = registerReleaseHookConsumer;
+    }
 
-	@Override
-	public ClassLoader asClassLoader() {
-		return classLoader;
-	}
+    @Override
+    public ClassLoader asClassLoader() {
+        return classLoader;
+    }
 
-	@Override
-	public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
-		registerReleaseHookConsumer.accept(releaseHookName, releaseHook);
-	}
+    @Override
+    public void registerReleaseHookIfAbsent(String releaseHookName, Runnable releaseHook) {
+        registerReleaseHookConsumer.accept(releaseHookName, releaseHook);
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * Builder for the testing classloader.
-	 */
-	public static final class Builder {
-		private ClassLoader classLoader = Builder.class.getClassLoader();
-		private BiConsumer<String, Runnable> registerReleaseHookConsumer = (ign, ore) -> {};
+    /** Builder for the testing classloader. */
+    public static final class Builder {
+        private ClassLoader classLoader = Builder.class.getClassLoader();
+        private BiConsumer<String, Runnable> registerReleaseHookConsumer = (ign, ore) -> {};
 
-		private Builder() {}
+        private Builder() {}
 
-		public Builder setClassLoader(ClassLoader classLoader) {
-			this.classLoader = classLoader;
-			return this;
-		}
+        public Builder setClassLoader(ClassLoader classLoader) {
+            this.classLoader = classLoader;
+            return this;
+        }
 
-		public Builder setRegisterReleaseHookConsumer(BiConsumer<String, Runnable> registerReleaseHookConsumer) {
-			this.registerReleaseHookConsumer = registerReleaseHookConsumer;
-			return this;
-		}
+        public Builder setRegisterReleaseHookConsumer(
+                BiConsumer<String, Runnable> registerReleaseHookConsumer) {
+            this.registerReleaseHookConsumer = registerReleaseHookConsumer;
+            return this;
+        }
 
-		public TestingUserCodeClassLoader build() {
-			return new TestingUserCodeClassLoader(classLoader, registerReleaseHookConsumer);
-		}
-	}
+        public TestingUserCodeClassLoader build() {
+            return new TestingUserCodeClassLoader(classLoader, registerReleaseHookConsumer);
+        }
+    }
 }

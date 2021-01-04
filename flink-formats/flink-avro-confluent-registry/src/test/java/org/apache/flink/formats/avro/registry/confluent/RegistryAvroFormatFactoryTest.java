@@ -53,127 +53,122 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link RegistryAvroFormatFactory}.
- */
+/** Tests for the {@link RegistryAvroFormatFactory}. */
 public class RegistryAvroFormatFactoryTest {
-	private static final TableSchema SCHEMA = TableSchema.builder()
-			.field("a", DataTypes.STRING())
-			.field("b", DataTypes.INT())
-			.field("c", DataTypes.BOOLEAN())
-			.build();
-	private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
-	private static final String SUBJECT = "test-subject";
-	private static final String REGISTRY_URL = "http://localhost:8081";
+    private static final TableSchema SCHEMA =
+            TableSchema.builder()
+                    .field("a", DataTypes.STRING())
+                    .field("b", DataTypes.INT())
+                    .field("c", DataTypes.BOOLEAN())
+                    .build();
+    private static final RowType ROW_TYPE = (RowType) SCHEMA.toRowDataType().getLogicalType();
+    private static final String SUBJECT = "test-subject";
+    private static final String REGISTRY_URL = "http://localhost:8081";
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testDeserializationSchema() {
-		final AvroRowDataDeserializationSchema expectedDeser =
-				new AvroRowDataDeserializationSchema(
-						ConfluentRegistryAvroDeserializationSchema.forGeneric(
-								AvroSchemaConverter.convertToSchema(ROW_TYPE),
-								REGISTRY_URL),
-						AvroToRowDataConverters.createRowConverter(ROW_TYPE),
-						InternalTypeInfo.of(ROW_TYPE));
+    @Test
+    public void testDeserializationSchema() {
+        final AvroRowDataDeserializationSchema expectedDeser =
+                new AvroRowDataDeserializationSchema(
+                        ConfluentRegistryAvroDeserializationSchema.forGeneric(
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE), REGISTRY_URL),
+                        AvroToRowDataConverters.createRowConverter(ROW_TYPE),
+                        InternalTypeInfo.of(ROW_TYPE));
 
-		final DynamicTableSource actualSource = createTableSource(getDefaultOptions());
-		assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
-		TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-				(TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+        final DynamicTableSource actualSource = createTableSource(getDefaultOptions());
+        assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
-		DeserializationSchema<RowData> actualDeser = scanSourceMock.valueFormat
-				.createRuntimeDecoder(
-						ScanRuntimeProviderContext.INSTANCE,
-						SCHEMA.toRowDataType());
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toRowDataType());
 
-		assertEquals(expectedDeser, actualDeser);
-	}
+        assertEquals(expectedDeser, actualDeser);
+    }
 
-	@Test
-	public void testSerializationSchema() {
-		final AvroRowDataSerializationSchema expectedSer =
-				new AvroRowDataSerializationSchema(
-						ROW_TYPE,
-						ConfluentRegistryAvroSerializationSchema.forGeneric(
-								SUBJECT,
-								AvroSchemaConverter.convertToSchema(ROW_TYPE),
-								REGISTRY_URL),
-						RowDataToAvroConverters.createConverter(ROW_TYPE));
+    @Test
+    public void testSerializationSchema() {
+        final AvroRowDataSerializationSchema expectedSer =
+                new AvroRowDataSerializationSchema(
+                        ROW_TYPE,
+                        ConfluentRegistryAvroSerializationSchema.forGeneric(
+                                SUBJECT,
+                                AvroSchemaConverter.convertToSchema(ROW_TYPE),
+                                REGISTRY_URL),
+                        RowDataToAvroConverters.createConverter(ROW_TYPE));
 
-		final DynamicTableSink actualSink = createTableSink(getDefaultOptions());
-		assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
-		TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
-				(TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+        final DynamicTableSink actualSink = createTableSink(getDefaultOptions());
+        assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
-		SerializationSchema<RowData> actualSer = sinkMock.valueFormat
-				.createRuntimeEncoder(
-						null,
-						SCHEMA.toRowDataType());
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toRowDataType());
 
-		assertEquals(expectedSer, actualSer);
-	}
+        assertEquals(expectedSer, actualSer);
+    }
 
-	@Test
-	public void testMissingSubjectForSink() {
-		thrown.expect(ValidationException.class);
-		thrown.expect(
-				containsCause(
-						new ValidationException("Option avro-confluent.schema-registry.subject "
-								+ "is required for serialization")));
+    @Test
+    public void testMissingSubjectForSink() {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                containsCause(
+                        new ValidationException(
+                                "Option avro-confluent.schema-registry.subject "
+                                        + "is required for serialization")));
 
-		final Map<String, String> options =
-				getModifiedOptions(opts -> opts.remove("avro-confluent.schema-registry.subject"));
+        final Map<String, String> options =
+                getModifiedOptions(opts -> opts.remove("avro-confluent.schema-registry.subject"));
 
-		createTableSink(options);
-	}
+        createTableSink(options);
+    }
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Returns the full options modified by the given consumer {@code optionModifier}.
-	 *
-	 * @param optionModifier Consumer to modify the options
-	 */
-	private Map<String, String> getModifiedOptions(Consumer<Map<String, String>> optionModifier) {
-		Map<String, String> options = getDefaultOptions();
-		optionModifier.accept(options);
-		return options;
-	}
+    /**
+     * Returns the full options modified by the given consumer {@code optionModifier}.
+     *
+     * @param optionModifier Consumer to modify the options
+     */
+    private Map<String, String> getModifiedOptions(Consumer<Map<String, String>> optionModifier) {
+        Map<String, String> options = getDefaultOptions();
+        optionModifier.accept(options);
+        return options;
+    }
 
-	private Map<String, String> getDefaultOptions() {
-		final Map<String, String> options = new HashMap<>();
-		options.put("connector", TestDynamicTableFactory.IDENTIFIER);
-		options.put("target", "MyTarget");
-		options.put("buffer-size", "1000");
+    private Map<String, String> getDefaultOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-		options.put("format", RegistryAvroFormatFactory.IDENTIFIER);
-		options.put("avro-confluent.schema-registry.subject", SUBJECT);
-		options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
-		return options;
-	}
+        options.put("format", RegistryAvroFormatFactory.IDENTIFIER);
+        options.put("avro-confluent.schema-registry.subject", SUBJECT);
+        options.put("avro-confluent.schema-registry.url", REGISTRY_URL);
+        return options;
+    }
 
-	private DynamicTableSource createTableSource(Map<String, String> options) {
-		return FactoryUtil.createTableSource(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock source"),
-				new Configuration(),
-				RegistryAvroFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+    private DynamicTableSource createTableSource(Map<String, String> options) {
+        return FactoryUtil.createTableSource(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock source"),
+                new Configuration(),
+                RegistryAvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 
-	private DynamicTableSink createTableSink(Map<String, String> options) {
-		return FactoryUtil.createTableSink(
-				null,
-				ObjectIdentifier.of("default", "default", "t1"),
-				new CatalogTableImpl(SCHEMA, options, "mock sink"),
-				new Configuration(),
-				RegistryAvroFormatFactoryTest.class.getClassLoader(),
-				false);
-	}
+    private DynamicTableSink createTableSink(Map<String, String> options) {
+        return FactoryUtil.createTableSink(
+                null,
+                ObjectIdentifier.of("default", "default", "t1"),
+                new CatalogTableImpl(SCHEMA, options, "mock sink"),
+                new Configuration(),
+                RegistryAvroFormatFactoryTest.class.getClassLoader(),
+                false);
+    }
 }

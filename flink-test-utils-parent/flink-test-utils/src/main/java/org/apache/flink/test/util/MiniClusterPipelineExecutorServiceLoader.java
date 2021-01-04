@@ -48,107 +48,107 @@ import java.util.stream.Stream;
  * PipelineExecutors} that use a given {@link MiniCluster}.
  */
 public class MiniClusterPipelineExecutorServiceLoader implements PipelineExecutorServiceLoader {
-	public static final String NAME = "minicluster";
+    public static final String NAME = "minicluster";
 
-	private final MiniCluster miniCluster;
+    private final MiniCluster miniCluster;
 
-	public MiniClusterPipelineExecutorServiceLoader(MiniCluster miniCluster) {
-		this.miniCluster = miniCluster;
-	}
+    public MiniClusterPipelineExecutorServiceLoader(MiniCluster miniCluster) {
+        this.miniCluster = miniCluster;
+    }
 
-	/**
-	 * Populates a {@link Configuration} that is compatible with this {@link
-	 * MiniClusterPipelineExecutorServiceLoader}.
-	 */
-	public static Configuration createConfiguration(
-			Collection<Path> jarFiles,
-			Collection<URL> classPaths) {
-		Configuration config = new Configuration();
-		ConfigUtils.encodeCollectionToConfig(
-				config,
-				PipelineOptions.JARS,
-				jarFiles,
-				MiniClusterPipelineExecutorServiceLoader::getAbsoluteURL);
-		ConfigUtils.encodeCollectionToConfig(
-				config,
-				PipelineOptions.CLASSPATHS,
-				classPaths,
-				URL::toString);
-		config.set(DeploymentOptions.TARGET, MiniClusterPipelineExecutorServiceLoader.NAME);
-		config.set(DeploymentOptions.ATTACHED, true);
-		return config;
-	}
+    /**
+     * Populates a {@link Configuration} that is compatible with this {@link
+     * MiniClusterPipelineExecutorServiceLoader}.
+     */
+    public static Configuration createConfiguration(
+            Collection<Path> jarFiles, Collection<URL> classPaths) {
+        Configuration config = new Configuration();
+        ConfigUtils.encodeCollectionToConfig(
+                config,
+                PipelineOptions.JARS,
+                jarFiles,
+                MiniClusterPipelineExecutorServiceLoader::getAbsoluteURL);
+        ConfigUtils.encodeCollectionToConfig(
+                config, PipelineOptions.CLASSPATHS, classPaths, URL::toString);
+        config.set(DeploymentOptions.TARGET, MiniClusterPipelineExecutorServiceLoader.NAME);
+        config.set(DeploymentOptions.ATTACHED, true);
+        return config;
+    }
 
-	private static String getAbsoluteURL(Path path) {
-		FileSystem fs;
-		try {
-			fs = path.getFileSystem();
-		} catch (IOException e) {
-			throw new RuntimeException(String.format("Could not get FileSystem from %s", path), e);
-		}
-		try {
-			return path.makeQualified(fs).toUri().toURL().toString();
-		} catch (MalformedURLException e) {
-			throw new RuntimeException(String.format("Could not get URL from %s", path), e);
-		}
-	}
+    private static String getAbsoluteURL(Path path) {
+        FileSystem fs;
+        try {
+            fs = path.getFileSystem();
+        } catch (IOException e) {
+            throw new RuntimeException(String.format("Could not get FileSystem from %s", path), e);
+        }
+        try {
+            return path.makeQualified(fs).toUri().toURL().toString();
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(String.format("Could not get URL from %s", path), e);
+        }
+    }
 
-	@Override
-	public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
-		return new MiniClusterPipelineExecutorFactory(miniCluster);
-	}
+    @Override
+    public PipelineExecutorFactory getExecutorFactory(Configuration configuration) {
+        return new MiniClusterPipelineExecutorFactory(miniCluster);
+    }
 
-	@Override
-	public Stream<String> getExecutorNames() {
-		return Stream.of(MiniClusterPipelineExecutorServiceLoader.NAME);
-	}
+    @Override
+    public Stream<String> getExecutorNames() {
+        return Stream.of(MiniClusterPipelineExecutorServiceLoader.NAME);
+    }
 
-	private static class MiniClusterPipelineExecutorFactory implements PipelineExecutorFactory {
-		private final MiniCluster miniCluster;
+    private static class MiniClusterPipelineExecutorFactory implements PipelineExecutorFactory {
+        private final MiniCluster miniCluster;
 
-		public MiniClusterPipelineExecutorFactory(MiniCluster miniCluster) {
-			this.miniCluster = miniCluster;
-		}
+        public MiniClusterPipelineExecutorFactory(MiniCluster miniCluster) {
+            this.miniCluster = miniCluster;
+        }
 
-		@Override
-		public String getName() {
-			return MiniClusterPipelineExecutorServiceLoader.NAME;
-		}
+        @Override
+        public String getName() {
+            return MiniClusterPipelineExecutorServiceLoader.NAME;
+        }
 
-		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
-			return true;
-		}
+        @Override
+        public boolean isCompatibleWith(Configuration configuration) {
+            return true;
+        }
 
-		@Override
-		public PipelineExecutor getExecutor(Configuration configuration) {
-			return new MiniClusterExecutor(miniCluster);
-		}
-	}
+        @Override
+        public PipelineExecutor getExecutor(Configuration configuration) {
+            return new MiniClusterExecutor(miniCluster);
+        }
+    }
 
-	private static class MiniClusterExecutor implements PipelineExecutor {
+    private static class MiniClusterExecutor implements PipelineExecutor {
 
-		private final MiniCluster miniCluster;
+        private final MiniCluster miniCluster;
 
-		public MiniClusterExecutor(MiniCluster miniCluster) {
-			this.miniCluster = miniCluster;
-		}
+        public MiniClusterExecutor(MiniCluster miniCluster) {
+            this.miniCluster = miniCluster;
+        }
 
-		@Override
-		public CompletableFuture<JobClient> execute(
-				Pipeline pipeline,
-				Configuration configuration,
-				ClassLoader userCodeClassLoader) throws Exception {
-			final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
-			if (jobGraph.getSavepointRestoreSettings() == SavepointRestoreSettings.none() && pipeline instanceof StreamGraph) {
-				jobGraph.setSavepointRestoreSettings(((StreamGraph) pipeline).getSavepointRestoreSettings());
-			}
-			return miniCluster.submitJob(jobGraph)
-					.thenApply(result -> new MiniClusterJobClient(
-							result.getJobID(),
-							miniCluster,
-							userCodeClassLoader,
-							MiniClusterJobClient.JobFinalizationBehavior.NOTHING));
-		}
-	}
+        @Override
+        public CompletableFuture<JobClient> execute(
+                Pipeline pipeline, Configuration configuration, ClassLoader userCodeClassLoader)
+                throws Exception {
+            final JobGraph jobGraph = PipelineExecutorUtils.getJobGraph(pipeline, configuration);
+            if (jobGraph.getSavepointRestoreSettings() == SavepointRestoreSettings.none()
+                    && pipeline instanceof StreamGraph) {
+                jobGraph.setSavepointRestoreSettings(
+                        ((StreamGraph) pipeline).getSavepointRestoreSettings());
+            }
+            return miniCluster
+                    .submitJob(jobGraph)
+                    .thenApply(
+                            result ->
+                                    new MiniClusterJobClient(
+                                            result.getJobID(),
+                                            miniCluster,
+                                            userCodeClassLoader,
+                                            MiniClusterJobClient.JobFinalizationBehavior.NOTHING));
+        }
+    }
 }

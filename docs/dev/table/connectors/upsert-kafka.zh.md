@@ -39,7 +39,7 @@ Upsert Kafka 连接器支持以 upsert 方式从 Kafka topic 中读取数据并�
 ------------
 
 {% assign connector = site.data.sql-connectors['upsert-kafka'] %}
-{% include sql-connector-download-table.html
+{% include sql-connector-download-table.zh.html
     connector=connector
 %}
 

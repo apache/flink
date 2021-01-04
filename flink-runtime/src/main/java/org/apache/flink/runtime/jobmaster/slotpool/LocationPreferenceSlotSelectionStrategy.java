@@ -36,91 +36,103 @@ import java.util.Optional;
  */
 public abstract class LocationPreferenceSlotSelectionStrategy implements SlotSelectionStrategy {
 
-	LocationPreferenceSlotSelectionStrategy() {}
+    LocationPreferenceSlotSelectionStrategy() {}
 
-	@Override
-	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<SlotInfoAndResources> availableSlots,
-		@Nonnull SlotProfile slotProfile) {
+    @Override
+    public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull SlotProfile slotProfile) {
 
-		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
+        Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
 
-		if (availableSlots.isEmpty()) {
-			return Optional.empty();
-		}
+        if (availableSlots.isEmpty()) {
+            return Optional.empty();
+        }
 
-		final ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
+        final ResourceProfile resourceProfile = slotProfile.getPhysicalSlotResourceProfile();
 
-		// if we have no location preferences, we can only filter by the additional requirements.
-		return locationPreferences.isEmpty() ?
-			selectWithoutLocationPreference(availableSlots, resourceProfile) :
-			selectWithLocationPreference(availableSlots, locationPreferences, resourceProfile);
-	}
+        // if we have no location preferences, we can only filter by the additional requirements.
+        return locationPreferences.isEmpty()
+                ? selectWithoutLocationPreference(availableSlots, resourceProfile)
+                : selectWithLocationPreference(
+                        availableSlots, locationPreferences, resourceProfile);
+    }
 
-	@Nonnull
-	private Optional<SlotInfoAndLocality> selectWithLocationPreference(
-		@Nonnull Collection<SlotInfoAndResources> availableSlots,
-		@Nonnull Collection<TaskManagerLocation> locationPreferences,
-		@Nonnull ResourceProfile resourceProfile) {
+    @Nonnull
+    private Optional<SlotInfoAndLocality> selectWithLocationPreference(
+            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull Collection<TaskManagerLocation> locationPreferences,
+            @Nonnull ResourceProfile resourceProfile) {
 
-		// we build up two indexes, one for resource id and one for host names of the preferred locations.
-		final Map<ResourceID, Integer> preferredResourceIDs = new HashMap<>(locationPreferences.size());
-		final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
+        // we build up two indexes, one for resource id and one for host names of the preferred
+        // locations.
+        final Map<ResourceID, Integer> preferredResourceIDs =
+                new HashMap<>(locationPreferences.size());
+        final Map<String, Integer> preferredFQHostNames = new HashMap<>(locationPreferences.size());
 
-		for (TaskManagerLocation locationPreference : locationPreferences) {
-			preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
-			preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
-		}
+        for (TaskManagerLocation locationPreference : locationPreferences) {
+            preferredResourceIDs.merge(locationPreference.getResourceID(), 1, Integer::sum);
+            preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
+        }
 
-		SlotInfoAndResources bestCandidate = null;
-		Locality bestCandidateLocality = Locality.UNKNOWN;
-		double bestCandidateScore = Double.NEGATIVE_INFINITY;
+        SlotInfoAndResources bestCandidate = null;
+        Locality bestCandidateLocality = Locality.UNKNOWN;
+        double bestCandidateScore = Double.NEGATIVE_INFINITY;
 
-		for (SlotInfoAndResources candidate : availableSlots) {
+        for (SlotInfoAndResources candidate : availableSlots) {
 
-			if (candidate.getRemainingResources().isMatching(resourceProfile)) {
+            if (candidate.getRemainingResources().isMatching(resourceProfile)) {
 
-				// this gets candidate is local-weigh
-				int localWeigh = preferredResourceIDs.getOrDefault(
-					candidate.getSlotInfo().getTaskManagerLocation().getResourceID(), 0);
+                // this gets candidate is local-weigh
+                int localWeigh =
+                        preferredResourceIDs.getOrDefault(
+                                candidate.getSlotInfo().getTaskManagerLocation().getResourceID(),
+                                0);
 
-				// this gets candidate is host-local-weigh
-				int hostLocalWeigh = preferredFQHostNames.getOrDefault(
-					candidate.getSlotInfo().getTaskManagerLocation().getFQDNHostname(), 0);
+                // this gets candidate is host-local-weigh
+                int hostLocalWeigh =
+                        preferredFQHostNames.getOrDefault(
+                                candidate.getSlotInfo().getTaskManagerLocation().getFQDNHostname(),
+                                0);
 
-				double candidateScore = calculateCandidateScore(localWeigh, hostLocalWeigh, candidate.getTaskExecutorUtilization());
-				if (candidateScore > bestCandidateScore) {
-					bestCandidateScore = candidateScore;
-					bestCandidate = candidate;
-					bestCandidateLocality = localWeigh > 0 ?
-						Locality.LOCAL : hostLocalWeigh > 0 ?
-						Locality.HOST_LOCAL : Locality.NON_LOCAL;
-				}
-			}
-		}
+                double candidateScore =
+                        calculateCandidateScore(
+                                localWeigh, hostLocalWeigh, candidate.getTaskExecutorUtilization());
+                if (candidateScore > bestCandidateScore) {
+                    bestCandidateScore = candidateScore;
+                    bestCandidate = candidate;
+                    bestCandidateLocality =
+                            localWeigh > 0
+                                    ? Locality.LOCAL
+                                    : hostLocalWeigh > 0 ? Locality.HOST_LOCAL : Locality.NON_LOCAL;
+                }
+            }
+        }
 
-		// at the end of the iteration, we return the candidate with best possible locality or null.
-		return bestCandidate != null ?
-			Optional.of(SlotInfoAndLocality.of(bestCandidate.getSlotInfo(), bestCandidateLocality)) :
-			Optional.empty();
-	}
+        // at the end of the iteration, we return the candidate with best possible locality or null.
+        return bestCandidate != null
+                ? Optional.of(
+                        SlotInfoAndLocality.of(bestCandidate.getSlotInfo(), bestCandidateLocality))
+                : Optional.empty();
+    }
 
-	@Nonnull
-	protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-		@Nonnull Collection<SlotInfoAndResources> availableSlots,
-		@Nonnull ResourceProfile resourceProfile);
+    @Nonnull
+    protected abstract Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
+            @Nonnull Collection<SlotInfoAndResources> availableSlots,
+            @Nonnull ResourceProfile resourceProfile);
 
-	protected abstract double calculateCandidateScore(int localWeigh, int hostLocalWeigh, double taskExecutorUtilization);
+    protected abstract double calculateCandidateScore(
+            int localWeigh, int hostLocalWeigh, double taskExecutorUtilization);
 
-	// -------------------------------------------------------------------------------------------
-	// Factory methods
-	// -------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
+    // Factory methods
+    // -------------------------------------------------------------------------------------------
 
-	public static LocationPreferenceSlotSelectionStrategy createDefault() {
-		return new DefaultLocationPreferenceSlotSelectionStrategy();
-	}
+    public static LocationPreferenceSlotSelectionStrategy createDefault() {
+        return new DefaultLocationPreferenceSlotSelectionStrategy();
+    }
 
-	public static LocationPreferenceSlotSelectionStrategy createEvenlySpreadOut() {
-		return new EvenlySpreadOutLocationPreferenceSlotSelectionStrategy();
-	}
+    public static LocationPreferenceSlotSelectionStrategy createEvenlySpreadOut() {
+        return new EvenlySpreadOutLocationPreferenceSlotSelectionStrategy();
+    }
 }

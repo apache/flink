@@ -30,57 +30,63 @@ import javax.annotation.Nonnull;
 
 import java.util.List;
 
-class TtlReducingStateVerifier extends AbstractTtlStateVerifier<
-	ReducingStateDescriptor<Integer>, ReducingState<Integer>, Integer, Integer, Integer> {
-	TtlReducingStateVerifier() {
-		super(new ReducingStateDescriptor<>(
-			TtlReducingStateVerifier.class.getSimpleName(),
-			(ReduceFunction<Integer>) (value1, value2) -> value1 + value2,
-			IntSerializer.INSTANCE));
-	}
+class TtlReducingStateVerifier
+        extends AbstractTtlStateVerifier<
+                ReducingStateDescriptor<Integer>,
+                ReducingState<Integer>,
+                Integer,
+                Integer,
+                Integer> {
+    TtlReducingStateVerifier() {
+        super(
+                new ReducingStateDescriptor<>(
+                        TtlReducingStateVerifier.class.getSimpleName(),
+                        (ReduceFunction<Integer>) (value1, value2) -> value1 + value2,
+                        IntSerializer.INSTANCE));
+    }
 
-	@Override
-	@Nonnull
-	State createState(@Nonnull FunctionInitializationContext context) {
-		return context.getKeyedStateStore().getReducingState(stateDesc);
-	}
+    @Override
+    @Nonnull
+    State createState(@Nonnull FunctionInitializationContext context) {
+        return context.getKeyedStateStore().getReducingState(stateDesc);
+    }
 
-	@Override
-	@Nonnull
-	public TypeSerializer<Integer> getUpdateSerializer() {
-		return IntSerializer.INSTANCE;
-	}
+    @Override
+    @Nonnull
+    public TypeSerializer<Integer> getUpdateSerializer() {
+        return IntSerializer.INSTANCE;
+    }
 
-	@Override
-	@Nonnull
-	public Integer generateRandomUpdate() {
-		return RANDOM.nextInt(100);
-	}
+    @Override
+    @Nonnull
+    public Integer generateRandomUpdate() {
+        return RANDOM.nextInt(100);
+    }
 
-	@Override
-	Integer getInternal(@Nonnull ReducingState<Integer> state) throws Exception {
-		return state.get();
-	}
+    @Override
+    Integer getInternal(@Nonnull ReducingState<Integer> state) throws Exception {
+        return state.get();
+    }
 
-	@Override
-	void updateInternal(@Nonnull ReducingState<Integer> state, Integer update) throws Exception {
-		state.add(update);
-	}
+    @Override
+    void updateInternal(@Nonnull ReducingState<Integer> state, Integer update) throws Exception {
+        state.add(update);
+    }
 
-	@Override
-	Integer expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
-		if (updates.isEmpty()) {
-			return null;
-		}
-		int acc = 0;
-		long lastTs = updates.get(0).getTimestamp();
-		for (ValueWithTs<Integer> update : updates) {
-			if (expired(lastTs, update.getTimestamp())) {
-				acc = 0;
-			}
-			acc += update.getValue();
-			lastTs = update.getTimestamp();
-		}
-		return expired(lastTs, currentTimestamp) ? null : acc;
-	}
+    @Override
+    Integer expected(@Nonnull List<ValueWithTs<Integer>> updates, long currentTimestamp) {
+        if (updates.isEmpty()) {
+            return null;
+        }
+        int acc = 0;
+        long lastTs = updates.get(0).getTimestamp();
+        for (ValueWithTs<Integer> update : updates) {
+            if (expired(lastTs, update.getTimestamp())) {
+                acc = 0;
+            }
+            acc += update.getValue();
+            lastTs = update.getTimestamp();
+        }
+        return expired(lastTs, currentTimestamp) ? null : acc;
+    }
 }

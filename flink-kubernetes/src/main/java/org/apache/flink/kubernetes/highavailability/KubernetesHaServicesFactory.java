@@ -27,18 +27,17 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory
 
 import java.util.concurrent.Executor;
 
-/**
- * Factory for creating Kubernetes high availability services.
- */
+/** Factory for creating Kubernetes high availability services. */
 public class KubernetesHaServicesFactory implements HighAvailabilityServicesFactory {
 
-	@Override
-	public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) throws Exception {
-		final KubeClientFactory kubeClientFactory = new DefaultKubeClientFactory();
-		return new KubernetesHaServices(
-			kubeClientFactory.fromConfiguration(configuration, executor),
-			executor,
-			configuration,
-			BlobUtils.createBlobStoreFromConfig(configuration));
-	}
+    @Override
+    public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor)
+            throws Exception {
+        final KubeClientFactory kubeClientFactory = new DefaultKubeClientFactory();
+        return new KubernetesHaServices(
+                kubeClientFactory.fromConfiguration(configuration, executor),
+                executor,
+                configuration,
+                BlobUtils.createBlobStoreFromConfig(configuration));
+    }
 }

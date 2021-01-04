@@ -31,13 +31,10 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  * will be thrown.
  *
  * @param <T> Type of {@link DataStream} that this {@link TableSink} expects and supports.
- *
- * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface consumes
- *             internal data structures and only works with the Blink planner. See FLIP-95 for more
- *             information.
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
+ *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
 @Deprecated
 @PublicEvolving
-public interface AppendStreamTableSink<T> extends StreamTableSink<T> {
-
-}
+public interface AppendStreamTableSink<T> extends StreamTableSink<T> {}

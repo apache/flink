@@ -28,60 +28,59 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.Executor;
 
-/**
- * Abstract common base class for implementations of {@link ResourceManagerDriver}.
- */
+/** Abstract common base class for implementations of {@link ResourceManagerDriver}. */
 public abstract class AbstractResourceManagerDriver<WorkerType extends ResourceIDRetrievable>
-	implements ResourceManagerDriver<WorkerType> {
+        implements ResourceManagerDriver<WorkerType> {
 
-	protected final Logger log = LoggerFactory.getLogger(getClass());
+    protected final Logger log = LoggerFactory.getLogger(getClass());
 
-	protected final Configuration flinkConfig;
-	protected final Configuration flinkClientConfig;
+    protected final Configuration flinkConfig;
+    protected final Configuration flinkClientConfig;
 
-	private ResourceEventHandler<WorkerType> resourceEventHandler = null;
-	private ScheduledExecutor mainThreadExecutor = null;
-	private Executor ioExecutor = null;
+    private ResourceEventHandler<WorkerType> resourceEventHandler = null;
+    private ScheduledExecutor mainThreadExecutor = null;
+    private Executor ioExecutor = null;
 
-	public AbstractResourceManagerDriver(
-			final Configuration flinkConfig,
-			final Configuration flinkClientConfig) {
-		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
-		this.flinkClientConfig = Preconditions.checkNotNull(flinkClientConfig);
-	}
+    public AbstractResourceManagerDriver(
+            final Configuration flinkConfig, final Configuration flinkClientConfig) {
+        this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+        this.flinkClientConfig = Preconditions.checkNotNull(flinkClientConfig);
+    }
 
-	protected final ResourceEventHandler<WorkerType> getResourceEventHandler() {
-		Preconditions.checkState(resourceEventHandler != null,
-				"Cannot get resource event handler. Resource manager driver is not initialized.");
-		return resourceEventHandler;
-	}
+    protected final ResourceEventHandler<WorkerType> getResourceEventHandler() {
+        Preconditions.checkState(
+                resourceEventHandler != null,
+                "Cannot get resource event handler. Resource manager driver is not initialized.");
+        return resourceEventHandler;
+    }
 
-	protected final ScheduledExecutor getMainThreadExecutor() {
-		Preconditions.checkState(mainThreadExecutor != null,
-				"Cannot get main thread executor. Resource manager driver is not initialized.");
-		return mainThreadExecutor;
-	}
+    protected final ScheduledExecutor getMainThreadExecutor() {
+        Preconditions.checkState(
+                mainThreadExecutor != null,
+                "Cannot get main thread executor. Resource manager driver is not initialized.");
+        return mainThreadExecutor;
+    }
 
-	protected final Executor getIoExecutor() {
-		Preconditions.checkState(ioExecutor != null,
-				"Cannot get the io executor. Resource manager driver is not initialized.");
-		return ioExecutor;
-	}
+    protected final Executor getIoExecutor() {
+        Preconditions.checkState(
+                ioExecutor != null,
+                "Cannot get the io executor. Resource manager driver is not initialized.");
+        return ioExecutor;
+    }
 
-	@Override
-	public final void initialize(
-			ResourceEventHandler<WorkerType> resourceEventHandler,
-			ScheduledExecutor mainThreadExecutor,
-			Executor ioExecutor) throws Exception {
-		this.resourceEventHandler = Preconditions.checkNotNull(resourceEventHandler);
-		this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
-		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+    @Override
+    public final void initialize(
+            ResourceEventHandler<WorkerType> resourceEventHandler,
+            ScheduledExecutor mainThreadExecutor,
+            Executor ioExecutor)
+            throws Exception {
+        this.resourceEventHandler = Preconditions.checkNotNull(resourceEventHandler);
+        this.mainThreadExecutor = Preconditions.checkNotNull(mainThreadExecutor);
+        this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
-		initializeInternal();
-	}
+        initializeInternal();
+    }
 
-	/**
-	 * Initialize the deployment specific components.
-	 */
-	protected abstract void initializeInternal() throws Exception;
+    /** Initialize the deployment specific components. */
+    protected abstract void initializeInternal() throws Exception;
 }

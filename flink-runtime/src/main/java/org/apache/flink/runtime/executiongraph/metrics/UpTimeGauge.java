@@ -31,37 +31,35 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class UpTimeGauge implements Gauge<Long> {
 
-	public static final String METRIC_NAME = "uptime";
+    public static final String METRIC_NAME = "uptime";
 
-	private static final long NO_LONGER_RUNNING = -1L;
+    private static final long NO_LONGER_RUNNING = -1L;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private final JobStatusProvider jobStatusProvider;
+    private final JobStatusProvider jobStatusProvider;
 
-	public UpTimeGauge(JobStatusProvider jobStatusProvider) {
-		this.jobStatusProvider = checkNotNull(jobStatusProvider);
-	}
+    public UpTimeGauge(JobStatusProvider jobStatusProvider) {
+        this.jobStatusProvider = checkNotNull(jobStatusProvider);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public Long getValue() {
-		final JobStatus status = jobStatusProvider.getState();
+    @Override
+    public Long getValue() {
+        final JobStatus status = jobStatusProvider.getState();
 
-		if (status == JobStatus.RUNNING) {
-			// running right now - report the uptime
-			final long runningTimestamp = jobStatusProvider.getStatusTimestamp(JobStatus.RUNNING);
-			// we use 'Math.max' here to avoid negative timestamps when clocks change
-			return Math.max(System.currentTimeMillis() - runningTimestamp, 0);
-		}
-		else if (status.isTerminalState()) {
-			// not running any more -> finished or not on leader
-			return NO_LONGER_RUNNING;
-		}
-		else {
-			// not yet running or not up at the moment
-			return 0L;
-		}
-	}
+        if (status == JobStatus.RUNNING) {
+            // running right now - report the uptime
+            final long runningTimestamp = jobStatusProvider.getStatusTimestamp(JobStatus.RUNNING);
+            // we use 'Math.max' here to avoid negative timestamps when clocks change
+            return Math.max(System.currentTimeMillis() - runningTimestamp, 0);
+        } else if (status.isTerminalState()) {
+            // not running any more -> finished or not on leader
+            return NO_LONGER_RUNNING;
+        } else {
+            // not yet running or not up at the moment
+            return 0L;
+        }
+    }
 }

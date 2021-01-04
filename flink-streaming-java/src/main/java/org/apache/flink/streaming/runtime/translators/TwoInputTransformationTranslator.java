@@ -35,42 +35,41 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class TwoInputTransformationTranslator<IN1, IN2, OUT>
-		extends AbstractTwoInputTransformationTranslator<IN1, IN2, OUT, TwoInputTransformation<IN1, IN2, OUT>> {
+        extends AbstractTwoInputTransformationTranslator<
+                IN1, IN2, OUT, TwoInputTransformation<IN1, IN2, OUT>> {
 
-	@Override
-	protected Collection<Integer> translateForBatchInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		Collection<Integer> ids = translateInternal(transformation, context);
-		boolean isKeyed =
-			transformation.getStateKeySelector1() != null && transformation.getStateKeySelector2() != null;
-		if (isKeyed) {
-			BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
-		}
-		return ids;
-	}
+    @Override
+    protected Collection<Integer> translateForBatchInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        Collection<Integer> ids = translateInternal(transformation, context);
+        boolean isKeyed =
+                transformation.getStateKeySelector1() != null
+                        && transformation.getStateKeySelector2() != null;
+        if (isKeyed) {
+            BatchExecutionUtils.applySortingInputs(transformation.getId(), context);
+        }
+        return ids;
+    }
 
-	@Override
-	protected Collection<Integer> translateForStreamingInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		return translateInternal(transformation, context);
-	}
+    @Override
+    protected Collection<Integer> translateForStreamingInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        return translateInternal(transformation, context);
+    }
 
-	private Collection<Integer> translateInternal(
-			final TwoInputTransformation<IN1, IN2, OUT> transformation,
-			final Context context) {
-		checkNotNull(transformation);
-		checkNotNull(context);
+    private Collection<Integer> translateInternal(
+            final TwoInputTransformation<IN1, IN2, OUT> transformation, final Context context) {
+        checkNotNull(transformation);
+        checkNotNull(context);
 
-		return translateInternal(
-				transformation,
-				transformation.getInput1(),
-				transformation.getInput2(),
-				transformation.getOperatorFactory(),
-				transformation.getStateKeyType(),
-				transformation.getStateKeySelector1(),
-				transformation.getStateKeySelector2(),
-				context);
-	}
+        return translateInternal(
+                transformation,
+                transformation.getInput1(),
+                transformation.getInput2(),
+                transformation.getOperatorFactory(),
+                transformation.getStateKeyType(),
+                transformation.getStateKeySelector1(),
+                transformation.getStateKeySelector2(),
+                context);
+    }
 }

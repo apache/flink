@@ -48,193 +48,197 @@ import java.util.concurrent.Executors;
 /**
  * {@link OperatorCoordinator} for {@link CollectSinkFunction}.
  *
- * <p>This coordinator only forwards requests and responses from clients and sinks
- * and it does not store any results in itself.
+ * <p>This coordinator only forwards requests and responses from clients and sinks and it does not
+ * store any results in itself.
  */
-public class CollectSinkOperatorCoordinator implements OperatorCoordinator, CoordinationRequestHandler {
+public class CollectSinkOperatorCoordinator
+        implements OperatorCoordinator, CoordinationRequestHandler {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CollectSinkOperatorCoordinator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CollectSinkOperatorCoordinator.class);
 
-	private final int socketTimeout;
+    private final int socketTimeout;
 
-	private InetSocketAddress address;
-	private Socket socket;
-	private DataInputViewStreamWrapper inStream;
-	private DataOutputViewStreamWrapper outStream;
+    private InetSocketAddress address;
+    private Socket socket;
+    private DataInputViewStreamWrapper inStream;
+    private DataOutputViewStreamWrapper outStream;
 
-	private ExecutorService executorService;
+    private ExecutorService executorService;
 
-	public CollectSinkOperatorCoordinator(int socketTimeout) {
-		this.socketTimeout = socketTimeout;
-	}
+    public CollectSinkOperatorCoordinator(int socketTimeout) {
+        this.socketTimeout = socketTimeout;
+    }
 
-	@Override
-	public void start() throws Exception {
-		this.executorService =
-			Executors.newSingleThreadExecutor(
-				new ExecutorThreadFactory(
-					"collect-sink-operator-coordinator-executor-thread-pool"));
-	}
+    @Override
+    public void start() throws Exception {
+        this.executorService =
+                Executors.newSingleThreadExecutor(
+                        new ExecutorThreadFactory(
+                                "collect-sink-operator-coordinator-executor-thread-pool"));
+    }
 
-	@Override
-	public void close() throws Exception {
-		closeConnection();
-		this.executorService.shutdown();
-	}
+    @Override
+    public void close() throws Exception {
+        closeConnection();
+        this.executorService.shutdown();
+    }
 
-	@Override
-	public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
-		Preconditions.checkArgument(
-			event instanceof CollectSinkAddressEvent, "Operator event must be a CollectSinkAddressEvent");
-		address = ((CollectSinkAddressEvent) event).getAddress();
-		LOG.info("Received sink socket server address: " + address);
-	}
+    @Override
+    public void handleEventFromOperator(int subtask, OperatorEvent event) throws Exception {
+        Preconditions.checkArgument(
+                event instanceof CollectSinkAddressEvent,
+                "Operator event must be a CollectSinkAddressEvent");
+        address = ((CollectSinkAddressEvent) event).getAddress();
+        LOG.info("Received sink socket server address: " + address);
+    }
 
-	@Override
-	public CompletableFuture<CoordinationResponse> handleCoordinationRequest(CoordinationRequest request) {
-		Preconditions.checkArgument(
-			request instanceof CollectCoordinationRequest,
-			"Coordination request must be a CollectCoordinationRequest");
+    @Override
+    public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+            CoordinationRequest request) {
+        Preconditions.checkArgument(
+                request instanceof CollectCoordinationRequest,
+                "Coordination request must be a CollectCoordinationRequest");
 
-		CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
-		CompletableFuture<CoordinationResponse> responseFuture = new CompletableFuture<>();
+        CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
+        CompletableFuture<CoordinationResponse> responseFuture = new CompletableFuture<>();
 
-		if (address == null) {
-			completeWithEmptyResponse(collectRequest, responseFuture);
-			return responseFuture;
-		}
+        if (address == null) {
+            completeWithEmptyResponse(collectRequest, responseFuture);
+            return responseFuture;
+        }
 
-		executorService.submit(() -> handleRequestImpl(collectRequest, responseFuture, address));
-		return responseFuture;
-	}
+        executorService.submit(() -> handleRequestImpl(collectRequest, responseFuture, address));
+        return responseFuture;
+    }
 
-	private void handleRequestImpl(
-			CollectCoordinationRequest request,
-			CompletableFuture<CoordinationResponse> responseFuture,
-			InetSocketAddress sinkAddress) {
-		if (sinkAddress == null) {
-			closeConnection();
-			completeWithEmptyResponse(request, responseFuture);
-			return;
-		}
+    private void handleRequestImpl(
+            CollectCoordinationRequest request,
+            CompletableFuture<CoordinationResponse> responseFuture,
+            InetSocketAddress sinkAddress) {
+        if (sinkAddress == null) {
+            closeConnection();
+            completeWithEmptyResponse(request, responseFuture);
+            return;
+        }
 
-		try {
-			if (socket == null) {
-				socket = new Socket();
-				socket.setSoTimeout(socketTimeout);
-				socket.setKeepAlive(true);
-				socket.setTcpNoDelay(true);
+        try {
+            if (socket == null) {
+                socket = new Socket();
+                socket.setSoTimeout(socketTimeout);
+                socket.setKeepAlive(true);
+                socket.setTcpNoDelay(true);
 
-				socket.connect(sinkAddress);
-				inStream = new DataInputViewStreamWrapper(socket.getInputStream());
-				outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
-				LOG.info("Sink connection established");
-			}
+                socket.connect(sinkAddress);
+                inStream = new DataInputViewStreamWrapper(socket.getInputStream());
+                outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
+                LOG.info("Sink connection established");
+            }
 
-			// send version and offset to sink server
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Forwarding request to sink socket server");
-			}
-			request.serialize(outStream);
+            // send version and offset to sink server
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Forwarding request to sink socket server");
+            }
+            request.serialize(outStream);
 
-			// fetch back serialized results
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Fetching serialized result from sink socket server");
-			}
-			responseFuture.complete(new CollectCoordinationResponse(inStream));
-		} catch (Exception e) {
-			// request failed, close current connection and send back empty results
-			// we catch every exception here because socket might suddenly becomes null if the sink fails
-			// and we do not want the coordinator to fail
-			if (LOG.isDebugEnabled()) {
-				// this is normal when sink restarts or job ends, so we print a debug log
-				LOG.debug("Collect sink coordinator encounters an exception", e);
-			}
-			closeConnection();
-			completeWithEmptyResponse(request, responseFuture);
-		}
-	}
+            // fetch back serialized results
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Fetching serialized result from sink socket server");
+            }
+            responseFuture.complete(new CollectCoordinationResponse(inStream));
+        } catch (Exception e) {
+            // request failed, close current connection and send back empty results
+            // we catch every exception here because socket might suddenly becomes null if the sink
+            // fails
+            // and we do not want the coordinator to fail
+            if (LOG.isDebugEnabled()) {
+                // this is normal when sink restarts or job ends, so we print a debug log
+                LOG.debug("Collect sink coordinator encounters an exception", e);
+            }
+            closeConnection();
+            completeWithEmptyResponse(request, responseFuture);
+        }
+    }
 
-	private void completeWithEmptyResponse(
-			CollectCoordinationRequest request,
-			CompletableFuture<CoordinationResponse> future) {
-		future.complete(new CollectCoordinationResponse(
-			request.getVersion(),
-			// this lastCheckpointedOffset is OK
-			// because client will only expose results to the users when the checkpointed offset increases
-			-1,
-			Collections.emptyList()));
-	}
+    private void completeWithEmptyResponse(
+            CollectCoordinationRequest request, CompletableFuture<CoordinationResponse> future) {
+        future.complete(
+                new CollectCoordinationResponse(
+                        request.getVersion(),
+                        // this lastCheckpointedOffset is OK
+                        // because client will only expose results to the users when the
+                        // checkpointed offset increases
+                        -1,
+                        Collections.emptyList()));
+    }
 
-	private void closeConnection() {
-		if (socket != null) {
-			try {
-				socket.close();
-			} catch (IOException e) {
-				LOG.warn("Failed to close sink socket server connection", e);
-			}
-		}
-		socket = null;
-	}
+    private void closeConnection() {
+        if (socket != null) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                LOG.warn("Failed to close sink socket server connection", e);
+            }
+        }
+        socket = null;
+    }
 
-	@Override
-	public void subtaskFailed(int subtask, @Nullable Throwable reason) {
-		// subtask failed, the socket server does not exist anymore
-		address = null;
-	}
+    @Override
+    public void subtaskFailed(int subtask, @Nullable Throwable reason) {
+        // subtask failed, the socket server does not exist anymore
+        address = null;
+    }
 
-	@Override
-	public void subtaskReset(int subtask, long checkpointId) {
-		// nothing to do here, connections are re-created lazily
-	}
+    @Override
+    public void subtaskReset(int subtask, long checkpointId) {
+        // nothing to do here, connections are re-created lazily
+    }
 
-	@Override
-	public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result) throws Exception {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos = new ObjectOutputStream(baos);
-		oos.writeObject(address);
+    @Override
+    public void checkpointCoordinator(long checkpointId, CompletableFuture<byte[]> result)
+            throws Exception {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(address);
 
-		result.complete(baos.toByteArray());
-	}
+        result.complete(baos.toByteArray());
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {}
 
-	@Override
-	public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData) throws Exception {
-		if (checkpointData == null) {
-			// restore before any checkpoint completed
-			closeConnection();
-		} else {
-			ByteArrayInputStream bais = new ByteArrayInputStream(checkpointData);
-			ObjectInputStream ois = new ObjectInputStream(bais);
-			address = (InetSocketAddress) ois.readObject();
-		}
-	}
+    @Override
+    public void resetToCheckpoint(long checkpointId, @Nullable byte[] checkpointData)
+            throws Exception {
+        if (checkpointData == null) {
+            // restore before any checkpoint completed
+            closeConnection();
+        } else {
+            ByteArrayInputStream bais = new ByteArrayInputStream(checkpointData);
+            ObjectInputStream ois = new ObjectInputStream(bais);
+            address = (InetSocketAddress) ois.readObject();
+        }
+    }
 
-	/**
-	 * Provider for {@link CollectSinkOperatorCoordinator}.
-	 */
-	public static class Provider implements OperatorCoordinator.Provider {
+    /** Provider for {@link CollectSinkOperatorCoordinator}. */
+    public static class Provider implements OperatorCoordinator.Provider {
 
-		private final OperatorID operatorId;
-		private final int socketTimeout;
+        private final OperatorID operatorId;
+        private final int socketTimeout;
 
-		public Provider(OperatorID operatorId, int socketTimeout) {
-			this.operatorId = operatorId;
-			this.socketTimeout = socketTimeout;
-		}
+        public Provider(OperatorID operatorId, int socketTimeout) {
+            this.operatorId = operatorId;
+            this.socketTimeout = socketTimeout;
+        }
 
-		@Override
-		public OperatorID getOperatorId() {
-			return operatorId;
-		}
+        @Override
+        public OperatorID getOperatorId() {
+            return operatorId;
+        }
 
-		@Override
-		public OperatorCoordinator create(Context context) {
-			// we do not send operator event so we don't need a context
-			return new CollectSinkOperatorCoordinator(socketTimeout);
-		}
-	}
+        @Override
+        public OperatorCoordinator create(Context context) {
+            // we do not send operator event so we don't need a context
+            return new CollectSinkOperatorCoordinator(socketTimeout);
+        }
+    }
 }

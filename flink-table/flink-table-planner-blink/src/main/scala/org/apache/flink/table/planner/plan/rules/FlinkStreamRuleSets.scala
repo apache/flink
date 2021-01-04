@@ -244,6 +244,7 @@ object FlinkStreamRuleSets {
     PushProjectIntoLegacyTableSourceScanRule.INSTANCE,
     PushFilterIntoTableSourceScanRule.INSTANCE,
     PushFilterIntoLegacyTableSourceScanRule.INSTANCE,
+    PushLimitIntoTableSourceScanRule.INSTANCE,
 
     // reorder the projecct and watermark assigner
     ProjectWatermarkAssignerTransposeRule.INSTANCE,
@@ -380,14 +381,16 @@ object FlinkStreamRuleSets {
     //Rule that rewrites temporal join with extracted primary key
     TemporalJoinRewriteWithUniqueKeyRule.INSTANCE,
     // Rule that splits python ScalarFunctions from java/scala ScalarFunctions.
-    PythonCalcSplitRule.SPLIT_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.SPLIT_PANDAS_IN_PROJECT,
     PythonCalcSplitRule.EXPAND_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
-    PythonCalcSplitRule.REWRITE_PROJECT
-  )
+    PythonCalcSplitRule.REWRITE_PROJECT,
+    PythonMapMergeRule.INSTANCE
+    )
 
   /**
     * RuleSet to do physical optimize for stream
@@ -400,22 +403,22 @@ object FlinkStreamRuleSets {
     StreamPhysicalLegacyTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
     StreamPhysicalWatermarkAssignerRule.INSTANCE,
-    StreamExecValuesRule.INSTANCE,
+    StreamPhysicalValuesRule.INSTANCE,
     // calc
     StreamPhysicalCalcRule.INSTANCE,
     StreamPhysicalPythonCalcRule.INSTANCE,
     // union
-    StreamExecUnionRule.INSTANCE,
+    StreamPhysicalUnionRule.INSTANCE,
     // sort
     StreamExecSortRule.INSTANCE,
-    StreamExecLimitRule.INSTANCE,
+    StreamPhysicalLimitRule.INSTANCE,
     StreamExecSortLimitRule.INSTANCE,
     StreamExecTemporalSortRule.INSTANCE,
     // rank
-    StreamExecRankRule.INSTANCE,
+    StreamPhysicalRankRule.INSTANCE,
     StreamExecDeduplicateRule.RANK_INSTANCE,
     // expand
-    StreamExecExpandRule.INSTANCE,
+    StreamPhysicalExpandRule.INSTANCE,
     // group agg
     StreamExecGroupAggregateRule.INSTANCE,
     StreamExecGroupTableAggregateRule.INSTANCE,
@@ -437,9 +440,9 @@ object FlinkStreamRuleSets {
     // CEP
     StreamExecMatchRule.INSTANCE,
     // correlate
-    StreamExecConstantTableFunctionScanRule.INSTANCE,
-    StreamExecCorrelateRule.INSTANCE,
-    StreamExecPythonCorrelateRule.INSTANCE,
+    StreamPhysicalConstantTableFunctionScanRule.INSTANCE,
+    StreamPhysicalCorrelateRule.INSTANCE,
+    StreamPhysicalPythonCorrelateRule.INSTANCE,
     // sink
     StreamExecSinkRule.INSTANCE,
     StreamExecLegacySinkRule.INSTANCE

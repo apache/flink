@@ -29,61 +29,61 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * Builder for the {@link JobManagerSharedServices}.
- */
+/** Builder for the {@link JobManagerSharedServices}. */
 public class TestingJobManagerSharedServicesBuilder {
 
-	private ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService scheduledExecutorService;
 
-	private LibraryCacheManager libraryCacheManager;
+    private LibraryCacheManager libraryCacheManager;
 
-	private BackPressureRequestCoordinator backPressureSampleCoordinator;
+    private BackPressureRequestCoordinator backPressureSampleCoordinator;
 
-	private BackPressureStatsTracker backPressureStatsTracker;
+    private BackPressureStatsTracker backPressureStatsTracker;
 
-	private BlobWriter blobWriter;
+    private BlobWriter blobWriter;
 
-	public TestingJobManagerSharedServicesBuilder() {
-		scheduledExecutorService = TestingUtils.defaultExecutor();
-		libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
-		backPressureSampleCoordinator = new BackPressureRequestCoordinator(Runnable::run, 10000);
-		backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
-		blobWriter = VoidBlobWriter.getInstance();
-	}
+    public TestingJobManagerSharedServicesBuilder() {
+        scheduledExecutorService = TestingUtils.defaultExecutor();
+        libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
+        backPressureSampleCoordinator = new BackPressureRequestCoordinator(Runnable::run, 10000);
+        backPressureStatsTracker = VoidBackPressureStatsTracker.INSTANCE;
+        blobWriter = VoidBlobWriter.getInstance();
+    }
 
-	public TestingJobManagerSharedServicesBuilder setScheduledExecutorService(ScheduledExecutorService scheduledExecutorService) {
-		this.scheduledExecutorService = scheduledExecutorService;
-		return this;
-	}
+    public TestingJobManagerSharedServicesBuilder setScheduledExecutorService(
+            ScheduledExecutorService scheduledExecutorService) {
+        this.scheduledExecutorService = scheduledExecutorService;
+        return this;
+    }
 
-	public TestingJobManagerSharedServicesBuilder setLibraryCacheManager(LibraryCacheManager libraryCacheManager) {
-		this.libraryCacheManager = libraryCacheManager;
-		return this;
+    public TestingJobManagerSharedServicesBuilder setLibraryCacheManager(
+            LibraryCacheManager libraryCacheManager) {
+        this.libraryCacheManager = libraryCacheManager;
+        return this;
+    }
 
-	}
+    public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(
+            BackPressureRequestCoordinator backPressureSampleCoordinator) {
+        this.backPressureSampleCoordinator = backPressureSampleCoordinator;
+        return this;
+    }
 
-	public TestingJobManagerSharedServicesBuilder setBackPressureSampleCoordinator(BackPressureRequestCoordinator backPressureSampleCoordinator) {
-		this.backPressureSampleCoordinator = backPressureSampleCoordinator;
-		return this;
-	}
+    public TestingJobManagerSharedServicesBuilder setBackPressureStatsTracker(
+            BackPressureStatsTracker backPressureStatsTracker) {
+        this.backPressureStatsTracker = backPressureStatsTracker;
+        return this;
+    }
 
-	public TestingJobManagerSharedServicesBuilder setBackPressureStatsTracker(BackPressureStatsTracker backPressureStatsTracker) {
-		this.backPressureStatsTracker = backPressureStatsTracker;
-		return this;
+    public void setBlobWriter(BlobWriter blobWriter) {
+        this.blobWriter = blobWriter;
+    }
 
-	}
-
-	public void setBlobWriter(BlobWriter blobWriter) {
-		this.blobWriter = blobWriter;
-	}
-
-	public JobManagerSharedServices build() {
-		return new JobManagerSharedServices(
-			scheduledExecutorService,
-			libraryCacheManager,
-			backPressureSampleCoordinator,
-			backPressureStatsTracker,
-			blobWriter);
-	}
+    public JobManagerSharedServices build() {
+        return new JobManagerSharedServices(
+                scheduledExecutorService,
+                libraryCacheManager,
+                backPressureSampleCoordinator,
+                backPressureStatsTracker,
+                blobWriter);
+    }
 }

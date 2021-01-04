@@ -27,8 +27,9 @@ import org.apache.flink.api.connector.source.Boundedness;
 @Internal
 public interface WithBoundedness {
 
-	/**
-	 * Returns the {@link Boundedness} of this {@link org.apache.flink.api.dag.Transformation Transformation}.
-	 */
-	Boundedness getBoundedness();
+    /**
+     * Returns the {@link Boundedness} of this {@link org.apache.flink.api.dag.Transformation
+     * Transformation}.
+     */
+    Boundedness getBoundedness();
 }

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.StreamPlanner;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
@@ -35,8 +35,6 @@ import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Collections;
-
 import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM;
 
 /**
@@ -44,45 +42,47 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.DEFAULT_LOW
  *
  * <p>TODO Remove this class once its functionality is replaced by ExecEdge.
  */
-public class StreamExecExchange extends StreamExecNode<RowData> implements CommonExecExchange {
+public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
 
-	public StreamExecExchange(
-			ExecEdge inputEdge,
-			RowType outputType,
-			String description) {
-		super(Collections.singletonList(inputEdge), outputType, description);
-	}
+    public StreamExecExchange(ExecEdge inputEdge, RowType outputType, String description) {
+        super(inputEdge, outputType, description);
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Transformation<RowData> translateToPlanInternal(StreamPlanner planner) {
-		final Transformation<RowData> inputTransform =
-				(Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        final Transformation<RowData> inputTransform =
+                (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
 
-		final StreamPartitioner<RowData> partitioner;
-		final int parallelism;
-		final ExecEdge inputEdge = getInputEdges().get(0);
-		final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
-		switch (shuffleType) {
-			case SINGLETON:
-				partitioner = new GlobalPartitioner<>();
-				parallelism = 1;
-				break;
-			case HASH:
-				// TODO Eliminate duplicate keys
-				int[] keys = inputEdge.getRequiredShuffle().getKeys();
-				InternalTypeInfo<RowData> inputType = (InternalTypeInfo<RowData>) inputTransform.getOutputType();
-				RowDataKeySelector keySelector = KeySelectorUtil.getRowDataSelector(keys, inputType);
-				partitioner = new KeyGroupStreamPartitioner<>(keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
-				parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
-				break;
-			default:
-				throw new TableException(String.format("%s is not supported now!", shuffleType));
-		}
+        final StreamPartitioner<RowData> partitioner;
+        final int parallelism;
+        final ExecEdge inputEdge = getInputEdges().get(0);
+        final ExecEdge.ShuffleType shuffleType = inputEdge.getRequiredShuffle().getType();
+        switch (shuffleType) {
+            case SINGLETON:
+                partitioner = new GlobalPartitioner<>();
+                parallelism = 1;
+                break;
+            case HASH:
+                // TODO Eliminate duplicate keys
+                int[] keys = inputEdge.getRequiredShuffle().getKeys();
+                InternalTypeInfo<RowData> inputType =
+                        (InternalTypeInfo<RowData>) inputTransform.getOutputType();
+                RowDataKeySelector keySelector =
+                        KeySelectorUtil.getRowDataSelector(keys, inputType);
+                partitioner =
+                        new KeyGroupStreamPartitioner<>(
+                                keySelector, DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
+                parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
+                break;
+            default:
+                throw new TableException(String.format("%s is not supported now!", shuffleType));
+        }
 
-		final Transformation<RowData> transformation = new PartitionTransformation<>(inputTransform, partitioner);
-		transformation.setParallelism(parallelism);
-		transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
-		return transformation;
-	}
+        final Transformation<RowData> transformation =
+                new PartitionTransformation<>(inputTransform, partitioner);
+        transformation.setParallelism(parallelism);
+        transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
+        return transformation;
+    }
 }

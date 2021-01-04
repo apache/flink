@@ -28,69 +28,72 @@ import org.apache.flink.api.common.eventtime.WatermarkOutput;
  * deferred {@link WatermarkOutput} for this partition.
  *
  * <p>See {@link org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer} for an
- * explanation
- * of immediate and deferred {@link WatermarkOutput WatermarkOutputs.}.
+ * explanation of immediate and deferred {@link WatermarkOutput WatermarkOutputs.}.
  *
  * @param <T> The type of records handled by the watermark generator
  * @param <KPH> The type of the Kafka partition descriptor, which varies across Kafka versions.
  */
 @Internal
-public final class KafkaTopicPartitionStateWithWatermarkGenerator<T, KPH> extends KafkaTopicPartitionState<T, KPH> {
+public final class KafkaTopicPartitionStateWithWatermarkGenerator<T, KPH>
+        extends KafkaTopicPartitionState<T, KPH> {
 
-	private final TimestampAssigner<T> timestampAssigner;
+    private final TimestampAssigner<T> timestampAssigner;
 
-	private final WatermarkGenerator<T> watermarkGenerator;
+    private final WatermarkGenerator<T> watermarkGenerator;
 
-	/**
-	 * Refer to {@link org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer} for
-	 * a description of immediate/deferred output.
-	 */
-	private final WatermarkOutput immediateOutput;
+    /**
+     * Refer to {@link org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer} for a
+     * description of immediate/deferred output.
+     */
+    private final WatermarkOutput immediateOutput;
 
-	/**
-	 * Refer to {@link org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer} for
-	 * a description of immediate/deferred output.
-	 */
-	private final WatermarkOutput deferredOutput;
+    /**
+     * Refer to {@link org.apache.flink.api.common.eventtime.WatermarkOutputMultiplexer} for a
+     * description of immediate/deferred output.
+     */
+    private final WatermarkOutput deferredOutput;
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	public KafkaTopicPartitionStateWithWatermarkGenerator(
-			KafkaTopicPartition partition, KPH kafkaPartitionHandle,
-			TimestampAssigner<T> timestampAssigner,
-			WatermarkGenerator<T> watermarkGenerator,
-			WatermarkOutput immediateOutput,
-			WatermarkOutput deferredOutput) {
-		super(partition, kafkaPartitionHandle);
+    public KafkaTopicPartitionStateWithWatermarkGenerator(
+            KafkaTopicPartition partition,
+            KPH kafkaPartitionHandle,
+            TimestampAssigner<T> timestampAssigner,
+            WatermarkGenerator<T> watermarkGenerator,
+            WatermarkOutput immediateOutput,
+            WatermarkOutput deferredOutput) {
+        super(partition, kafkaPartitionHandle);
 
-		this.timestampAssigner = timestampAssigner;
-		this.watermarkGenerator = watermarkGenerator;
-		this.immediateOutput = immediateOutput;
-		this.deferredOutput = deferredOutput;
-	}
+        this.timestampAssigner = timestampAssigner;
+        this.watermarkGenerator = watermarkGenerator;
+        this.immediateOutput = immediateOutput;
+        this.deferredOutput = deferredOutput;
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public long extractTimestamp(T record, long kafkaEventTimestamp) {
-		return timestampAssigner.extractTimestamp(record, kafkaEventTimestamp);
-	}
+    @Override
+    public long extractTimestamp(T record, long kafkaEventTimestamp) {
+        return timestampAssigner.extractTimestamp(record, kafkaEventTimestamp);
+    }
 
-	@Override
-	public void onEvent(T event, long timestamp) {
-		watermarkGenerator.onEvent(event, timestamp, immediateOutput);
-	}
+    @Override
+    public void onEvent(T event, long timestamp) {
+        watermarkGenerator.onEvent(event, timestamp, immediateOutput);
+    }
 
-	@Override
-	public void onPeriodicEmit() {
-		watermarkGenerator.onPeriodicEmit(deferredOutput);
-	}
+    @Override
+    public void onPeriodicEmit() {
+        watermarkGenerator.onPeriodicEmit(deferredOutput);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public String toString() {
-		return "KafkaTopicPartitionStateWithPeriodicWatermarks: partition=" + getKafkaTopicPartition()
-				+ ", offset=" + getOffset();
-	}
+    @Override
+    public String toString() {
+        return "KafkaTopicPartitionStateWithPeriodicWatermarks: partition="
+                + getKafkaTopicPartition()
+                + ", offset="
+                + getOffset();
+    }
 }

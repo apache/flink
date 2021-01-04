@@ -43,151 +43,170 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-/**
- * Test writing keyed bootstrap state.
- */
+/** Test writing keyed bootstrap state. */
 public class KeyedStateBootstrapOperatorTest {
 
-	private static final ValueStateDescriptor<Long> descriptor = new ValueStateDescriptor<>("state", Types.LONG);
+    private static final ValueStateDescriptor<Long> descriptor =
+            new ValueStateDescriptor<>("state", Types.LONG);
 
-	private static final Long EVENT_TIMER = Long.MAX_VALUE - 1;
+    private static final Long EVENT_TIMER = Long.MAX_VALUE - 1;
 
-	private static final Long PROC_TIMER = Long.MAX_VALUE - 2;
+    private static final Long PROC_TIMER = Long.MAX_VALUE - 2;
 
-	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-	@Test
-	public void testTimerStateRestorable() throws Exception {
-		Path path = new Path(folder.newFolder().toURI());
+    @Test
+    public void testTimerStateRestorable() throws Exception {
+        Path path = new Path(folder.newFolder().toURI());
 
-		OperatorSubtaskState state;
-		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator = new KeyedStateBootstrapOperator<>(0L, path, new TimerBootstrapFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness = getHarness(bootstrapOperator)) {
-			processElements(harness, 1L, 2L, 3L);
-			state = getState(bootstrapOperator, harness);
-		}
+        OperatorSubtaskState state;
+        KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
+                new KeyedStateBootstrapOperator<>(0L, path, new TimerBootstrapFunction());
+        try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
+                harness = getHarness(bootstrapOperator)) {
+            processElements(harness, 1L, 2L, 3L);
+            state = getState(bootstrapOperator, harness);
+        }
 
-		KeyedProcessOperator<Long, Long, Tuple3<Long, Long, TimeDomain>> procOperator = new KeyedProcessOperator<>(new SimpleProcessFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Tuple3<Long, Long, TimeDomain>> harness = getHarness(procOperator, state)) {
-			harness.processWatermark(EVENT_TIMER);
-			harness.setProcessingTime(PROC_TIMER);
+        KeyedProcessOperator<Long, Long, Tuple3<Long, Long, TimeDomain>> procOperator =
+                new KeyedProcessOperator<>(new SimpleProcessFunction());
+        try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Tuple3<Long, Long, TimeDomain>>
+                harness = getHarness(procOperator, state)) {
+            harness.processWatermark(EVENT_TIMER);
+            harness.setProcessingTime(PROC_TIMER);
 
-			assertHarnessOutput(harness,
-				Tuple3.of(1L, EVENT_TIMER, TimeDomain.EVENT_TIME),
-				Tuple3.of(2L, EVENT_TIMER, TimeDomain.EVENT_TIME),
-				Tuple3.of(3L, EVENT_TIMER, TimeDomain.EVENT_TIME),
-				Tuple3.of(1L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
-				Tuple3.of(2L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
-				Tuple3.of(3L, PROC_TIMER, TimeDomain.PROCESSING_TIME));
-		}
-	}
+            assertHarnessOutput(
+                    harness,
+                    Tuple3.of(1L, EVENT_TIMER, TimeDomain.EVENT_TIME),
+                    Tuple3.of(2L, EVENT_TIMER, TimeDomain.EVENT_TIME),
+                    Tuple3.of(3L, EVENT_TIMER, TimeDomain.EVENT_TIME),
+                    Tuple3.of(1L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
+                    Tuple3.of(2L, PROC_TIMER, TimeDomain.PROCESSING_TIME),
+                    Tuple3.of(3L, PROC_TIMER, TimeDomain.PROCESSING_TIME));
+        }
+    }
 
-	@Test
-	public void testNonTimerStatesRestorableByNonProcessesOperator() throws Exception {
-		Path path = new Path(folder.newFolder().toURI());
+    @Test
+    public void testNonTimerStatesRestorableByNonProcessesOperator() throws Exception {
+        Path path = new Path(folder.newFolder().toURI());
 
-		OperatorSubtaskState state;
-		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator = new KeyedStateBootstrapOperator<>(0L, path, new SimpleBootstrapFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness = getHarness(bootstrapOperator)) {
-			processElements(harness, 1L, 2L, 3L);
-			state = getState(bootstrapOperator, harness);
-		}
+        OperatorSubtaskState state;
+        KeyedStateBootstrapOperator<Long, Long> bootstrapOperator =
+                new KeyedStateBootstrapOperator<>(0L, path, new SimpleBootstrapFunction());
+        try (KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState>
+                harness = getHarness(bootstrapOperator)) {
+            processElements(harness, 1L, 2L, 3L);
+            state = getState(bootstrapOperator, harness);
+        }
 
-		StreamMap<Long, Long> mapOperator = new StreamMap<>(new StreamingFunction());
-		try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Long> harness = getHarness(mapOperator, state)) {
-			processElements(harness, 1L, 2L, 3L);
+        StreamMap<Long, Long> mapOperator = new StreamMap<>(new StreamingFunction());
+        try (KeyedOneInputStreamOperatorTestHarness<Long, Long, Long> harness =
+                getHarness(mapOperator, state)) {
+            processElements(harness, 1L, 2L, 3L);
 
-			assertHarnessOutput(harness, 1L, 2L, 3L);
-			harness.snapshot(0L, 0L);
-		}
-	}
+            assertHarnessOutput(harness, 1L, 2L, 3L);
+            harness.snapshot(0L, 0L);
+        }
+    }
 
-	private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(OneInputStreamOperator<Long, T> bootstrapOperator) throws Exception {
-		return getHarness(bootstrapOperator, null);
-	}
+    private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(
+            OneInputStreamOperator<Long, T> bootstrapOperator) throws Exception {
+        return getHarness(bootstrapOperator, null);
+    }
 
-	private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(OneInputStreamOperator<Long, T> bootstrapOperator, OperatorSubtaskState state) throws Exception {
-		KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness = new KeyedOneInputStreamOperatorTestHarness<>(
-			bootstrapOperator, id -> id, Types.LONG, 128, 1, 0);
+    private <T> KeyedOneInputStreamOperatorTestHarness<Long, Long, T> getHarness(
+            OneInputStreamOperator<Long, T> bootstrapOperator, OperatorSubtaskState state)
+            throws Exception {
+        KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness =
+                new KeyedOneInputStreamOperatorTestHarness<>(
+                        bootstrapOperator, id -> id, Types.LONG, 128, 1, 0);
 
-		harness.setStateBackend(new RocksDBStateBackend(folder.newFolder().toURI()));
-		if (state != null) {
-			harness.initializeState(state);
-		}
-		harness.open();
-		return harness;
-	}
+        harness.setStateBackend(new RocksDBStateBackend(folder.newFolder().toURI()));
+        if (state != null) {
+            harness.initializeState(state);
+        }
+        harness.open();
+        return harness;
+    }
 
-	private <T> void processElements(KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, Long... records) throws Exception {
-		for (Long record : records) {
-			harness.processElement(record, 0);
-		}
-	}
+    private <T> void processElements(
+            KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, Long... records)
+            throws Exception {
+        for (Long record : records) {
+            harness.processElement(record, 0);
+        }
+    }
 
-	private OperatorSubtaskState getState(
-		KeyedStateBootstrapOperator<Long, Long> bootstrapOperator,
-		KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness) throws Exception {
-		OperatorSubtaskState state;
-		bootstrapOperator.endInput();
-		state = harness.extractOutputValues().get(0).state;
-		return state;
-	}
+    private OperatorSubtaskState getState(
+            KeyedStateBootstrapOperator<Long, Long> bootstrapOperator,
+            KeyedOneInputStreamOperatorTestHarness<Long, Long, TaggedOperatorSubtaskState> harness)
+            throws Exception {
+        OperatorSubtaskState state;
+        bootstrapOperator.endInput();
+        state = harness.extractOutputValues().get(0).state;
+        return state;
+    }
 
-	private <T> void assertHarnessOutput(KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, T... output) {
-		Assert.assertThat("The output from the operator does not match the expected values",
-			harness.extractOutputValues(), Matchers.containsInAnyOrder(output));
-	}
+    private <T> void assertHarnessOutput(
+            KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, T... output) {
+        Assert.assertThat(
+                "The output from the operator does not match the expected values",
+                harness.extractOutputValues(),
+                Matchers.containsInAnyOrder(output));
+    }
 
-	private static class TimerBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {
+    private static class TimerBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {
 
-		@Override
-		public void processElement(Long value, Context ctx) throws Exception {
-			ctx.timerService().registerEventTimeTimer(EVENT_TIMER);
-			ctx.timerService().registerProcessingTimeTimer(PROC_TIMER);
-		}
-	}
+        @Override
+        public void processElement(Long value, Context ctx) throws Exception {
+            ctx.timerService().registerEventTimeTimer(EVENT_TIMER);
+            ctx.timerService().registerProcessingTimeTimer(PROC_TIMER);
+        }
+    }
 
-	private static class SimpleProcessFunction extends KeyedProcessFunction<Long, Long, Tuple3<Long, Long, TimeDomain>> {
+    private static class SimpleProcessFunction
+            extends KeyedProcessFunction<Long, Long, Tuple3<Long, Long, TimeDomain>> {
 
-		@Override
-		public void processElement(Long value, Context ctx, Collector<Tuple3<Long, Long, TimeDomain>> out) throws Exception {
+        @Override
+        public void processElement(
+                Long value, Context ctx, Collector<Tuple3<Long, Long, TimeDomain>> out)
+                throws Exception {}
 
-		}
+        @Override
+        public void onTimer(
+                long timestamp, OnTimerContext ctx, Collector<Tuple3<Long, Long, TimeDomain>> out)
+                throws Exception {
+            out.collect(Tuple3.of(ctx.getCurrentKey(), timestamp, ctx.timeDomain()));
+        }
+    }
 
-		@Override
-		public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple3<Long, Long, TimeDomain>> out) throws Exception {
-			out.collect(Tuple3.of(ctx.getCurrentKey(), timestamp, ctx.timeDomain()));
-		}
-	}
+    private static class SimpleBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {
 
-	private static class SimpleBootstrapFunction extends KeyedStateBootstrapFunction<Long, Long> {
+        private ValueState<Long> state;
 
-		private ValueState<Long> state;
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            state = getRuntimeContext().getState(descriptor);
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			state = getRuntimeContext().getState(descriptor);
-		}
+        @Override
+        public void processElement(Long value, Context ctx) throws Exception {
+            state.update(value);
+        }
+    }
 
-		@Override
-		public void processElement(Long value, Context ctx) throws Exception {
-			state.update(value);
-		}
-	}
+    private static class StreamingFunction extends RichMapFunction<Long, Long> {
 
-	private static class StreamingFunction extends RichMapFunction<Long, Long> {
+        private ValueState<Long> state;
 
-		private ValueState<Long> state;
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            state = getRuntimeContext().getState(descriptor);
+        }
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			state = getRuntimeContext().getState(descriptor);
-		}
-
-		@Override
-		public Long map(Long value) throws Exception {
-			return state.value();
-		}
-	}
+        @Override
+        public Long map(Long value) throws Exception {
+            return state.value();
+        }
+    }
 }

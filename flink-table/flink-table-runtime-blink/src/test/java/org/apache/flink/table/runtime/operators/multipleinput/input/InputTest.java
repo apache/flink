@@ -36,70 +36,68 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-/**
- * Test for the sub-classes of {@link Input}.
- */
+/** Test for the sub-classes of {@link Input}. */
 public class InputTest extends MultipleInputTestBase {
 
-	private StreamRecord<RowData> element;
-	private Watermark watermark;
-	private LatencyMarker latencyMarker;
+    private StreamRecord<RowData> element;
+    private Watermark watermark;
+    private LatencyMarker latencyMarker;
 
-	@Before
-	public void setup() {
-		element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
-		watermark = new Watermark(1223456789);
-		latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
-	}
+    @Before
+    public void setup() {
+        element = new StreamRecord<>(GenericRowData.of(StringData.fromString("123")), 456);
+        watermark = new Watermark(1223456789);
+        latencyMarker = new LatencyMarker(122345678, new OperatorID(123, 456), 1);
+    }
 
-	@Test
-	public void testOneInput() throws Exception {
-		TestingOneInputStreamOperator op = createOneInputStreamOperator();
-		OneInput input = new OneInput(op);
+    @Test
+    public void testOneInput() throws Exception {
+        TestingOneInputStreamOperator op = createOneInputStreamOperator();
+        OneInput input = new OneInput(op);
 
-		input.processElement(element);
-		assertEquals(element, op.getCurrentElement());
+        input.processElement(element);
+        assertEquals(element, op.getCurrentElement());
 
-		input.processWatermark(watermark);
-		assertEquals(watermark, op.getCurrentWatermark());
+        input.processWatermark(watermark);
+        assertEquals(watermark, op.getCurrentWatermark());
 
-		input.processLatencyMarker(latencyMarker);
-		assertEquals(latencyMarker, op.getCurrentLatencyMarker());
-	}
+        input.processLatencyMarker(latencyMarker);
+        assertEquals(latencyMarker, op.getCurrentLatencyMarker());
+    }
 
-	@Test
-	public void testFirstInputOfTwoInput() throws Exception {
-		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		FirstInputOfTwoInput input = new FirstInputOfTwoInput(op);
+    @Test
+    public void testFirstInputOfTwoInput() throws Exception {
+        TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+        FirstInputOfTwoInput input = new FirstInputOfTwoInput(op);
 
-		input.processElement(element);
-		assertEquals(element, op.getCurrentElement1());
-		assertNull(op.getCurrentElement2());
+        input.processElement(element);
+        assertEquals(element, op.getCurrentElement1());
+        assertNull(op.getCurrentElement2());
 
-		input.processWatermark(watermark);
-		assertEquals(watermark, op.getCurrentWatermark1());
-		assertNull(op.getCurrentWatermark2());
+        input.processWatermark(watermark);
+        assertEquals(watermark, op.getCurrentWatermark1());
+        assertNull(op.getCurrentWatermark2());
 
-		input.processLatencyMarker(latencyMarker);
-		assertEquals(latencyMarker, op.getCurrentLatencyMarker1());
-		assertNull(op.getCurrentLatencyMarker2());
-	}
+        input.processLatencyMarker(latencyMarker);
+        assertEquals(latencyMarker, op.getCurrentLatencyMarker1());
+        assertNull(op.getCurrentLatencyMarker2());
+    }
 
-	@Test
-	public void testSecondInputOfTwoInput() throws Exception {
-		TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
-		SecondInputOfTwoInput input = new SecondInputOfTwoInput(op);
+    @Test
+    public void testSecondInputOfTwoInput() throws Exception {
+        TestingTwoInputStreamOperator op = createTwoInputStreamOperator();
+        SecondInputOfTwoInput input = new SecondInputOfTwoInput(op);
 
-		input.processElement(element);
-		assertEquals(element, op.getCurrentElement2());
-		assertNull(op.getCurrentElement1());
+        input.processElement(element);
+        assertEquals(element, op.getCurrentElement2());
+        assertNull(op.getCurrentElement1());
 
-		input.processWatermark(watermark);
-		assertEquals(watermark, op.getCurrentWatermark2());
-		assertNull(op.getCurrentWatermark1());
+        input.processWatermark(watermark);
+        assertEquals(watermark, op.getCurrentWatermark2());
+        assertNull(op.getCurrentWatermark1());
 
-		input.processLatencyMarker(latencyMarker);
-		assertEquals(latencyMarker, op.getCurrentLatencyMarker2());
-		assertNull(op.getCurrentLatencyMarker1());
-	}
+        input.processLatencyMarker(latencyMarker);
+        assertEquals(latencyMarker, op.getCurrentLatencyMarker2());
+        assertNull(op.getCurrentLatencyMarker1());
+    }
 }

@@ -23,42 +23,37 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 
-/**
- * A test for the {@link BinaryRowDataSerializer}.
- */
+/** A test for the {@link BinaryRowDataSerializer}. */
 public class BinaryRowSerializerTest extends SerializerTestBase<BinaryRowData> {
 
-	@Override
-	protected BinaryRowDataSerializer createSerializer() {
-		return new BinaryRowDataSerializer(2);
-	}
+    @Override
+    protected BinaryRowDataSerializer createSerializer() {
+        return new BinaryRowDataSerializer(2);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<BinaryRowData> getTypeClass() {
-		return BinaryRowData.class;
-	}
+    @Override
+    protected Class<BinaryRowData> getTypeClass() {
+        return BinaryRowData.class;
+    }
 
-	@Override
-	protected BinaryRowData[] getTestData() {
-		return new BinaryRowData[] {
-				createRow("11", 1),
-				createRow("12", 2),
-				createRow("132", 3),
-				createRow("13", 4)
-		};
-	}
+    @Override
+    protected BinaryRowData[] getTestData() {
+        return new BinaryRowData[] {
+            createRow("11", 1), createRow("12", 2), createRow("132", 3), createRow("13", 4)
+        };
+    }
 
-	private static BinaryRowData createRow(String f0, int f1) {
-		BinaryRowData row = new BinaryRowData(2);
-		BinaryRowWriter writer = new BinaryRowWriter(row);
-		writer.writeString(0, StringData.fromString(f0));
-		writer.writeInt(1, f1);
-		writer.complete();
-		return row;
-	}
+    private static BinaryRowData createRow(String f0, int f1) {
+        BinaryRowData row = new BinaryRowData(2);
+        BinaryRowWriter writer = new BinaryRowWriter(row);
+        writer.writeString(0, StringData.fromString(f0));
+        writer.writeInt(1, f1);
+        writer.complete();
+        return row;
+    }
 }

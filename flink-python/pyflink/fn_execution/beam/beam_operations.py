@@ -150,8 +150,7 @@ def _create_user_defined_function_operation(factory, transform_proto, consumers,
             internal_operation_cls,
             keyed_state_backend)
     elif internal_operation_cls == operations.KeyedProcessFunctionOperation:
-        key_type_info = spec.serialized_fn.key_type_info
-        key_row_coder = from_type_info_proto(key_type_info.field[0].type)
+        key_row_coder = from_type_info_proto(spec.serialized_fn.key_type_info)
         keyed_state_backend = RemoteKeyedStateBackend(
             factory.state_handler,
             key_row_coder,

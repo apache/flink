@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple3;
 
 /**
  * Mapper that extracts two keys of a value.
+ *
  * @param <T> type of the values
  * @param <K1> type of the first key
  * @param <K2> type of the second key
@@ -34,28 +35,29 @@ import org.apache.flink.api.java.tuple.Tuple3;
 @ForwardedFields("*->2")
 public final class TwoKeyExtractingMapper<T, K1, K2> extends RichMapFunction<T, Tuple3<K1, K2, T>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final KeySelector<T, K1> keySelector1;
+    private final KeySelector<T, K1> keySelector1;
 
-	private final KeySelector<T, K2> keySelector2;
+    private final KeySelector<T, K2> keySelector2;
 
-	private final Tuple3<K1, K2, T> tuple = new Tuple3<K1, K2, T>();
+    private final Tuple3<K1, K2, T> tuple = new Tuple3<K1, K2, T>();
 
-	public TwoKeyExtractingMapper(KeySelector<T, K1> keySelector1, KeySelector<T, K2> keySelector2) {
-		this.keySelector1 = keySelector1;
-		this.keySelector2 = keySelector2;
-	}
+    public TwoKeyExtractingMapper(
+            KeySelector<T, K1> keySelector1, KeySelector<T, K2> keySelector2) {
+        this.keySelector1 = keySelector1;
+        this.keySelector2 = keySelector2;
+    }
 
-	@Override
-	public Tuple3<K1, K2, T> map(T value) throws Exception {
+    @Override
+    public Tuple3<K1, K2, T> map(T value) throws Exception {
 
-		K1 key1 = keySelector1.getKey(value);
-		K2 key2 = keySelector2.getKey(value);
-		tuple.f0 = key1;
-		tuple.f1 = key2;
-		tuple.f2 = value;
+        K1 key1 = keySelector1.getKey(value);
+        K2 key2 = keySelector2.getKey(value);
+        tuple.f0 = key1;
+        tuple.f1 = key2;
+        tuple.f2 = value;
 
-		return tuple;
-	}
+        return tuple;
+    }
 }

@@ -22,54 +22,59 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 
-/**
- * A container for {@link ShardConsumer}s to report metric values.
- */
+/** A container for {@link ShardConsumer}s to report metric values. */
 @Internal
 public class ShardConsumerMetricsReporter {
 
-	private volatile long millisBehindLatest = -1;
-	private volatile long averageRecordSizeBytes = 0L;
-	private volatile int numberOfAggregatedRecords = 0;
-	private volatile int numberOfDeaggregatedRecords = 0;
+    private volatile long millisBehindLatest = -1;
+    private volatile long averageRecordSizeBytes = 0L;
+    private volatile int numberOfAggregatedRecords = 0;
+    private volatile int numberOfDeaggregatedRecords = 0;
 
-	public ShardConsumerMetricsReporter(final MetricGroup metricGroup) {
-		metricGroup.gauge(KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE, this::getMillisBehindLatest);
-		metricGroup.gauge(KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH, this::getNumberOfAggregatedRecords);
-		metricGroup.gauge(KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH, this::getNumberOfDeaggregatedRecords);
-		metricGroup.gauge(KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES, this::getAverageRecordSizeBytes);
-	}
+    public ShardConsumerMetricsReporter(final MetricGroup metricGroup) {
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE,
+                this::getMillisBehindLatest);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.NUM_AGGREGATED_RECORDS_PER_FETCH,
+                this::getNumberOfAggregatedRecords);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.NUM_DEAGGREGATED_RECORDS_PER_FETCH,
+                this::getNumberOfDeaggregatedRecords);
+        metricGroup.gauge(
+                KinesisConsumerMetricConstants.AVG_RECORD_SIZE_BYTES,
+                this::getAverageRecordSizeBytes);
+    }
 
-	public long getMillisBehindLatest() {
-		return millisBehindLatest;
-	}
+    public long getMillisBehindLatest() {
+        return millisBehindLatest;
+    }
 
-	public void setMillisBehindLatest(long millisBehindLatest) {
-		this.millisBehindLatest = millisBehindLatest;
-	}
+    public void setMillisBehindLatest(long millisBehindLatest) {
+        this.millisBehindLatest = millisBehindLatest;
+    }
 
-	public long getAverageRecordSizeBytes() {
-		return averageRecordSizeBytes;
-	}
+    public long getAverageRecordSizeBytes() {
+        return averageRecordSizeBytes;
+    }
 
-	public void setAverageRecordSizeBytes(long averageRecordSizeBytes) {
-		this.averageRecordSizeBytes = averageRecordSizeBytes;
-	}
+    public void setAverageRecordSizeBytes(long averageRecordSizeBytes) {
+        this.averageRecordSizeBytes = averageRecordSizeBytes;
+    }
 
-	public int getNumberOfAggregatedRecords() {
-		return numberOfAggregatedRecords;
-	}
+    public int getNumberOfAggregatedRecords() {
+        return numberOfAggregatedRecords;
+    }
 
-	public void setNumberOfAggregatedRecords(int numberOfAggregatedRecords) {
-		this.numberOfAggregatedRecords = numberOfAggregatedRecords;
-	}
+    public void setNumberOfAggregatedRecords(int numberOfAggregatedRecords) {
+        this.numberOfAggregatedRecords = numberOfAggregatedRecords;
+    }
 
-	public int getNumberOfDeaggregatedRecords() {
-		return numberOfDeaggregatedRecords;
-	}
+    public int getNumberOfDeaggregatedRecords() {
+        return numberOfDeaggregatedRecords;
+    }
 
-	public void setNumberOfDeaggregatedRecords(int numberOfDeaggregatedRecords) {
-		this.numberOfDeaggregatedRecords = numberOfDeaggregatedRecords;
-	}
-
+    public void setNumberOfDeaggregatedRecords(int numberOfDeaggregatedRecords) {
+        this.numberOfDeaggregatedRecords = numberOfDeaggregatedRecords;
+    }
 }

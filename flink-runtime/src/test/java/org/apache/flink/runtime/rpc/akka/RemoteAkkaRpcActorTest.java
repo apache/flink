@@ -36,64 +36,65 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for remote AkkaRpcActors.
- */
+/** Tests for remote AkkaRpcActors. */
 public class RemoteAkkaRpcActorTest extends TestLogger {
 
-	private static AkkaRpcService rpcService;
-	private static AkkaRpcService otherRpcService;
+    private static AkkaRpcService rpcService;
+    private static AkkaRpcService otherRpcService;
 
-	@BeforeClass
-	public static void setupClass() throws Exception {
-		final Configuration configuration = new Configuration();
-		rpcService = AkkaRpcServiceUtils.createRemoteRpcService(
-			configuration,
-			"localhost",
-			"0",
-			null,
-			Optional.empty());
+    @BeforeClass
+    public static void setupClass() throws Exception {
+        final Configuration configuration = new Configuration();
+        rpcService =
+                AkkaRpcServiceUtils.createRemoteRpcService(
+                        configuration, "localhost", "0", null, Optional.empty());
 
-		otherRpcService = AkkaRpcServiceUtils.createRemoteRpcService(
-			configuration,
-			"localhost",
-			"0",
-			null,
-			Optional.empty());
-	}
+        otherRpcService =
+                AkkaRpcServiceUtils.createRemoteRpcService(
+                        configuration, "localhost", "0", null, Optional.empty());
+    }
 
-	@AfterClass
-	public static void teardownClass() throws InterruptedException, ExecutionException, TimeoutException {
-		RpcUtils.terminateRpcServices(Time.seconds(10), rpcService, otherRpcService);
-	}
+    @AfterClass
+    public static void teardownClass()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        RpcUtils.terminateRpcServices(Time.seconds(10), rpcService, otherRpcService);
+    }
 
-	@Test
-	public void canRespondWithNullValueRemotely() throws Exception {
-		try (final AkkaRpcActorTest.NullRespondingEndpoint nullRespondingEndpoint = new AkkaRpcActorTest.NullRespondingEndpoint(rpcService)) {
-			nullRespondingEndpoint.start();
+    @Test
+    public void canRespondWithNullValueRemotely() throws Exception {
+        try (final AkkaRpcActorTest.NullRespondingEndpoint nullRespondingEndpoint =
+                new AkkaRpcActorTest.NullRespondingEndpoint(rpcService)) {
+            nullRespondingEndpoint.start();
 
-			final AkkaRpcActorTest.NullRespondingGateway rpcGateway = otherRpcService.connect(
-				nullRespondingEndpoint.getAddress(),
-				AkkaRpcActorTest.NullRespondingGateway.class).join();
+            final AkkaRpcActorTest.NullRespondingGateway rpcGateway =
+                    otherRpcService
+                            .connect(
+                                    nullRespondingEndpoint.getAddress(),
+                                    AkkaRpcActorTest.NullRespondingGateway.class)
+                            .join();
 
-			final CompletableFuture<Integer> nullValuedResponseFuture = rpcGateway.foobar();
+            final CompletableFuture<Integer> nullValuedResponseFuture = rpcGateway.foobar();
 
-			assertThat(nullValuedResponseFuture.join(), is(nullValue()));
-		}
-	}
+            assertThat(nullValuedResponseFuture.join(), is(nullValue()));
+        }
+    }
 
-	@Test
-	public void canRespondWithSynchronousNullValueRemotely() throws Exception {
-		try (final AkkaRpcActorTest.NullRespondingEndpoint nullRespondingEndpoint = new AkkaRpcActorTest.NullRespondingEndpoint(rpcService)) {
-			nullRespondingEndpoint.start();
+    @Test
+    public void canRespondWithSynchronousNullValueRemotely() throws Exception {
+        try (final AkkaRpcActorTest.NullRespondingEndpoint nullRespondingEndpoint =
+                new AkkaRpcActorTest.NullRespondingEndpoint(rpcService)) {
+            nullRespondingEndpoint.start();
 
-			final AkkaRpcActorTest.NullRespondingGateway rpcGateway = otherRpcService.connect(
-				nullRespondingEndpoint.getAddress(),
-				AkkaRpcActorTest.NullRespondingGateway.class).join();
+            final AkkaRpcActorTest.NullRespondingGateway rpcGateway =
+                    otherRpcService
+                            .connect(
+                                    nullRespondingEndpoint.getAddress(),
+                                    AkkaRpcActorTest.NullRespondingGateway.class)
+                            .join();
 
-			final Integer value = rpcGateway.synchronousFoobar();
+            final Integer value = rpcGateway.synchronousFoobar();
 
-			assertThat(value, is(nullValue()));
-		}
-	}
+            assertThat(value, is(nullValue()));
+        }
+    }
 }

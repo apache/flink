@@ -25,50 +25,49 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-/**
- * Util for Hive functions.
- */
+/** Util for Hive functions. */
 @Internal
 public class HiveFunctionUtil {
-	public static boolean isSingleBoxedArray(DataType[] argTypes) {
-		for (DataType dataType : argTypes) {
-			if (HiveFunctionUtil.isPrimitiveArray(dataType)) {
-				throw new FlinkHiveUDFException("Flink doesn't support primitive array for Hive functions yet.");
-			}
-		}
+    public static boolean isSingleBoxedArray(DataType[] argTypes) {
+        for (DataType dataType : argTypes) {
+            if (HiveFunctionUtil.isPrimitiveArray(dataType)) {
+                throw new FlinkHiveUDFException(
+                        "Flink doesn't support primitive array for Hive functions yet.");
+            }
+        }
 
-		return argTypes.length == 1 && HiveFunctionUtil.isArrayType(argTypes[0]);
-	}
+        return argTypes.length == 1 && HiveFunctionUtil.isArrayType(argTypes[0]);
+    }
 
-	private static boolean isPrimitiveArray(DataType dataType) {
-		if (isArrayType(dataType)) {
-			ArrayType arrayType = (ArrayType) dataType.getLogicalType();
+    private static boolean isPrimitiveArray(DataType dataType) {
+        if (isArrayType(dataType)) {
+            ArrayType arrayType = (ArrayType) dataType.getLogicalType();
 
-			LogicalType elementType = arrayType.getElementType();
-			return !(elementType.isNullable() || !isPrimitive(elementType));
-		} else {
-			return false;
-		}
-	}
+            LogicalType elementType = arrayType.getElementType();
+            return !(elementType.isNullable() || !isPrimitive(elementType));
+        } else {
+            return false;
+        }
+    }
 
-	// This is copied from PlannerTypeUtils in flink-table-runtime-blink that we shouldn't depend on
-	// TODO: remove this and use the original code when it's moved to accessible, dependable module
-	private static boolean isPrimitive(LogicalType type) {
-		switch (type.getTypeRoot()) {
-			case BOOLEAN:
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-			case BIGINT:
-			case FLOAT:
-			case DOUBLE:
-				return true;
-			default:
-				return false;
-		}
-	}
+    // This is copied from PlannerTypeUtils in flink-table-runtime-blink that we shouldn't depend on
+    // TODO: remove this and use the original code when it's moved to accessible, dependable module
+    private static boolean isPrimitive(LogicalType type) {
+        switch (type.getTypeRoot()) {
+            case BOOLEAN:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            case FLOAT:
+            case DOUBLE:
+                return true;
+            default:
+                return false;
+        }
+    }
 
-	private static boolean isArrayType(DataType dataType) {
-		return dataType.getLogicalType().getTypeRoot().equals(LogicalTypeRoot.ARRAY);
-	}
+    private static boolean isArrayType(DataType dataType) {
+        return dataType.getLogicalType().getTypeRoot().equals(LogicalTypeRoot.ARRAY);
+    }
 }

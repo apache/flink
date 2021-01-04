@@ -24,27 +24,29 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
- * Deserializer for checkpoints written in format {@code 1} (Flink 1.2.x format).
- * This class is only retained to give a better error message: Rather than getting a "unknown version",
- * the user gets a "version no longer supported".
+ * Deserializer for checkpoints written in format {@code 1} (Flink 1.2.x format). This class is only
+ * retained to give a better error message: Rather than getting a "unknown version", the user gets a
+ * "version no longer supported".
  */
 @Internal
 public class MetadataV1Serializer implements MetadataSerializer {
 
-	/** The savepoint version. */
-	public static final int VERSION = 1;
+    /** The savepoint version. */
+    public static final int VERSION = 1;
 
-	public static final MetadataV1Serializer INSTANCE = new MetadataV1Serializer();
+    public static final MetadataV1Serializer INSTANCE = new MetadataV1Serializer();
 
-	private MetadataV1Serializer() {}
+    private MetadataV1Serializer() {}
 
-	@Override
-	public int getVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getVersion() {
+        return VERSION;
+    }
 
-	@Override
-	public CheckpointMetadata deserialize(DataInputStream dis, ClassLoader cl, String externalPointer) throws IOException {
-		throw new IOException("This savepoint / checkpoint version (Flink 1.1 / 1.2) is no longer supported.");
-	}
+    @Override
+    public CheckpointMetadata deserialize(
+            DataInputStream dis, ClassLoader cl, String externalPointer) throws IOException {
+        throw new IOException(
+                "This savepoint / checkpoint version (Flink 1.1 / 1.2) is no longer supported.");
+    }
 }

@@ -20,55 +20,43 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.functions.FunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex._
-
-import scala.collection.JavaConversions._
 
 object CorrelateCodeGenerator {
 
-  private[flink] def generateCorrelateTransformation(
+  def generateCorrelateTransformation(
       config: TableConfig,
       operatorCtx: CodeGeneratorContext,
       inputTransformation: Transformation[RowData],
-      inputRelType: RelDataType,
-      projectProgram: Option[RexProgram],
-      scan: FlinkLogicalTableFunctionScan,
+      inputType: RowType,
+      invocation: RexCall,
       condition: Option[RexNode],
-      outRelType: RelDataType,
-      joinType: JoinRelType,
+      outputType: RowType,
+      joinType: FlinkJoinType,
       parallelism: Int,
       retainHeader: Boolean,
-      expression: (RexNode, List[String], Option[List[RexNode]]) => String,
       opName: String,
       transformationName: String)
     : Transformation[RowData] = {
 
-    val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
-    val rexCall = funcRel.getCall.asInstanceOf[RexCall]
-    val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
-    val returnType = FlinkTypeFactory.toLogicalRowType(outRelType)
-
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
-    rexCall.getOperator match {
+    invocation.getOperator match {
       case func: BridgingSqlFunction if func.getDefinition.getKind == FunctionKind.TABLE => // ok
       case _: TableSqlFunction => // ok
       case f@_ =>
@@ -77,23 +65,10 @@ object CorrelateCodeGenerator {
             s"Currently, only table functions can be used in a correlate operation.")
     }
 
-    val swallowInputOnly = if (projectProgram.isDefined) {
-      val program = projectProgram.get
-      val selects = program.getProjectList.map(_.getIndex)
-      val inputFieldCnt = program.getInputRowType.getFieldCount
-      val swallowInputOnly = selects.head > inputFieldCnt &&
-        (inputFieldCnt - outRelType.getFieldCount == inputRelType.getFieldCount)
-      // partial output or output right only
-      swallowInputOnly
-    } else {
-      // completely output left input + right
-      false
-    }
-
     // adjust indicies of InputRefs to adhere to schema expected by generator
     val changeInputRefIndexShuttle = new RexShuttle {
       override def visitInputRef(inputRef: RexInputRef): RexNode = {
-        new RexInputRef(inputRelType.getFieldCount + inputRef.getIndex, inputRef.getType)
+        new RexInputRef(inputType.getFieldCount + inputRef.getIndex, inputRef.getType)
       }
     }
 
@@ -101,21 +76,18 @@ object CorrelateCodeGenerator {
       operatorCtx,
       config,
       inputType,
-      projectProgram,
-      swallowInputOnly,
       condition.map(_.accept(changeInputRefIndexShuttle)),
-      returnType,
+      outputType,
       joinType,
-      rexCall,
+      invocation,
       opName,
-      classOf[ProcessFunction[RowData, RowData]],
       retainHeader)
 
     ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
       transformationName,
       substituteStreamOperator,
-      InternalTypeInfo.of(returnType),
+      InternalTypeInfo.of(outputType),
       parallelism,
       0)
   }
@@ -127,14 +99,11 @@ object CorrelateCodeGenerator {
       ctx: CodeGeneratorContext,
       config: TableConfig,
       inputType: RowType,
-      projectProgram: Option[RexProgram],
-      swallowInputOnly: Boolean = false,
       condition: Option[RexNode],
       returnType: RowType,
-      joinType: JoinRelType,
+      joinType: FlinkJoinType,
       rexCall: RexCall,
       ruleDescription: String,
-      functionClass: Class[T],
       retainHeader: Boolean = true)
     : CodeGenOperatorFactory[RowData] = {
 
@@ -147,8 +116,6 @@ object CorrelateCodeGenerator {
       ctx,
       config,
       inputType,
-      projectProgram,
-      swallowInputOnly,
       functionResultType,
       returnType,
       condition,
@@ -177,114 +144,35 @@ object CorrelateCodeGenerator {
          |""".stripMargin
 
     // 3. left join
-    if (joinType == JoinRelType.LEFT) {
-      if (swallowInputOnly) {
-        // and the returned row table function is empty, collect a null
-        val nullRowTerm = CodeGenUtils.newName("nullRow")
-        ctx.addReusableOutputRecord(functionResultType, classOf[GenericRowData], nullRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
-        val header = if (retainHeader) {
-          s"$nullRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
-        } else {
-          ""
-        }
-        body +=
-          s"""
-             |boolean hasOutput = $correlateCollectorTerm.isCollected();
-             |if (!hasOutput) {
-             |  $header
-             |  $correlateCollectorTerm.outputResult($nullRowTerm);
-             |}
-             |""".stripMargin
-      } else if (projectProgram.isDefined) {
-        // output partial fields of left and right
-        val outputTerm = CodeGenUtils.newName("projectOut")
-        ctx.addReusableOutputRecord(returnType, classOf[GenericRowData], outputTerm)
-
-        val header = if (retainHeader) {
-          s"$outputTerm.setRowKind(${CodeGenUtils.DEFAULT_INPUT1_TERM}.getRowKind());"
-        } else {
-          ""
-        }
-        val projectionExpression = generateProjectResultExpr(
-          ctx,
-          config,
-          inputType,
-          functionResultType,
-          udtfAlwaysNull = true,
-          returnType,
-          outputTerm,
-          projectProgram.get)
-
-        body +=
-          s"""
-             |boolean hasOutput = $correlateCollectorTerm.isCollected();
-             |if (!hasOutput) {
-             |  ${projectionExpression.code}
-             |  $header
-             |  $correlateCollectorTerm.outputResult($outputTerm);
-             |}
-             |""".stripMargin
-
+    if (joinType == FlinkJoinType.LEFT) {
+      // output all fields of left and right
+      // in case of left outer join and the returned row of table function is empty,
+      // fill all fields of row with null
+      val joinedRowTerm = CodeGenUtils.newName("joinedRow")
+      val nullRowTerm = CodeGenUtils.newName("nullRow")
+      ctx.addReusableOutputRecord(returnType, classOf[JoinedRowData], joinedRowTerm)
+      ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
+      val header = if (retainHeader) {
+        s"$joinedRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
       } else {
-        // output all fields of left and right
-        // in case of left outer join and the returned row of table function is empty,
-        // fill all fields of row with null
-        val joinedRowTerm = CodeGenUtils.newName("joinedRow")
-        val nullRowTerm = CodeGenUtils.newName("nullRow")
-        ctx.addReusableOutputRecord(returnType, classOf[JoinedRowData], joinedRowTerm)
-        ctx.addReusableNullRow(nullRowTerm, functionResultType.getFieldCount)
-        val header = if (retainHeader) {
-          s"$joinedRowTerm.setRowKind(${exprGenerator.input1Term}.getRowKind());"
-        } else {
-          ""
-        }
-        body +=
-          s"""
-             |boolean hasOutput = $correlateCollectorTerm.isCollected();
-             |if (!hasOutput) {
-             |  $joinedRowTerm.replace(${exprGenerator.input1Term}, $nullRowTerm);
-             |  $header
-             |  $correlateCollectorTerm.outputResult($joinedRowTerm);
-             |}
-             |""".stripMargin
-
-        }
-    } else if (joinType != JoinRelType.INNER) {
+        ""
+      }
+      body +=
+        s"""
+           |boolean hasOutput = $correlateCollectorTerm.isCollected();
+           |if (!hasOutput) {
+           |  $joinedRowTerm.replace(${exprGenerator.input1Term}, $nullRowTerm);
+           |  $header
+           |  $correlateCollectorTerm.outputResult($joinedRowTerm);
+           |}
+           |""".stripMargin
+    } else if (joinType != FlinkJoinType.INNER) {
       throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
     val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
       ctx, ruleDescription, body, inputType)
     new CodeGenOperatorFactory(genOperator)
-  }
-
-  private def generateProjectResultExpr(
-      ctx: CodeGeneratorContext,
-      config: TableConfig,
-      input1Type: RowType,
-      functionResultType: RowType,
-      udtfAlwaysNull: Boolean,
-      returnType: RowType,
-      outputTerm: String,
-      program: RexProgram): GeneratedExpression = {
-    val projectExprGenerator = new ExprCodeGenerator(ctx, udtfAlwaysNull)
-      .bindInput(input1Type, CodeGenUtils.DEFAULT_INPUT1_TERM)
-    if (udtfAlwaysNull) {
-      val udtfNullRow = CodeGenUtils.newName("udtfNullRow")
-      ctx.addReusableNullRow(udtfNullRow, functionResultType.getFieldCount)
-
-      projectExprGenerator.bindSecondInput(
-        functionResultType,
-        udtfNullRow)
-    } else {
-      projectExprGenerator.bindSecondInput(
-        functionResultType)
-    }
-    val projection = program.getProjectList.map(program.expandLocalRef)
-    val projectionExprs = projection.map(projectExprGenerator.generateExpression)
-    projectExprGenerator.generateResultExpression(
-      projectionExprs, returnType, classOf[GenericRowData], outputTerm)
   }
 
   /**
@@ -295,8 +183,6 @@ object CorrelateCodeGenerator {
       ctx: CodeGeneratorContext,
       config: TableConfig,
       inputType: RowType,
-      projectProgram: Option[RexProgram],
-      swallowInputOnly: Boolean,
       functionResultType: RowType,
       resultType: RowType,
       condition: Option[RexNode],
@@ -309,45 +195,7 @@ object CorrelateCodeGenerator {
 
     val collectorCtx = CodeGeneratorContext(config)
 
-    val body = if (projectProgram.isDefined) {
-      // partial output
-      if (swallowInputOnly) {
-        // output right only
-        val header = if (retainHeader) {
-          s"$udtfInputTerm.setRowKind($inputTerm.getRowKind());"
-        } else {
-          ""
-        }
-        s"""
-           |$header
-           |outputResult($udtfInputTerm);
-        """.stripMargin
-      } else {
-        val outputTerm = CodeGenUtils.newName("projectOut")
-        collectorCtx.addReusableOutputRecord(resultType, classOf[GenericRowData], outputTerm)
-
-        val header = if (retainHeader) {
-          s"$outputTerm.setRowKind($inputTerm.getRowKind());"
-        } else {
-          ""
-        }
-        val projectionExpression = generateProjectResultExpr(
-          collectorCtx,
-          config,
-          inputType,
-          functionResultType,
-          udtfAlwaysNull = false,
-          resultType,
-          outputTerm,
-          projectProgram.get)
-
-        s"""
-           |$header
-           |${projectionExpression.code}
-           |outputResult(${projectionExpression.resultTerm});
-        """.stripMargin
-      }
-    } else {
+    val body = {
       // completely output left input + right
       val joinedRowTerm = CodeGenUtils.newName("joinedRow")
       collectorCtx.addReusableOutputRecord(resultType, classOf[JoinedRowData], joinedRowTerm)

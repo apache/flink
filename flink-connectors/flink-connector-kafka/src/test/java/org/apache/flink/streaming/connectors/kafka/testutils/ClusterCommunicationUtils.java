@@ -26,31 +26,28 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Utilities for communicating with a cluster through a {@link ClusterClient}.
- */
+/** Utilities for communicating with a cluster through a {@link ClusterClient}. */
 public class ClusterCommunicationUtils {
 
-	public static void waitUntilJobIsRunning(ClusterClient<?> client) throws Exception {
-		while (getRunningJobs(client).isEmpty()) {
-			Thread.sleep(50);
-		}
-	}
+    public static void waitUntilJobIsRunning(ClusterClient<?> client) throws Exception {
+        while (getRunningJobs(client).isEmpty()) {
+            Thread.sleep(50);
+        }
+    }
 
-	public static void waitUntilNoJobIsRunning(ClusterClient<?> client) throws Exception {
-		while (!getRunningJobs(client).isEmpty()) {
-			Thread.sleep(50);
-		}
-	}
+    public static void waitUntilNoJobIsRunning(ClusterClient<?> client) throws Exception {
+        while (!getRunningJobs(client).isEmpty()) {
+            Thread.sleep(50);
+        }
+    }
 
-	public static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
-		Collection<JobStatusMessage> statusMessages = client.listJobs().get();
-		return statusMessages.stream()
-			.filter(status -> !status.getJobState().isGloballyTerminalState())
-			.map(JobStatusMessage::getJobId)
-			.collect(Collectors.toList());
-	}
+    public static List<JobID> getRunningJobs(ClusterClient<?> client) throws Exception {
+        Collection<JobStatusMessage> statusMessages = client.listJobs().get();
+        return statusMessages.stream()
+                .filter(status -> !status.getJobState().isGloballyTerminalState())
+                .map(JobStatusMessage::getJobId)
+                .collect(Collectors.toList());
+    }
 
-	private ClusterCommunicationUtils() {
-	}
+    private ClusterCommunicationUtils() {}
 }

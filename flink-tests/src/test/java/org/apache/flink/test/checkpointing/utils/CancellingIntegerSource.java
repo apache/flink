@@ -34,94 +34,96 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Integer source that cancels itself after a specified number emitted and subsequent checkpoint is fully completed.
+ * Integer source that cancels itself after a specified number emitted and subsequent checkpoint is
+ * fully completed.
  */
-public class CancellingIntegerSource extends RichSourceFunction<Integer> implements CheckpointedFunction, CheckpointListener {
+public class CancellingIntegerSource extends RichSourceFunction<Integer>
+        implements CheckpointedFunction, CheckpointListener {
 
-	private final int count;
-	private final Integer cancelAfter;
+    private final int count;
+    private final Integer cancelAfter;
 
-	@Nullable private transient Long cancelAfterCheckpointId;
-	private transient volatile boolean isCanceled;
-	private transient volatile int sentCount;
-	private transient ListState<Integer> lastSentStored;
+    @Nullable private transient Long cancelAfterCheckpointId;
+    private transient volatile boolean isCanceled;
+    private transient volatile int sentCount;
+    private transient ListState<Integer> lastSentStored;
 
-	private CancellingIntegerSource(int count, @Nullable Integer cancelAfter) {
-		checkArgument(count > 0);
-		checkArgument(cancelAfter == null || cancelAfter > 0);
-		this.cancelAfter = cancelAfter;
-		this.count = count;
-	}
+    private CancellingIntegerSource(int count, @Nullable Integer cancelAfter) {
+        checkArgument(count > 0);
+        checkArgument(cancelAfter == null || cancelAfter > 0);
+        this.cancelAfter = cancelAfter;
+        this.count = count;
+    }
 
-	@Override
-	public void run(SourceContext<Integer> ctx) throws InterruptedException {
-		emitInLoop(ctx);
-		awaitCancellation();
-	}
+    @Override
+    public void run(SourceContext<Integer> ctx) throws InterruptedException {
+        emitInLoop(ctx);
+        awaitCancellation();
+    }
 
-	private void emitInLoop(SourceContext<Integer> ctx) throws InterruptedException {
-		while (sentCount < count && !isCanceled) {
-			synchronized (ctx.getCheckpointLock()) {
-				if (sentCount < count && !isCanceled) {
-					ctx.collect(sentCount++);
-				}
-			}
-			Thread.sleep(10); // allow to snapshot state (Thread.yield() doesn't always work)
-		}
-	}
+    private void emitInLoop(SourceContext<Integer> ctx) throws InterruptedException {
+        while (sentCount < count && !isCanceled) {
+            synchronized (ctx.getCheckpointLock()) {
+                if (sentCount < count && !isCanceled) {
+                    ctx.collect(sentCount++);
+                }
+            }
+            Thread.sleep(10); // allow to snapshot state (Thread.yield() doesn't always work)
+        }
+    }
 
-	private void awaitCancellation() {
-		while (!isCanceled) {
-			try {
-				Thread.sleep(50);
-			} catch (InterruptedException e) {
-				if (isCanceled) {
-					Thread.currentThread().interrupt();
-				}
-			}
-		}
-	}
+    private void awaitCancellation() {
+        while (!isCanceled) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                if (isCanceled) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+    }
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) throws Exception {
-		lastSentStored = context.getOperatorStateStore().getListState(new ListStateDescriptor<>("counter", Integer.class));
-		if (context.isRestored()) {
-			sentCount = getOnlyElement(lastSentStored.get());
-		}
-		checkState(cancelAfter == null || sentCount < cancelAfter);
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+        lastSentStored =
+                context.getOperatorStateStore()
+                        .getListState(new ListStateDescriptor<>("counter", Integer.class));
+        if (context.isRestored()) {
+            sentCount = getOnlyElement(lastSentStored.get());
+        }
+        checkState(cancelAfter == null || sentCount < cancelAfter);
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+    }
 
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) throws Exception {
-		lastSentStored.update(singletonList(sentCount));
-		if (cancelAfter != null && cancelAfter <= sentCount && cancelAfterCheckpointId == null) {
-			cancelAfterCheckpointId = context.getCheckpointId();
-		}
-	}
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+        lastSentStored.update(singletonList(sentCount));
+        if (cancelAfter != null && cancelAfter <= sentCount && cancelAfterCheckpointId == null) {
+            cancelAfterCheckpointId = context.getCheckpointId();
+        }
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		if (cancelAfterCheckpointId != null && cancelAfterCheckpointId <= checkpointId) {
-			cancel();
-		}
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        if (cancelAfterCheckpointId != null && cancelAfterCheckpointId <= checkpointId) {
+            cancel();
+        }
+    }
 
-	@Override
-	public void notifyCheckpointAborted(long checkpointId) {
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {}
 
-	@Override
-	public void cancel() {
-		isCanceled = true;
-	}
+    @Override
+    public void cancel() {
+        isCanceled = true;
+    }
 
-	public static CancellingIntegerSource upTo(int max, boolean continueAfterCount) {
-		return new CancellingIntegerSource(max, continueAfterCount ? null : max);
-	}
-
+    public static CancellingIntegerSource upTo(int max, boolean continueAfterCount) {
+        return new CancellingIntegerSource(max, continueAfterCount ? null : max);
+    }
 }
