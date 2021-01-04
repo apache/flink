@@ -89,7 +89,7 @@ then
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
 else
 	# Set the default log config when MODE is something other than yarn. eg: local, remote or other invalid mode.
-	LOG4J_CONFIG=log4j.properties
+    LOG4J_CONFIG=log4j.properties
     LOGBACK_CONFIG=logback.xml
 fi
 
