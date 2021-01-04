@@ -26,16 +26,15 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import java.util.concurrent.Executor;
 
-/**
- * Factory interface for the {@link DispatcherRunner}.
- */
+/** Factory interface for the {@link DispatcherRunner}. */
 public interface DispatcherRunnerFactory {
 
-	DispatcherRunner createDispatcherRunner(
-		LeaderElectionService leaderElectionService,
-		FatalErrorHandler fatalErrorHandler,
-		JobGraphStoreFactory jobGraphStoreFactory,
-		Executor ioExecutor,
-		RpcService rpcService,
-		PartialDispatcherServices partialDispatcherServices) throws Exception;
+    DispatcherRunner createDispatcherRunner(
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler,
+            JobGraphStoreFactory jobGraphStoreFactory,
+            Executor ioExecutor,
+            RpcService rpcService,
+            PartialDispatcherServices partialDispatcherServices)
+            throws Exception;
 }

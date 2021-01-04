@@ -131,7 +131,7 @@ public static class SubstringFunction extends ScalarFunction {
   }
 
   public String eval(String s, Integer begin, Integer end) {
-    return s.substring(a, endInclusive ? end + 1 : end);
+    return s.substring(begin, endInclusive ? end + 1 : end);
   }
 }
 
@@ -397,15 +397,15 @@ public static class OverloadedFunction extends TableFunction<Row> {
 
 // 解耦类型推导与求值方法，类型推导完全取决于 FunctionHint
 @FunctionHint(
-  input = [@DataTypeHint("INT"), @DataTypeHint("INT")],
+  input = {@DataTypeHint("INT"), @DataTypeHint("INT")},
   output = @DataTypeHint("INT")
 )
 @FunctionHint(
-  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  input = {@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")},
   output = @DataTypeHint("BIGINT")
 )
 @FunctionHint(
-  input = [],
+  input = {},
   output = @DataTypeHint("BOOLEAN")
 )
 public static class OverloadedFunction extends TableFunction<Object> {
@@ -709,7 +709,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 </div>
 
-如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#标量函数scalarfunction)。
+如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#scalar-functions)。
 
 {% top %}
 
@@ -867,7 +867,7 @@ env.sqlQuery(
 
 如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
 
-如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#表值函数)。
+如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#table-functions)。
 
 {% top %}
 
@@ -877,7 +877,7 @@ env.sqlQuery(
 自定义聚合函数（UDAGG）是把一个表（一行或者多行，每行可以有一列或者多列）聚合成一个标量值。
 
 <center>
-<img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
+<img alt="UDAGG mechanism" src="{% link /fig/udagg-mechanism.png %}" width="80%">
 </center>
 
 上面的图片展示了一个聚合的例子。假设你有一个关于饮料的表。表里面有三个字段，分别是 `id`、`name`、`price`，表里有 5 行数据。假设你需要找到所有饮料里最贵的饮料的价格，即执行一个 `max()` 聚合。你需要遍历所有 5 行数据，而结果就只有一个数值。
@@ -897,7 +897,7 @@ Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的�
 **`AggregateFunction` 的以下方法在某些场景下是必须实现的：**
 
 - `retract()` 在 bounded `OVER` 窗口中是必须实现的。
-- `merge()` 在许多批式聚合和会话窗口聚合中是必须实现的。
+- `merge()` 在许多批式聚合和会话以及滚动窗口聚合中是必须实现的。除此之外，这个方法对于优化也很多帮助。例如，两阶段聚合优化就需要所有的 `AggregateFunction` 都实现 `merge` 方法。
 - `resetAccumulator()` 在许多批式聚合中是必须实现的。
 
 `AggregateFunction` 的所有方法都必须是 `public` 的，不能是 `static` 的，而且名字必须跟上面写的一样。`createAccumulator`、`getValue`、`getResultType` 以及 `getAccumulatorType` 这几个函数是在抽象类 `AggregateFunction` 中定义的，而其他函数都是约定的方法。如果要定义一个聚合函数，你需要扩展 `org.apache.flink.table.functions.AggregateFunction`，并且实现一个（或者多个）`accumulate` 方法。`accumulate` 方法可以重载，每个方法的参数类型不同，并且支持变长参数。
@@ -1347,6 +1347,8 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 </div>
 </div>
 
+如果你打算使用 Python 实现或调用聚合函数，详情可参考 [Python 聚合函数]({% link dev/python/table-api-users-guide/udfs/python_udfs.zh.md %}#aggregate-functions)。
+
 {% top %}
 
 表值聚合函数
@@ -1355,7 +1357,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 自定义表值聚合函数（UDTAGG）可以把一个表（一行或者多行，每行有一列或者多列）聚合成另一张表，结果中可以有多行多列。
 
 <center>
-<img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udtagg-mechanism.png" width="80%">
+<img alt="UDAGG mechanism" src="{% link /fig/udtagg-mechanism.png %}" width="80%">
 </center>
 
 上图展示了一个表值聚合函数的例子。假设你有一个饮料的表，这个表有 3 列，分别是 `id`、`name` 和 `price`，一共有 5 行。假设你需要找到价格最高的两个饮料，类似于 `top2()` 表值聚合函数。你需要遍历所有 5 行数据，结果是有 2 行数据的一个表。
@@ -1374,7 +1376,7 @@ Flink 的类型推导在遇到复杂类型的时候可能会推导出错误的�
 **下面几个 `TableAggregateFunction` 的方法在某些特定场景下是必须要实现的：**
 
 - `retract()` 在 bounded `OVER` 窗口中的聚合函数必须要实现。
-- `merge()` 在许多批式聚合和会话窗口聚合中是必须要实现的。
+- `merge()` 在许多批式聚合和以及流式会话和滑动窗口聚合中是必须要实现的。
 - `resetAccumulator()` 在许多批式聚合中是必须要实现的。
 - `emitValue()` 在批式聚合以及窗口聚合中是必须要实现的。
 

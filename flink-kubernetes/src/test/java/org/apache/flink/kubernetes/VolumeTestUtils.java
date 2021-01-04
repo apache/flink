@@ -21,26 +21,24 @@ package org.apache.flink.kubernetes;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
 
-/**
- * Utilities for the Kubernetes tests.
- */
+/** Utilities for the Kubernetes tests. */
 public class VolumeTestUtils {
 
-	public static boolean podHasVolume(Pod pod, String volumeName){
-		return pod.getSpec().getVolumes().stream()
-			.filter(volume -> volume
-					.getName()
-					.equals(volumeName)
-			)
-			.count() == 1L;
-	}
+    public static boolean podHasVolume(Pod pod, String volumeName) {
+        return pod.getSpec().getVolumes().stream()
+                        .filter(volume -> volume.getName().equals(volumeName))
+                        .count()
+                == 1L;
+    }
 
-	public static boolean containerHasVolume(Container container, String volumeName, String mountPath){
-		return container.getVolumeMounts().stream()
-			.filter(volumeMount -> volumeMount.getName().equals(volumeName)
-					&& volumeMount.getMountPath().equals(mountPath)
-			)
-			.count() == 1L;
-	}
-
+    public static boolean containerHasVolume(
+            Container container, String volumeName, String mountPath) {
+        return container.getVolumeMounts().stream()
+                        .filter(
+                                volumeMount ->
+                                        volumeMount.getName().equals(volumeName)
+                                                && volumeMount.getMountPath().equals(mountPath))
+                        .count()
+                == 1L;
+    }
 }

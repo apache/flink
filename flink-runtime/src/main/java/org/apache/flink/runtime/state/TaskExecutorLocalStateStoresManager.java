@@ -43,273 +43,295 @@ import java.util.concurrent.Executor;
  */
 public class TaskExecutorLocalStateStoresManager {
 
-	/** Logger for this class. */
-	private static final Logger LOG = LoggerFactory.getLogger(TaskExecutorLocalStateStoresManager.class);
+    /** Logger for this class. */
+    private static final Logger LOG =
+            LoggerFactory.getLogger(TaskExecutorLocalStateStoresManager.class);
 
-	/**
-	 * This map holds all local state stores for tasks running on the task manager / executor that own the instance of
-	 * this. Maps from allocation id to all the subtask's local state stores.
-	 */
-	@GuardedBy("lock")
-	private final Map<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> taskStateStoresByAllocationID;
+    /**
+     * This map holds all local state stores for tasks running on the task manager / executor that
+     * own the instance of this. Maps from allocation id to all the subtask's local state stores.
+     */
+    @GuardedBy("lock")
+    private final Map<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>>
+            taskStateStoresByAllocationID;
 
-	/** The configured mode for local recovery on this task manager. */
-	private final boolean localRecoveryEnabled;
+    /** The configured mode for local recovery on this task manager. */
+    private final boolean localRecoveryEnabled;
 
-	/** This is the root directory for all local state of this task manager / executor. */
-	private final File[] localStateRootDirectories;
+    /** This is the root directory for all local state of this task manager / executor. */
+    private final File[] localStateRootDirectories;
 
-	/** Executor that runs the discarding of released state objects. */
-	private final Executor discardExecutor;
+    /** Executor that runs the discarding of released state objects. */
+    private final Executor discardExecutor;
 
-	/** Guarding lock for taskStateStoresByAllocationID and closed-flag. */
-	private final Object lock;
+    /** Guarding lock for taskStateStoresByAllocationID and closed-flag. */
+    private final Object lock;
 
-	private final Thread shutdownHook;
+    private final Thread shutdownHook;
 
-	@GuardedBy("lock")
-	private boolean closed;
+    @GuardedBy("lock")
+    private boolean closed;
 
-	public TaskExecutorLocalStateStoresManager(
-		boolean localRecoveryEnabled,
-		@Nonnull File[] localStateRootDirectories,
-		@Nonnull Executor discardExecutor) throws IOException {
+    public TaskExecutorLocalStateStoresManager(
+            boolean localRecoveryEnabled,
+            @Nonnull File[] localStateRootDirectories,
+            @Nonnull Executor discardExecutor)
+            throws IOException {
 
-		this.taskStateStoresByAllocationID = new HashMap<>();
-		this.localRecoveryEnabled = localRecoveryEnabled;
-		this.localStateRootDirectories = localStateRootDirectories;
-		this.discardExecutor = discardExecutor;
-		this.lock = new Object();
-		this.closed = false;
+        this.taskStateStoresByAllocationID = new HashMap<>();
+        this.localRecoveryEnabled = localRecoveryEnabled;
+        this.localStateRootDirectories = localStateRootDirectories;
+        this.discardExecutor = discardExecutor;
+        this.lock = new Object();
+        this.closed = false;
 
-		for (File localStateRecoveryRootDir : localStateRootDirectories) {
+        for (File localStateRecoveryRootDir : localStateRootDirectories) {
 
-			if (!localStateRecoveryRootDir.exists()
-				&& !localStateRecoveryRootDir.mkdirs()
-				// we double check for exists in case another task created the directory concurrently.
-				&& !localStateRecoveryRootDir.exists()) {
-				throw new IOException("Could not create root directory for local recovery: " +
-					localStateRecoveryRootDir);
-			}
-		}
+            if (!localStateRecoveryRootDir.exists()
+                    && !localStateRecoveryRootDir.mkdirs()
+                    // we double check for exists in case another task created the directory
+                    // concurrently.
+                    && !localStateRecoveryRootDir.exists()) {
+                throw new IOException(
+                        "Could not create root directory for local recovery: "
+                                + localStateRecoveryRootDir);
+            }
+        }
 
-		// register a shutdown hook
-		this.shutdownHook = ShutdownHookUtil.addShutdownHook(this::shutdown, getClass().getSimpleName(), LOG);
-	}
+        // register a shutdown hook
+        this.shutdownHook =
+                ShutdownHookUtil.addShutdownHook(this::shutdown, getClass().getSimpleName(), LOG);
+    }
 
-	@Nonnull
-	public TaskLocalStateStore localStateStoreForSubtask(
-		@Nonnull JobID jobId,
-		@Nonnull AllocationID allocationID,
-		@Nonnull JobVertexID jobVertexID,
-		@Nonnegative int subtaskIndex) {
+    @Nonnull
+    public TaskLocalStateStore localStateStoreForSubtask(
+            @Nonnull JobID jobId,
+            @Nonnull AllocationID allocationID,
+            @Nonnull JobVertexID jobVertexID,
+            @Nonnegative int subtaskIndex) {
 
-		synchronized (lock) {
+        synchronized (lock) {
+            if (closed) {
+                throw new IllegalStateException(
+                        "TaskExecutorLocalStateStoresManager is already closed and cannot "
+                                + "register a new TaskLocalStateStore.");
+            }
 
-			if (closed) {
-				throw new IllegalStateException("TaskExecutorLocalStateStoresManager is already closed and cannot " +
-					"register a new TaskLocalStateStore.");
-			}
+            Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> taskStateManagers =
+                    this.taskStateStoresByAllocationID.get(allocationID);
 
-			Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> taskStateManagers =
-				this.taskStateStoresByAllocationID.get(allocationID);
+            if (taskStateManagers == null) {
+                taskStateManagers = new HashMap<>();
+                this.taskStateStoresByAllocationID.put(allocationID, taskStateManagers);
 
-			if (taskStateManagers == null) {
-				taskStateManagers = new HashMap<>();
-				this.taskStateStoresByAllocationID.put(allocationID, taskStateManagers);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Registered new allocation id {} for local state stores for job {}.",
+                            allocationID.toHexString(),
+                            jobId);
+                }
+            }
 
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Registered new allocation id {} for local state stores for job {}.",
-						allocationID.toHexString(), jobId);
-				}
-			}
+            final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
 
-			final JobVertexSubtaskKey taskKey = new JobVertexSubtaskKey(jobVertexID, subtaskIndex);
+            OwnedTaskLocalStateStore taskLocalStateStore = taskStateManagers.get(taskKey);
 
-			OwnedTaskLocalStateStore taskLocalStateStore = taskStateManagers.get(taskKey);
+            if (taskLocalStateStore == null) {
 
-			if (taskLocalStateStore == null) {
+                // create the allocation base dirs, one inside each root dir.
+                File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
 
-				// create the allocation base dirs, one inside each root dir.
-				File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
+                LocalRecoveryDirectoryProviderImpl directoryProvider =
+                        new LocalRecoveryDirectoryProviderImpl(
+                                allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
 
-				LocalRecoveryDirectoryProviderImpl directoryProvider = new LocalRecoveryDirectoryProviderImpl(
-					allocationBaseDirectories,
-					jobId,
-					jobVertexID,
-					subtaskIndex);
+                LocalRecoveryConfig localRecoveryConfig =
+                        new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
 
-				LocalRecoveryConfig localRecoveryConfig =
-					new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
+                taskLocalStateStore =
+                        localRecoveryConfig.isLocalRecoveryEnabled()
+                                ?
 
-				taskLocalStateStore = localRecoveryConfig.isLocalRecoveryEnabled() ?
+                                // Real store implementation if local recovery is enabled
+                                new TaskLocalStateStoreImpl(
+                                        jobId,
+                                        allocationID,
+                                        jobVertexID,
+                                        subtaskIndex,
+                                        localRecoveryConfig,
+                                        discardExecutor)
+                                :
 
-						// Real store implementation if local recovery is enabled
-						new TaskLocalStateStoreImpl(
-							jobId,
-							allocationID,
-							jobVertexID,
-							subtaskIndex,
-							localRecoveryConfig,
-							discardExecutor) :
+                                // NOP implementation if local recovery is disabled
+                                new NoOpTaskLocalStateStoreImpl(localRecoveryConfig);
 
-						// NOP implementation if local recovery is disabled
-						new NoOpTaskLocalStateStoreImpl(localRecoveryConfig);
+                taskStateManagers.put(taskKey, taskLocalStateStore);
 
-				taskStateManagers.put(taskKey, taskLocalStateStore);
+                LOG.debug(
+                        "Registered new local state store with configuration {} for {} - {} - {} under allocation "
+                                + "id {}.",
+                        localRecoveryConfig,
+                        jobId,
+                        jobVertexID,
+                        subtaskIndex,
+                        allocationID);
 
+            } else {
+                LOG.debug(
+                        "Found existing local state store for {} - {} - {} under allocation id {}: {}",
+                        jobId,
+                        jobVertexID,
+                        subtaskIndex,
+                        allocationID,
+                        taskLocalStateStore);
+            }
 
-				LOG.debug("Registered new local state store with configuration {} for {} - {} - {} under allocation " +
-						"id {}.", localRecoveryConfig, jobId, jobVertexID, subtaskIndex, allocationID);
+            return taskLocalStateStore;
+        }
+    }
 
-			} else {
-				LOG.debug("Found existing local state store for {} - {} - {} under allocation id {}: {}",
-					jobId, jobVertexID, subtaskIndex, allocationID, taskLocalStateStore);
-			}
+    public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
 
-			return taskLocalStateStore;
-		}
-	}
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Releasing local state under allocation id {}.", allocationID);
+        }
 
-	public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
+        Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> cleanupLocalStores;
 
-		if (LOG.isDebugEnabled()) {
-			LOG.debug("Releasing local state under allocation id {}.", allocationID);
-		}
+        synchronized (lock) {
+            if (closed) {
+                return;
+            }
+            cleanupLocalStores = taskStateStoresByAllocationID.remove(allocationID);
+        }
 
-		Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore> cleanupLocalStores;
+        if (cleanupLocalStores != null) {
+            doRelease(cleanupLocalStores.values());
+        }
 
-		synchronized (lock) {
-			if (closed) {
-				return;
-			}
-			cleanupLocalStores = taskStateStoresByAllocationID.remove(allocationID);
-		}
+        cleanupAllocationBaseDirs(allocationID);
+    }
 
-		if (cleanupLocalStores != null) {
-			doRelease(cleanupLocalStores.values());
-		}
+    public void shutdown() {
 
-		cleanupAllocationBaseDirs(allocationID);
-	}
+        HashMap<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> toRelease;
 
-	public void shutdown() {
+        synchronized (lock) {
+            if (closed) {
+                return;
+            }
 
-		HashMap<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> toRelease;
+            closed = true;
+            toRelease = new HashMap<>(taskStateStoresByAllocationID);
+            taskStateStoresByAllocationID.clear();
+        }
 
-		synchronized (lock) {
+        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-			if (closed) {
-				return;
-			}
+        LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
 
-			closed = true;
-			toRelease = new HashMap<>(taskStateStoresByAllocationID);
-			taskStateStoresByAllocationID.clear();
-		}
+        for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> entry :
+                toRelease.entrySet()) {
 
-		ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
+            doRelease(entry.getValue().values());
+            cleanupAllocationBaseDirs(entry.getKey());
+        }
+    }
 
-		LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
+    @VisibleForTesting
+    boolean isLocalRecoveryEnabled() {
+        return localRecoveryEnabled;
+    }
 
-		for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> entry :
-			toRelease.entrySet()) {
+    @VisibleForTesting
+    File[] getLocalStateRootDirectories() {
+        return localStateRootDirectories;
+    }
 
-			doRelease(entry.getValue().values());
-			cleanupAllocationBaseDirs(entry.getKey());
-		}
-	}
+    @VisibleForTesting
+    String allocationSubDirString(AllocationID allocationID) {
+        return "aid_" + allocationID.toHexString();
+    }
 
-	@VisibleForTesting
-	boolean isLocalRecoveryEnabled() {
-		return localRecoveryEnabled;
-	}
+    private File[] allocationBaseDirectories(AllocationID allocationID) {
+        final String allocationSubDirString = allocationSubDirString(allocationID);
+        final File[] allocationDirectories = new File[localStateRootDirectories.length];
+        for (int i = 0; i < localStateRootDirectories.length; ++i) {
+            allocationDirectories[i] =
+                    new File(localStateRootDirectories[i], allocationSubDirString);
+        }
+        return allocationDirectories;
+    }
 
-	@VisibleForTesting
-	File[] getLocalStateRootDirectories() {
-		return localStateRootDirectories;
-	}
+    private void doRelease(Iterable<OwnedTaskLocalStateStore> toRelease) {
 
-	@VisibleForTesting
-	String allocationSubDirString(AllocationID allocationID) {
-		return "aid_" + allocationID.toHexString();
-	}
+        if (toRelease != null) {
 
-	private File[] allocationBaseDirectories(AllocationID allocationID) {
-		final String allocationSubDirString = allocationSubDirString(allocationID);
-		final File[] allocationDirectories = new File[localStateRootDirectories.length];
-		for (int i = 0; i < localStateRootDirectories.length; ++i) {
-			allocationDirectories[i] = new File(localStateRootDirectories[i], allocationSubDirString);
-		}
-		return allocationDirectories;
-	}
+            for (OwnedTaskLocalStateStore stateStore : toRelease) {
+                try {
+                    stateStore.dispose();
+                } catch (Exception disposeEx) {
+                    LOG.warn(
+                            "Exception while disposing local state store {}.",
+                            stateStore,
+                            disposeEx);
+                }
+            }
+        }
+    }
 
-	private void doRelease(Iterable<OwnedTaskLocalStateStore> toRelease) {
+    /** Deletes the base dirs for this allocation id (recursively). */
+    private void cleanupAllocationBaseDirs(AllocationID allocationID) {
+        // clear the base dirs for this allocation id.
+        File[] allocationDirectories = allocationBaseDirectories(allocationID);
+        for (File directory : allocationDirectories) {
+            try {
+                FileUtils.deleteFileOrDirectory(directory);
+            } catch (IOException e) {
+                LOG.warn(
+                        "Exception while deleting local state directory for allocation id {}.",
+                        allocationID,
+                        e);
+            }
+        }
+    }
 
-		if (toRelease != null) {
+    /**
+     * Composite key of {@link JobVertexID} and subtask index that describes the subtask of a job
+     * vertex.
+     */
+    private static final class JobVertexSubtaskKey {
 
-			for (OwnedTaskLocalStateStore stateStore : toRelease) {
-				try {
-					stateStore.dispose();
-				} catch (Exception disposeEx) {
-					LOG.warn("Exception while disposing local state store {}.", stateStore, disposeEx);
-				}
-			}
-		}
-	}
+        /** The job vertex id. */
+        @Nonnull final JobVertexID jobVertexID;
 
-	/**
-	 * Deletes the base dirs for this allocation id (recursively).
-	 */
-	private void cleanupAllocationBaseDirs(AllocationID allocationID) {
-		// clear the base dirs for this allocation id.
-		File[] allocationDirectories = allocationBaseDirectories(allocationID);
-		for (File directory : allocationDirectories) {
-			try {
-				FileUtils.deleteFileOrDirectory(directory);
-			} catch (IOException e) {
-				LOG.warn("Exception while deleting local state directory for allocation id {}.", allocationID, e);
-			}
-		}
-	}
+        /** The subtask index. */
+        @Nonnegative final int subtaskIndex;
 
-	/**
-	 * Composite key of {@link JobVertexID} and subtask index that describes the subtask of a job vertex.
-	 */
-	private static final class JobVertexSubtaskKey {
+        JobVertexSubtaskKey(@Nonnull JobVertexID jobVertexID, @Nonnegative int subtaskIndex) {
+            this.jobVertexID = jobVertexID;
+            this.subtaskIndex = subtaskIndex;
+        }
 
-		/** The job vertex id. */
-		@Nonnull
-		final JobVertexID jobVertexID;
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
-		/** The subtask index. */
-		@Nonnegative
-		final int subtaskIndex;
+            JobVertexSubtaskKey that = (JobVertexSubtaskKey) o;
 
-		JobVertexSubtaskKey(@Nonnull JobVertexID jobVertexID, @Nonnegative int subtaskIndex) {
-			this.jobVertexID = jobVertexID;
-			this.subtaskIndex = subtaskIndex;
-		}
+            return subtaskIndex == that.subtaskIndex && jobVertexID.equals(that.jobVertexID);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-
-			JobVertexSubtaskKey that = (JobVertexSubtaskKey) o;
-
-			return subtaskIndex == that.subtaskIndex && jobVertexID.equals(that.jobVertexID);
-		}
-
-		@Override
-		public int hashCode() {
-			int result = jobVertexID.hashCode();
-			result = 31 * result + subtaskIndex;
-			return result;
-		}
-	}
+        @Override
+        public int hashCode() {
+            int result = jobVertexID.hashCode();
+            result = 31 * result + subtaskIndex;
+            return result;
+        }
+    }
 }

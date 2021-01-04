@@ -47,11 +47,11 @@ $ ls /usr/bin/python*
 ln -s /usr/bin/python3 python
 {% endhighlight %}
 
-除了软链接的方式，你也可以选择创建一个Python virtual env（`venv`）的方式。关于如何创建一个virtual env，你可以参考[准备Python虚拟环境]({{ site.baseurl }}/zh/dev/python/faq.html#preparing-python-virtual-environment)
+除了软链接的方式，你也可以选择创建一个Python virtual env（`venv`）的方式。关于如何创建一个virtual env，你可以参考[准备Python虚拟环境]({% link dev/python/faq.zh.md %}#preparing-python-virtual-environment)
 
 如果你不想使用软链接的方式改变系统`python`解释器的指向的话，你可以使用配置的方式指定Python解释器。
-关于指定编译作业使用的Python解释器，你可以参考[python client executable]({{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html#python-client-executable)
-关于指定执行python udf worker使用Python解释器，你可以参考[python executable]({{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html#python-executable)
+关于指定编译作业使用的Python解释器，你可以参考[python client executable]({% link dev/python/python_config.zh.md %}#python-client-executable)
+关于指定执行python udf worker使用Python解释器，你可以参考[python executable]({% link dev/python/python_config.zh.md %}#python-executable)
 
 ## PyFlink 安装
 

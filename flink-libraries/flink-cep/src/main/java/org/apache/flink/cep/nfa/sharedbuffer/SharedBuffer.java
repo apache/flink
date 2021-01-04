@@ -35,235 +35,246 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * A shared buffer implementation which stores values under according state. Additionally, the values can be
- * versioned such that it is possible to retrieve their predecessor element in the buffer.
+ * A shared buffer implementation which stores values under according state. Additionally, the
+ * values can be versioned such that it is possible to retrieve their predecessor element in the
+ * buffer.
  *
- * <p>The idea of the implementation is to have a buffer for incoming events with unique ids assigned to them. This way
- * we do not need to deserialize events during processing and we store only one copy of the event.
+ * <p>The idea of the implementation is to have a buffer for incoming events with unique ids
+ * assigned to them. This way we do not need to deserialize events during processing and we store
+ * only one copy of the event.
  *
- * <p>The entries in {@link SharedBuffer} are {@link SharedBufferNode}. The shared buffer node allows to store
- * relations between different entries. A dewey versioning scheme allows to discriminate between
- * different relations (e.g. preceding element).
+ * <p>The entries in {@link SharedBuffer} are {@link SharedBufferNode}. The shared buffer node
+ * allows to store relations between different entries. A dewey versioning scheme allows to
+ * discriminate between different relations (e.g. preceding element).
  *
- * <p>The implementation is strongly based on the paper "Efficient Pattern Matching over Event Streams".
+ * <p>The implementation is strongly based on the paper "Efficient Pattern Matching over Event
+ * Streams".
  *
  * @param <V> Type of the values
  * @see <a href="https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf">
- * https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
+ *     https://people.cs.umass.edu/~yanlei/publications/sase-sigmod08.pdf</a>
  */
 public class SharedBuffer<V> {
 
-	private static final String entriesStateName = "sharedBuffer-entries";
-	private static final String eventsStateName = "sharedBuffer-events";
-	private static final String eventsCountStateName = "sharedBuffer-events-count";
+    private static final String entriesStateName = "sharedBuffer-entries";
+    private static final String eventsStateName = "sharedBuffer-events";
+    private static final String eventsCountStateName = "sharedBuffer-events-count";
 
-	private MapState<EventId, Lockable<V>> eventsBuffer;
-	/** The number of events seen so far in the stream per timestamp. */
-	private MapState<Long, Integer> eventsCount;
-	private MapState<NodeId, Lockable<SharedBufferNode>> entries;
+    private MapState<EventId, Lockable<V>> eventsBuffer;
+    /** The number of events seen so far in the stream per timestamp. */
+    private MapState<Long, Integer> eventsCount;
 
-	/** The cache of eventsBuffer State. */
-	private Map<EventId, Lockable<V>> eventsBufferCache = new HashMap<>();
+    private MapState<NodeId, Lockable<SharedBufferNode>> entries;
 
-	/** The cache of sharedBufferNode. */
-	private Map<NodeId, Lockable<SharedBufferNode>> entryCache = new HashMap<>();
+    /** The cache of eventsBuffer State. */
+    private Map<EventId, Lockable<V>> eventsBufferCache = new HashMap<>();
 
-	public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
-		this.eventsBuffer = stateStore.getMapState(
-			new MapStateDescriptor<>(
-				eventsStateName,
-				EventId.EventIdSerializer.INSTANCE,
-				new Lockable.LockableTypeSerializer<>(valueSerializer)));
+    /** The cache of sharedBufferNode. */
+    private Map<NodeId, Lockable<SharedBufferNode>> entryCache = new HashMap<>();
 
-		this.entries = stateStore.getMapState(
-			new MapStateDescriptor<>(
-				entriesStateName,
-				new NodeId.NodeIdSerializer(),
-				new Lockable.LockableTypeSerializer<>(new SharedBufferNode.SharedBufferNodeSerializer())));
+    public SharedBuffer(KeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
+        this.eventsBuffer =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                eventsStateName,
+                                EventId.EventIdSerializer.INSTANCE,
+                                new Lockable.LockableTypeSerializer<>(valueSerializer)));
 
-		this.eventsCount = stateStore.getMapState(
-			new MapStateDescriptor<>(
-				eventsCountStateName,
-				LongSerializer.INSTANCE,
-				IntSerializer.INSTANCE));
-	}
+        this.entries =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                entriesStateName,
+                                new NodeId.NodeIdSerializer(),
+                                new Lockable.LockableTypeSerializer<>(
+                                        new SharedBufferNode.SharedBufferNodeSerializer())));
 
-	/**
-	 * Initializes underlying state with given map of events and entries. Should be used only in case of migration from
-	 * old state.
-	 *
-	 * @param events  map of events with assigned unique ids
-	 * @param entries map of SharedBufferNodes
-	 * @throws Exception Thrown if the system cannot access the state.
-	 * @deprecated Only for state migration!
-	 */
-	@Deprecated
-	public void init(
-			Map<EventId, Lockable<V>> events,
-			Map<NodeId, Lockable<SharedBufferNode>> entries) throws Exception {
-		eventsBuffer.putAll(events);
-		this.entries.putAll(entries);
+        this.eventsCount =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                eventsCountStateName,
+                                LongSerializer.INSTANCE,
+                                IntSerializer.INSTANCE));
+    }
 
-		Map<Long, Integer> maxIds = events.keySet().stream().collect(Collectors.toMap(
-			EventId::getTimestamp,
-			EventId::getId,
-			Math::max
-		));
-		eventsCount.putAll(maxIds);
-	}
+    /**
+     * Initializes underlying state with given map of events and entries. Should be used only in
+     * case of migration from old state.
+     *
+     * @param events map of events with assigned unique ids
+     * @param entries map of SharedBufferNodes
+     * @throws Exception Thrown if the system cannot access the state.
+     * @deprecated Only for state migration!
+     */
+    @Deprecated
+    public void init(
+            Map<EventId, Lockable<V>> events, Map<NodeId, Lockable<SharedBufferNode>> entries)
+            throws Exception {
+        eventsBuffer.putAll(events);
+        this.entries.putAll(entries);
 
-	/**
-	 * Construct an accessor to deal with this sharedBuffer.
-	 *
-	 * @return an accessor to deal with this sharedBuffer.
-	 */
-	public SharedBufferAccessor<V> getAccessor() {
-		return new SharedBufferAccessor<>(this);
-	}
+        Map<Long, Integer> maxIds =
+                events.keySet().stream()
+                        .collect(
+                                Collectors.toMap(EventId::getTimestamp, EventId::getId, Math::max));
+        eventsCount.putAll(maxIds);
+    }
 
-	void advanceTime(long timestamp) throws Exception {
-		Iterator<Long> iterator = eventsCount.keys().iterator();
-		while (iterator.hasNext()) {
-			Long next = iterator.next();
-			if (next < timestamp) {
-				iterator.remove();
-			}
-		}
-	}
+    /**
+     * Construct an accessor to deal with this sharedBuffer.
+     *
+     * @return an accessor to deal with this sharedBuffer.
+     */
+    public SharedBufferAccessor<V> getAccessor() {
+        return new SharedBufferAccessor<>(this);
+    }
 
-	EventId registerEvent(V value, long timestamp) throws Exception {
-		Integer id = eventsCount.get(timestamp);
-		if (id == null) {
-			id = 0;
-		}
-		EventId eventId = new EventId(id, timestamp);
-		Lockable<V> lockableValue = new Lockable<>(value, 1);
-		eventsCount.put(timestamp, id + 1);
-		eventsBufferCache.put(eventId, lockableValue);
-		return eventId;
-	}
+    void advanceTime(long timestamp) throws Exception {
+        Iterator<Long> iterator = eventsCount.keys().iterator();
+        while (iterator.hasNext()) {
+            Long next = iterator.next();
+            if (next < timestamp) {
+                iterator.remove();
+            }
+        }
+    }
 
-	/**
-	 * Checks if there is no elements in the buffer.
-	 *
-	 * @return true if there is no elements in the buffer
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	public boolean isEmpty() throws Exception {
-		return Iterables.isEmpty(eventsBufferCache.keySet()) && Iterables.isEmpty(eventsBuffer.keys());
-	}
+    EventId registerEvent(V value, long timestamp) throws Exception {
+        Integer id = eventsCount.get(timestamp);
+        if (id == null) {
+            id = 0;
+        }
+        EventId eventId = new EventId(id, timestamp);
+        Lockable<V> lockableValue = new Lockable<>(value, 1);
+        eventsCount.put(timestamp, id + 1);
+        eventsBufferCache.put(eventId, lockableValue);
+        return eventId;
+    }
 
-	/**
-	 * Inserts or updates an event in cache.
-	 *
-	 * @param eventId id of the event
-	 * @param event event body
-	 */
-	void upsertEvent(EventId eventId, Lockable<V> event) {
-		this.eventsBufferCache.put(eventId, event);
-	}
+    /**
+     * Checks if there is no elements in the buffer.
+     *
+     * @return true if there is no elements in the buffer
+     * @throws Exception Thrown if the system cannot access the state.
+     */
+    public boolean isEmpty() throws Exception {
+        return Iterables.isEmpty(eventsBufferCache.keySet())
+                && Iterables.isEmpty(eventsBuffer.keys());
+    }
 
-	/**
-	 * Inserts or updates a shareBufferNode in cache.
-	 *
-	 * @param nodeId id of the event
-	 * @param entry SharedBufferNode
-	 */
-	void upsertEntry(NodeId nodeId, Lockable<SharedBufferNode> entry) {
-		this.entryCache.put(nodeId, entry);
-	}
+    /**
+     * Inserts or updates an event in cache.
+     *
+     * @param eventId id of the event
+     * @param event event body
+     */
+    void upsertEvent(EventId eventId, Lockable<V> event) {
+        this.eventsBufferCache.put(eventId, event);
+    }
 
-	/**
-	 * Removes an event from cache and state.
-	 *
-	 * @param eventId id of the event
-	 */
-	void removeEvent(EventId eventId) throws Exception {
-		this.eventsBufferCache.remove(eventId);
-		this.eventsBuffer.remove(eventId);
-	}
+    /**
+     * Inserts or updates a shareBufferNode in cache.
+     *
+     * @param nodeId id of the event
+     * @param entry SharedBufferNode
+     */
+    void upsertEntry(NodeId nodeId, Lockable<SharedBufferNode> entry) {
+        this.entryCache.put(nodeId, entry);
+    }
 
-	/**
-	 * Removes a ShareBufferNode from cache and state.
-	 *
-	 * @param nodeId id of the event
-	 */
-	void removeEntry(NodeId nodeId) throws Exception {
-		this.entryCache.remove(nodeId);
-		this.entries.remove(nodeId);
-	}
+    /**
+     * Removes an event from cache and state.
+     *
+     * @param eventId id of the event
+     */
+    void removeEvent(EventId eventId) throws Exception {
+        this.eventsBufferCache.remove(eventId);
+        this.eventsBuffer.remove(eventId);
+    }
 
-	/**
-	 * It always returns node either from state or cache.
-	 *
-	 * @param nodeId id of the node
-	 * @return SharedBufferNode
-	 */
-	Lockable<SharedBufferNode> getEntry(NodeId nodeId) {
-		return entryCache.computeIfAbsent(nodeId, id -> {
-			try {
-				return entries.get(id);
-			} catch (Exception ex) {
-				throw new WrappingRuntimeException(ex);
-			}
-		});
-	}
+    /**
+     * Removes a ShareBufferNode from cache and state.
+     *
+     * @param nodeId id of the event
+     */
+    void removeEntry(NodeId nodeId) throws Exception {
+        this.entryCache.remove(nodeId);
+        this.entries.remove(nodeId);
+    }
 
-	/**
-	 * It always returns event either from state or cache.
-	 *
-	 * @param eventId id of the event
-	 * @return event
-	 */
-	Lockable<V> getEvent(EventId eventId) {
-		return eventsBufferCache.computeIfAbsent(eventId, id -> {
-			try {
-				return eventsBuffer.get(id);
-			} catch (Exception ex) {
-				throw new WrappingRuntimeException(ex);
-			}
-		});
-	}
+    /**
+     * It always returns node either from state or cache.
+     *
+     * @param nodeId id of the node
+     * @return SharedBufferNode
+     */
+    Lockable<SharedBufferNode> getEntry(NodeId nodeId) {
+        return entryCache.computeIfAbsent(
+                nodeId,
+                id -> {
+                    try {
+                        return entries.get(id);
+                    } catch (Exception ex) {
+                        throw new WrappingRuntimeException(ex);
+                    }
+                });
+    }
 
-	/**
-	 * Flush the event and node from cache to state.
-	 *
-	 * @throws Exception Thrown if the system cannot access the state.
-	 */
-	void flushCache() throws Exception {
-		if (!entryCache.isEmpty()) {
-			entries.putAll(entryCache);
-			entryCache.clear();
-		}
-		if (!eventsBufferCache.isEmpty()) {
-			eventsBuffer.putAll(eventsBufferCache);
-			eventsBufferCache.clear();
-		}
-	}
+    /**
+     * It always returns event either from state or cache.
+     *
+     * @param eventId id of the event
+     * @return event
+     */
+    Lockable<V> getEvent(EventId eventId) {
+        return eventsBufferCache.computeIfAbsent(
+                eventId,
+                id -> {
+                    try {
+                        return eventsBuffer.get(id);
+                    } catch (Exception ex) {
+                        throw new WrappingRuntimeException(ex);
+                    }
+                });
+    }
 
-	@VisibleForTesting
-	Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
-		return eventsCount.iterator();
-	}
+    /**
+     * Flush the event and node from cache to state.
+     *
+     * @throws Exception Thrown if the system cannot access the state.
+     */
+    void flushCache() throws Exception {
+        if (!entryCache.isEmpty()) {
+            entries.putAll(entryCache);
+            entryCache.clear();
+        }
+        if (!eventsBufferCache.isEmpty()) {
+            eventsBuffer.putAll(eventsBufferCache);
+            eventsBufferCache.clear();
+        }
+    }
 
-	@VisibleForTesting
-	public int getEventsBufferCacheSize() {
-		return eventsBufferCache.size();
-	}
+    @VisibleForTesting
+    Iterator<Map.Entry<Long, Integer>> getEventCounters() throws Exception {
+        return eventsCount.iterator();
+    }
 
-	@VisibleForTesting
-	public int getEventsBufferSize() throws Exception {
-		return Iterables.size(eventsBuffer.entries());
-	}
+    @VisibleForTesting
+    public int getEventsBufferCacheSize() {
+        return eventsBufferCache.size();
+    }
 
-	@VisibleForTesting
-	public int getSharedBufferNodeSize() throws Exception {
-		return Iterables.size(entries.entries());
-	}
+    @VisibleForTesting
+    public int getEventsBufferSize() throws Exception {
+        return Iterables.size(eventsBuffer.entries());
+    }
 
-	@VisibleForTesting
-	public int getSharedBufferNodeCacheSize() throws Exception {
-		return entryCache.size();
-	}
+    @VisibleForTesting
+    public int getSharedBufferNodeSize() throws Exception {
+        return Iterables.size(entries.entries());
+    }
 
+    @VisibleForTesting
+    public int getSharedBufferNodeCacheSize() throws Exception {
+        return entryCache.size();
+    }
 }

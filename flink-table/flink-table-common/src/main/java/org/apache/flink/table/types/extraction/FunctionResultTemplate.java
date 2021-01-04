@@ -25,44 +25,42 @@ import org.apache.flink.table.types.inference.TypeStrategy;
 
 import java.util.Objects;
 
-/**
- * Template of a function intermediate result (i.e. accumulator) or final result (i.e. output).
- */
+/** Template of a function intermediate result (i.e. accumulator) or final result (i.e. output). */
 @Internal
 final class FunctionResultTemplate {
 
-	final DataType dataType;
+    final DataType dataType;
 
-	private FunctionResultTemplate(DataType dataType) {
-		this.dataType = dataType;
-	}
+    private FunctionResultTemplate(DataType dataType) {
+        this.dataType = dataType;
+    }
 
-	static FunctionResultTemplate of(DataType dataType) {
-		return new FunctionResultTemplate(dataType);
-	}
+    static FunctionResultTemplate of(DataType dataType) {
+        return new FunctionResultTemplate(dataType);
+    }
 
-	TypeStrategy toTypeStrategy() {
-		return TypeStrategies.explicit(dataType);
-	}
+    TypeStrategy toTypeStrategy() {
+        return TypeStrategies.explicit(dataType);
+    }
 
-	Class<?> toClass() {
-		return dataType.getConversionClass();
-	}
+    Class<?> toClass() {
+        return dataType.getConversionClass();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		FunctionResultTemplate that = (FunctionResultTemplate) o;
-		return dataType.equals(that.dataType);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FunctionResultTemplate that = (FunctionResultTemplate) o;
+        return dataType.equals(that.dataType);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(dataType);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(dataType);
+    }
 }

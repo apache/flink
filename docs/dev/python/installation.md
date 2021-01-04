@@ -48,11 +48,11 @@ To satisfy the PyFlink requirement regarding the Python environment version, you
 ln -s /usr/bin/python3 python
 {% endhighlight %}
 
-In addition to creating a soft link, you can also choose to create a Python virtual environment (`venv`). You can refer to the [Preparing Python Virtual Environment]({{ site.baseurl }}/dev/python/faq.html#preparing-python-virtual-environment) documentation page for details on how to achieve that setup.
+In addition to creating a soft link, you can also choose to create a Python virtual environment (`venv`). You can refer to the [Preparing Python Virtual Environment]({% link dev/python/faq.md %}#preparing-python-virtual-environment) documentation page for details on how to achieve that setup.
 
 If you don’t want to use a soft link to change the system's `python` interpreter point to, you can use the configuration way to specify the Python interpreter.
-For specifying the Python interpreter used to compile the jobs, you can refer to the [python client executable]({{ site.baseurl }}/dev/python/table-api-users-guide/python_config.html#python-client-executable)
-For specifying the Python interpreter used to execute the python UDF worker, you can refer to the [python.executable]({{ site.baseurl }}/dev/python/table-api-users-guide/python_config.html#python-executable)
+For specifying the Python interpreter used to compile the jobs, you can refer to the [python client executable]({% link dev/python/python_config.md %}#python-client-executable)
+For specifying the Python interpreter used to execute the python UDF worker, you can refer to the [python.executable]({% link dev/python/python_config.md %}#python-executable)
 
 ## Installation of PyFlink
 

@@ -28,7 +28,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, JoinTypeUtil, KeySelectorUtil}
@@ -43,8 +43,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -67,9 +65,9 @@ class StreamExecIntervalJoin(
     remainCondition: Option[RexNode])
   extends BiRel(cluster, traitSet, leftRel, rightRel)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
-  if (containsPythonCall(remainCondition.get)) {
+  if (remainCondition.isDefined && containsPythonCall(remainCondition.get)) {
     throw new TableException("Only inner join condition with equality predicates supports the " +
       "Python UDF taking the inputs from the left table and the right table at the same time, " +
       "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
@@ -112,15 +110,6 @@ class StreamExecIntervalJoin(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-  
-  override def replaceInputNode(
-      ordinalInParent: Int, newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {

@@ -25,8 +25,6 @@ under the License.
 
 Python Table API允许用户使用Python语言开发[Table API]({% link dev/table/tableApi.zh.md %})程序。
 
-自1.9.0起，Apache Flink就提供了Python Table API支持。
-
 ## Where to go next?
 
 - [环境安装]({% link dev/python/installation.zh.md %}): 介绍了如何设置Python Table API的执行环境。
@@ -35,5 +33,4 @@ Python Table API允许用户使用Python语言开发[Table API]({% link dev/tabl
 - [向量化自定义函数]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.zh.md %}): 有关如何定义向量化Python用户自定义函数的说明。
 - [PyFlink Table 和 Pandas DataFrame 互转]({% link dev/python/table-api-users-guide/conversion_of_pandas.zh.md %}): 介绍了PyFlink Table和Pandas DataFrame之间如何互转。
 - [依赖管理]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}): 在Python Table API作业中如何使用第三方依赖。
-- [配置]({% link dev/python/table-api-users-guide/python_config.zh.md %}): 描述了Python Table API程序的配置项。
 - [常见问题]({% link dev/python/faq.zh.md %})

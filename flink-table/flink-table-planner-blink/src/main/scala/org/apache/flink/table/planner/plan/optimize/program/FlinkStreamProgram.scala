@@ -92,7 +92,17 @@ object FlinkStreamProgram {
         .build())
 
     // query decorrelation
-    chainedProgram.addLast(DECORRELATE, new FlinkDecorrelateProgram)
+    chainedProgram.addLast(DECORRELATE,
+      FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          // rewrite before decorrelation
+          .addProgram(
+            FlinkHepRuleSetProgramBuilder.newBuilder
+                .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+                .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+                .add(FlinkStreamRuleSets.PRE_DECORRELATION_RULES)
+                .build(), "pre-rewrite before decorrelation")
+          .addProgram(new FlinkDecorrelateProgram)
+          .build())
 
     // convert time indicators
     chainedProgram.addLast(TIME_INDICATOR, new FlinkRelTimeIndicatorProgram)
@@ -179,6 +189,13 @@ object FlinkStreamProgram {
     chainedProgram.addLast(
       PHYSICAL_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+        // add a HEP program for watermark transpose rules to make this optimization deterministic
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.WATERMARK_TRANSPOSE_RULES)
+            .build(), "watermark transpose")
         .addProgram(new FlinkChangelogModeInferenceProgram,
           "Changelog mode inference")
         .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,

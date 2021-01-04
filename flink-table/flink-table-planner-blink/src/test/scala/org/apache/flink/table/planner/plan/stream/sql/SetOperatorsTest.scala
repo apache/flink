@@ -41,77 +41,78 @@ class SetOperatorsTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testUnionDifferentColumnSize(): Unit = {
     // must fail. Union inputs have different column size.
-    util.verifyPlan("SELECT * FROM T1 UNION ALL SELECT * FROM T3")
+    util.verifyExecPlan("SELECT * FROM T1 UNION ALL SELECT * FROM T3")
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnionDifferentFieldTypes(): Unit = {
     // must fail. Union inputs have different field types.
-    util.verifyPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3")
+    util.verifyExecPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3")
   }
 
   @Test
   def testIntersectAll(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
 
   @Test(expected = classOf[ValidationException])
   def testIntersectDifferentFieldTypes(): Unit = {
     // must fail. Intersect inputs have different field types.
-    util.verifyPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3")
+    util.verifyExecPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3")
   }
 
   @Test
   def testMinusAll(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }
 
   @Test(expected = classOf[ValidationException])
   def testMinusDifferentFieldTypes(): Unit = {
     // must fail. Minus inputs have different field types.
-    util.verifyPlan("SELECT a, b, c FROM T1 EXCEPT SELECT d, c, e FROM T3")
+    util.verifyExecPlan("SELECT a, b, c FROM T1 EXCEPT SELECT d, c, e FROM T3")
   }
 
   @Test
   def testIntersect(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
+    util.verifyExecPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
   }
 
   @Test
   def testMinus(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2")
   }
 
   @Test
   def testMinusLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2")
+    util.verifyExecPlan("SELECT c FROM T1 WHERE 1=0 EXCEPT SELECT f FROM T2")
   }
 
   @Test
   def testMinusRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0")
+    util.verifyExecPlan("SELECT c FROM T1 EXCEPT SELECT f FROM T2 WHERE 1=0")
   }
 
   @Test
   def testMinusWithNestedTypes(): Unit = {
     util.addTableSource[(Long, (Int, String), Array[Boolean])]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT * FROM MyTable EXCEPT SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable EXCEPT SELECT * FROM MyTable")
   }
 
   @Test
   def testUnionNullableTypes(): Unit = {
     util.addTableSource[((Int, String), (Int, String), Int)]("A", 'a, 'b, 'c)
-    util.verifyPlan("SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A")
+    util.verifyExecPlan(
+      "SELECT a FROM A UNION ALL SELECT CASE WHEN c > 0 THEN b ELSE NULL END FROM A")
   }
 
   @Test
@@ -122,11 +123,11 @@ class SetOperatorsTest extends TableTestBase {
         new GenericTypeInfo(classOf[NonPojo]),
         new GenericTypeInfo(classOf[NonPojo])),
       Array("a", "b"))
-    util.verifyPlan("SELECT a FROM A UNION ALL SELECT b FROM A")
+    util.verifyExecPlan("SELECT a FROM A UNION ALL SELECT b FROM A")
   }
 
   @Test
   def testIntersectWithOuterProject(): Unit = {
-    util.verifyPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)")
+    util.verifyExecPlan("SELECT a FROM (SELECT a, b FROM T1 INTERSECT SELECT d, e FROM T2)")
   }
 }

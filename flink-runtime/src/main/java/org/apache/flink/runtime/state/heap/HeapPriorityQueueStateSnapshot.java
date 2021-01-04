@@ -39,80 +39,75 @@ import java.lang.reflect.Array;
  */
 public class HeapPriorityQueueStateSnapshot<T> implements StateSnapshot {
 
-	/** Function that extracts keys from elements. */
-	@Nonnull
-	private final KeyExtractorFunction<T> keyExtractor;
+    /** Function that extracts keys from elements. */
+    @Nonnull private final KeyExtractorFunction<T> keyExtractor;
 
-	/** Copy of the heap array containing all the (immutable or deeply copied) elements. */
-	@Nonnull
-	private final T[] heapArrayCopy;
+    /** Copy of the heap array containing all the (immutable or deeply copied) elements. */
+    @Nonnull private final T[] heapArrayCopy;
 
-	/** The meta info of the state. */
-	@Nonnull
-	private final RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo;
+    /** The meta info of the state. */
+    @Nonnull private final RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo;
 
-	/** The key-group range covered by this snapshot. */
-	@Nonnull
-	private final KeyGroupRange keyGroupRange;
+    /** The key-group range covered by this snapshot. */
+    @Nonnull private final KeyGroupRange keyGroupRange;
 
-	/** The total number of key-groups in the job. */
-	@Nonnegative
-	private final int totalKeyGroups;
+    /** The total number of key-groups in the job. */
+    @Nonnegative private final int totalKeyGroups;
 
-	/** Result of partitioning the snapshot by key-group. */
-	@Nullable
-	private StateKeyGroupWriter stateKeyGroupWriter;
+    /** Result of partitioning the snapshot by key-group. */
+    @Nullable private StateKeyGroupWriter stateKeyGroupWriter;
 
-	HeapPriorityQueueStateSnapshot(
-		@Nonnull T[] heapArrayCopy,
-		@Nonnull KeyExtractorFunction<T> keyExtractor,
-		@Nonnull RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo,
-		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnegative int totalKeyGroups) {
+    HeapPriorityQueueStateSnapshot(
+            @Nonnull T[] heapArrayCopy,
+            @Nonnull KeyExtractorFunction<T> keyExtractor,
+            @Nonnull RegisteredPriorityQueueStateBackendMetaInfo<T> metaInfo,
+            @Nonnull KeyGroupRange keyGroupRange,
+            @Nonnegative int totalKeyGroups) {
 
-		this.keyExtractor = keyExtractor;
-		this.heapArrayCopy = heapArrayCopy;
-		this.metaInfo = metaInfo;
-		this.keyGroupRange = keyGroupRange;
-		this.totalKeyGroups = totalKeyGroups;
-	}
+        this.keyExtractor = keyExtractor;
+        this.heapArrayCopy = heapArrayCopy;
+        this.metaInfo = metaInfo;
+        this.keyGroupRange = keyGroupRange;
+        this.totalKeyGroups = totalKeyGroups;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Nonnull
-	@Override
-	public StateKeyGroupWriter getKeyGroupWriter() {
+    @SuppressWarnings("unchecked")
+    @Nonnull
+    @Override
+    public StateKeyGroupWriter getKeyGroupWriter() {
 
-		if (stateKeyGroupWriter == null) {
+        if (stateKeyGroupWriter == null) {
 
-			T[] partitioningOutput = (T[]) Array.newInstance(
-				heapArrayCopy.getClass().getComponentType(),
-				heapArrayCopy.length);
+            T[] partitioningOutput =
+                    (T[])
+                            Array.newInstance(
+                                    heapArrayCopy.getClass().getComponentType(),
+                                    heapArrayCopy.length);
 
-			final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
+            final TypeSerializer<T> elementSerializer = metaInfo.getElementSerializer();
 
-			KeyGroupPartitioner<T> keyGroupPartitioner =
-				new KeyGroupPartitioner<>(
-					heapArrayCopy,
-					heapArrayCopy.length,
-					partitioningOutput,
-					keyGroupRange,
-					totalKeyGroups,
-					keyExtractor,
-					elementSerializer::serialize);
+            KeyGroupPartitioner<T> keyGroupPartitioner =
+                    new KeyGroupPartitioner<>(
+                            heapArrayCopy,
+                            heapArrayCopy.length,
+                            partitioningOutput,
+                            keyGroupRange,
+                            totalKeyGroups,
+                            keyExtractor,
+                            elementSerializer::serialize);
 
-			stateKeyGroupWriter = keyGroupPartitioner.partitionByKeyGroup();
-		}
+            stateKeyGroupWriter = keyGroupPartitioner.partitionByKeyGroup();
+        }
 
-		return stateKeyGroupWriter;
-	}
+        return stateKeyGroupWriter;
+    }
 
-	@Nonnull
-	@Override
-	public StateMetaInfoSnapshot getMetaInfoSnapshot() {
-		return metaInfo.snapshot();
-	}
+    @Nonnull
+    @Override
+    public StateMetaInfoSnapshot getMetaInfoSnapshot() {
+        return metaInfo.snapshot();
+    }
 
-	@Override
-	public void release() {
-	}
+    @Override
+    public void release() {}
 }

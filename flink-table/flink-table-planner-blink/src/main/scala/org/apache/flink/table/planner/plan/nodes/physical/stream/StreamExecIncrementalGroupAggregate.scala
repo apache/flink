@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchIncrementalGroupAggFunction
@@ -49,10 +49,10 @@ import scala.collection.JavaConversions._
   * <p>Considering the following sub-plan:
   * {{{
   *   StreamExecGlobalGroupAggregate (final-global-aggregate)
-  *   +- StreamExecExchange
+  *   +- StreamPhysicalExchange
   *      +- StreamExecLocalGroupAggregate (final-local-aggregate)
   *         +- StreamExecGlobalGroupAggregate (partial-global-aggregate)
-  *            +- StreamExecExchange
+  *            +- StreamPhysicalExchange
   *               +- StreamExecLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
@@ -61,9 +61,9 @@ import scala.collection.JavaConversions._
   * now the sub-plan is
   * {{{
   *   StreamExecGlobalGroupAggregate (final-global-aggregate)
-  *   +- StreamExecExchange
+  *   +- StreamPhysicalExchange
   *      +- StreamExecIncrementalGroupAggregate
-  *         +- StreamExecExchange
+  *         +- StreamPhysicalExchange
   *            +- StreamExecLocalGroupAggregate (partial-local-aggregate)
   * }}}
   *
@@ -81,7 +81,7 @@ class StreamExecIncrementalGroupAggregate(
     val finalAggGrouping: Array[Int],
     val partialAggGrouping: Array[Int])
   extends StreamExecGroupAggregateBase(cluster, traitSet, inputRel)
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def deriveRowType(): RelDataType = outputRowType
 
@@ -116,16 +116,6 @@ class StreamExecIncrementalGroupAggregate(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[RowData] = {
@@ -166,7 +156,8 @@ class StreamExecIncrementalGroupAggregate(
     val aggFunction = new MiniBatchIncrementalGroupAggFunction(
       partialAggsHandler,
       finalAggsHandler,
-      finalKeySelector)
+      finalKeySelector,
+      config.getIdleStateRetention.toMillis)
 
     val operator = new KeyedMapBundleOperator(
       aggFunction,

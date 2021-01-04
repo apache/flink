@@ -18,20 +18,22 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.catalog.AbstractCatalogTable
 import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.MultipleInputRel
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
-import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
+import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts
+
+import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
@@ -43,7 +45,7 @@ import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
-import com.google.common.collect.ImmutableSet
+
 import java.util
 
 import scala.collection.JavaConversions._
@@ -69,9 +71,29 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   private def getTableUniqueKeys(
       tableSource: TableSource[_],
       relOptTable: RelOptTable): JSet[ImmutableBitSet] = {
-    // TODO get uniqueKeys from TableSchema of TableSource
 
     relOptTable match {
+      case sourceTable: TableSourceTable =>
+        val catalogTable = sourceTable.catalogTable
+        catalogTable match {
+          case act: AbstractCatalogTable =>
+            val schema = act.getSchema
+            if (schema.getPrimaryKey.isPresent) {
+              val columns = schema.getFieldNames
+              val columnIndices = schema.getPrimaryKey.get().getColumns map { c =>
+                columns.indexOf(c)
+              }
+              val builder = ImmutableSet.builder[ImmutableBitSet]()
+              builder.add(ImmutableBitSet.of(columnIndices:_*))
+              val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
+              if (uniqueSet != null) {
+                builder.addAll(uniqueSet)
+              }
+              builder.build()
+            } else {
+              sourceTable.uniqueKeysSet.orElse(null)
+            }
+        }
       case table: FlinkPreparingTableBase => table.uniqueKeysSet.orElse(null)
       case _ => null
     }
@@ -243,8 +265,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     val inputUniqueKeys = mq.getUniqueKeys(rel.getInput, ignoreNulls)
     val rankFunColumnIndex = RankUtil.getRankNumberColumnIndex(rel).getOrElse(-1)
-    //TODO current deduplicate on row time is still a Rank,
-    // remove this after support deduplicate on row time
+    // for Rank node that can convert to Deduplicate, unique key is partition key
     val canConvertToDeduplicate: Boolean = {
       val rankRange = rel.rankRange
       val isRowNumberType = rel.rankType == RankType.ROW_NUMBER
@@ -289,6 +310,20 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     ImmutableSet.of(ImmutableBitSet.of(rel.getUniqueKeys.map(Integer.valueOf).toList))
+  }
+
+  def getUniqueKeys(
+      rel: StreamPhysicalChangelogNormalize,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    ImmutableSet.of(ImmutableBitSet.of(rel.uniqueKeys.map(Integer.valueOf).toList))
+  }
+
+  def getUniqueKeys(
+      rel: StreamPhysicalDropUpdateBefore,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
+    mq.getUniqueKeys(rel.getInput, ignoreNulls)
   }
 
   def getUniqueKeys(
@@ -541,7 +576,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = null
 
   def getUniqueKeys(
-      rel: BatchExecCorrelate,
+      rel: BatchPhysicalCorrelate,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = null
 
@@ -555,12 +590,6 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ImmutableSet.of()
     }
   }
-
-  def getUniqueKeys(
-      multipleInput: MultipleInputRel,
-      mq: RelMetadataQuery,
-      ignoreNulls: Boolean): JSet[ImmutableBitSet] =
-    mq.getUniqueKeys(multipleInput.outputRel, ignoreNulls)
 
   def getUniqueKeys(
       subset: RelSubset,

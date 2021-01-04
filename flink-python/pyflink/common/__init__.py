@@ -33,6 +33,8 @@ from pyflink.common.job_id import JobID
 from pyflink.common.job_status import JobStatus
 from pyflink.common.restart_strategy import RestartStrategies, RestartStrategyConfiguration
 from pyflink.common.types import Row, RowKind
+from pyflink.common.time import Duration
+from pyflink.common.watermark_strategy import WatermarkStrategy
 
 __all__ = [
     'CompletableFuture',
@@ -47,5 +49,7 @@ __all__ = [
     'RestartStrategies',
     'RestartStrategyConfiguration',
     "Row",
-    "RowKind"
+    "RowKind",
+    "Duration",
+    "WatermarkStrategy"
 ]

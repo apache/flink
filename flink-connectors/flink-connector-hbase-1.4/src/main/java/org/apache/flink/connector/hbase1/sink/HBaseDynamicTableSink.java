@@ -35,79 +35,81 @@ import org.apache.flink.types.RowKind;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 
-/**
- * HBase table sink implementation.
- */
+/** HBase table sink implementation. */
 @Internal
 public class HBaseDynamicTableSink implements DynamicTableSink {
 
-	private final HBaseTableSchema hbaseTableSchema;
-	private final HBaseOptions hbaseOptions;
-	private final HBaseWriteOptions writeOptions;
-	private final String nullStringLiteral;
+    private final HBaseTableSchema hbaseTableSchema;
+    private final HBaseOptions hbaseOptions;
+    private final HBaseWriteOptions writeOptions;
+    private final String nullStringLiteral;
 
-	public HBaseDynamicTableSink(
-			HBaseTableSchema hbaseTableSchema,
-			HBaseOptions hbaseOptions,
-			HBaseWriteOptions writeOptions,
-			String nullStringLiteral) {
-		this.hbaseTableSchema = hbaseTableSchema;
-		this.hbaseOptions = hbaseOptions;
-		this.writeOptions = writeOptions;
-		this.nullStringLiteral = nullStringLiteral;
-	}
+    public HBaseDynamicTableSink(
+            HBaseTableSchema hbaseTableSchema,
+            HBaseOptions hbaseOptions,
+            HBaseWriteOptions writeOptions,
+            String nullStringLiteral) {
+        this.hbaseTableSchema = hbaseTableSchema;
+        this.hbaseOptions = hbaseOptions;
+        this.writeOptions = writeOptions;
+        this.nullStringLiteral = nullStringLiteral;
+    }
 
-	@Override
-	public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
-		Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-		hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
-		hbaseOptions.getZkNodeParent().ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-		HBaseSinkFunction<RowData> sinkFunction = new HBaseSinkFunction<>(
-			hbaseOptions.getTableName(),
-			hbaseClientConf,
-			new RowDataToMutationConverter(hbaseTableSchema, nullStringLiteral),
-			writeOptions.getBufferFlushMaxSizeInBytes(),
-			writeOptions.getBufferFlushMaxRows(),
-			writeOptions.getBufferFlushIntervalMillis());
-		return SinkFunctionProvider.of(sinkFunction);
-	}
+    @Override
+    public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
+        Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
+        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseOptions.getZkQuorum());
+        hbaseOptions
+                .getZkNodeParent()
+                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+        HBaseSinkFunction<RowData> sinkFunction =
+                new HBaseSinkFunction<>(
+                        hbaseOptions.getTableName(),
+                        hbaseClientConf,
+                        new RowDataToMutationConverter(hbaseTableSchema, nullStringLiteral),
+                        writeOptions.getBufferFlushMaxSizeInBytes(),
+                        writeOptions.getBufferFlushMaxRows(),
+                        writeOptions.getBufferFlushIntervalMillis());
+        return SinkFunctionProvider.of(sinkFunction, writeOptions.getParallelism());
+    }
 
-	@Override
-	public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
-		// UPSERT mode
-		ChangelogMode.Builder builder = ChangelogMode.newBuilder();
-		for (RowKind kind : requestedMode.getContainedKinds()) {
-			if (kind != RowKind.UPDATE_BEFORE) {
-				builder.addContainedKind(kind);
-			}
-		}
-		return builder.build();
-	}
+    @Override
+    public ChangelogMode getChangelogMode(ChangelogMode requestedMode) {
+        // UPSERT mode
+        ChangelogMode.Builder builder = ChangelogMode.newBuilder();
+        for (RowKind kind : requestedMode.getContainedKinds()) {
+            if (kind != RowKind.UPDATE_BEFORE) {
+                builder.addContainedKind(kind);
+            }
+        }
+        return builder.build();
+    }
 
-	@Override
-	public DynamicTableSink copy() {
-		return new HBaseDynamicTableSink(hbaseTableSchema, hbaseOptions, writeOptions, nullStringLiteral);
-	}
+    @Override
+    public DynamicTableSink copy() {
+        return new HBaseDynamicTableSink(
+                hbaseTableSchema, hbaseOptions, writeOptions, nullStringLiteral);
+    }
 
-	@Override
-	public String asSummaryString() {
-		return "HBase";
-	}
+    @Override
+    public String asSummaryString() {
+        return "HBase";
+    }
 
-	// -------------------------------------------------------------------------------------------
+    // -------------------------------------------------------------------------------------------
 
-	@VisibleForTesting
-	public HBaseTableSchema getHBaseTableSchema() {
-		return this.hbaseTableSchema;
-	}
+    @VisibleForTesting
+    public HBaseTableSchema getHBaseTableSchema() {
+        return this.hbaseTableSchema;
+    }
 
-	@VisibleForTesting
-	public HBaseOptions getHBaseOptions() {
-		return hbaseOptions;
-	}
+    @VisibleForTesting
+    public HBaseOptions getHBaseOptions() {
+        return hbaseOptions;
+    }
 
-	@VisibleForTesting
-	public HBaseWriteOptions getWriteOptions() {
-		return writeOptions;
-	}
+    @VisibleForTesting
+    public HBaseWriteOptions getWriteOptions() {
+        return writeOptions;
+    }
 }

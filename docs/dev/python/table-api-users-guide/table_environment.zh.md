@@ -22,42 +22,42 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This document is an introduction of PyFlink `TableEnvironment`. 
-It includes detailed descriptions of every public interface of the `TableEnvironment` class.
+本篇文档是对 PyFlink `TableEnvironment` 的介绍。 
+文档包括对 `TableEnvironment` 类中每个公共接口的详细描述。
 
 * This will be replaced by the TOC
 {:toc}
 
-Create a TableEnvironment
+创建 TableEnvironment
 -------------------------
 
-The recommended way to create a `TableEnvironment` is to create from an `EnvironmentSettings` object:
+创建 `TableEnvironment` 的推荐方式是通过 `EnvironmentSettings` 对象创建:
 
 {% highlight python %}
 
 from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
 
-# create a blink streaming TableEnvironment
+# 创建 blink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
-# create a blink batch TableEnvironment
+# 创建 blink 批 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
-# create a flink streaming TableEnvironment
+# 创建 flink 流 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
 table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
-# create a flink batch TableEnvironment
+# 创建 flink 批 TableEnvironment
 env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_old_planner().build()
 table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 {% endhighlight %}
 
-If you need to access the `ExecutionEnvironment`/`StreamExecutionEnvironment` object which the `TableEnvironment` based on,
-e.g. mixing with DataStream API, configuring via the APIs of `ExecutionEnvironment`/`StreamExecutionEnvironment`, 
-you can also create a `TableEnvironment` from an `ExecutionEnvironment`/`StreamExecutionEnvironment` with a optional `TableConfig` object:
+如果你需要使用 `TableEnvironment` 所依赖的 `ExecutionEnvironment`/`StreamExecutionEnvironment` 对象，
+例如：与 DataStream API 混合编程，使用 `ExecutionEnvironment`/`StreamExecutionEnvironment` APIs 进行配置， 
+你也可以通过一个 `TableConfig` 对象从 `ExecutionEnvironment`/`StreamExecutionEnvironment` 中创建出 `TableEnvironment`，其中 `TableConfig` 是可选的：
 
 {% highlight python %}
 
@@ -65,46 +65,46 @@ from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, BatchTableEnvironment, TableConfig
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment
+# 通过 StreamExecutionEnvironment 创建 blink 流 TableEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_env = StreamTableEnvironment.create(env)
 
-# create a blink streaming TableEnvironment from a StreamExecutionEnvironment with a TableConfig
+# 通过 StreamExecutionEnvironment 和 TableConfig 创建 blink 流 TableEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 table_config = TableConfig()  # you can add configuration options in it
 table_env = StreamTableEnvironment.create(env, table_config)
 
-# create a flink batch TableEnvironment from an ExecutionEnvironment
+# 通过 ExecutionEnvironment 创建 flink 批 TableEnvironment 
 env = ExecutionEnvironment.get_execution_environment()
 table_env = BatchTableEnvironment.create(env)
 
-# create a flink batch TableEnvironment from an ExecutionEnvironment with a TableConfig
+# 通过 ExecutionEnvironment 和 TableConfig 创建 flink 批 TableEnvironment
 env = ExecutionEnvironment.get_execution_environment()
 table_config = TableConfig()  # you can add configuration options in it
 table_env = BatchTableEnvironment.create(env, table_config)
 
-# create a flink streaming TableEnvironment from a StreamExecutionEnvironment
+# 通过 StreamExecutionEnvironment 创建 flink 流 TableEnvironment
 env = StreamExecutionEnvironment.get_execution_environment()
 env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_old_planner().build()
 table_env = StreamTableEnvironment.create(env, environment_settings=env_settings)
 {% endhighlight %}
 
-**Note:** Almost all the configurations in `ExecutionEnvironment`/`StreamExecutionEnvironment` can be configured via `TableEnvironment.get_config()` now, see [Configuration]({% link ops/config.zh.md %}) for more details.
-Only a few rarely used or deprecated configurations still require direct access to `ExecutionEnvironment` /`StreamExecutionEnvironment` for configuring, e.g. the input dependency constraint.
+**注意：** 现在， `ExecutionEnvironment`/`StreamExecutionEnvironment` 中所有的配置项几乎都可以通过 `TableEnvironment.get_config()` 来配置，更多详情，可查阅 [配置]({% link deployment/config.zh.md %})。
+只有少数很少使用的或者被废弃的配置仍然需要直接通过 `ExecutionEnvironment` /`StreamExecutionEnvironment` 来配置，例如输入依赖约束。
 
 TableEnvironment API
 --------------------
 
-### Table/SQL Operations
+### Table/SQL 操作
 
-These APIs are used to create/remove Table API/SQL Tables and write queries:
+这些 APIs 用来创建或者删除 Table API/SQL 表和写查询：
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -113,10 +113,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>from_elements(elements, schema=None, verify_schema=True)</strong>
       </td>
       <td>
-        Creates a table from a collection of elements. 
+        通过元素集合来创建表。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_elements">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_elements">链接</a>
       </td>
     </tr>
     <tr>
@@ -124,10 +124,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>from_pandas(pdf, schema=None, split_num=1)</strong>
       </td>
       <td>
-        Creates a table from a pandas DataFrame. 
+        通过 pandas DataFrame 来创建表。 
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_pandas">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_pandas">链接</a>
       </td>
     </tr>
     <tr>
@@ -135,10 +135,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>from_path(path)</strong>
       </td>
       <td>
-        Creates a table from a registered table under the specified path, e.g. tables registered via <strong>create_temporary_view</strong>. 
+        通过指定路径下已注册的表来创建一个表，例如通过 <strong>create_temporary_view</strong> 注册表。 
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_path">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_path">链接</a>
       </td>
     </tr>
     <tr>
@@ -146,10 +146,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>sql_query(query)</strong>
       </td>
       <td>
-        Evaluates a SQL query and retrieves the result as a `Table` object. 
+        执行一条 SQL 查询，并将查询的结果作为一个 `Table` 对象。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.sql_query">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.sql_query">链接</a>
       </td>
     </tr>
     <tr>
@@ -157,10 +157,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>create_temporary_view(view_path, table)</strong>
       </td>
       <td>
-        Registers a `Table` object as a temporary view similar to SQL temporary views. 
+        将一个 `Table` 对象注册为一张临时表，类似于 SQL 的临时表。 
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_view">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_view">链接</a>
       </td>
     </tr>
     <tr>
@@ -168,10 +168,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>drop_temporary_view(view_path)</strong>
       </td>
       <td>
-        Drops a temporary view registered under the given path. 
+        删除指定路径下已注册的临时表。 
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_view">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_view">链接</a>
       </td>
     </tr>
     <tr>
@@ -179,11 +179,11 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>drop_temporary_table(table_path)</strong>
       </td>
       <td>
-        Drops a temporary table registered under the given path. 
-        You can use this interface to drop the temporary source table and temporary sink table.
+        删除指定路径下已注册的临时表。
+        你可以使用这个接口来删除临时 source 表和临时 sink 表。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_table">链接</a>
       </td>
     </tr>
     <tr>
@@ -191,27 +191,27 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>execute_sql(stmt)</strong>
       </td>
       <td>
-        Executes the given single statement and returns the execution result.
-        The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE. <br> <br>
-        Note that for "INSERT INTO" statement this is an asynchronous operation, which is usually expected when submitting a job to a remote cluster.
-        However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to <a href="{{ site.baseurl }}/zh/dev/python/faq.html#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">here</a> for more details. <br>
-        Please refer the <a href="{{ site.baseurl }}/zh/dev/table/sql/">SQL</a> documentation for more details about SQL statement.
+        执行指定的语句并返回执行结果。
+        执行语句可以是 DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE。 <br> <br>
+        注意，对于 "INSERT INTO" 语句，这是一个异步操作，通常在向远程集群提交作业时才需要使用。
+        但是，如果在本地集群或者 IDE 中执行作业时，你需要等待作业执行完成，这时你可以查阅 <a href="{% link dev/python/faq.zh.md %}#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">这里</a> 来获取更多细节。 <br>
+        更多关于 SQL 语句的细节，可查阅 <a href="{% link dev/table/sql/index.zh.md %}">SQL</a> 文档。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute_sql">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute_sql">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-<big><strong>Deprecated APIs</strong></big>
+<big><strong>废弃的 APIs</strong></big>
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -220,10 +220,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>from_table_source(table_source)</strong>
       </td>
       <td>
-        Creates a table from a table source. 
+        通过 table source 创建一张表。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_table_source">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.from_table_source">链接</a>
       </td>
     </tr>
     <tr>
@@ -231,11 +231,11 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>scan(*table_path)</strong>
       </td>
       <td>
-        Scans a registered table from catalog and returns the resulting Table.
-        It can be replaced by <strong>from_path</strong>.
+        从 catalog 中扫描已注册的表并且返回结果表。
+        它可以使用 <strong>from_path</strong> 来替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.scan">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.scan">链接</a>
       </td>
     </tr>
     <tr>
@@ -243,12 +243,12 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>register_table(name, table)</strong>
       </td>
       <td>
-        Registers a `Table` object under a unique name in the TableEnvironment's catalog. 
-        Registered tables can be referenced in SQL queries.
-        It can be replaced by <strong>create_temporary_view</strong>.
+        在 TableEnvironment 的 catalog 中用唯一名称注册一个 “Table” 对象。
+        可以在 SQL 查询中引用已注册的表。
+        它可以使用 <strong>create_temporary_view</strong> 替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table">链接</a>
       </td>
     </tr>
     <tr>
@@ -256,10 +256,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>register_table_source(name, table_source)</strong>
       </td>
       <td>
-        Registers an external `TableSource` in the TableEnvironment's catalog.
+        在 TableEnvironment 的 catalog 中注册一个外部 `TableSource`。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table_source">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table_source">链接</a>
       </td>
     </tr>
     <tr>
@@ -267,10 +267,10 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>register_table_sink(name, table_sink)</strong>
       </td>
       <td>
-        Registers an external `TableSink` in the TableEnvironment's catalog.
+        在 TableEnvironment 的 catalog 中注册一个外部 `TableSink`。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_table_sink">链接</a>
       </td>
     </tr>
     <tr>
@@ -278,12 +278,12 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>insert_into(target_path, table)</strong>
       </td>
       <td>
-        Instructs to write the content of a `Table` object into a sink table.
-        Note that this interface would not trigger the execution of jobs.
-        You need to call the "execute" method to execute your job.
+        将 `Table` 对象的内容写到指定的 sink 表中。
+        注意，这个接口不会触发作业的执行。
+        你需要调用 `execute` 方法来执行你的作业。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.insert_into">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.insert_into">链接</a>
       </td>
     </tr>
     <tr>
@@ -291,11 +291,11 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>sql_update(stmt)</strong>
       </td>
       <td>
-        Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement.
-        It can be replaced by <strong>execute_sql</strong>.
+        计算 INSERT, UPDATE 或者 DELETE 等 SQL 语句或者一个 DDL 语句。
+        它可以使用 <strong>execute_sql</strong> 来替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.sql_update">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.sql_update">链接</a>
       </td>
     </tr>
     <tr>
@@ -303,26 +303,26 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         <strong>connect(connector_descriptor)</strong>
       </td>
       <td>
-        Creates a temporary table from a descriptor. 
-        Currently the recommended way is using <strong>execute_sql</strong> to register temporary tables.
+        根据描述符创建临时表。 
+        目前推荐的方式是使用 <strong>execute_sql</strong> 来注册临时表。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.connect">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.connect">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-### Execute/Explain Jobs
+### 执行/解释作业
 
-These APIs are used to explain/execute jobs. Note that the API `execute_sql` can also be used to execute jobs.
+这些 APIs 是用来执行/解释作业。注意，`execute_sql` API 也可以用于执行作业。
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -331,10 +331,10 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>explain_sql(stmt, *extra_details)</strong>
       </td>
       <td>
-        Returns the AST and the execution plan of the specified statement.
+       返回指定语句的抽象语法树和执行计划。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.explain_sql">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.explain_sql">链接</a>
       </td>
     </tr>
     <tr>
@@ -342,24 +342,24 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>create_statement_set()</strong>
       </td>
       <td>
-        Creates a StatementSet instance which accepts DML statements or Tables.
-        It can be used to execute a multi-sink job. 
+        创建一个可接受 DML 语句或表的 StatementSet 实例。
+        它可用于执行包含多个 sink 的作业。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_statement_set">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_statement_set">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-<big><strong>Deprecated APIs</strong></big>
+<big><strong>废弃的 APIs</strong></big>
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -368,14 +368,12 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>explain(table=None, extended=False)</strong>
       </td>
       <td>
-        Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-        the result of the given `Table` object or multi-sinks plan.
-        If you use the "insert_into" or "sql_update" method to emit data to multiple sinks, you can use this
-        method to get the plan.
-        It can be replaced by <strong>TableEnvironment.explain_sql</strong>, <strong>Table.explain</strong> or <strong>StatementSet.explain</strong>.
+        返回指定 Table API 和 SQL 查询的抽象语法树，以及用来计算给定 `Table` 对象或者多个 sink 计划结果的执行计划。
+        如果你使用 "insert_into" 或者 "sql_update" 方法将数据发送到多个 sinks，你可以通过这个方法来得到执行计划。
+        它也可以用 <strong>TableEnvironment.explain_sql</strong>，<strong>Table.explain</strong> 或者 <strong>StatementSet.explain</strong> 来替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.explain">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.explain">链接</a>
       </td>
     </tr>
     <tr>
@@ -383,30 +381,29 @@ These APIs are used to explain/execute jobs. Note that the API `execute_sql` can
         <strong>execute(job_name)</strong>
       </td>
       <td>
-        Triggers the program execution. The environment will execute all parts of the program.
-        If you use the <strong>insert_into</strong> or <strong>sql_update</strong> method to emit data to sinks, you can use this
-        method trigger the program execution.
-        This method will block the client program until the job is finished/canceled/failed.
+        触发程序执行。执行环境将执行程序的所有部分。
+        如果你想要使用 <strong>insert_into</strong> 或者 <strong>sql_update</strong> 方法将数据发送到结果表，你可以使用这个方法触发程序的执行。
+        这个方法将阻塞客户端程序，直到任务完成/取消/失败。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.execute">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-### Create/Drop User Defined Functions
+### 创建/删除用户自定义函数
 
-These APIs are used to register UDFs or remove the registered UDFs. 
-Note that the API `execute_sql` can also be used to register/remove UDFs.
-For more details about the different kinds of UDFs, please refer to [User Defined Functions]({% link dev/table/functions/index.zh.md %}).
+这些 APIs 用来注册 UDFs 或者 删除已注册的 UDFs。
+注意，`execute_sql` API 也可以用于注册/删除 UDFs。
+关于不同类型 UDFs 的详细信息，可查阅 [用户自定义函数]({% link dev/table/functions/index.zh.md %})。
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -415,10 +412,10 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>create_temporary_function(path, function)</strong>
       </td>
       <td>
-        Registers a Python user defined function class as a temporary catalog function.
+        将一个 Python 用户自定义函数注册为临时 catalog 函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -426,12 +423,11 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>create_temporary_system_function(name, function)</strong>
       </td>
       <td>
-        Registers a Python user defined function class as a temporary system function.
-        If the name of a temporary system function is the same as a temporary catalog function,
-        the temporary system function takes precedence.
+        将一个 Python 用户自定义函数注册为临时系统函数。
+        如果临时系统函数的名称与临时 catalog 函数名称相同，优先使用临时系统函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_system_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_temporary_system_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -439,11 +435,11 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>create_java_function(path, function_class_name, ignore_if_exists=None)</strong>
       </td>
       <td>
-        Registers a Java user defined function class as a catalog function under the given path.
-        If the catalog is persistent, the registered catalog function can be used across multiple Flink sessions and clusters.
+        将 Java 用户自定义函数注册为指定路径下的 catalog 函数。
+        如果 catalog 是持久化的，则可以跨多个 Flink 会话和集群使用已注册的 catalog 函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -451,10 +447,10 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>create_java_temporary_function(path, function_class_name)</strong>
       </td>
       <td>
-        Registers a Java user defined function class as a temporary catalog function.
+        将 Java 用户自定义函数注册为临时 catalog 函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -462,10 +458,10 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>create_java_temporary_system_function(name, function_class_name)</strong>
       </td>
       <td>
-        Registers a Java user defined function class as a temporary system function.
+        将 Java 用户定义的函数注册为临时系统函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_system_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.create_java_temporary_system_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -473,10 +469,10 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>drop_function(path)</strong>
       </td>
       <td>
-        Drops a catalog function registered under the given path.
+        删除指定路径下已注册的 catalog 函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -484,10 +480,10 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>drop_temporary_function(path)</strong>
       </td>
       <td>
-        Drops a temporary system function registered under the given name.
+        删除指定名称下已注册的临时系统函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -495,23 +491,23 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>drop_temporary_system_function(name)</strong>
       </td>
       <td>
-        Drops a temporary system function registered under the given name.
+        删除指定名称下已注册的临时系统函数。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_system_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.drop_temporary_system_function">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-<big><strong>Deprecated APIs</strong></big>
+<big><strong>废弃的 APIs</strong></big>
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -520,12 +516,12 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>register_function(name, function)</strong>
       </td>
       <td>
-        Registers a Python user-defined function under a unique name. 
-        Replaces already existing user-defined function under this name.
-        It can be replaced by <strong>create_temporary_system_function</strong>.
+        注册一个 Python 用户自定义函数，并为其指定一个唯一的名称。 
+        若已有与该名称相同的用户自定义函数，则替换之。
+        它可以通过 <strong>create_temporary_system_function</strong> 来替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_function">链接</a>
       </td>
     </tr>
     <tr>
@@ -533,28 +529,28 @@ For more details about the different kinds of UDFs, please refer to [User Define
         <strong>register_java_function(name, function_class_name)</strong>
       </td>
       <td>
-        Registers a Java user defined function under a unique name. 
-        Replaces already existing user-defined functions under this name.
-        It can be replaced by <strong>create_java_temporary_system_function</strong>.
+        注册一个 Java 用户自定义函数，并为其指定一个唯一的名称。 
+        若已有与该名称相同的用户自定义函数，则替换之。
+        它可以通过 <strong>create_java_temporary_system_function</strong> 来替换。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_java_function">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_java_function">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-### Dependency Management
+### 依赖管理
 
-These APIs are used to manage the Python dependencies which are required by the Python UDFs.
-Please refer to the [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency) documentation for more details.
+这些 APIs 用来管理 Python UDFs 所需要的 Python 依赖。
+更多细节可查阅 [依赖管理]({% link dev/python/table-api-users-guide/dependency_management.zh.md %}#python-dependency-in-python-program)。
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -563,11 +559,11 @@ Please refer to the [Dependency Management]({% link dev/python/table-api-users-g
         <strong>add_python_file(file_path)</strong>
       </td>
       <td>
-        Adds a Python dependency which could be Python files, Python packages or local directories. 
-        They will be added to the PYTHONPATH of the Python UDF worker.
+        添加 Python 依赖，可以是 Python 文件，Python 包或者本地目录。 
+        它们将会被添加到 Python UDF 工作程序的 PYTHONPATH 中。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_file">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_file">链接</a>
       </td>
     </tr>
     <tr>
@@ -575,11 +571,11 @@ Please refer to the [Dependency Management]({% link dev/python/table-api-users-g
         <strong>set_python_requirements(requirements_file_path, requirements_cache_dir=None)</strong>
       </td>
       <td>
-        Specifies a requirements.txt file which defines the third-party dependencies.
-        These dependencies will be installed to a temporary directory and added to the PYTHONPATH of the Python UDF worker.
+        指定一个 requirements.txt 文件，该文件定义了第三方依赖关系。
+        这些依赖项将安装到一个临时 catalog 中，并添加到 Python UDF 工作程序的 PYTHONPATH 中。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.set_python_requirements">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.set_python_requirements">链接</a>
       </td>
     </tr>
     <tr>
@@ -587,23 +583,23 @@ Please refer to the [Dependency Management]({% link dev/python/table-api-users-g
         <strong>add_python_archive(archive_path, target_dir=None)</strong>
       </td>
       <td>
-        Adds a Python archive file. The file will be extracted to the working directory of Python UDF worker.
+        添加 Python 归档文件。该文件将被解压到 Python UDF 程序的工作目录中。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_archive">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.add_python_archive">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-### Configuration
+### 配置
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -612,10 +608,10 @@ Please refer to the [Dependency Management]({% link dev/python/table-api-users-g
         <strong>get_config()</strong>
       </td>
       <td>
-        Returns the table config to define the runtime behavior of the Table API.
-        You can find all the available configuration options in <a href="{{ site.baseurl }}/zh/ops/config.html">Configuration</a> and
-        <a href="{{ site.baseurl }}/zh/dev/python/table-api-users-guide/python_config.html">Python Configuation</a>. <br> <br>
-        The following code is an example showing how to set the configuration options through this API:
+        返回 table config，可以通过 table config 来定义 Table API 的运行时行为。
+        你可以在 <a href="{% link deployment/config.zh.md %}">配置</a> 和
+        <a href="{% link dev/python/python_config.zh.md %}">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
+        下面的代码示例展示了如何通过这个 API 来设置配置选项：
 {% highlight python %}
 # set the parallelism to 8
 table_env.get_config().get_configuration().set_string(
@@ -623,7 +619,7 @@ table_env.get_config().get_configuration().set_string(
 {% endhighlight %}
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_config">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_config">链接</a>
       </td>
     </tr>
   </tbody>
@@ -631,14 +627,14 @@ table_env.get_config().get_configuration().set_string(
 
 ### Catalog APIs
 
-These APIs are used to access catalogs and modules. You can find more detailed introduction in [Modules]({% link dev/table/modules.zh.md %}) and [Catalogs]({% link dev/table/catalogs.zh.md %}) documentation.
+这些 APIs 用于访问 catalog 和模块。你可以在 [模块]({% link dev/table/modules.zh.md %}) 和 [catalog]({% link dev/table/catalogs.zh.md %}) 文档中找到更详细的介绍。
 
 <table class="table table-bordered">
   <thead>
     <tr>
       <th class="text-left" style="width: 20%">APIs</th>
-      <th class="text-center">Description</th>
-      <th class="text-center" style="width: 10%">Docs</th>
+      <th class="text-center">描述</th>
+      <th class="text-center" style="width: 10%">文档</th>
     </tr>
   </thead>
   <tbody>
@@ -647,10 +643,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>register_catalog(catalog_name, catalog)</strong>
       </td>
       <td>
-        Registers a `Catalog` under a unique name.
+        注册具有唯一名称的 `Catalog`。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_catalog">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.register_catalog">链接</a>
       </td>
     </tr>
     <tr>
@@ -658,10 +654,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>get_catalog(catalog_name)</strong>
       </td>
       <td>
-        Gets a registered `Catalog` by name.
+        通过指定的名称来获得已注册的 `Catalog` 。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_catalog">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_catalog">链接</a>
       </td>
     </tr>
     <tr>
@@ -669,11 +665,11 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>use_catalog(catalog_name)</strong>
       </td>
       <td>
-        Sets the current catalog to the given value.
-        It also sets the default database to the catalog's default one.
+        将当前目录设置为所指定的 catalog。
+        它也将默认数据库设置为所指定 catalog 的默认数据库。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.use_catalog">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.use_catalog">链接</a>
       </td>
     </tr>
     <tr>
@@ -681,10 +677,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>get_current_catalog()</strong>
       </td>
       <td>
-        Gets the current default catalog name of the current session.
+        获取当前会话默认的 catalog 名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_current_catalog">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_current_catalog">链接</a>
       </td>
     </tr>
     <tr>
@@ -692,10 +688,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>get_current_database()</strong>
       </td>
       <td>
-        Gets the current default database name of the running session.
+        获取正在运行会话中的当前默认数据库名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_current_database">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.get_current_database">链接</a>
       </td>
     </tr>
     <tr>
@@ -703,12 +699,12 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>use_database(database_name)</strong>
       </td>
       <td>
-        Sets the current default database.
-        It has to exist in the current catalog.
-        That path will be used as the default one when looking for unqualified object names.
+        设置当前默认的数据库。
+        它必须存在当前 catalog 中。
+        当寻找未限定的对象名称时，该路径将被用作默认路径。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.use_database">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.use_database">链接</a>
       </td>
     </tr>
     <tr>
@@ -716,11 +712,11 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>load_module(module_name, module)</strong>
       </td>
       <td>
-        Loads a `Module` under a unique name.
-        Modules will be kept in the loaded order.
+        加载给定名称的 `Module`。
+        模块将按照加载的顺序进行保存。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.load_module">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.load_module">链接</a>
       </td>
     </tr>
     <tr>
@@ -728,10 +724,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>unload_module(module_name)</strong>
       </td>
       <td>
-        Unloads a `Module` with given name.
+        卸载给定名称的 `Module`。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.unload_module">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.unload_module">链接</a>
       </td>
     </tr>
     <tr>
@@ -739,10 +735,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_catalogs()</strong>
       </td>
       <td>
-        Gets the names of all catalogs registered in this environment.
+        获取在这个环境中注册的所有 catalog 目录名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_catalogs">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_catalogs">链接</a>
       </td>
     </tr>
     <tr>
@@ -750,10 +746,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_modules()</strong>
       </td>
       <td>
-        Gets the names of all modules registered in this environment.
+        获取在这个环境中注册的所有模块名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_modules">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_modules">链接</a>
       </td>
     </tr>
     <tr>
@@ -761,10 +757,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_databases()</strong>
       </td>
       <td>
-        Gets the names of all databases in the current catalog.
+        获取当前 catalog 中所有数据库的名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_databases">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_databases">链接</a>
       </td>
     </tr>
     <tr>
@@ -772,11 +768,11 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_tables()</strong>
       </td>
       <td>
-        Gets the names of all tables and views in the current database of the current catalog.
-        It returns both temporary and permanent tables and views.
+        获取当前 catalog 的当前数据库下的所有表和临时表的名称。
+        它可以返回永久和临时的表和视图。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_tables">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_tables">链接</a>
       </td>
     </tr>
     <tr>
@@ -784,11 +780,11 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_views()</strong>
       </td>
       <td>
-        Gets the names of all views in the current database of the current catalog.
-        It returns both temporary and permanent views.
+        获取当前 catalog 的当前数据库中的所有临时表名称。
+        它既可以返回永久的也可以返回临时的临时表。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_views">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_views">链接</a>
       </td>
     </tr>
     <tr>
@@ -796,10 +792,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_user_defined_functions()</strong>
       </td>
       <td>
-        Gets the names of all user defined functions registered in this environment.
+        获取在该环境中已注册的所有用户自定义函数的名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_user_defined_functions">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_user_defined_functions">链接</a>
       </td>
     </tr>
     <tr>
@@ -807,10 +803,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_functions()</strong>
       </td>
       <td>
-        Gets the names of all functions in this environment.
+        获取该环境中所有函数的名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_functions">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_functions">链接</a>
       </td>
     </tr>
     <tr>
@@ -818,10 +814,10 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_temporary_tables()</strong>
       </td>
       <td>
-        Gets the names of all temporary tables and views available in the current namespace (the current database of the current catalog).
+       获取当前命名空间（当前 catalog 的当前数据库）中所有可用的表和临时表名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_tables">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_tables">链接</a>
       </td>
     </tr>
     <tr>
@@ -829,37 +825,37 @@ These APIs are used to access catalogs and modules. You can find more detailed i
         <strong>list_temporary_views()</strong>
       </td>
       <td>
-        Gets the names of all temporary views available in the current namespace (the current database of the current catalog).
+        获取当前命名空间（当前 catalog 的当前数据库）中所有可用的临时表名称。
       </td>
       <td class="text-center">
-        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_views">link</a>
+        <a href="{{ site.pythondocs_baseurl }}/api/python/pyflink.table.html#pyflink.table.TableEnvironment.list_temporary_views">链接</a>
       </td>
     </tr>
   </tbody>
 </table>
 
-Statebackend, Checkpoint and Restart Strategy
+Statebackend，Checkpoint 以及重启策略
 ---------------------------------------------
 
-Before Flink 1.10 you can configure the statebackend, checkpointing and restart strategy via the `StreamExecutionEnvironment`.
-And now you can configure them by setting key-value options in `TableConfig`, see [Fault Tolerance]({% link ops/config.zh.md %}#fault-tolerance), [State Backends]({% link ops/config.zh.md %}#checkpoints-and-state-backends) and [Checkpointing]({% link ops/config.zh.md %}#checkpointing) for more details.
+在 Flink 1.10 之前，你可以通过 `StreamExecutionEnvironment` 来配置 statebackend，checkpointing 以及重启策略。
+现在你可以通过在 `TableConfig` 中，通过设置键值选项来配置它们，更多详情可查阅 [容错]({% link deployment/config.zh.md %}#fault-tolerance)，[State Backends]({% link deployment/config.zh.md %}#checkpoints-and-state-backends) 以及 [Checkpointing]({% link deployment/config.zh.md %}#checkpointing)。
 
-The following code is an example showing how to configure the statebackend, checkpoint and restart strategy through the Table API:
+下面代码示例展示了如何通过 Table API 来配置 statebackend，checkpoint 以及重启策略：
 {% highlight python %}
-# set the restart strategy to "fixed-delay"
+# 设置重启策略为 "fixed-delay"
 table_env.get_config().get_configuration().set_string("restart-strategy", "fixed-delay")
 table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.attempts", "3")
 table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.delay", "30s")
 
-# set the checkpoint mode to EXACTLY_ONCE
+# 设置 checkpoint 模式为 EXACTLY_ONCE
 table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
 table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "3min")
 
-# set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
-# you can also set the full qualified Java class name of the StateBackendFactory to this option
+# 设置 statebackend 类型为 "rocksdb"，其他可选项有 "filesystem" 和 "jobmanager"
+# 你也可以将这个属性设置为 StateBackendFactory 的完整类名
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
 table_env.get_config().get_configuration().set_string("state.backend", "rocksdb")
 
-# set the checkpoint directory, which is required by the RocksDB statebackend
+# 设置 RocksDB statebackend 所需要的 checkpoint 目录
 table_env.get_config().get_configuration().set_string("state.checkpoints.dir", "file:///tmp/checkpoints/")
 {% endhighlight %}

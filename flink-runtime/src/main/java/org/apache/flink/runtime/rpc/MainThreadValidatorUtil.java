@@ -26,50 +26,55 @@ import javax.annotation.Nullable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This utility exists to bridge between the visibility of the
- * {@code currentMainThread} field in the {@link RpcEndpoint}.
- * 
- * The {@code currentMainThread} can be hidden from {@code RpcEndpoint} implementations
- * and only be accessed via this utility from other packages.
+ * This utility exists to bridge between the visibility of the {@code currentMainThread} field in
+ * the {@link RpcEndpoint}.
+ *
+ * <p>The {@code currentMainThread} can be hidden from {@code RpcEndpoint} implementations and only
+ * be accessed via this utility from other packages.
  */
 public final class MainThreadValidatorUtil {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MainThreadValidatorUtil.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MainThreadValidatorUtil.class);
 
-	private final RpcEndpoint endpoint;
+    private final RpcEndpoint endpoint;
 
-	public MainThreadValidatorUtil(RpcEndpoint endpoint) {
-		this.endpoint = checkNotNull(endpoint);
-	}
+    public MainThreadValidatorUtil(RpcEndpoint endpoint) {
+        this.endpoint = checkNotNull(endpoint);
+    }
 
-	public void enterMainThread() {
-		assert(endpoint.currentMainThread.compareAndSet(null, Thread.currentThread())) : 
-				"The RpcEndpoint has concurrent access from " + endpoint.currentMainThread.get();
-	}
-	
-	public void exitMainThread() {
-		assert(endpoint.currentMainThread.compareAndSet(Thread.currentThread(), null)) :
-				"The RpcEndpoint has concurrent access from " + endpoint.currentMainThread.get();
-	}
+    public void enterMainThread() {
+        assert (endpoint.currentMainThread.compareAndSet(null, Thread.currentThread()))
+                : "The RpcEndpoint has concurrent access from " + endpoint.currentMainThread.get();
+    }
 
-	/**
-	 * Returns true iff the current thread is equals to the provided expected thread and logs violations.
-	 *
-	 * @param expected the expected main thread.
-	 * @return true iff the current thread is equals to the provided expected thread.
-	 */
-	public static boolean isRunningInExpectedThread(@Nullable Thread expected) {
-		Thread actual = Thread.currentThread();
-		if (expected != actual) {
+    public void exitMainThread() {
+        assert (endpoint.currentMainThread.compareAndSet(Thread.currentThread(), null))
+                : "The RpcEndpoint has concurrent access from " + endpoint.currentMainThread.get();
+    }
 
-			String violationMsg = "Violation of main thread constraint detected: expected <"
-				+ expected + "> but running in <" + actual + ">.";
+    /**
+     * Returns true iff the current thread is equals to the provided expected thread and logs
+     * violations.
+     *
+     * @param expected the expected main thread.
+     * @return true iff the current thread is equals to the provided expected thread.
+     */
+    public static boolean isRunningInExpectedThread(@Nullable Thread expected) {
+        Thread actual = Thread.currentThread();
+        if (expected != actual) {
 
-			LOG.warn(violationMsg, new Exception(violationMsg));
+            String violationMsg =
+                    "Violation of main thread constraint detected: expected <"
+                            + expected
+                            + "> but running in <"
+                            + actual
+                            + ">.";
 
-			return false;
-		}
+            LOG.warn(violationMsg, new Exception(violationMsg));
 
-		return true;
-	}
+            return false;
+        }
+
+        return true;
+    }
 }

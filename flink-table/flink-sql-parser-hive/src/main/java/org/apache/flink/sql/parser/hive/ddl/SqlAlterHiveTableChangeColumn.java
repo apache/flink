@@ -27,52 +27,65 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * ALTER DDL to change a column's name, type, position, etc.
- */
+/** ALTER DDL to change a column's name, type, position, etc. */
 public class SqlAlterHiveTableChangeColumn extends SqlChangeColumn {
 
-	private final SqlRegularColumn origNewColumn;
-	private final boolean cascade;
+    private final SqlRegularColumn origNewColumn;
+    private final boolean cascade;
 
-	public SqlAlterHiveTableChangeColumn(SqlParserPos pos, SqlIdentifier tableName, boolean cascade,
-			SqlIdentifier oldName, SqlRegularColumn newColumn, boolean first, SqlIdentifier after) throws ParseException {
-		super(pos, tableName, oldName, newColumn, after, first, new SqlNodeList(pos));
-		this.origNewColumn = HiveDDLUtils.deepCopyTableColumn(newColumn);
-		HiveDDLUtils.convertDataTypes(newColumn);
-		this.cascade = cascade;
-		// set ALTER OP
-		getProperties().add(HiveDDLUtils.toTableOption(
-				SqlAlterHiveTable.ALTER_TABLE_OP, SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS.name(), pos));
-		// set cascade
-		if (cascade) {
-			getProperties().add(HiveDDLUtils.toTableOption(SqlAlterHiveTable.ALTER_COL_CASCADE, "true", pos));
-		}
-	}
+    public SqlAlterHiveTableChangeColumn(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            boolean cascade,
+            SqlIdentifier oldName,
+            SqlRegularColumn newColumn,
+            boolean first,
+            SqlIdentifier after)
+            throws ParseException {
+        super(pos, tableName, oldName, newColumn, after, first, new SqlNodeList(pos));
+        this.origNewColumn = HiveDDLUtils.deepCopyTableColumn(newColumn);
+        HiveDDLUtils.convertDataTypes(newColumn);
+        this.cascade = cascade;
+        // set ALTER OP
+        getProperties()
+                .add(
+                        HiveDDLUtils.toTableOption(
+                                SqlAlterHiveTable.ALTER_TABLE_OP,
+                                SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS.name(),
+                                pos));
+        // set cascade
+        if (cascade) {
+            getProperties()
+                    .add(
+                            HiveDDLUtils.toTableOption(
+                                    SqlAlterHiveTable.ALTER_COL_CASCADE, "true", pos));
+        }
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ALTER TABLE");
-		tableIdentifier.unparse(writer, leftPrec, rightPrec);
-		SqlNodeList partitionSpec = getPartitionSpec();
-		if (partitionSpec != null && partitionSpec.size() > 0) {
-			writer.keyword("PARTITION");
-			partitionSpec.unparse(writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
-		}
-		writer.keyword("CHANGE COLUMN");
-		getOldName().unparse(writer, leftPrec, rightPrec);
-		origNewColumn.unparse(writer, leftPrec, rightPrec);
-		if (isFirst()) {
-			writer.keyword("FIRST");
-		}
-		if (getAfter() != null) {
-			writer.keyword("AFTER");
-			getAfter().unparse(writer, leftPrec, rightPrec);
-		}
-		if (cascade) {
-			writer.keyword("CASCADE");
-		} else {
-			writer.keyword("RESTRICT");
-		}
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER TABLE");
+        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+        SqlNodeList partitionSpec = getPartitionSpec();
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
+        writer.keyword("CHANGE COLUMN");
+        getOldName().unparse(writer, leftPrec, rightPrec);
+        origNewColumn.unparse(writer, leftPrec, rightPrec);
+        if (isFirst()) {
+            writer.keyword("FIRST");
+        }
+        if (getAfter() != null) {
+            writer.keyword("AFTER");
+            getAfter().unparse(writer, leftPrec, rightPrec);
+        }
+        if (cascade) {
+            writer.keyword("CASCADE");
+        } else {
+            writer.keyword("RESTRICT");
+        }
+    }
 }

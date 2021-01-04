@@ -28,40 +28,38 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
 
-/**
- * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
- */
+/** An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}. */
 @Internal
 public abstract class ExecutorBase implements Executor {
 
-	private static final String DEFAULT_JOB_NAME = "Flink Exec Table Job";
+    private static final String DEFAULT_JOB_NAME = "Flink Exec Table Job";
 
-	private final StreamExecutionEnvironment executionEnvironment;
-	protected TableConfig tableConfig;
+    private final StreamExecutionEnvironment executionEnvironment;
+    protected TableConfig tableConfig;
 
-	public ExecutorBase(StreamExecutionEnvironment executionEnvironment) {
-		this.executionEnvironment = executionEnvironment;
-	}
+    public ExecutorBase(StreamExecutionEnvironment executionEnvironment) {
+        this.executionEnvironment = executionEnvironment;
+    }
 
-	public StreamExecutionEnvironment getExecutionEnvironment() {
-		return executionEnvironment;
-	}
+    public StreamExecutionEnvironment getExecutionEnvironment() {
+        return executionEnvironment;
+    }
 
-	@Override
-	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
-		return executionEnvironment.execute((StreamGraph) pipeline);
-	}
+    @Override
+    public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+        return executionEnvironment.execute((StreamGraph) pipeline);
+    }
 
-	@Override
-	public JobClient executeAsync(Pipeline pipeline) throws Exception {
-		return executionEnvironment.executeAsync((StreamGraph) pipeline);
-	}
+    @Override
+    public JobClient executeAsync(Pipeline pipeline) throws Exception {
+        return executionEnvironment.executeAsync((StreamGraph) pipeline);
+    }
 
-	protected String getNonEmptyJobName(String jobName) {
-		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
-			return DEFAULT_JOB_NAME;
-		} else {
-			return jobName;
-		}
-	}
+    protected String getNonEmptyJobName(String jobName) {
+        if (StringUtils.isNullOrWhitespaceOnly(jobName)) {
+            return DEFAULT_JOB_NAME;
+        } else {
+            return jobName;
+        }
+    }
 }

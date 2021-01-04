@@ -20,40 +20,41 @@ package org.apache.flink.runtime.security;
 
 import java.util.List;
 
-/**
- * Exception for not finding suitable security factories.
- */
+/** Exception for not finding suitable security factories. */
 public class NoMatchSecurityFactoryException extends RuntimeException {
 
-	/**
-	 * Exception for not finding suitable security factories.
-	 *
-	 * @param message message that indicates the current matching step
-	 * @param factoryClassCanonicalName required factory class
-	 * @param matchingFactories all found factories
-	 * @param cause the cause
-	 */
-	public NoMatchSecurityFactoryException(
-		String message,
-		String factoryClassCanonicalName,
-		List<?> matchingFactories,
-		Throwable cause) {
-		super("Could not find a suitable security factory for '"
-			+ factoryClassCanonicalName + "' in the classpath. all matching factories: "
-			+ matchingFactories + ". Reason: " + message, cause);
-	}
+    /**
+     * Exception for not finding suitable security factories.
+     *
+     * @param message message that indicates the current matching step
+     * @param factoryClassCanonicalName required factory class
+     * @param matchingFactories all found factories
+     * @param cause the cause
+     */
+    public NoMatchSecurityFactoryException(
+            String message,
+            String factoryClassCanonicalName,
+            List<?> matchingFactories,
+            Throwable cause) {
+        super(
+                "Could not find a suitable security factory for '"
+                        + factoryClassCanonicalName
+                        + "' in the classpath. all matching factories: "
+                        + matchingFactories
+                        + ". Reason: "
+                        + message,
+                cause);
+    }
 
-	/**
-	 * Exception for not finding suitable security factories.
-	 *
-	 * @param message message that indicates the current matching step
-	 * @param factoryClassCanonicalName required factory class
-	 * @param matchingFactories all found factories
-	 */
-	public NoMatchSecurityFactoryException(
-		String message,
-		String factoryClassCanonicalName,
-		List<?> matchingFactories) {
-		this(message, factoryClassCanonicalName, matchingFactories, null);
-	}
+    /**
+     * Exception for not finding suitable security factories.
+     *
+     * @param message message that indicates the current matching step
+     * @param factoryClassCanonicalName required factory class
+     * @param matchingFactories all found factories
+     */
+    public NoMatchSecurityFactoryException(
+            String message, String factoryClassCanonicalName, List<?> matchingFactories) {
+        this(message, factoryClassCanonicalName, matchingFactories, null);
+    }
 }

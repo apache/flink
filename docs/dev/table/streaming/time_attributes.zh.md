@@ -28,7 +28,7 @@ Flink 可以基于几种不同的 *时间* 概念来处理数据。
 - *事件时间* 指的是数据本身携带的时间。这个时间是在事件产生时的时间。
 - *摄入时间* 指的是数据进入 Flink 的时间；在系统内部，会把它当做事件时间来处理。
 
-对于时间相关的更多信息，可以参考 [事件时间和Watermark]({{ site.baseurl }}/zh/dev/event_time.html)。
+对于时间相关的更多信息，可以参考 [事件时间和Watermark]({% link dev/event_time.zh.md %})。
 
 本页面说明了如何在 Flink Table API & SQL 里面定义时间以及相关的操作。
 
@@ -38,7 +38,7 @@ Flink 可以基于几种不同的 *时间* 概念来处理数据。
 时间属性介绍
 -------------------------------
 
-像窗口（在 [Table API]({{ site.baseurl }}/zh/dev/table/tableApi.html#group-windows) 和 [SQL]({{ site.baseurl }}/zh/dev/table/sql/queries.html#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
+像窗口（在 [Table API]({% link dev/table/tableApi.zh.md %}#group-windows) 和 [SQL]({% link dev/table/sql/queries.zh.md %}#group-windows) ）这种基于时间的操作，需要有时间信息。因此，Table API 中的表就需要提供*逻辑时间属性*来表示时间，以及支持时间相关的操作。
 
 每种类型的表都可以有时间属性，可以在用CREATE TABLE DDL创建表的时候指定、也可以在 `DataStream` 中指定、也可以在定义 `TableSource` 时指定。一旦时间属性定义好，它就可以像普通列一样使用，也可以在时间相关的操作中使用。
 
@@ -93,7 +93,7 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 
 ### 在创建表的 DDL 中定义
 
-处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html#create-table) 
+处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({% link dev/table/sql/create.zh.md %}#create-table) 
 
 {% highlight sql %}
 
@@ -224,13 +224,13 @@ val windowedTable = tEnv
 
 除此之外，事件时间可以让程序在流式和批式作业中使用同样的语法。在流式程序中的事件时间属性，在批式程序中就是一个正常的时间字段。
 
-为了能够处理乱序的事件，并且区分正常到达和晚到的事件，Flink 需要从事件中获取事件时间并且产生 watermark（[watermarks]({{ site.baseurl }}/zh/dev/event_time.html)）。
+为了能够处理乱序的事件，并且区分正常到达和晚到的事件，Flink 需要从事件中获取事件时间并且产生 watermark（[watermarks]({% link dev/event_time.zh.md %})）。
 
 事件时间属性也有类似于处理时间的三种定义方式：在DDL中定义、在 DataStream 到 Table 转换时定义、用 TableSource 定义。
 
 ### 在 DDL 中定义
 
-事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html#create-table)
+事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({% link dev/table/sql/create.zh.md %}#create-table)
 
 {% highlight sql %}
 
@@ -253,7 +253,7 @@ GROUP BY TUMBLE(user_action_time, INTERVAL '10' MINUTE);
 
 ### 在 DataStream 到 Table 转换时定义
 
-事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({{ site.baseurl }}/zh/dev/event_time.html) 在这之前一定是在 `DataStream` 上已经定义好了。
+事件时间属性可以用 `.rowtime` 后缀在定义 `DataStream` schema 的时候来定义。[时间戳和 watermark]({% link dev/event_time.zh.md %}) 在这之前一定是在 `DataStream` 上已经定义好了。
 
 在从 `DataStream` 到 `Table` 转换时定义事件时间属性有两种方式。取决于用 `.rowtime` 后缀修饰的字段名字是否是已有字段，事件时间字段可以是：
 

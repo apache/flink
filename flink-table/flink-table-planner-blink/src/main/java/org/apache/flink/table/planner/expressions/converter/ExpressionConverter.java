@@ -66,269 +66,278 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 import static org.apache.flink.table.util.TimestampStringUtils.fromLocalDateTime;
 
-/**
- * Visit expression to generator {@link RexNode}.
- */
+/** Visit expression to generator {@link RexNode}. */
 public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
-	private static final List<CallExpressionConvertRule> FUNCTION_CONVERT_CHAIN = Arrays.asList(
-		new LegacyScalarFunctionConvertRule(),
-		new FunctionDefinitionConvertRule(),
-		new OverConvertRule(),
-		new DirectConvertRule(),
-		new CustomizedConvertRule()
-	);
+    private static final List<CallExpressionConvertRule> FUNCTION_CONVERT_CHAIN =
+            Arrays.asList(
+                    new LegacyScalarFunctionConvertRule(),
+                    new FunctionDefinitionConvertRule(),
+                    new OverConvertRule(),
+                    new DirectConvertRule(),
+                    new CustomizedConvertRule());
 
-	private final RelBuilder relBuilder;
-	private final FlinkTypeFactory typeFactory;
-	private final DataTypeFactory dataTypeFactory;
+    private final RelBuilder relBuilder;
+    private final FlinkTypeFactory typeFactory;
+    private final DataTypeFactory dataTypeFactory;
 
-	public ExpressionConverter(RelBuilder relBuilder) {
-		this.relBuilder = relBuilder;
-		this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
-		this.dataTypeFactory = ShortcutUtils.unwrapContext(relBuilder.getCluster())
-			.getCatalogManager()
-			.getDataTypeFactory();
-	}
+    public ExpressionConverter(RelBuilder relBuilder) {
+        this.relBuilder = relBuilder;
+        this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
+        this.dataTypeFactory =
+                ShortcutUtils.unwrapContext(relBuilder.getCluster())
+                        .getCatalogManager()
+                        .getDataTypeFactory();
+    }
 
-	@Override
-	public RexNode visit(CallExpression call) {
-		for (CallExpressionConvertRule rule : FUNCTION_CONVERT_CHAIN) {
-			Optional<RexNode> converted = rule.convert(call, newFunctionContext());
-			if (converted.isPresent()) {
-				return converted.get();
-			}
-		}
-		throw new RuntimeException("Unknown call expression: " + call);
-	}
+    @Override
+    public RexNode visit(CallExpression call) {
+        for (CallExpressionConvertRule rule : FUNCTION_CONVERT_CHAIN) {
+            Optional<RexNode> converted = rule.convert(call, newFunctionContext());
+            if (converted.isPresent()) {
+                return converted.get();
+            }
+        }
+        throw new RuntimeException("Unknown call expression: " + call);
+    }
 
-	@Override
-	public RexNode visit(ValueLiteralExpression valueLiteral) {
-		LogicalType type = fromDataTypeToLogicalType(valueLiteral.getOutputDataType());
-		RexBuilder rexBuilder = relBuilder.getRexBuilder();
-		FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
+    @Override
+    public RexNode visit(ValueLiteralExpression valueLiteral) {
+        LogicalType type = fromDataTypeToLogicalType(valueLiteral.getOutputDataType());
+        RexBuilder rexBuilder = relBuilder.getRexBuilder();
+        FlinkTypeFactory typeFactory = (FlinkTypeFactory) relBuilder.getTypeFactory();
 
-		RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(type);
+        RelDataType relDataType = typeFactory.createFieldTypeFromLogicalType(type);
 
-		if (valueLiteral.isNull()) {
-			return rexBuilder.makeNullLiteral(relDataType);
-		}
+        if (valueLiteral.isNull()) {
+            return rexBuilder.makeNullLiteral(relDataType);
+        }
 
-		Object value = null;
-		switch (type.getTypeRoot()) {
-			case DECIMAL:
-			case TINYINT:
-			case SMALLINT:
-			case INTEGER:
-			case BIGINT:
-			case FLOAT:
-			case DOUBLE:
-				value = extractValue(valueLiteral, BigDecimal.class);
-				break;
-			case VARCHAR:
-			case CHAR:
-				value = extractValue(valueLiteral, String.class);
-				break;
-			case BINARY:
-			case VARBINARY:
-				value = new ByteString(extractValue(valueLiteral, byte[].class));
-				break;
-			case INTERVAL_YEAR_MONTH:
-				// convert to total months
-				value = BigDecimal.valueOf(extractValue(valueLiteral, Period.class).toTotalMonths());
-				break;
-			case INTERVAL_DAY_TIME:
-				// TODO planner supports only milliseconds precision
-				// convert to total millis
-				value = BigDecimal.valueOf(extractValue(valueLiteral, Duration.class).toMillis());
-				break;
-			case DATE:
-				value = DateString.fromDaysSinceEpoch((int) extractValue(valueLiteral, LocalDate.class).toEpochDay());
-				break;
-			case TIME_WITHOUT_TIME_ZONE:
-				// TODO type factory strips the precision, for literals we can be more lenient already
-				// Moreover conversion from long supports precision up to TIME(3) planner does not support higher
-				// precisions
-				TimeType timeType = (TimeType) type;
-				int precision = timeType.getPrecision();
-				relDataType = typeFactory.createSqlType(SqlTypeName.TIME, Math.min(precision, 3));
-				value = TimeString.fromMillisOfDay(
-					extractValue(valueLiteral, LocalTime.class).get(ChronoField.MILLI_OF_DAY)
-				);
-				break;
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
-				value = fromLocalDateTime(datetime);
-				break;
-			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-				// normalize to UTC
-				Instant instant = extractValue(valueLiteral, Instant.class);
-				value = fromLocalDateTime(instant.atOffset(ZoneOffset.UTC).toLocalDateTime());
-				break;
-			default:
-				value = extractValue(valueLiteral, Object.class);
-				if (value instanceof TimePointUnit) {
-					value = timePointUnitToTimeUnit((TimePointUnit) value);
-				} else if (value instanceof TimeIntervalUnit) {
-					value = intervalUnitToUnitRange((TimeIntervalUnit) value);
-				}
-				break;
-		}
+        Object value = null;
+        switch (type.getTypeRoot()) {
+            case DECIMAL:
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER:
+            case BIGINT:
+            case FLOAT:
+            case DOUBLE:
+                value = extractValue(valueLiteral, BigDecimal.class);
+                break;
+            case VARCHAR:
+            case CHAR:
+                value = extractValue(valueLiteral, String.class);
+                break;
+            case BINARY:
+            case VARBINARY:
+                value = new ByteString(extractValue(valueLiteral, byte[].class));
+                break;
+            case INTERVAL_YEAR_MONTH:
+                // convert to total months
+                value =
+                        BigDecimal.valueOf(
+                                extractValue(valueLiteral, Period.class).toTotalMonths());
+                break;
+            case INTERVAL_DAY_TIME:
+                // TODO planner supports only milliseconds precision
+                // convert to total millis
+                value = BigDecimal.valueOf(extractValue(valueLiteral, Duration.class).toMillis());
+                break;
+            case DATE:
+                value =
+                        DateString.fromDaysSinceEpoch(
+                                (int) extractValue(valueLiteral, LocalDate.class).toEpochDay());
+                break;
+            case TIME_WITHOUT_TIME_ZONE:
+                // TODO type factory strips the precision, for literals we can be more lenient
+                // already
+                // Moreover conversion from long supports precision up to TIME(3) planner does not
+                // support higher
+                // precisions
+                TimeType timeType = (TimeType) type;
+                int precision = timeType.getPrecision();
+                relDataType = typeFactory.createSqlType(SqlTypeName.TIME, Math.min(precision, 3));
+                value =
+                        TimeString.fromMillisOfDay(
+                                extractValue(valueLiteral, LocalTime.class)
+                                        .get(ChronoField.MILLI_OF_DAY));
+                break;
+            case TIMESTAMP_WITHOUT_TIME_ZONE:
+                LocalDateTime datetime = extractValue(valueLiteral, LocalDateTime.class);
+                value = fromLocalDateTime(datetime);
+                break;
+            case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+                // normalize to UTC
+                Instant instant = extractValue(valueLiteral, Instant.class);
+                value = fromLocalDateTime(instant.atOffset(ZoneOffset.UTC).toLocalDateTime());
+                break;
+            default:
+                value = extractValue(valueLiteral, Object.class);
+                if (value instanceof TimePointUnit) {
+                    value = timePointUnitToTimeUnit((TimePointUnit) value);
+                } else if (value instanceof TimeIntervalUnit) {
+                    value = intervalUnitToUnitRange((TimeIntervalUnit) value);
+                }
+                break;
+        }
 
-		return rexBuilder.makeLiteral(
-			value,
-			relDataType,
-			// This flag ensures that the resulting RexNode will match the type of the literal.
-			// It might be wrapped with a CAST though, if the value requires adjusting. In majority of
-			// cases the type will be simply pushed down into the RexLiteral, see RexBuilder#makeCast.
-			true
-		);
-	}
+        return rexBuilder.makeLiteral(
+                value,
+                relDataType,
+                // This flag ensures that the resulting RexNode will match the type of the literal.
+                // It might be wrapped with a CAST though, if the value requires adjusting. In
+                // majority of
+                // cases the type will be simply pushed down into the RexLiteral, see
+                // RexBuilder#makeCast.
+                true);
+    }
 
-	@Override
-	public RexNode visit(FieldReferenceExpression fieldReference) {
-		// We can not use inputCount+inputIndex+FieldIndex to construct field of calcite.
-		// See QueryOperationConverter.SingleRelVisitor.visit(AggregateQueryOperation).
-		// Calcite will shuffle the output order of groupings.
-		// So the output fields order will be changed too.
-		// See RelBuilder.aggregate, it use ImmutableBitSet to store groupings,
-		return relBuilder.field(fieldReference.getName());
-	}
+    @Override
+    public RexNode visit(FieldReferenceExpression fieldReference) {
+        // We can not use inputCount+inputIndex+FieldIndex to construct field of calcite.
+        // See QueryOperationConverter.SingleRelVisitor.visit(AggregateQueryOperation).
+        // Calcite will shuffle the output order of groupings.
+        // So the output fields order will be changed too.
+        // See RelBuilder.aggregate, it use ImmutableBitSet to store groupings,
+        return relBuilder.field(fieldReference.getName());
+    }
 
-	@Override
-	public RexNode visit(TypeLiteralExpression typeLiteral) {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public RexNode visit(TypeLiteralExpression typeLiteral) {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public RexNode visit(Expression other) {
-		if (other instanceof RexNodeExpression) {
-			return ((RexNodeExpression) other).getRexNode();
-		} else if (other instanceof LocalReferenceExpression) {
-			LocalReferenceExpression local = (LocalReferenceExpression) other;
-			return new RexFieldVariable(
-				local.getName(),
-				typeFactory.createFieldTypeFromLogicalType(
-					fromDataTypeToLogicalType(local.getOutputDataType())));
-		} else {
-			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
-		}
-	}
+    @Override
+    public RexNode visit(Expression other) {
+        if (other instanceof RexNodeExpression) {
+            return ((RexNodeExpression) other).getRexNode();
+        } else if (other instanceof LocalReferenceExpression) {
+            LocalReferenceExpression local = (LocalReferenceExpression) other;
+            return new RexFieldVariable(
+                    local.getName(),
+                    typeFactory.createFieldTypeFromLogicalType(
+                            fromDataTypeToLogicalType(local.getOutputDataType())));
+        } else {
+            throw new UnsupportedOperationException(
+                    other.getClass().getSimpleName() + ":" + other.toString());
+        }
+    }
 
-	public static List<RexNode> toRexNodes(ConvertContext context, List<Expression> expr) {
-		return expr.stream().map(context::toRexNode).collect(Collectors.toList());
-	}
+    public static List<RexNode> toRexNodes(ConvertContext context, List<Expression> expr) {
+        return expr.stream().map(context::toRexNode).collect(Collectors.toList());
+    }
 
-	private ConvertContext newFunctionContext() {
-		return new ConvertContext() {
-			@Override
-			public RexNode toRexNode(Expression expr) {
-				return expr.accept(ExpressionConverter.this);
-			}
+    private ConvertContext newFunctionContext() {
+        return new ConvertContext() {
+            @Override
+            public RexNode toRexNode(Expression expr) {
+                return expr.accept(ExpressionConverter.this);
+            }
 
-			@Override
-			public RelBuilder getRelBuilder() {
-				return relBuilder;
-			}
+            @Override
+            public RelBuilder getRelBuilder() {
+                return relBuilder;
+            }
 
-			@Override
-			public FlinkTypeFactory getTypeFactory() {
-				return typeFactory;
-			}
+            @Override
+            public FlinkTypeFactory getTypeFactory() {
+                return typeFactory;
+            }
 
-			@Override
-			public DataTypeFactory getDataTypeFactory() {
-				return dataTypeFactory;
-			}
-		};
-	}
+            @Override
+            public DataTypeFactory getDataTypeFactory() {
+                return dataTypeFactory;
+            }
+        };
+    }
 
-	private static TimeUnit timePointUnitToTimeUnit(TimePointUnit unit) {
-		switch (unit) {
-			case YEAR:
-				return TimeUnit.YEAR;
-			case MONTH:
-				return TimeUnit.MONTH;
-			case DAY:
-				return TimeUnit.DAY;
-			case HOUR:
-				return TimeUnit.HOUR;
-			case MINUTE:
-				return TimeUnit.MINUTE;
-			case SECOND:
-				return TimeUnit.SECOND;
-			case QUARTER:
-				return TimeUnit.QUARTER;
-			case WEEK:
-				return TimeUnit.WEEK;
-			case MILLISECOND:
-				return TimeUnit.MILLISECOND;
-			case MICROSECOND:
-				return TimeUnit.MICROSECOND;
-			default:
-				throw new UnsupportedOperationException("TimePointUnit is: " + unit);
-		}
-	}
+    private static TimeUnit timePointUnitToTimeUnit(TimePointUnit unit) {
+        switch (unit) {
+            case YEAR:
+                return TimeUnit.YEAR;
+            case MONTH:
+                return TimeUnit.MONTH;
+            case DAY:
+                return TimeUnit.DAY;
+            case HOUR:
+                return TimeUnit.HOUR;
+            case MINUTE:
+                return TimeUnit.MINUTE;
+            case SECOND:
+                return TimeUnit.SECOND;
+            case QUARTER:
+                return TimeUnit.QUARTER;
+            case WEEK:
+                return TimeUnit.WEEK;
+            case MILLISECOND:
+                return TimeUnit.MILLISECOND;
+            case MICROSECOND:
+                return TimeUnit.MICROSECOND;
+            default:
+                throw new UnsupportedOperationException("TimePointUnit is: " + unit);
+        }
+    }
 
-	private static TimeUnitRange intervalUnitToUnitRange(TimeIntervalUnit intervalUnit) {
-		switch (intervalUnit) {
-			case YEAR:
-				return TimeUnitRange.YEAR;
-			case YEAR_TO_MONTH:
-				return TimeUnitRange.YEAR_TO_MONTH;
-			case QUARTER:
-				return TimeUnitRange.QUARTER;
-			case MONTH:
-				return TimeUnitRange.MONTH;
-			case WEEK:
-				return TimeUnitRange.WEEK;
-			case DAY:
-				return TimeUnitRange.DAY;
-			case DAY_TO_HOUR:
-				return TimeUnitRange.DAY_TO_HOUR;
-			case DAY_TO_MINUTE:
-				return TimeUnitRange.DAY_TO_MINUTE;
-			case DAY_TO_SECOND:
-				return TimeUnitRange.DAY_TO_SECOND;
-			case HOUR:
-				return TimeUnitRange.HOUR;
-			case SECOND:
-				return TimeUnitRange.SECOND;
-			case HOUR_TO_MINUTE:
-				return TimeUnitRange.HOUR_TO_MINUTE;
-			case HOUR_TO_SECOND:
-				return TimeUnitRange.HOUR_TO_SECOND;
-			case MINUTE:
-				return TimeUnitRange.MINUTE;
-			case MINUTE_TO_SECOND:
-				return TimeUnitRange.MINUTE_TO_SECOND;
-			default:
-				throw new UnsupportedOperationException("TimeIntervalUnit is: " + intervalUnit);
-		}
-	}
+    private static TimeUnitRange intervalUnitToUnitRange(TimeIntervalUnit intervalUnit) {
+        switch (intervalUnit) {
+            case YEAR:
+                return TimeUnitRange.YEAR;
+            case YEAR_TO_MONTH:
+                return TimeUnitRange.YEAR_TO_MONTH;
+            case QUARTER:
+                return TimeUnitRange.QUARTER;
+            case MONTH:
+                return TimeUnitRange.MONTH;
+            case WEEK:
+                return TimeUnitRange.WEEK;
+            case DAY:
+                return TimeUnitRange.DAY;
+            case DAY_TO_HOUR:
+                return TimeUnitRange.DAY_TO_HOUR;
+            case DAY_TO_MINUTE:
+                return TimeUnitRange.DAY_TO_MINUTE;
+            case DAY_TO_SECOND:
+                return TimeUnitRange.DAY_TO_SECOND;
+            case HOUR:
+                return TimeUnitRange.HOUR;
+            case SECOND:
+                return TimeUnitRange.SECOND;
+            case HOUR_TO_MINUTE:
+                return TimeUnitRange.HOUR_TO_MINUTE;
+            case HOUR_TO_SECOND:
+                return TimeUnitRange.HOUR_TO_SECOND;
+            case MINUTE:
+                return TimeUnitRange.MINUTE;
+            case MINUTE_TO_SECOND:
+                return TimeUnitRange.MINUTE_TO_SECOND;
+            default:
+                throw new UnsupportedOperationException("TimeIntervalUnit is: " + intervalUnit);
+        }
+    }
 
-	/**
-	 * Extracts a value from a literal. Including planner-specific instances such as {@link DecimalData}.
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T> T extractValue(ValueLiteralExpression literal, Class<T> clazz) {
-		final Optional<Object> possibleObject = literal.getValueAs(Object.class);
-		if (!possibleObject.isPresent()) {
-			throw new TableException("Invalid literal.");
-		}
-		final Object object = possibleObject.get();
+    /**
+     * Extracts a value from a literal. Including planner-specific instances such as {@link
+     * DecimalData}.
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T extractValue(ValueLiteralExpression literal, Class<T> clazz) {
+        final Optional<Object> possibleObject = literal.getValueAs(Object.class);
+        if (!possibleObject.isPresent()) {
+            throw new TableException("Invalid literal.");
+        }
+        final Object object = possibleObject.get();
 
-		if (clazz.equals(BigDecimal.class)) {
-			final Optional<BigDecimal> possibleDecimal = literal.getValueAs(BigDecimal.class);
-			if (possibleDecimal.isPresent()) {
-				return (T) possibleDecimal.get();
-			}
-			if (object instanceof DecimalData) {
-				return (T) ((DecimalData) object).toBigDecimal();
-			}
-		}
+        if (clazz.equals(BigDecimal.class)) {
+            final Optional<BigDecimal> possibleDecimal = literal.getValueAs(BigDecimal.class);
+            if (possibleDecimal.isPresent()) {
+                return (T) possibleDecimal.get();
+            }
+            if (object instanceof DecimalData) {
+                return (T) ((DecimalData) object).toBigDecimal();
+            }
+        }
 
-		return literal.getValueAs(clazz)
-			.orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
-	}
+        return literal.getValueAs(clazz)
+                .orElseThrow(() -> new TableException("Unsupported literal class: " + clazz));
+    }
 }

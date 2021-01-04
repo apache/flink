@@ -46,11 +46,10 @@ However, currently Flink can't combine UPDATE_BEFORE and UPDATE_AFTER into a sin
 Dependencies
 ------------
 
-In order to setup the Canal format, the following table provides dependency information for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | Built-in               |
+{% assign connector = site.data.sql-connectors['canal'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 *Note: please refer to [Canal documentation](https://github.com/alibaba/canal/wiki) about how to deploy Canal to synchronize changelog to message queues.*
 
@@ -143,6 +142,82 @@ SELECT * FROM topic_products;
 </div>
 </div>
 
+Available Metadata
+------------------
+
+The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+
+<span class="label label-danger">Attention</span> Format metadata fields are only available if the
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 40%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>database</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database. Corresponds to the <code>database</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database table. Corresponds to the <code>table</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>sql-type</code></td>
+      <td><code>MAP&lt;STRING, INT&gt; NULL</code></td>
+      <td>Map of various sql types. Corresponds to the <code>sqlType</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>pk-names</code></td>
+      <td><code>ARRAY&lt;STRING&gt; NULL</code></td>
+      <td>Array of primary key names. Corresponds to the <code>pkNames</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>ingestion-timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
+      field in the Canal record.</td>
+    </tr>
+    </tbody>
+</table>
+
+The following example shows how to access Canal metadata fields in Kafka:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  origin_database STRING METADATA FROM 'value.database' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.table' VIRTUAL,
+  origin_sql_type MAP<STRING, INT> METADATA FROM 'value.sql-type' VIRTUAL,
+  origin_pk_names ARRAY<STRING> METADATA FROM 'value.pk-names' VIRTUAL,
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'canal-json'
+);
+{% endhighlight %}
+</div>
+</div>
 
 Format Options
 ----------------
@@ -181,10 +256,30 @@ Format Options
       <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
       <ul>
         <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
-        <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
+        <li>Option <code>'ISO-8601'</code> will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
       </ul>
       </td>
     </tr>
+    <tr>
+      <td><h5>canal-json.map-null-key.mode</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+      <td>String</td>
+      <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
+      <ul>
+        <li>Option <code>'FAIL'</code> will throw exception when encountering map value with null key.</li>
+        <li>Option <code>'DROP'</code> will drop null key entries for map data.</li>
+        <li>Option <code>'LITERAL'</code> will replace null key with string literal. The string literal is defined by <code>canal-json.map-null-key.literal</code> option.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>canal-json.map-null-key.literal</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>Specify string literal to replace null key when <code>'canal-json.map-null-key.mode'</code> is LITERAL.</td>
+    </tr>        
     <tr>
       <td><h5>canal-json.database.include</h5></td>
       <td>optional</td>
@@ -201,6 +296,17 @@ Format Options
     </tr>
     </tbody>
 </table>
+
+Caveats
+----------------
+
+### Duplicate change events
+
+Under normal operating scenarios, the Canal application delivers every change event **exactly-once**. Flink works pretty well when consuming Canal produced events in this situation.
+However, Canal application works in **at-least-once** delivery if any failover happens.
+That means, in the abnormal situations, Canal may deliver duplicate change events to message queues and Flink will get the duplicate events.
+This may cause Flink query to get wrong results or unexpected exceptions. Thus, it is recommended to set job configuration [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.md %}#table-exec-source-cdc-events-duplicate) to `true` and define PRIMARY KEY on the source in this situation.
+Framework will generate an additional stateful operator, and use the primary key to deduplicate the change events and produce a normalized changelog stream.
 
 Data Type Mapping
 ----------------

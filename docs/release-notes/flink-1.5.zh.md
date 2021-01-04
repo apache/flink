@@ -44,7 +44,7 @@ There are two ways to address problems of job submissions that fail due to lack 
 * Reduce the number of buffers per channel, i.e., `taskmanager.network.memory.buffers-per-channel` or
 * Increase the amount of TaskManager memory that is used by the network stack, i.e., increase `taskmanager.network.memory.fraction` and/or `taskmanager.network.memory.max`.
 
-Please consult the section about [network buffer configuration]({{ site.baseurl }}/ops/config.html#configuring-the-network-buffers) in the Flink documentation for details. In case you experience issues with the new credit-based flow control mode, you can disable flow control by setting `taskmanager.network.credit-model: false`. 
+Please consult the section about [network buffer configuration]({% link deployment/config.zh.md %}#configuring-the-network-buffers) in the Flink documentation for details. In case you experience issues with the new credit-based flow control mode, you can disable flow control by setting `taskmanager.network.credit-model: false`. 
 
 *Note*: We plan to remove the old model and this configuration in the next release.
 
@@ -64,7 +64,7 @@ In an effort to harmonize, extend, and improve the REST API, a few handlers and 
 * The REST API to cancel a job was changed.
 * The REST API to cancel a job with savepoint was changed. 
 
-Please check the [REST API documentation]({{ site.baseurl }}/monitoring/rest_api.html#available-requests) for details.
+Please check the [REST API documentation]({% link ops/rest_api.zh.md %}#available-requests) for details.
 
 ### Kafka Producer Flushes on Checkpoint by Default
 

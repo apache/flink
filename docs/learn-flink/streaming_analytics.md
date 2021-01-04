@@ -200,7 +200,7 @@ stream.
 
 Flink has several built-in types of window assigners, which are illustrated below:
 
-<img src="{{ site.baseurl }}/fig/window-assigners.svg" alt="Window assigners" class="center" width="80%" />
+<img src="{% link /fig/window-assigners.svg %}" alt="Window assigners" class="center" width="80%" />
 
 Some examples of what these window assigners might be used for, and how to specify them:
 
@@ -283,7 +283,7 @@ A couple of things to note in this implementation:
 
 * All of the events assigned to the window have to be buffered in keyed Flink state until the window
   is triggered. This is potentially quite expensive.
-* Our `ProcessWindowFunction` is being passed a `Context` object from which contains information about
+* Our `ProcessWindowFunction` is being passed a `Context` object which contains information about
   the window. Its interface looks like this:
 
 {% highlight java %}

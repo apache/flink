@@ -45,7 +45,7 @@ Catalog 提供了元数据信息，例如数据库、表、分区、视图以及
 ### HiveCatalog
 
 `HiveCatalog` 有两个用途：作为原生 Flink 元数据的持久化存储，以及作为读写现有 Hive 元数据的接口。 
-Flink 的 [Hive 文档]({{ site.baseurl }}/zh/dev/table/hive/index.html) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
+Flink 的 [Hive 文档]({% link dev/table/connectors/hive/index.zh.md %}) 提供了有关设置 `HiveCatalog` 以及访问现有 Hive 元数据的详细信息。
 
 
 <span class="label label-danger">警告</span> Hive Metastore 以小写形式存储所有元数据对象名称。而 `GenericInMemoryCatalog` 区分大小写。
@@ -140,7 +140,7 @@ mytable
 </div>
 
 
-更多详细信息，请参考[Flink SQL CREATE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html)。
+更多详细信息，请参考[Flink SQL CREATE DDL]({% link dev/table/sql/create.zh.md %})。
 
 ### 使用 Java/Scala
 
@@ -279,7 +279,7 @@ tables = catalog.list_tables("mydb")
 ## Catalog API
 
 注意：这里只列出了编程方式的 Catalog API，用户可以使用 SQL DDL 实现许多相同的功能。
-关于 DDL 的详细信息请参考 [SQL CREATE DDL]({{ site.baseurl }}/zh/dev/table/sql/create.html)。
+关于 DDL 的详细信息请参考 [SQL CREATE DDL]({% link dev/table/sql/create.zh.md %})。
 
 
 ### 数据库操作

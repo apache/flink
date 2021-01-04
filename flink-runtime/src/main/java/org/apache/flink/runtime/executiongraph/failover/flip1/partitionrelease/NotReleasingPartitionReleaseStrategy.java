@@ -32,24 +32,22 @@ import java.util.List;
  */
 public class NotReleasingPartitionReleaseStrategy implements PartitionReleaseStrategy {
 
-	@Override
-	public List<IntermediateResultPartitionID> vertexFinished(final ExecutionVertexID finishedVertex) {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<IntermediateResultPartitionID> vertexFinished(
+            final ExecutionVertexID finishedVertex) {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void vertexUnfinished(final ExecutionVertexID executionVertexID) {
-	}
+    @Override
+    public void vertexUnfinished(final ExecutionVertexID executionVertexID) {}
 
-	/**
-	 * Factory for {@link NotReleasingPartitionReleaseStrategy}.
-	 */
-	public static class Factory implements PartitionReleaseStrategy.Factory {
+    /** Factory for {@link NotReleasingPartitionReleaseStrategy}. */
+    public static class Factory implements PartitionReleaseStrategy.Factory {
 
-		@Override
-		public PartitionReleaseStrategy createInstance(final SchedulingTopology schedulingStrategy) {
-			return new NotReleasingPartitionReleaseStrategy();
-		}
-	}
-
+        @Override
+        public PartitionReleaseStrategy createInstance(
+                final SchedulingTopology schedulingStrategy) {
+            return new NotReleasingPartitionReleaseStrategy();
+        }
+    }
 }

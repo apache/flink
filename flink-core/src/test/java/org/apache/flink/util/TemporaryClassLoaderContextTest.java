@@ -25,22 +25,23 @@ import java.net.URL;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
 
-/**
- * Test for {@link TemporaryClassLoaderContext}.
- */
+/** Test for {@link TemporaryClassLoaderContext}. */
 public class TemporaryClassLoaderContextTest {
 
-	@Test
-	public void testTemporaryClassLoaderContext() {
-		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+    @Test
+    public void testTemporaryClassLoaderContext() {
+        final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 
-		final ChildFirstClassLoader temporaryClassLoader =
-			new ChildFirstClassLoader(new URL[0], contextClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
+        final ChildFirstClassLoader temporaryClassLoader =
+                new ChildFirstClassLoader(
+                        new URL[0], contextClassLoader, new String[0], NOOP_EXCEPTION_HANDLER);
 
-		try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(temporaryClassLoader)) {
-			Assert.assertEquals(temporaryClassLoader, Thread.currentThread().getContextClassLoader());
-		}
+        try (TemporaryClassLoaderContext ignored =
+                TemporaryClassLoaderContext.of(temporaryClassLoader)) {
+            Assert.assertEquals(
+                    temporaryClassLoader, Thread.currentThread().getContextClassLoader());
+        }
 
-		Assert.assertEquals(contextClassLoader, Thread.currentThread().getContextClassLoader());
-	}
+        Assert.assertEquals(contextClassLoader, Thread.currentThread().getContextClassLoader());
+    }
 }

@@ -16,43 +16,64 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.common.serialization import JsonRowSerializationSchema, \
-    JsonRowDeserializationSchema
-from pyflink.common.typeinfo import Types
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
+from typing import Any
 
-from functions import m_flat_map, add_one
+from pyflink.common import Duration
+from pyflink.common.serialization import SimpleStringSchema, JsonRowDeserializationSchema
+from pyflink.common.typeinfo import Types
+from pyflink.common.watermark_strategy import TimestampAssigner, WatermarkStrategy
+from pyflink.datastream import StreamExecutionEnvironment, TimeCharacteristic
+from pyflink.datastream.connectors import FlinkKafkaProducer, FlinkKafkaConsumer
+from pyflink.datastream.functions import KeyedProcessFunction
+
+from functions import MyKeySelector
 
 
 def python_data_stream_example():
     env = StreamExecutionEnvironment.get_execution_environment()
+    # Set the parallelism to be one to make sure that all data including fired timer and normal data
+    # are processed by the same worker and the collected result would be in order which is good for
+    # assertion.
+    env.set_parallelism(1)
+    env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
-    source_type_info = Types.ROW([Types.STRING(), Types.INT()])
-    json_row_deserialization_schema = JsonRowDeserializationSchema.builder()\
-        .type_info(source_type_info).build()
-    source_topic = 'test-python-data-stream-source'
-    consumer_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
-    kafka_consumer_1 = FlinkKafkaConsumer(source_topic, json_row_deserialization_schema,
-                                          consumer_props)
-    kafka_consumer_1.set_start_from_earliest()
-    source_stream_1 = env.add_source(kafka_consumer_1).name('kafka source 1')
-    mapped_type_info = Types.ROW([Types.STRING(), Types.INT(), Types.INT()])
+    type_info = Types.ROW_NAMED(['createTime', 'orderId', 'payAmount', 'payPlatform', 'provinceId'],
+                                [Types.LONG(), Types.LONG(), Types.DOUBLE(), Types.INT(),
+                                 Types.INT()])
+    json_row_schema = JsonRowDeserializationSchema.builder().type_info(type_info).build()
+    kafka_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-source'}
 
-    keyed_stream = source_stream_1.map(add_one, output_type=mapped_type_info) \
-        .key_by(lambda x: x[2])
+    kafka_consumer = FlinkKafkaConsumer("timer-stream-source", json_row_schema, kafka_props)
+    kafka_producer = FlinkKafkaProducer("timer-stream-sink", SimpleStringSchema(), kafka_props)
 
-    flat_mapped_stream = keyed_stream.flat_map(m_flat_map, result_type=mapped_type_info)
-    flat_mapped_stream.name("flat-map").set_parallelism(3)
+    watermark_strategy = WatermarkStrategy.for_bounded_out_of_orderness(Duration.of_seconds(5))\
+        .with_timestamp_assigner(KafkaRowTimestampAssigner())
 
-    sink_topic = 'test-python-data-stream-sink'
-    producer_props = {'bootstrap.servers': 'localhost:9092', 'group.id': 'pyflink-e2e-1'}
-    json_row_serialization_schema = JsonRowSerializationSchema.builder()\
-        .with_type_info(mapped_type_info).build()
-    kafka_producer = FlinkKafkaProducer(topic=sink_topic, producer_config=producer_props,
-                                        serialization_schema=json_row_serialization_schema)
-    flat_mapped_stream.add_sink(kafka_producer)
-    env.execute_async("test data stream to kafka")
+    kafka_consumer.set_start_from_earliest()
+    ds = env.add_source(kafka_consumer).assign_timestamps_and_watermarks(watermark_strategy)
+    ds.key_by(MyKeySelector(), key_type_info=Types.LONG()) \
+        .process(MyProcessFunction(), output_type=Types.STRING()) \
+        .add_sink(kafka_producer)
+    env.execute_async("test data stream timer")
+
+
+class MyProcessFunction(KeyedProcessFunction):
+
+    def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+        result = "Current key: {}, orderId: {}, payAmount: {}, timestamp: {}".format(
+            str(ctx.get_current_key()), str(value[1]), str(value[2]), str(ctx.timestamp()))
+        yield result
+        current_watermark = ctx.timer_service().current_watermark()
+        ctx.timer_service().register_event_time_timer(current_watermark + 1500)
+
+    def on_timer(self, timestamp, ctx: 'KeyedProcessFunction.OnTimerContext'):
+        yield "On timer timestamp: " + str(timestamp)
+
+
+class KafkaRowTimestampAssigner(TimestampAssigner):
+
+    def extract_timestamp(self, value: Any, record_timestamp: int) -> int:
+        return int(value[0])
 
 
 if __name__ == '__main__':

@@ -20,18 +20,17 @@ package org.apache.flink.tests.util.kafka;
 
 import java.util.Optional;
 
-/**
- * A factory for {@link KafkaResource} implementations.
- */
+/** A factory for {@link KafkaResource} implementations. */
 @FunctionalInterface
 public interface KafkaResourceFactory {
 
-	/**
-	 * Returns a {@link KafkaResource} instance. If the instance could not be instantiated (for example, because a
-	 * mandatory parameter was missing), then an empty {@link Optional} should be returned.
-	 *
-	 * @return KafkaResource instance
-	 * @throws Exception if the instance could not be instantiated
-	 */
-	KafkaResource create(String kafkaVersion) throws Exception;
+    /**
+     * Returns a {@link KafkaResource} instance. If the instance could not be instantiated (for
+     * example, because a mandatory parameter was missing), then an empty {@link Optional} should be
+     * returned.
+     *
+     * @return KafkaResource instance
+     * @throws Exception if the instance could not be instantiated
+     */
+    KafkaResource create(String kafkaVersion) throws Exception;
 }

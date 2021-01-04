@@ -46,11 +46,10 @@ Flink 还支持将 Flink SQL 中的 INSERT / UPDATE / DELETE 消息编码为 Can
 依赖
 ------------
 
-为了设置 Canal 格式，下表提供了使用自动化构建工具（例如：Maven 或 SBT）项目和使用绑定 SQL JAR 包的 SQL Client 所需的依赖信息。
-
-| Maven 依赖   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| `flink-json`       | 内置               |
+{% assign connector = site.data.sql-connectors['canal'] %} 
+{% include sql-connector-download-table.zh.html 
+    connector=connector
+%}
 
 *注意：有关如何部署 Canal 以将变更日志同步到消息队列，请参阅 [Canal 文档](https://github.com/alibaba/canal/wiki)。*
 
@@ -142,6 +141,82 @@ SELECT * FROM topic_products;
 </div>
 </div>
 
+Available Metadata
+------------------
+
+The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+
+<span class="label label-danger">Attention</span> Format metadata fields are only available if the
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 40%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>database</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database. Corresponds to the <code>database</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database table. Corresponds to the <code>table</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>sql-type</code></td>
+      <td><code>MAP&lt;STRING, INT&gt; NULL</code></td>
+      <td>Map of various sql types. Corresponds to the <code>sqlType</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>pk-names</code></td>
+      <td><code>ARRAY&lt;STRING&gt; NULL</code></td>
+      <td>Array of primary key names. Corresponds to the <code>pkNames</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>ingestion-timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
+      field in the Canal record.</td>
+    </tr>
+    </tbody>
+</table>
+
+The following example shows how to access Canal metadata fields in Kafka:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  origin_database STRING METADATA FROM 'value.database' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.table' VIRTUAL,
+  origin_sql_type MAP<STRING, INT> METADATA FROM 'value.sql-type' VIRTUAL,
+  origin_pk_names ARRAY<STRING> METADATA FROM 'value.pk-names' VIRTUAL,
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'canal-json'
+);
+{% endhighlight %}
+</div>
+</div>
 
 Format 参数
 ----------------
@@ -176,13 +251,33 @@ Format 参数
        <td>选填</td>
        <td style="word-wrap: break-word;"><code>'SQL'</code></td>
        <td>String</td>
-       <td>指定输入和输出时间戳格式。 当前支持的值是 <code>'SQL'</code> 和 <code>'ISO-8601'</code>:
+       <td>指定输入和输出时间戳格式。当前支持的值是 <code>'SQL'</code> 和 <code>'ISO-8601'</code>:
        <ul>
          <li>选项 <code>'SQL'</code> 将解析 "yyyy-MM-dd HH:mm:ss.s{precision}" 格式的输入时间戳，例如 '2020-12-30 12:13:14.123'，并以相同格式输出时间戳。</li>
          <li>选项 <code>'ISO-8601'</code> 将解析 "yyyy-MM-ddTHH:mm:ss.s{precision}" 格式的输入时间戳，例如 '2020-12-30T12:13:14.123'，并以相同的格式输出时间戳。</li>
        </ul>
        </td>
     </tr>
+    <tr>
+       <td><h5>canal-json.map-null-key.mode</h5></td>
+       <td>选填</td>
+       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
+       <td>String</td>
+       <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
+       <ul>
+         <li>Option <code>'FAIL'</code> 将抛出异常，如果遇到 Map 中 key 值为空的数据。</li>
+         <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li> 
+         <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>'canal-json.map-null-key.literal'</code> 定义。</li>
+       </ul>
+       </td>
+    </tr>
+    <tr>
+      <td><h5>canal-json.map-null-key.literal</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">'null'</td>
+      <td>String</td>
+      <td>当 <code>'canal-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
+    </tr>       
     <tr>
       <td><h5>canal-json.database.include</h5></td>
       <td>optional</td>
@@ -199,6 +294,17 @@ Format 参数
     </tr>
     </tbody>
 </table>
+
+注意事项
+----------------
+
+### 重复的变更事件
+
+在正常的操作环境下，Canal 应用能以 **exactly-once** 的语义投递每条变更事件。在这种情况下，Flink 消费 Canal 产生的变更事件能够工作得很好。
+然而，当有故障发生时，Canal 应用只能保证 **at-least-once** 的投递语义。
+这也意味着，在非正常情况下，Canal 可能会投递重复的变更事件到消息队列中，当 Flink 从消息队列中消费的时候就会得到重复的事件。
+这可能会导致 Flink query 的运行得到错误的结果或者非预期的异常。因此，建议在这种情况下，建议在这种情况下，将作业参数 [`table.exec.source.cdc-events-duplicate`]({% link dev/table/config.zh.md %}#table-exec-source-cdc-events-duplicate) 设置成 `true`，并在该 source 上定义 PRIMARY KEY。
+框架会生成一个额外的有状态算子，使用该 primary key 来对变更事件去重并生成一个规范化的 changelog 流。
 
 数据类型映射
 ----------------

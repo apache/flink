@@ -49,120 +49,124 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
 
   @Test
   def testConvertToIn_LessThanThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3")
   }
 
   @Test
   def testConvertToIn_EqualsToThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4")
   }
 
   @Test
   def testConvertToIn_GreaterThanThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR a = 5")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR a = 5")
   }
 
   @Test
   def testConvertToIn_LessThanThreshold_Double(): Unit = {
     val where = (1 until 20).map(i => s"d = $i").mkString(" OR ")
-    util.verifyPlan(s"SELECT * FROM MyTable WHERE $where")
+    util.verifyRelPlan(s"SELECT * FROM MyTable WHERE $where")
   }
 
   @Test
   def testConvertToIn_GreaterThanThreshold_Double(): Unit = {
     val where = (1 until 21).map(i => s"d = $i").mkString(" OR ")
-    util.verifyPlan(s"SELECT * FROM MyTable WHERE $where")
+    util.verifyRelPlan(s"SELECT * FROM MyTable WHERE $where")
   }
 
   @Test
   def testConvertToIn_WithOr1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1")
   }
 
   @Test
   def testConvertToIn_WithOr2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR b = 1 OR a = 3 OR a = 4")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR b = 1 OR a = 3 OR a = 4")
   }
 
   @Test
   def testConvertToIn_WithAnd1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE (a = 1 OR a = 2 OR a = 3 OR a = 4) AND b = 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE (a = 1 OR a = 2 OR a = 3 OR a = 4) AND b = 1")
   }
 
   @Test
   def testConvertToIn_WithAnd2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 AND b = 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 AND b = 1")
   }
 
   @Test
   def testConvertToNotIn_LessThanThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3")
   }
 
   @Test
   def testConvertToNotIn_EqualsToThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4")
   }
 
   @Test
   def testConvertToNotIn_GreaterThanThreshold_Int(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND a = 5")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND a = 5")
   }
 
   @Test
   def testConvertToNotIn_LessThanThreshold_Double(): Unit = {
     val where = (1 until 20).map(i => s"d <> $i").mkString(" AND ")
-    util.verifyPlan(s"SELECT * FROM MyTable WHERE $where")
+    util.verifyRelPlan(s"SELECT * FROM MyTable WHERE $where")
   }
 
   @Test
   def testConvertToNotIn_GreaterThanThreshold_Double(): Unit = {
     val where = (1 until 21).map(i => s"d <> $i").mkString(" AND ")
-    util.verifyPlan(s"SELECT * FROM MyTable WHERE $where")
+    util.verifyRelPlan(s"SELECT * FROM MyTable WHERE $where")
   }
 
   @Test
   def testConvertToNotIn_WithOr1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b =" +
-      " 1")
+    util.verifyRelPlan("" +
+      "SELECT * FROM MyTable WHERE (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4) OR b = 1")
   }
 
   @Test
   def testConvertToNotIn_WithOr2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 OR b = 1")
   }
 
   @Test
   def testConvertToNotIn_WithOr3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 OR a <> 2 OR a <> 3 OR a <> 4 OR b = 1")
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a <> 1 OR a <> 2 OR a <> 3 OR a <> 4 OR b = 1")
   }
 
   @Test
   def testConvertToNotIn_WithAnd1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND b = 1")
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2 AND a <> 3 AND a <> 4 AND b = 1")
   }
 
   @Test
   def testConvertToNotIn_WithAnd2(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE a <> 1 AND a <> 2  AND b = 1 AND a <> 3 AND a <> 4"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testConvertToInAndNotIn1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1 " +
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE a = 1 OR a = 2 OR a = 3 OR a = 4 OR b = 1 " +
       "OR (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)")
   }
 
   @Test
   def testConvertToInAndNotIn2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE b = 1 OR a = 1 OR a = 2 OR a = 3 OR a = 4  " +
+    util.verifyRelPlan("SELECT * FROM MyTable WHERE b = 1 OR a = 1 OR a = 2 OR a = 3 OR a = 4  " +
       "AND (a <> 1 AND a <> 2 AND a <> 3 AND a <> 4)")
   }
 
   @Test
   def testConvertToInAndNotIn3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
+    util.verifyRelPlan(
+      "SELECT * FROM MyTable WHERE b = 1 OR b = 2 OR (a <> 1 AND a <> 2 AND a <> 3 " +
       "AND a <> 4 AND c = 1) OR b = 3 OR b = 4 OR c = 1")
   }
 }

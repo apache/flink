@@ -101,7 +101,7 @@ class LogicalUnnestRule(
           val rexCall = cluster.getRexBuilder.makeCall(
             typeFactory.createFieldTypeFromLogicalType(unnestFunction.getWrappedOutputType),
             sqlFunction,
-            getRel(uc.getInput).asInstanceOf[LogicalProject].getChildExps)
+            getRel(uc.getInput).asInstanceOf[LogicalProject].getProjects)
 
           new LogicalTableFunctionScan(
             cluster,

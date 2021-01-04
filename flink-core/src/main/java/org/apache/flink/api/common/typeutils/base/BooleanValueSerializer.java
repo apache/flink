@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.common.typeutils.base;
 
-import java.io.IOException;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.SimpleTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
@@ -27,77 +25,78 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.BooleanValue;
 
+import java.io.IOException;
+
 @Internal
 public final class BooleanValueSerializer extends TypeSerializerSingleton<BooleanValue> {
 
-	private static final long serialVersionUID = 1L;
-	
-	public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public boolean isImmutableType() {
-		return false;
-	}
+    public static final BooleanValueSerializer INSTANCE = new BooleanValueSerializer();
 
-	@Override
-	public BooleanValue createInstance() {
-		return new BooleanValue();
-	}
+    @Override
+    public boolean isImmutableType() {
+        return false;
+    }
 
-	@Override
-	public BooleanValue copy(BooleanValue from) {
-		BooleanValue result = new BooleanValue();
-		result.setValue(from.getValue());
-		return result;
-	}
-	
-	@Override
-	public BooleanValue copy(BooleanValue from, BooleanValue reuse) {
-		reuse.setValue(from.getValue());
-		return reuse;
-	}
+    @Override
+    public BooleanValue createInstance() {
+        return new BooleanValue();
+    }
 
-	@Override
-	public int getLength() {
-		return 1;
-	}
+    @Override
+    public BooleanValue copy(BooleanValue from) {
+        BooleanValue result = new BooleanValue();
+        result.setValue(from.getValue());
+        return result;
+    }
 
-	@Override
-	public void serialize(BooleanValue record, DataOutputView target) throws IOException {
-		record.write(target);
-	}
+    @Override
+    public BooleanValue copy(BooleanValue from, BooleanValue reuse) {
+        reuse.setValue(from.getValue());
+        return reuse;
+    }
 
-	@Override
-	public BooleanValue deserialize(DataInputView source) throws IOException {
-		return deserialize(new BooleanValue(), source);
-	}
-	
-	@Override
-	public BooleanValue deserialize(BooleanValue reuse, DataInputView source) throws IOException {
-		reuse.read(source);
-		return reuse;
-	}
+    @Override
+    public int getLength() {
+        return 1;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		target.writeBoolean(source.readBoolean());
-	}
+    @Override
+    public void serialize(BooleanValue record, DataOutputView target) throws IOException {
+        record.write(target);
+    }
 
-	@Override
-	public TypeSerializerSnapshot<BooleanValue> snapshotConfiguration() {
-		return new BooleanValueSerializerSnapshot();
-	}
+    @Override
+    public BooleanValue deserialize(DataInputView source) throws IOException {
+        return deserialize(new BooleanValue(), source);
+    }
 
-	// ------------------------------------------------------------------------
+    @Override
+    public BooleanValue deserialize(BooleanValue reuse, DataInputView source) throws IOException {
+        reuse.read(source);
+        return reuse;
+    }
 
-	/**
-	 * Serializer configuration snapshot for compatibility and format evolution.
-	 */
-	@SuppressWarnings("WeakerAccess")
-	public static final class BooleanValueSerializerSnapshot extends SimpleTypeSerializerSnapshot<BooleanValue> {
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        target.writeBoolean(source.readBoolean());
+    }
 
-		public BooleanValueSerializerSnapshot() {
-			super(() -> INSTANCE);
-		}
-	}
+    @Override
+    public TypeSerializerSnapshot<BooleanValue> snapshotConfiguration() {
+        return new BooleanValueSerializerSnapshot();
+    }
+
+    // ------------------------------------------------------------------------
+
+    /** Serializer configuration snapshot for compatibility and format evolution. */
+    @SuppressWarnings("WeakerAccess")
+    public static final class BooleanValueSerializerSnapshot
+            extends SimpleTypeSerializerSnapshot<BooleanValue> {
+
+        public BooleanValueSerializerSnapshot() {
+            super(() -> INSTANCE);
+        }
+    }
 }

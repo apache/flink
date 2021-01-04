@@ -27,48 +27,47 @@ import java.io.Serializable;
  *
  * @param <K> graph ID type
  */
-public interface TertiaryResult<K>
-extends Serializable {
+public interface TertiaryResult<K> extends Serializable {
 
-	/**
-	 * Get the first vertex ID.
-	 *
-	 * @return first vertex ID
-	 */
-	K getVertexId0();
+    /**
+     * Get the first vertex ID.
+     *
+     * @return first vertex ID
+     */
+    K getVertexId0();
 
-	/**
-	 * Set the first vertex ID.
-	 *
-	 * @param vertexId0 new vertex ID
-	 */
-	void setVertexId0(K vertexId0);
+    /**
+     * Set the first vertex ID.
+     *
+     * @param vertexId0 new vertex ID
+     */
+    void setVertexId0(K vertexId0);
 
-	/**
-	 * Get the second vertex ID.
-	 *
-	 * @return second vertex ID
-	 */
-	K getVertexId1();
+    /**
+     * Get the second vertex ID.
+     *
+     * @return second vertex ID
+     */
+    K getVertexId1();
 
-	/**
-	 * Set the second vertex ID.
-	 *
-	 * @param vertexId1 new vertex ID
-	 */
-	void setVertexId1(K vertexId1);
+    /**
+     * Set the second vertex ID.
+     *
+     * @param vertexId1 new vertex ID
+     */
+    void setVertexId1(K vertexId1);
 
-	/**
-	 * Get the third vertex ID.
-	 *
-	 * @return third vertex ID
-	 */
-	K getVertexId2();
+    /**
+     * Get the third vertex ID.
+     *
+     * @return third vertex ID
+     */
+    K getVertexId2();
 
-	/**
-	 * Set the third vertex ID.
-	 *
-	 * @param vertexId2 new vertex ID
-	 */
-	void setVertexId2(K vertexId2);
+    /**
+     * Set the third vertex ID.
+     *
+     * @param vertexId2 new vertex ID
+     */
+    void setVertexId2(K vertexId2);
 }

@@ -40,11 +40,10 @@ The Avro Schema Registry format can only be used in conjunction with [Apache Kaf
 Dependencies
 ------------
 
-In order to use the Avro Schema Registry format the following dependencies are required for both projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency                     | SQL Client JAR         |
-| :----------------------------------- | :----------------------|
-| `flink-avro-confluent-registry`      | {% if site.is_stable %} [Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-avro-confluent-registry/{{site.version}}/flink-sql-avro-confluent-registry-{{site.version}}.jar) {% else %} Only available for stable releases. {% endif %} |
+{% assign connector = site.data.sql-connectors['avro-confluent'] %} 
+{% include sql-connector-download-table.html 
+    connector=connector
+%}
 
 How to create a table with Avro-Confluent format
 ----------------
@@ -63,7 +62,7 @@ CREATE TABLE user_behavior (
 ) WITH (
   'connector' = 'kafka',
   'properties.bootstrap.servers' = 'localhost:9092',
-  'topic' = 'user_behavior'
+  'topic' = 'user_behavior',
   'format' = 'avro-confluent',
   'avro-confluent.schema-registry.url' = 'http://localhost:8081',
   'avro-confluent.schema-registry.subject' = 'user_behavior'

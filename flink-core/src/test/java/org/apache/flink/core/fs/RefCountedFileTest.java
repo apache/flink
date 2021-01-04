@@ -33,65 +33,62 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
-/**
- * Tests for the {@link RefCountedFile}.
- */
+/** Tests for the {@link RefCountedFile}. */
 public class RefCountedFileTest {
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {
-		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-		checkState(newFile.createNewFile());
+    @Test
+    public void releaseToZeroRefCounterShouldDeleteTheFile() throws IOException {
+        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+        checkState(newFile.createNewFile());
 
-		RefCountedFile fileUnderTest = new RefCountedFile(newFile);
-		verifyTheFileIsStillThere();
+        RefCountedFile fileUnderTest = new RefCountedFile(newFile);
+        verifyTheFileIsStillThere();
 
-		fileUnderTest.release();
+        fileUnderTest.release();
 
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			Assert.assertEquals(0L, files.count());
-		}
-	}
+        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+            Assert.assertEquals(0L, files.count());
+        }
+    }
 
-	@Test
-	public void retainsShouldRequirePlusOneReleasesToDeleteTheFile() throws IOException {
-		final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
-		checkState(newFile.createNewFile());
+    @Test
+    public void retainsShouldRequirePlusOneReleasesToDeleteTheFile() throws IOException {
+        final File newFile = new File(temporaryFolder.getRoot(), ".tmp_" + UUID.randomUUID());
+        checkState(newFile.createNewFile());
 
-		// the reference counter always starts with 1 (not 0). This is why we need +1 releases
-		RefCountedFile fileUnderTest = new RefCountedFile(newFile);
-		verifyTheFileIsStillThere();
+        // the reference counter always starts with 1 (not 0). This is why we need +1 releases
+        RefCountedFile fileUnderTest = new RefCountedFile(newFile);
+        verifyTheFileIsStillThere();
 
-		fileUnderTest.retain();
-		fileUnderTest.retain();
+        fileUnderTest.retain();
+        fileUnderTest.retain();
 
-		Assert.assertEquals(3, fileUnderTest.getReferenceCounter());
+        Assert.assertEquals(3, fileUnderTest.getReferenceCounter());
 
-		fileUnderTest.release();
-		Assert.assertEquals(2, fileUnderTest.getReferenceCounter());
-		verifyTheFileIsStillThere();
+        fileUnderTest.release();
+        Assert.assertEquals(2, fileUnderTest.getReferenceCounter());
+        verifyTheFileIsStillThere();
 
-		fileUnderTest.release();
-		Assert.assertEquals(1, fileUnderTest.getReferenceCounter());
-		verifyTheFileIsStillThere();
+        fileUnderTest.release();
+        Assert.assertEquals(1, fileUnderTest.getReferenceCounter());
+        verifyTheFileIsStillThere();
 
-		fileUnderTest.release();
-		// the file is deleted now
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			Assert.assertEquals(0L, files.count());
-		}
-	}
+        fileUnderTest.release();
+        // the file is deleted now
+        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+            Assert.assertEquals(0L, files.count());
+        }
+    }
 
-	private void verifyTheFileIsStillThere() throws IOException {
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			Assert.assertEquals(1L, files.count());
-		}
-	}
+    private void verifyTheFileIsStillThere() throws IOException {
+        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+            Assert.assertEquals(1L, files.count());
+        }
+    }
 
-	private static byte[] bytesOf(String str) {
-		return str.getBytes(StandardCharsets.UTF_8);
-	}
+    private static byte[] bytesOf(String str) {
+        return str.getBytes(StandardCharsets.UTF_8);
+    }
 }

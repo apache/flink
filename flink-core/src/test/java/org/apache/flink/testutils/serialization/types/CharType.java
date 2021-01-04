@@ -16,60 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class CharType implements SerializationTestType {
 
-	private char value;
+    private char value;
 
-	public CharType() {
-		this.value = 0;
-	}
+    public CharType() {
+        this.value = 0;
+    }
 
-	private CharType(char value) {
-		this.value = value;
-	}
+    private CharType(char value) {
+        this.value = value;
+    }
 
-	@Override
-	public CharType getRandom(Random rnd) {
-		return new CharType((char) rnd.nextInt(10000));
-	}
+    @Override
+    public CharType getRandom(Random rnd) {
+        return new CharType((char) rnd.nextInt(10000));
+    }
 
-	@Override
-	public int length() {
-		return 2;
-	}
+    @Override
+    public int length() {
+        return 2;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeChar(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeChar(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readChar();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readChar();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value;
-	}
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof CharType) {
-			CharType other = (CharType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof CharType) {
+            CharType other = (CharType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }
-

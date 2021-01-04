@@ -20,36 +20,35 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 
-/**
- * A {@link Parameter} storing a {@link String}.
- */
-public class StringParameter
-extends SimpleParameter<String> {
+/** A {@link Parameter} storing a {@link String}. */
+public class StringParameter extends SimpleParameter<String> {
 
-	/**
-	 * Set the parameter name and add this parameter to the list of parameters
-	 * stored by owner.
-	 *
-	 * @param owner the {@link Parameterized} using this {@link Parameter}
-	 * @param name the parameter name
-	 */
-	public StringParameter(ParameterizedBase owner, String name) {
-		super(owner, name);
-	}
+    /**
+     * Set the parameter name and add this parameter to the list of parameters stored by owner.
+     *
+     * @param owner the {@link Parameterized} using this {@link Parameter}
+     * @param name the parameter name
+     */
+    public StringParameter(ParameterizedBase owner, String name) {
+        super(owner, name);
+    }
 
-	@Override
-	public StringParameter setDefaultValue(String defaultValue) {
-		super.setDefaultValue(defaultValue);
-		return this;
-	}
+    @Override
+    public StringParameter setDefaultValue(String defaultValue) {
+        super.setDefaultValue(defaultValue);
+        return this;
+    }
 
-	@Override
-	public void configure(ParameterTool parameterTool) {
-		value = hasDefaultValue ? parameterTool.get(name, defaultValue) : parameterTool.getRequired(name);
-	}
+    @Override
+    public void configure(ParameterTool parameterTool) {
+        value =
+                hasDefaultValue
+                        ? parameterTool.get(name, defaultValue)
+                        : parameterTool.getRequired(name);
+    }
 
-	@Override
-	public String toString() {
-		return value;
-	}
+    @Override
+    public String toString() {
+        return value;
+    }
 }

@@ -16,6 +16,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCreateViewWithRowNumber">
+    <Resource name="sql">
+      <![CDATA[insert into sink select name, eat, cnt
+from view2 where row_num <= 3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
+   +- LogicalFilter(condition=[<=($3, 3)])
+      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
++- Calc(select=[name, eat, cnt], where=[(w0$o0 <= 3)])
+   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
+      +- Sort(orderBy=[name ASC, cnt DESC])
+         +- Exchange(distribution=[hash[name]])
+            +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
+               +- Exchange(distribution=[hash[name, eat]])
+                  +- LocalHashAggregate(groupBy=[name, eat], select=[name, eat, Partial_SUM(age) AS sum$0])
+                     +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDuplicateRankFunctionColumnName">
     <Resource name="sql">
       <![CDATA[
@@ -24,15 +53,15 @@ SELECT * FROM (
 WHERE rk < 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, rk)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, $2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, rk, $2])
@@ -54,15 +83,15 @@ SELECT * FROM (
 WHERE rk1 < 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk1=[$2], rk2=[$3])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk1=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)], rk2=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, rk2 AS rk1, rk2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, rk2])
@@ -82,15 +111,15 @@ SELECT * FROM (
 WHERE rk < 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rk=[$1], b=[$2], c=[$3])
 +- LogicalFilter(condition=[<($1, 10)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)], b=[$1], c=[$2])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)], b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, rk, b, c])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, b, c, rk])
@@ -110,18 +139,18 @@ SELECT * FROM (
 WHERE rk = 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2])
 +- LogicalFilter(condition=[=($2, 2)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST, $2 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, 2:BIGINT AS rk])
-+- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[true], select=[a, b, c, w0$o0])
    +- Sort(orderBy=[b ASC, a ASC, c ASC])
       +- Exchange(distribution=[hash[b]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC, c ASC], global=[false], select=[a, b, c])
@@ -138,15 +167,15 @@ SELECT * FROM (
 WHERE rk <= 2 AND rk > -2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($2, -2))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1, $2 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, $2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=-1, rankEnd=2], partitionBy=[b, c], orderBy=[a ASC], global=[true], select=[a, b, c, $2])
@@ -166,17 +195,17 @@ SELECT * FROM (
 WHERE rk <= 2 AND a > 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2])
 +- LogicalFilter(condition=[AND(<=($2, 2), >($0, 10))])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, $2], where=[>(a, 10)])
+Calc(select=[a, b, $2], where=[(a > 10)])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=2], partitionBy=[b], orderBy=[a ASC], global=[true], select=[a, b, c, $2])
    +- Sort(orderBy=[b ASC, a ASC])
       +- Exchange(distribution=[hash[b]])
@@ -194,15 +223,15 @@ SELECT * FROM (
 WHERE rk < 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2])
 +- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, b, $2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, c, $2])
@@ -211,35 +240,6 @@ Calc(select=[a, b, $2])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b, c])
             +- Sort(orderBy=[a ASC])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCreateViewWithRowNumber">
-    <Resource name="sql">
-      <![CDATA[insert into sink select name, eat, cnt
-from view2 where row_num <= 3]]>
-    </Resource>
-    <Resource name="planBefore">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- LogicalProject(name=[$0], eat=[$1], cnt=[$2])
-   +- LogicalFilter(condition=[<=($3, 3)])
-      +- LogicalProject(name=[$0], eat=[$1], cnt=[$2], row_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
-         +- LogicalAggregate(group=[{0, 1}], cnt=[SUM($2)])
-            +- LogicalTableScan(table=[[default_catalog, default_database, test_source]])
-]]>
-    </Resource>
-    <Resource name="planAfter">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[name, eat, cnt])
-+- Calc(select=[name, eat, cnt], where=[<=(w0$o0, 3)])
-   +- OverAggregate(partitionBy=[name], orderBy=[cnt DESC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[name, eat, cnt, w0$o0])
-      +- Sort(orderBy=[name ASC, cnt DESC])
-         +- Exchange(distribution=[hash[name]])
-            +- HashAggregate(isMerge=[true], groupBy=[name, eat], select=[name, eat, Final_SUM(sum$0) AS cnt])
-               +- Exchange(distribution=[hash[name, eat]])
-                  +- LocalHashAggregate(groupBy=[name, eat], select=[name, eat, Partial_SUM(age) AS sum$0])
-                     +- TableSourceScan(table=[[default_catalog, default_database, test_source]], fields=[name, eat, age])
 ]]>
     </Resource>
   </TestCase>

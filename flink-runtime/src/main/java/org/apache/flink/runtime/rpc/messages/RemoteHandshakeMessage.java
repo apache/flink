@@ -23,31 +23,29 @@ import javax.annotation.Nonnull;
 import java.io.Serializable;
 
 /**
- * Handshake message between rpc endpoints. This message can be used
- * to verify compatibility between different endpoints.
+ * Handshake message between rpc endpoints. This message can be used to verify compatibility between
+ * different endpoints.
  */
 public class RemoteHandshakeMessage implements Serializable {
 
-	private static final long serialVersionUID = -7150082246232019027L;
+    private static final long serialVersionUID = -7150082246232019027L;
 
-	@Nonnull
-	private final Class<?> rpcGateway;
+    @Nonnull private final Class<?> rpcGateway;
 
-	@Nonnull
-	private final int version;
+    @Nonnull private final int version;
 
-	public RemoteHandshakeMessage(@Nonnull Class<?> rpcGateway, @Nonnull int version) {
-		this.rpcGateway = rpcGateway;
-		this.version = version;
-	}
+    public RemoteHandshakeMessage(@Nonnull Class<?> rpcGateway, @Nonnull int version) {
+        this.rpcGateway = rpcGateway;
+        this.version = version;
+    }
 
-	@Nonnull
-	public Class<?> getRpcGateway() {
-		return rpcGateway;
-	}
+    @Nonnull
+    public Class<?> getRpcGateway() {
+        return rpcGateway;
+    }
 
-	@Nonnull
-	public int getVersion() {
-		return version;
-	}
+    @Nonnull
+    public int getVersion() {
+        return version;
+    }
 }

@@ -33,102 +33,106 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A {@link org.apache.flink.core.memory.DataOutputView} that is backed by a {@link FileIOChannel},
- * making it effectively a data output stream. The view will compress its data before writing it
- * in blocks to the underlying channel.
+ * making it effectively a data output stream. The view will compress its data before writing it in
+ * blocks to the underlying channel.
  */
 public final class CompressedHeaderlessChannelWriterOutputView
-		extends AbstractChannelWriterOutputView implements BufferRecycler {
+        extends AbstractChannelWriterOutputView implements BufferRecycler {
 
-	private final MemorySegment buffer;
-	private final LinkedBlockingQueue<MemorySegment> compressedBuffers = new LinkedBlockingQueue<>();
-	private final BlockCompressor compressor;
-	private final BufferFileWriter writer;
-	private final int compressionBlockSize;
+    private final MemorySegment buffer;
+    private final LinkedBlockingQueue<MemorySegment> compressedBuffers =
+            new LinkedBlockingQueue<>();
+    private final BlockCompressor compressor;
+    private final BufferFileWriter writer;
+    private final int compressionBlockSize;
 
-	private int blockCount;
+    private int blockCount;
 
-	private long numBytes;
-	private long numCompressedBytes;
+    private long numBytes;
+    private long numCompressedBytes;
 
-	public CompressedHeaderlessChannelWriterOutputView(
-			BufferFileWriter writer,
-			BlockCompressionFactory compressionCodecFactory,
-			int compressionBlockSize) {
-		super(compressionBlockSize, 0);
+    public CompressedHeaderlessChannelWriterOutputView(
+            BufferFileWriter writer,
+            BlockCompressionFactory compressionCodecFactory,
+            int compressionBlockSize) {
+        super(compressionBlockSize, 0);
 
-		this.compressionBlockSize = compressionBlockSize;
-		buffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
-		compressor = compressionCodecFactory.getCompressor();
-		for (int i = 0; i < 2; i++) {
-			compressedBuffers.add(MemorySegmentFactory.wrap(
-					new byte[compressor.getMaxCompressedSize(compressionBlockSize)]));
-		}
-		this.writer = writer;
+        this.compressionBlockSize = compressionBlockSize;
+        buffer = MemorySegmentFactory.wrap(new byte[compressionBlockSize]);
+        compressor = compressionCodecFactory.getCompressor();
+        for (int i = 0; i < 2; i++) {
+            compressedBuffers.add(
+                    MemorySegmentFactory.wrap(
+                            new byte[compressor.getMaxCompressedSize(compressionBlockSize)]));
+        }
+        this.writer = writer;
 
-		try {
-			advance();
-		} catch (IOException ioex) {
-			throw new RuntimeException(ioex);
-		}
-	}
+        try {
+            advance();
+        } catch (IOException ioex) {
+            throw new RuntimeException(ioex);
+        }
+    }
 
-	@Override
-	public FileIOChannel getChannel() {
-		return writer;
-	}
+    @Override
+    public FileIOChannel getChannel() {
+        return writer;
+    }
 
-	@Override
-	public int close() throws IOException {
-		if (!writer.isClosed()) {
-			int currentPositionInSegment = getCurrentPositionInSegment();
-			writeCompressed(buffer, currentPositionInSegment);
-			clear();
-			this.writer.close();
-		}
-		return -1;
-	}
+    @Override
+    public int close() throws IOException {
+        if (!writer.isClosed()) {
+            int currentPositionInSegment = getCurrentPositionInSegment();
+            writeCompressed(buffer, currentPositionInSegment);
+            clear();
+            this.writer.close();
+        }
+        return -1;
+    }
 
-	@Override
-	protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent) throws IOException {
-		if (current != null) {
-			writeCompressed(current, compressionBlockSize);
-		}
-		return buffer;
-	}
+    @Override
+    protected MemorySegment nextSegment(MemorySegment current, int positionInCurrent)
+            throws IOException {
+        if (current != null) {
+            writeCompressed(current, compressionBlockSize);
+        }
+        return buffer;
+    }
 
-	private void writeCompressed(MemorySegment current, int size) throws IOException {
-		MemorySegment compressedBuffer;
-		try {
-			compressedBuffer = compressedBuffers.take();
-		} catch (InterruptedException e) {
-			throw new IOException(e);
-		}
-		int compressedLen = compressor.compress(current.getArray(), 0, size, compressedBuffer.getArray(), 0);
-		NetworkBuffer networkBuffer = new NetworkBuffer(compressedBuffer, this);
-		networkBuffer.setSize(compressedLen);
-		writer.writeBlock(networkBuffer);
-		blockCount++;
-		numBytes += size;
-		numCompressedBytes += compressedLen;
-	}
+    private void writeCompressed(MemorySegment current, int size) throws IOException {
+        MemorySegment compressedBuffer;
+        try {
+            compressedBuffer = compressedBuffers.take();
+        } catch (InterruptedException e) {
+            throw new IOException(e);
+        }
+        int compressedLen =
+                compressor.compress(current.getArray(), 0, size, compressedBuffer.getArray(), 0);
+        NetworkBuffer networkBuffer = new NetworkBuffer(compressedBuffer, this);
+        networkBuffer.setSize(compressedLen);
+        writer.writeBlock(networkBuffer);
+        blockCount++;
+        numBytes += size;
+        numCompressedBytes += compressedLen;
+    }
 
-	@Override
-	public long getNumBytes() {
-		return numBytes;
-	}
+    @Override
+    public long getNumBytes() {
+        return numBytes;
+    }
 
-	@Override
-	public long getNumCompressedBytes() {
-		return numCompressedBytes;
-	}
+    @Override
+    public long getNumCompressedBytes() {
+        return numCompressedBytes;
+    }
 
-	@Override
-	public int getBlockCount() {
-		return blockCount;
-	}
+    @Override
+    public int getBlockCount() {
+        return blockCount;
+    }
 
-	@Override
-	public void recycle(MemorySegment memorySegment) {
-		compressedBuffers.add(memorySegment);
-	}
+    @Override
+    public void recycle(MemorySegment memorySegment) {
+        compressedBuffers.add(memorySegment);
+    }
 }

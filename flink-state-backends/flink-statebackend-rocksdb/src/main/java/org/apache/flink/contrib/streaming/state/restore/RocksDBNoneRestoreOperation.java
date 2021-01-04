@@ -37,48 +37,48 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * Encapsulates the process of initiating a RocksDB instance without restore.
- */
+/** Encapsulates the process of initiating a RocksDB instance without restore. */
 public class RocksDBNoneRestoreOperation<K> extends AbstractRocksDBRestoreOperation<K> {
-	public RocksDBNoneRestoreOperation(
-		KeyGroupRange keyGroupRange,
-		int keyGroupPrefixBytes,
-		int numberOfTransferringThreads,
-		CloseableRegistry cancelStreamRegistry,
-		ClassLoader userCodeClassLoader,
-		Map<String, RocksDbKvStateInfo> kvStateInformation,
-		StateSerializerProvider<K> keySerializerProvider,
-		File instanceBasePath,
-		File instanceRocksDBPath,
-		DBOptions dbOptions,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		RocksDBNativeMetricOptions nativeMetricOptions,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> restoreStateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager
-	) {
-		super(keyGroupRange,
-			keyGroupPrefixBytes,
-			numberOfTransferringThreads,
-			cancelStreamRegistry,
-			userCodeClassLoader,
-			kvStateInformation,
-			keySerializerProvider,
-			instanceBasePath,
-			instanceRocksDBPath,
-			dbOptions,
-			columnFamilyOptionsFactory,
-			nativeMetricOptions,
-			metricGroup,
-			restoreStateHandles,
-			ttlCompactFiltersManager);
-	}
+    public RocksDBNoneRestoreOperation(
+            KeyGroupRange keyGroupRange,
+            int keyGroupPrefixBytes,
+            int numberOfTransferringThreads,
+            CloseableRegistry cancelStreamRegistry,
+            ClassLoader userCodeClassLoader,
+            Map<String, RocksDbKvStateInfo> kvStateInformation,
+            StateSerializerProvider<K> keySerializerProvider,
+            File instanceBasePath,
+            File instanceRocksDBPath,
+            DBOptions dbOptions,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            RocksDBNativeMetricOptions nativeMetricOptions,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
+            @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+            Long writeBufferManagerCapacity) {
+        super(
+                keyGroupRange,
+                keyGroupPrefixBytes,
+                numberOfTransferringThreads,
+                cancelStreamRegistry,
+                userCodeClassLoader,
+                kvStateInformation,
+                keySerializerProvider,
+                instanceBasePath,
+                instanceRocksDBPath,
+                dbOptions,
+                columnFamilyOptionsFactory,
+                nativeMetricOptions,
+                metricGroup,
+                restoreStateHandles,
+                ttlCompactFiltersManager,
+                writeBufferManagerCapacity);
+    }
 
-	@Override
-	public RocksDBRestoreResult restore() throws Exception {
-		openDB();
-		return new RocksDBRestoreResult(this.db, defaultColumnFamilyHandle, nativeMetricMonitor,
-			-1, null, null);
-	}
+    @Override
+    public RocksDBRestoreResult restore() throws Exception {
+        openDB();
+        return new RocksDBRestoreResult(
+                this.db, defaultColumnFamilyHandle, nativeMetricMonitor, -1, null, null);
+    }
 }

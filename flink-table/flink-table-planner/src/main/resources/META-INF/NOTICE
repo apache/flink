@@ -6,24 +6,26 @@ The Apache Software Foundation (http://www.apache.org/).
 
 This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.google.guava:guava:19.0
+- com.google.guava:guava:29.0-jre
+- com.google.guava:failureaccess:1.0.1
+- com.esri.geometry:esri-geometry-api:2.2.0
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
 - com.jayway.jsonpath:json-path:2.4.0
 - joda-time:joda-time:2.5
-- org.apache.calcite:calcite-core:1.22.0
-- org.apache.calcite:calcite-linq4j:1.22.0
-- org.apache.calcite.avatica:avatica-core:1.16.0
-- commons-codec:commons-codec:1.10
+- org.apache.calcite:calcite-core:1.26.0
+- org.apache.calcite:calcite-linq4j:1.26.0
+- org.apache.calcite.avatica:avatica-core:1.17.0
+- commons-codec:commons-codec:1.13
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
 
-- org.codehaus.janino:janino:3.0.9
-- org.codehaus.janino:commons-compiler:3.0.9
+- org.codehaus.janino:janino:3.0.11
+- org.codehaus.janino:commons-compiler:3.0.11
 
 This project bundles the following dependencies under the ICU license.
 See bundled license files for details
 
-- com.ibm.icu:icu4j:65.1
+- com.ibm.icu:icu4j:67.1

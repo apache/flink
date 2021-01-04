@@ -30,27 +30,26 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-/**
- * Response that carries a serialized {@link CoordinationResponse} to the client.
- */
+/** Response that carries a serialized {@link CoordinationResponse} to the client. */
 public class ClientCoordinationResponseBody implements ResponseBody {
 
-	public static final String FIELD_NAME_SERIALIZED_COORDINATION_RESULT = "serializedCoordinationResult";
+    public static final String FIELD_NAME_SERIALIZED_COORDINATION_RESULT =
+            "serializedCoordinationResult";
 
-	@JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_RESULT)
-	@JsonSerialize(using = SerializedValueSerializer.class)
-	@JsonDeserialize(using = SerializedValueDeserializer.class)
-	private final SerializedValue<CoordinationResponse> serializedCoordinationResponse;
+    @JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_RESULT)
+    @JsonSerialize(using = SerializedValueSerializer.class)
+    @JsonDeserialize(using = SerializedValueDeserializer.class)
+    private final SerializedValue<CoordinationResponse> serializedCoordinationResponse;
 
-	@JsonCreator
-	public ClientCoordinationResponseBody(
-		@JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_RESULT)
-			SerializedValue<CoordinationResponse> serializedCoordinationResponse) {
-		this.serializedCoordinationResponse = serializedCoordinationResponse;
-	}
+    @JsonCreator
+    public ClientCoordinationResponseBody(
+            @JsonProperty(FIELD_NAME_SERIALIZED_COORDINATION_RESULT)
+                    SerializedValue<CoordinationResponse> serializedCoordinationResponse) {
+        this.serializedCoordinationResponse = serializedCoordinationResponse;
+    }
 
-	@JsonIgnore
-	public SerializedValue<CoordinationResponse> getSerializedCoordinationResponse() {
-		return serializedCoordinationResponse;
-	}
+    @JsonIgnore
+    public SerializedValue<CoordinationResponse> getSerializedCoordinationResponse() {
+        return serializedCoordinationResponse;
+    }
 }

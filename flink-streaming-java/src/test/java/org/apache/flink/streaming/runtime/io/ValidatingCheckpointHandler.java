@@ -31,103 +31,109 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * The invokable handler used for triggering checkpoint and validation.
- */
+/** The invokable handler used for triggering checkpoint and validation. */
 public class ValidatingCheckpointHandler extends AbstractInvokable {
 
-	protected CheckpointFailureReason failureReason;
-	protected long lastCanceledCheckpointId = -1L;
-	protected long nextExpectedCheckpointId;
-	protected long triggeredCheckpointCounter = 0;
-	protected long abortedCheckpointCounter = 0;
-	protected CompletableFuture<Long> lastAlignmentDurationNanos;
-	protected CompletableFuture<Long> lastBytesProcessedDuringAlignment;
-	protected List<Long> triggeredCheckpoints = new ArrayList<>();
+    protected CheckpointFailureReason failureReason;
+    protected long lastCanceledCheckpointId = -1L;
+    protected long nextExpectedCheckpointId;
+    protected long triggeredCheckpointCounter = 0;
+    protected long abortedCheckpointCounter = 0;
+    protected CompletableFuture<Long> lastAlignmentDurationNanos;
+    protected CompletableFuture<Long> lastBytesProcessedDuringAlignment;
+    protected final List<Long> triggeredCheckpoints = new ArrayList<>();
+    protected final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
 
-	public ValidatingCheckpointHandler() {
-		this(-1);
-	}
+    public ValidatingCheckpointHandler() {
+        this(-1);
+    }
 
-	public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
-		super(new DummyEnvironment("test", 1, 0));
-		this.nextExpectedCheckpointId = nextExpectedCheckpointId;
-	}
+    public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
+        super(new DummyEnvironment("test", 1, 0));
+        this.nextExpectedCheckpointId = nextExpectedCheckpointId;
+    }
 
-	public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
-		this.nextExpectedCheckpointId = nextExpectedCheckpointId;
-	}
+    public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
+        this.nextExpectedCheckpointId = nextExpectedCheckpointId;
+    }
 
-	public CheckpointFailureReason getCheckpointFailureReason() {
-		return failureReason;
-	}
+    public CheckpointFailureReason getCheckpointFailureReason() {
+        return failureReason;
+    }
 
-	public long getLastCanceledCheckpointId() {
-		return lastCanceledCheckpointId;
-	}
+    public long getLastCanceledCheckpointId() {
+        return lastCanceledCheckpointId;
+    }
 
-	public long getTriggeredCheckpointCounter() {
-		return triggeredCheckpointCounter;
-	}
+    public long getTriggeredCheckpointCounter() {
+        return triggeredCheckpointCounter;
+    }
 
-	public long getAbortedCheckpointCounter() {
-		return abortedCheckpointCounter;
-	}
+    public long getAbortedCheckpointCounter() {
+        return abortedCheckpointCounter;
+    }
 
-	public long getNextExpectedCheckpointId() {
-		return nextExpectedCheckpointId;
-	}
+    public long getNextExpectedCheckpointId() {
+        return nextExpectedCheckpointId;
+    }
 
-	public CompletableFuture<Long> getLastAlignmentDurationNanos() {
-		return lastAlignmentDurationNanos;
-	}
+    public CompletableFuture<Long> getLastAlignmentDurationNanos() {
+        return lastAlignmentDurationNanos;
+    }
 
-	public CompletableFuture<Long> getLastBytesProcessedDuringAlignment() {
-		return lastBytesProcessedDuringAlignment;
-	}
+    public CompletableFuture<Long> getLastBytesProcessedDuringAlignment() {
+        return lastBytesProcessedDuringAlignment;
+    }
 
-	@Override
-	public void invoke() {
-		throw new UnsupportedOperationException();
-	}
+    public List<CheckpointOptions> getTriggeredCheckpointOptions() {
+        return triggeredCheckpointOptions;
+    }
 
-	@Override
-	public Future<Boolean> triggerCheckpointAsync(
-			CheckpointMetaData checkpointMetaData,
-			CheckpointOptions checkpointOptions,
-			boolean advanceToEndOfEventTime) {
-		throw new UnsupportedOperationException("should never be called");
-	}
+    @Override
+    public void invoke() {
+        throw new UnsupportedOperationException();
+    }
 
-	@Override
-	public void triggerCheckpointOnBarrier(
-			CheckpointMetaData checkpointMetaData,
-			CheckpointOptions checkpointOptions,
-			CheckpointMetricsBuilder checkpointMetrics) {
-		assertTrue("wrong checkpoint id", nextExpectedCheckpointId == -1L ||
-			nextExpectedCheckpointId == checkpointMetaData.getCheckpointId());
-		assertTrue(checkpointMetaData.getTimestamp() > 0);
+    @Override
+    public Future<Boolean> triggerCheckpointAsync(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            boolean advanceToEndOfEventTime) {
+        throw new UnsupportedOperationException("should never be called");
+    }
 
-		nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
-		triggeredCheckpointCounter++;
+    @Override
+    public void triggerCheckpointOnBarrier(
+            CheckpointMetaData checkpointMetaData,
+            CheckpointOptions checkpointOptions,
+            CheckpointMetricsBuilder checkpointMetrics) {
+        if (nextExpectedCheckpointId != -1L) {
+            assertEquals(nextExpectedCheckpointId, checkpointMetaData.getCheckpointId());
+        }
+        assertTrue(checkpointMetaData.getTimestamp() > 0);
 
-		lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
-		lastBytesProcessedDuringAlignment = checkpointMetrics.getBytesProcessedDuringAlignment();
+        nextExpectedCheckpointId = checkpointMetaData.getCheckpointId() + 1;
+        triggeredCheckpointCounter++;
 
-		triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
-	}
+        lastAlignmentDurationNanos = checkpointMetrics.getAlignmentDurationNanos();
+        lastBytesProcessedDuringAlignment = checkpointMetrics.getBytesProcessedDuringAlignment();
 
-	@Override
-	public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
-		lastCanceledCheckpointId = checkpointId;
-		failureReason = ((CheckpointException) cause).getCheckpointFailureReason();
-		abortedCheckpointCounter++;
-	}
+        triggeredCheckpoints.add(checkpointMetaData.getCheckpointId());
+        triggeredCheckpointOptions.add(checkpointOptions);
+    }
 
-	@Override
-	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-		throw new UnsupportedOperationException("should never be called");
-	}
+    @Override
+    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
+        lastCanceledCheckpointId = checkpointId;
+        failureReason = ((CheckpointException) cause).getCheckpointFailureReason();
+        abortedCheckpointCounter++;
+    }
+
+    @Override
+    public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
+        throw new UnsupportedOperationException("should never be called");
+    }
 }

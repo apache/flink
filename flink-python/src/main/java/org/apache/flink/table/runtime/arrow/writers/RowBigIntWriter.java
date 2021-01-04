@@ -23,22 +23,20 @@ import org.apache.flink.types.Row;
 
 import org.apache.arrow.vector.BigIntVector;
 
-/**
- * {@link ArrowFieldWriter} for BigInt.
- */
+/** {@link ArrowFieldWriter} for BigInt. */
 @Internal
 public final class RowBigIntWriter extends ArrowFieldWriter<Row> {
 
-	public RowBigIntWriter(BigIntVector bigIntVector) {
-		super(bigIntVector);
-	}
+    public RowBigIntWriter(BigIntVector bigIntVector) {
+        super(bigIntVector);
+    }
 
-	@Override
-	public void doWrite(Row value, int ordinal) {
-		if (value.getField(ordinal) == null) {
-			((BigIntVector) getValueVector()).setNull(getCount());
-		} else {
-			((BigIntVector) getValueVector()).setSafe(getCount(), (long) value.getField(ordinal));
-		}
-	}
+    @Override
+    public void doWrite(Row value, int ordinal) {
+        if (value.getField(ordinal) == null) {
+            ((BigIntVector) getValueVector()).setNull(getCount());
+        } else {
+            ((BigIntVector) getValueVector()).setSafe(getCount(), (long) value.getField(ordinal));
+        }
+    }
 }

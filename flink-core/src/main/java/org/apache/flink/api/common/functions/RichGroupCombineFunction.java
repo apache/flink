@@ -22,19 +22,20 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 
 /**
- * Rich variant of the {@link GroupCombineFunction}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown methods:
- * {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and
- * {@link RichFunction#close()}.
+ * Rich variant of the {@link GroupCombineFunction}. As a {@link RichFunction}, it gives access to
+ * the {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * RichFunction#close()}.
  *
  * @param <IN> The data type of the elements to be combined.
  * @param <OUT> The resulting data type of the elements to be combined.
  */
 @Public
-public abstract class RichGroupCombineFunction<IN, OUT> extends AbstractRichFunction implements GroupCombineFunction<IN, OUT> {
+public abstract class RichGroupCombineFunction<IN, OUT> extends AbstractRichFunction
+        implements GroupCombineFunction<IN, OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public abstract void combine(Iterable<IN> values, Collector<OUT> out) throws Exception;
+    @Override
+    public abstract void combine(Iterable<IN> values, Collector<OUT> out) throws Exception;
 }

@@ -19,9 +19,9 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
-import org.apache.flink.table.planner.plan.nodes.common.{CommonLookupJoin, CommonPhysicalTableSourceScan}
+import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.PhysicalLegacyTableSourceScan
+import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.planner.plan.utils.JoinUtil
@@ -70,7 +70,7 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
 
   protected def isTableSourceScan(relNode: RelNode): Boolean = {
     relNode match {
-      case _: FlinkLogicalLegacyTableSourceScan | _: PhysicalLegacyTableSourceScan |
+      case _: FlinkLogicalLegacyTableSourceScan | _: CommonPhysicalLegacyTableSourceScan |
            _: FlinkLogicalTableSourceScan | _: CommonPhysicalTableSourceScan => true
       case _ => false
     }
@@ -80,7 +80,7 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     relNode match {
       case scan: FlinkLogicalLegacyTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupableTableSource[_]]
-      case scan: PhysicalLegacyTableSourceScan =>
+      case scan: CommonPhysicalLegacyTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupableTableSource[_]]
       case scan: FlinkLogicalTableSourceScan =>
         scan.tableSource.isInstanceOf[LookupTableSource]

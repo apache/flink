@@ -33,65 +33,67 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.Collections;
 
-/**
- * Simple factory for the S3 file system.
- */
+/** Simple factory for the S3 file system. */
 public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
-	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
-	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "s3a.", "fs.s3a." };
+    private static final String[] FLINK_CONFIG_PREFIXES = {"s3.", "s3a.", "fs.s3a."};
 
-	private static final String[][] MIRRORED_CONFIG_KEYS = {
-			{ "fs.s3a.access-key", "fs.s3a.access.key" },
-			{ "fs.s3a.secret-key", "fs.s3a.secret.key" },
-			{ "fs.s3a.path-style-access", "fs.s3a.path.style.access" }
-	};
+    private static final String[][] MIRRORED_CONFIG_KEYS = {
+        {"fs.s3a.access-key", "fs.s3a.access.key"},
+        {"fs.s3a.secret-key", "fs.s3a.secret.key"},
+        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"}
+    };
 
-	public S3FileSystemFactory() {
-		super("Hadoop s3a file system", createHadoopConfigLoader());
-	}
+    public S3FileSystemFactory() {
+        super("Hadoop s3a file system", createHadoopConfigLoader());
+    }
 
-	@Override
-	public String getScheme() {
-		return "s3";
-	}
+    @Override
+    public String getScheme() {
+        return "s3";
+    }
 
-	@VisibleForTesting
-	static HadoopConfigLoader createHadoopConfigLoader() {
-		return new HadoopConfigLoader(FLINK_CONFIG_PREFIXES, MIRRORED_CONFIG_KEYS,
-			"fs.s3a.", Collections.emptySet(), Collections.emptySet(), "");
-	}
+    @VisibleForTesting
+    static HadoopConfigLoader createHadoopConfigLoader() {
+        return new HadoopConfigLoader(
+                FLINK_CONFIG_PREFIXES,
+                MIRRORED_CONFIG_KEYS,
+                "fs.s3a.",
+                Collections.emptySet(),
+                Collections.emptySet(),
+                "");
+    }
 
-	@Override
-	protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
-		return new S3AFileSystem();
-	}
+    @Override
+    protected org.apache.hadoop.fs.FileSystem createHadoopFileSystem() {
+        return new S3AFileSystem();
+    }
 
-	@Override
-	protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
-		final String scheme = fsUri.getScheme();
-		final String authority = fsUri.getAuthority();
+    @Override
+    protected URI getInitURI(URI fsUri, org.apache.hadoop.conf.Configuration hadoopConfig) {
+        final String scheme = fsUri.getScheme();
+        final String authority = fsUri.getAuthority();
 
-		if (scheme == null && authority == null) {
-			fsUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
-		}
-		else if (scheme != null && authority == null) {
-			URI defaultUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
-			if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
-				fsUri = defaultUri;
-			}
-		}
+        if (scheme == null && authority == null) {
+            fsUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
+        } else if (scheme != null && authority == null) {
+            URI defaultUri = org.apache.hadoop.fs.FileSystem.getDefaultUri(hadoopConfig);
+            if (scheme.equals(defaultUri.getScheme()) && defaultUri.getAuthority() != null) {
+                fsUri = defaultUri;
+            }
+        }
 
-		LOG.debug("Using scheme {} for s3a file system backing the S3 File System", fsUri);
+        LOG.debug("Using scheme {} for s3a file system backing the S3 File System", fsUri);
 
-		return fsUri;
-	}
+        return fsUri;
+    }
 
-	@Nullable
-	@Override
-	protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
-		final S3AFileSystem s3Afs = (S3AFileSystem) fs;
-		return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
-	}
+    @Nullable
+    @Override
+    protected S3AccessHelper getS3AccessHelper(FileSystem fs) {
+        final S3AFileSystem s3Afs = (S3AFileSystem) fs;
+        return new HadoopS3AccessHelper(s3Afs, s3Afs.getConf());
+    }
 }

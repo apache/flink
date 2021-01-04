@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecExpand, BatchExecSort, BatchExecSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecSort, BatchExecSortAggregate, BatchPhysicalExchange, BatchPhysicalExpand}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.RelOptRuleCall
@@ -56,13 +56,13 @@ import org.apache.calcite.rel.{RelCollationTraitDef, RelNode}
 class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
   operand(classOf[BatchExecSortAggregate],
     operand(classOf[BatchExecSort],
-      operand(classOf[BatchExecExchange],
-        operand(classOf[BatchExecExpand], any)))),
+      operand(classOf[BatchPhysicalExchange],
+        operand(classOf[BatchPhysicalExpand], any)))),
   "EnforceLocalSortAggRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: BatchExecSortAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(3)
+    val expand: BatchPhysicalExpand = call.rel(3)
 
     val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
 
@@ -74,7 +74,7 @@ class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val agg: BatchExecSortAggregate = call.rel(0)
-    val expand: BatchExecExpand = call.rel(3)
+    val expand: BatchPhysicalExpand = call.rel(3)
 
     val localGrouping = agg.getGrouping
     // create local sort

@@ -25,20 +25,18 @@ import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * {@link MessageParameters} for the {@link ClusterDataSetDeleteStatusHeaders}.
- */
+/** {@link MessageParameters} for the {@link ClusterDataSetDeleteStatusHeaders}. */
 public class ClusterDataSetDeleteStatusMessageParameters extends MessageParameters {
 
-	public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
+    public final TriggerIdPathParameter triggerIdPathParameter = new TriggerIdPathParameter();
 
-	@Override
-	public Collection<MessagePathParameter<?>> getPathParameters() {
-		return Collections.singleton(triggerIdPathParameter);
-	}
+    @Override
+    public Collection<MessagePathParameter<?>> getPathParameters() {
+        return Collections.singleton(triggerIdPathParameter);
+    }
 
-	@Override
-	public Collection<MessageQueryParameter<?>> getQueryParameters() {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<MessageQueryParameter<?>> getQueryParameters() {
+        return Collections.emptyList();
+    }
 }

@@ -28,7 +28,8 @@ import org.apache.flink.table.types.inference.TypeInference;
 import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 
 /**
- * Base class for fully resolved and strongly typed {@link AggregateFunction}s provided by {@link AggFunctionFactory}.
+ * Base class for fully resolved and strongly typed {@link AggregateFunction}s provided by {@link
+ * AggFunctionFactory}.
  *
  * <p>We override {@link #getTypeInference(DataTypeFactory)} in case the internal function is used
  * externally for testing.
@@ -36,18 +37,18 @@ import static org.apache.flink.table.types.inference.TypeStrategies.explicit;
 @Internal
 public abstract class InternalAggregateFunction<T, ACC> extends AggregateFunction<T, ACC> {
 
-	public abstract DataType[] getInputDataTypes();
+    public abstract DataType[] getInputDataTypes();
 
-	public abstract DataType getAccumulatorDataType();
+    public abstract DataType getAccumulatorDataType();
 
-	public abstract DataType getOutputDataType();
+    public abstract DataType getOutputDataType();
 
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		return TypeInference.newBuilder()
-			.typedArguments(getInputDataTypes())
-			.accumulatorTypeStrategy(explicit(getAccumulatorDataType()))
-			.outputTypeStrategy(explicit(getOutputDataType()))
-			.build();
-	}
+    @Override
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInference.newBuilder()
+                .typedArguments(getInputDataTypes())
+                .accumulatorTypeStrategy(explicit(getAccumulatorDataType()))
+                .outputTypeStrategy(explicit(getOutputDataType()))
+                .build();
+    }
 }

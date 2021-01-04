@@ -30,6 +30,7 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Wrapper for reading state from an evicting window operator.
+ *
  * @param <IN> The input type stored in state.
  * @param <R> The aggregated type.
  * @param <OUT> The output type of the reader function.
@@ -37,35 +38,39 @@ import org.apache.flink.util.Preconditions;
  * @param <W> The window type.
  */
 @Internal
-public abstract class EvictingWindowReaderFunction<IN, R, OUT, KEY, W extends Window> extends WindowReaderFunction<StreamRecord<IN>, OUT, KEY, W> {
+public abstract class EvictingWindowReaderFunction<IN, R, OUT, KEY, W extends Window>
+        extends WindowReaderFunction<StreamRecord<IN>, OUT, KEY, W> {
 
-	private final WindowReaderFunction<R, OUT, KEY, W> wrappedFunction;
+    private final WindowReaderFunction<R, OUT, KEY, W> wrappedFunction;
 
-	protected EvictingWindowReaderFunction(WindowReaderFunction<R, OUT, KEY, W> wrappedFunction) {
-		this.wrappedFunction = Preconditions.checkNotNull(wrappedFunction, "Inner reader function cannot be null");
-	}
+    protected EvictingWindowReaderFunction(WindowReaderFunction<R, OUT, KEY, W> wrappedFunction) {
+        this.wrappedFunction =
+                Preconditions.checkNotNull(wrappedFunction, "Inner reader function cannot be null");
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		FunctionUtils.openFunction(wrappedFunction, parameters);
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        FunctionUtils.openFunction(wrappedFunction, parameters);
+    }
 
-	@Override
-	public void close() throws Exception {
-		FunctionUtils.closeFunction(wrappedFunction);
-	}
+    @Override
+    public void close() throws Exception {
+        FunctionUtils.closeFunction(wrappedFunction);
+    }
 
-	@Override
-	public void setRuntimeContext(RuntimeContext t) {
-		super.setRuntimeContext(t);
-		FunctionUtils.setFunctionRuntimeContext(wrappedFunction, t);
-	}
+    @Override
+    public void setRuntimeContext(RuntimeContext t) {
+        super.setRuntimeContext(t);
+        FunctionUtils.setFunctionRuntimeContext(wrappedFunction, t);
+    }
 
-	@Override
-	public void readWindow(KEY key, Context<W> context, Iterable<StreamRecord<IN>> elements, Collector<OUT> out) throws Exception {
-		Iterable<R> result = transform(elements);
-		wrappedFunction.readWindow(key, context, result, out);
-	}
+    @Override
+    public void readWindow(
+            KEY key, Context<W> context, Iterable<StreamRecord<IN>> elements, Collector<OUT> out)
+            throws Exception {
+        Iterable<R> result = transform(elements);
+        wrappedFunction.readWindow(key, context, result, out);
+    }
 
-	public abstract Iterable<R> transform(Iterable<StreamRecord<IN>> elements) throws Exception;
+    public abstract Iterable<R> transform(Iterable<StreamRecord<IN>> elements) throws Exception;
 }

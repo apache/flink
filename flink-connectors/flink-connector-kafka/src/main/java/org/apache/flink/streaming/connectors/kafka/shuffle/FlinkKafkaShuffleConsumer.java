@@ -37,58 +37,57 @@ import java.util.Properties;
 
 import static org.apache.flink.streaming.connectors.kafka.shuffle.FlinkKafkaShuffle.PRODUCER_PARALLELISM;
 
-/**
- * Flink Kafka Shuffle Consumer Function.
- */
+/** Flink Kafka Shuffle Consumer Function. */
 @Internal
 public class FlinkKafkaShuffleConsumer<T> extends FlinkKafkaConsumer<T> {
-	private final TypeSerializer<T> typeSerializer;
-	private final int producerParallelism;
+    private final TypeSerializer<T> typeSerializer;
+    private final int producerParallelism;
 
-	FlinkKafkaShuffleConsumer(
-			String topic,
-			TypeInformationSerializationSchema<T> schema,
-			TypeSerializer<T> typeSerializer,
-			Properties props) {
-		// The schema is needed to call the right FlinkKafkaConsumer constructor.
-		// It is never used, can be `null`, but `null` confuses the compiler.
-		super(topic, schema, props);
-		this.typeSerializer = typeSerializer;
+    FlinkKafkaShuffleConsumer(
+            String topic,
+            TypeInformationSerializationSchema<T> schema,
+            TypeSerializer<T> typeSerializer,
+            Properties props) {
+        // The schema is needed to call the right FlinkKafkaConsumer constructor.
+        // It is never used, can be `null`, but `null` confuses the compiler.
+        super(topic, schema, props);
+        this.typeSerializer = typeSerializer;
 
-		Preconditions.checkArgument(
-			props.getProperty(PRODUCER_PARALLELISM) != null,
-			"Missing producer parallelism for Kafka Shuffle");
-		producerParallelism = PropertiesUtil.getInt(props, PRODUCER_PARALLELISM, Integer.MAX_VALUE);
-	}
+        Preconditions.checkArgument(
+                props.getProperty(PRODUCER_PARALLELISM) != null,
+                "Missing producer parallelism for Kafka Shuffle");
+        producerParallelism = PropertiesUtil.getInt(props, PRODUCER_PARALLELISM, Integer.MAX_VALUE);
+    }
 
-	@Override
-	protected AbstractFetcher<T, ?> createFetcher(
-			SourceContext<T> sourceContext,
-			Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
-			SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
-			StreamingRuntimeContext runtimeContext,
-			OffsetCommitMode offsetCommitMode,
-			MetricGroup consumerMetricGroup,
-			boolean useMetrics) throws Exception {
-		// make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
-		// this overwrites whatever setting the user configured in the properties
-		adjustAutoCommitConfig(properties, offsetCommitMode);
+    @Override
+    protected AbstractFetcher<T, ?> createFetcher(
+            SourceContext<T> sourceContext,
+            Map<KafkaTopicPartition, Long> assignedPartitionsWithInitialOffsets,
+            SerializedValue<WatermarkStrategy<T>> watermarkStrategy,
+            StreamingRuntimeContext runtimeContext,
+            OffsetCommitMode offsetCommitMode,
+            MetricGroup consumerMetricGroup,
+            boolean useMetrics)
+            throws Exception {
+        // make sure that auto commit is disabled when our offset commit mode is ON_CHECKPOINTS;
+        // this overwrites whatever setting the user configured in the properties
+        adjustAutoCommitConfig(properties, offsetCommitMode);
 
-		return new KafkaShuffleFetcher<>(
-			sourceContext,
-			assignedPartitionsWithInitialOffsets,
-			watermarkStrategy,
-			runtimeContext.getProcessingTimeService(),
-			runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
-			runtimeContext.getUserCodeClassLoader(),
-			runtimeContext.getTaskNameWithSubtasks(),
-			deserializer,
-			properties,
-			pollTimeout,
-			runtimeContext.getMetricGroup(),
-			consumerMetricGroup,
-			useMetrics,
-			typeSerializer,
-			producerParallelism);
-	}
+        return new KafkaShuffleFetcher<>(
+                sourceContext,
+                assignedPartitionsWithInitialOffsets,
+                watermarkStrategy,
+                runtimeContext.getProcessingTimeService(),
+                runtimeContext.getExecutionConfig().getAutoWatermarkInterval(),
+                runtimeContext.getUserCodeClassLoader(),
+                runtimeContext.getTaskNameWithSubtasks(),
+                deserializer,
+                properties,
+                pollTimeout,
+                runtimeContext.getMetricGroup(),
+                consumerMetricGroup,
+                useMetrics,
+                typeSerializer,
+                producerParallelism);
+    }
 }

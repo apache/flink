@@ -24,11 +24,13 @@ from typing import Union
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
 from pyflink.table.expression import Expression, _get_java_expression
-from pyflink.table.expressions import col
+from pyflink.table.expressions import col, with_columns, without_columns
 from pyflink.table.serializers import ArrowSerializer
 from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import create_arrow_schema
+from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
+    UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
@@ -89,7 +91,7 @@ class Table(object):
                 % (name, ', '.join(self.get_schema().get_field_names())))
         return col(name)
 
-    def select(self, *fields: Union[str, Expression]):
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions.
@@ -104,7 +106,6 @@ class Table(object):
             >>> tab.select("key, value + 'hello'")
 
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
@@ -113,7 +114,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
 
-    def alias(self, field: str, *fields: str):
+    def alias(self, field: str, *fields: str) -> 'Table':
         """
         Renames the fields of the expression result. Use this to disambiguate fields before
         joining two tables.
@@ -127,13 +128,12 @@ class Table(object):
         :param field: Field alias.
         :param fields: Additional field aliases.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         gateway = get_gateway()
         extra_fields = to_jarray(gateway.jvm.String, fields)
         return Table(get_method(self._j_table, "as")(field, extra_fields), self._t_env)
 
-    def filter(self, predicate: Union[str, Expression[bool]]):
+    def filter(self, predicate: Union[str, Expression[bool]]) -> 'Table':
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -146,11 +146,10 @@ class Table(object):
 
         :param predicate: Predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.filter(_get_java_expression(predicate)), self._t_env)
 
-    def where(self, predicate: Union[str, Expression[bool]]):
+    def where(self, predicate: Union[str, Expression[bool]]) -> 'Table':
         """
         Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
         clause.
@@ -163,11 +162,10 @@ class Table(object):
 
         :param predicate: Predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.where(_get_java_expression(predicate)), self._t_env)
 
-    def group_by(self, *fields: Union[str, Expression]):
+    def group_by(self, *fields: Union[str, Expression]) -> 'GroupedTable':
         """
         Groups the elements on some grouping keys. Use this before a selection with aggregations
         to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
@@ -180,7 +178,6 @@ class Table(object):
 
         :param fields: Group keys.
         :return: The grouped table.
-        :rtype: pyflink.table.GroupedTable
         """
         if all(isinstance(f, Expression) for f in fields):
             return GroupedTable(self._j_table.groupBy(to_expression_jarray(fields)), self._t_env)
@@ -189,7 +186,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return GroupedTable(self._j_table.groupBy(fields[0]), self._t_env)
 
-    def distinct(self):
+    def distinct(self) -> 'Table':
         """
         Removes duplicate values and returns only distinct (different) values.
 
@@ -199,7 +196,6 @@ class Table(object):
             >>> tab.select(tab.key, tab.value).distinct()
 
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.distinct(), self._t_env)
 
@@ -224,7 +220,6 @@ class Table(object):
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if join_predicate is not None:
             return Table(self._j_table.join(
@@ -232,7 +227,9 @@ class Table(object):
         else:
             return Table(self._j_table.join(right._j_table), self._t_env)
 
-    def left_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]] = None):
+    def left_outer_join(self,
+                        right: 'Table',
+                        join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL left outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -253,7 +250,6 @@ class Table(object):
         :param right: Right table.
         :param join_predicate: Optional, the join predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoin(right._j_table), self._t_env)
@@ -261,7 +257,9 @@ class Table(object):
             return Table(self._j_table.leftOuterJoin(
                 right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
-    def right_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]]):
+    def right_outer_join(self,
+                         right: 'Table',
+                         join_predicate: Union[str, Expression[bool]]) -> 'Table':
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL right outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -281,12 +279,13 @@ class Table(object):
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.rightOuterJoin(
             right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
-    def full_outer_join(self, right: 'Table', join_predicate: Union[str, Expression[bool]]):
+    def full_outer_join(self,
+                        right: 'Table',
+                        join_predicate: Union[str, Expression[bool]]) -> 'Table':
         """
         Joins two :class:`~pyflink.table.Table`. Similar to a SQL full outer join. The fields of
         the two joined operations must not overlap, use :func:`~pyflink.table.Table.alias` to
@@ -306,14 +305,13 @@ class Table(object):
         :param right: Right table.
         :param join_predicate: The join predicate expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.fullOuterJoin(
             right._j_table, _get_java_expression(join_predicate)), self._t_env)
 
     def join_lateral(self,
-                     table_function_call: Union[str, Expression],
-                     join_predicate: Union[str, Expression[bool]] = None):
+                     table_function_call: Union[str, Expression, UserDefinedTableFunctionWrapper],
+                     join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
         join but works with a table function. Each row of the table is joined with the rows
@@ -328,13 +326,27 @@ class Table(object):
 
             >>> from pyflink.table import expressions as expr
             >>> tab.join_lateral(expr.call('split', ' ').alias('b'), expr.col('a') == expr.col('b'))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.join_lateral(split_row.alias("a", "b"))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
         :return: The result Table.
-        :rtype: pyflink.table.Table
         """
+        if isinstance(table_function_call, UserDefinedTableFunctionWrapper):
+            table_function_call._set_takes_row_as_input()
+            if hasattr(table_function_call, "_alias_names"):
+                alias_names = getattr(table_function_call, "_alias_names")
+                table_function_call = table_function_call(with_columns(col("*"))) \
+                    .alias(*alias_names)
+            else:
+                raise AttributeError('table_function_call must be followed by a alias function'
+                                     'e.g. table_function.alias("a", "b")')
         if join_predicate is None:
             return Table(self._j_table.joinLateral(
                 _get_java_expression(table_function_call)), self._t_env)
@@ -345,8 +357,9 @@ class Table(object):
                 self._t_env)
 
     def left_outer_join_lateral(self,
-                                table_function_call: Union[str, Expression],
-                                join_predicate: Union[str, Expression[bool]] = None):
+                                table_function_call: Union[str, Expression,
+                                                           UserDefinedTableFunctionWrapper],
+                                join_predicate: Union[str, Expression[bool]] = None) -> 'Table':
         """
         Joins this Table with an user-defined TableFunction. This join is similar to
         a SQL left outer join but works with a table function. Each row of the table is joined
@@ -361,13 +374,27 @@ class Table(object):
             >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
             >>> from pyflink.table import expressions as expr
             >>> tab.left_outer_join_lateral(expr.call('split', ' ').alias('b'))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.left_outer_join_lateral(split_row.alias("a", "b"))
 
         :param table_function_call: An expression representing a table function call.
         :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
                                exist.
         :return: The result Table.
-        :rtype: pyflink.table.Table
         """
+        if isinstance(table_function_call, UserDefinedTableFunctionWrapper):
+            table_function_call._set_takes_row_as_input()
+            if hasattr(table_function_call, "_alias_names"):
+                alias_names = getattr(table_function_call, "_alias_names")
+                table_function_call = table_function_call(with_columns(col("*"))) \
+                    .alias(*alias_names)
+            else:
+                raise AttributeError('table_function_call must be followed by a alias function'
+                                     'e.g. table_function.alias("a", "b")')
         if join_predicate is None:
             return Table(self._j_table.leftOuterJoinLateral(
                 _get_java_expression(table_function_call)), self._t_env)
@@ -377,7 +404,7 @@ class Table(object):
                 _get_java_expression(join_predicate)),
                 self._t_env)
 
-    def minus(self, right: 'Table'):
+    def minus(self, right: 'Table') -> 'Table':
         """
         Minus of two :class:`~pyflink.table.Table` with duplicate records removed.
         Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
@@ -395,11 +422,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.minus(right._j_table), self._t_env)
 
-    def minus_all(self, right: 'Table'):
+    def minus_all(self, right: 'Table') -> 'Table':
         """
         Minus of two :class:`~pyflink.table.Table`. Similar to a SQL EXCEPT ALL.
         Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
@@ -418,11 +444,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.minusAll(right._j_table), self._t_env)
 
-    def union(self, right: 'Table'):
+    def union(self, right: 'Table') -> 'Table':
         """
         Unions two :class:`~pyflink.table.Table` with duplicate records removed.
         Similar to a SQL UNION. The fields of the two union operations must fully overlap.
@@ -438,11 +463,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.union(right._j_table), self._t_env)
 
-    def union_all(self, right: 'Table'):
+    def union_all(self, right: 'Table') -> 'Table':
         """
         Unions two :class:`~pyflink.table.Table`. Similar to a SQL UNION ALL. The fields of the
         two union operations must fully overlap.
@@ -458,11 +482,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.unionAll(right._j_table), self._t_env)
 
-    def intersect(self, right: 'Table'):
+    def intersect(self, right: 'Table') -> 'Table':
         """
         Intersects two :class:`~pyflink.table.Table` with duplicate records removed. Intersect
         returns records that exist in both tables. If a record is present in one or both tables
@@ -481,11 +504,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.intersect(right._j_table), self._t_env)
 
-    def intersect_all(self, right: 'Table'):
+    def intersect_all(self, right: 'Table') -> 'Table':
         """
         Intersects two :class:`~pyflink.table.Table`. IntersectAll returns records that exist in
         both tables. If a record is present in both tables more than once, it is returned as many
@@ -504,11 +526,10 @@ class Table(object):
 
         :param right: Right table.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.intersectAll(right._j_table), self._t_env)
 
-    def order_by(self, *fields: Union[str, Expression]):
+    def order_by(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Sorts the given :class:`~pyflink.table.Table`. Similar to SQL ORDER BY.
         The resulting Table is sorted globally sorted across all parallel partitions.
@@ -524,7 +545,6 @@ class Table(object):
 
         :param fields: Order fields expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.orderBy(to_expression_jarray(fields)), self._t_env)
@@ -533,7 +553,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.orderBy(fields[0]), self._t_env)
 
-    def offset(self, offset: int):
+    def offset(self, offset: int) -> 'Table':
         """
         Limits a (possibly sorted) result from an offset position.
 
@@ -554,11 +574,10 @@ class Table(object):
 
         :param offset: Number of records to skip.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.offset(offset), self._t_env)
 
-    def fetch(self, fetch: int):
+    def fetch(self, fetch: int) -> 'Table':
         """
         Limits a (possibly sorted) result to the first n rows.
 
@@ -581,11 +600,10 @@ class Table(object):
 
         :param fetch: The number of records to return. Fetch must be >= 0.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         return Table(self._j_table.fetch(fetch), self._t_env)
 
-    def limit(self, fetch: int, offset: int = 0):
+    def limit(self, fetch: int, offset: int = 0) -> 'Table':
         """
         Limits a (possibly sorted) result to the first n rows.
 
@@ -610,7 +628,7 @@ class Table(object):
         """
         return self.offset(offset).fetch(fetch)
 
-    def window(self, window: GroupWindow):
+    def window(self, window: GroupWindow) -> 'GroupWindowedTable':
         """
         Defines group window on the records of a table.
 
@@ -646,11 +664,10 @@ class Table(object):
                        :class:`~pyflink.table.window.Tumble`, :class:`~pyflink.table.window.Session`
                        or :class:`~pyflink.table.window.Slide`.
         :return: A group windowed table.
-        :rtype: GroupWindowedTable
         """
         return GroupWindowedTable(self._j_table.window(window._java_window), self._t_env)
 
-    def over_window(self, *over_windows: OverWindow):
+    def over_window(self, *over_windows: OverWindow) -> 'OverWindowedTable':
         """
         Defines over-windows on the records of a table.
 
@@ -677,14 +694,13 @@ class Table(object):
 
         :param over_windows: over windows created from :class:`~pyflink.table.window.Over`.
         :return: A over windowed table.
-        :rtype: pyflink.table.OverWindowedTable
         """
         gateway = get_gateway()
         window_array = to_jarray(gateway.jvm.OverWindow,
                                  [item._java_over_window for item in over_windows])
         return OverWindowedTable(self._j_table.window(window_array), self._t_env)
 
-    def add_columns(self, *fields: Union[str, Expression]):
+    def add_columns(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Adds additional columns. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. It will throw an
@@ -699,7 +715,6 @@ class Table(object):
 
         :param fields: Column list string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.addColumns(to_expression_jarray(fields)), self._t_env)
@@ -708,7 +723,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.addColumns(fields[0]), self._t_env)
 
-    def add_or_replace_columns(self, *fields: Union[str, Expression]):
+    def add_or_replace_columns(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Adds additional columns. Similar to a SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. Existing fields will be
@@ -725,7 +740,6 @@ class Table(object):
 
         :param fields: Column list string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.addOrReplaceColumns(to_expression_jarray(fields)),
@@ -735,7 +749,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.addOrReplaceColumns(fields[0]), self._t_env)
 
-    def rename_columns(self, *fields: Union[str, Expression]):
+    def rename_columns(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Renames existing columns. Similar to a field alias statement. The field expressions
         should be alias expressions, and only the existing fields can be renamed.
@@ -748,7 +762,6 @@ class Table(object):
 
         :param fields: Column list string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.renameColumns(to_expression_jarray(fields)),
@@ -758,7 +771,7 @@ class Table(object):
             assert isinstance(fields[0], str)
             return Table(self._j_table.renameColumns(fields[0]), self._t_env)
 
-    def drop_columns(self, *fields: Union[str, Expression]):
+    def drop_columns(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Drops existing columns. The field expressions should be field reference expressions.
 
@@ -770,7 +783,6 @@ class Table(object):
 
         :param fields: Column list string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.dropColumns(to_expression_jarray(fields)),
@@ -779,6 +791,165 @@ class Table(object):
             assert len(fields) == 1
             assert isinstance(fields[0], str)
             return Table(self._j_table.dropColumns(fields[0]), self._t_env)
+
+    def map(self, func: Union[str, Expression, UserDefinedScalarFunctionWrapper]) -> 'Table':
+        """
+        Performs a map operation with a user-defined scalar function.
+
+        Example:
+        ::
+
+            >>> add = udf(lambda x: Row(x + 1, x * x), result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(add(tab.a)).alias("a, b")
+            >>> # take all the columns as inputs
+            >>> identity = udf(lambda row: row, result_type=DataTypes.Row(
+            ... [DataTypes.FIELD("a", DataTypes.INT()), DataTypes.FIELD("b", DataTypes.INT())]))
+            >>> tab.map(identity)
+
+        :param func: user-defined scalar function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.map(func), self._t_env)
+        elif isinstance(func, Expression):
+            return Table(self._j_table.map(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            return Table(self._j_table.map(func(with_columns(col("*")))._j_expr), self._t_env)
+
+    def flat_map(self, func: Union[str, Expression, UserDefinedTableFunctionWrapper]) -> 'Table':
+        """
+        Performs a flatMap operation with a user-defined table function.
+
+        Example:
+        ::
+
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split(x, string):
+            ...     for s in string.split(","):
+            ...         yield x, s
+            >>> tab.flat_map(split(tab.a, table.b))
+            >>> # take all the columns as inputs
+            >>> @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
+            ... def split_row(row: Row):
+            ...     for s in row[1].split(","):
+            ...         yield row[0], s
+            >>> tab.flat_map(split_row)
+
+        :param func: user-defined table function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return Table(self._j_table.flatMap(func), self._t_env)
+        elif isinstance(func, Expression):
+            return Table(self._j_table.flatMap(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            return Table(self._j_table.flatMap(func(with_columns(col("*")))._j_expr), self._t_env)
+
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs a global aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg.alias("a, b")).select("a, b")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
+        """
+        Perform a global flat_aggregate without group_by. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after the flat_aggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.flat_aggregate(top2.alias("a", "b")).select("a, b")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
     def insert_into(self, table_path: str):
         """
@@ -848,12 +1019,11 @@ class Table(object):
             import pandas as pd
             return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
-    def get_schema(self):
+    def get_schema(self) -> 'TableSchema':
         """
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
         :return: The schema of this table.
-        :rtype: pyflink.table.TableSchema
         """
         return TableSchema(j_table_schema=self._j_table.getSchema())
 
@@ -863,7 +1033,7 @@ class Table(object):
         """
         self._j_table.printSchema()
 
-    def execute_insert(self, table_path: str, overwrite: bool = False):
+    def execute_insert(self, table_path: str, overwrite: bool = False) -> 'TableResult':
         """
         Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
         registered under the specified name, and then execute the insert operation.
@@ -885,7 +1055,7 @@ class Table(object):
         self._t_env._before_execute()
         return TableResult(self._j_table.executeInsert(table_path, overwrite))
 
-    def execute(self):
+    def execute(self) -> 'TableResult':
         """
         Collects the contents of the current table local client.
 
@@ -924,7 +1094,7 @@ class GroupedTable(object):
         self._j_table = java_table
         self._t_env = t_env
 
-    def select(self, *fields: Union[str, Expression]):
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Performs a selection operation on a grouped table. Similar to an SQL SELECT statement.
         The field expressions can contain complex expressions and aggregations.
@@ -938,7 +1108,6 @@ class GroupedTable(object):
 
         :param fields: Expression string that contains group keys and aggregate function calls.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
@@ -946,6 +1115,105 @@ class GroupedTable(object):
             assert len(fields) == 1
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
+
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs a aggregate operation with an aggregate function. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg(tab.b).alias("c", "d")).select("a, c, d")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def flat_aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'FlatAggregateTable':
+        """
+        Performs a flat_aggregate operation on a grouped table. flat_aggregate takes a
+        :class:`~pyflink.table.TableAggregateFunction` which returns multiple rows. Use a selection
+        after flatAggregate.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.group_by(tab.c).flat_aggregate(table_agg(tab.a).alias("a")).select("c, a")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
+
+        :param func: user-defined table aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return FlatAggregateTable(self._j_table.flatAggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            if hasattr(func, "_alias_names"):
+                alias_names = getattr(func, "_alias_names")
+                func = func(with_columns(col("*"))).alias(*alias_names)
+            else:
+                func = func(with_columns(col("*")))
+            return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
 
 class GroupWindowedTable(object):
@@ -957,7 +1225,7 @@ class GroupWindowedTable(object):
         self._j_table = java_group_windowed_table
         self._t_env = t_env
 
-    def group_by(self, *fields: Union[str, Expression]):
+    def group_by(self, *fields: Union[str, Expression]) -> 'WindowGroupedTable':
         """
         Groups the elements by a mandatory window and one or more optional grouping attributes.
         The window is specified by referring to its alias.
@@ -982,7 +1250,6 @@ class GroupWindowedTable(object):
 
         :param fields: Group keys.
         :return: A window grouped table.
-        :rtype: pyflink.table.WindowGroupedTable
         """
         if all(isinstance(f, Expression) for f in fields):
             return WindowGroupedTable(
@@ -1002,7 +1269,7 @@ class WindowGroupedTable(object):
         self._j_table = java_window_grouped_table
         self._t_env = t_env
 
-    def select(self, *fields: Union[str, Expression]):
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Performs a selection operation on a window grouped table. Similar to an SQL SELECT
         statement.
@@ -1018,7 +1285,6 @@ class WindowGroupedTable(object):
 
         :param fields: Expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
@@ -1026,6 +1292,60 @@ class WindowGroupedTable(object):
             assert len(fields) == 1
             assert isinstance(fields[0], str)
             return Table(self._j_table.select(fields[0]), self._t_env)
+
+    def aggregate(self, func: Union[str, Expression, UserDefinedAggregateFunctionWrapper]) \
+            -> 'AggregatedTable':
+        """
+        Performs an aggregate operation on a window grouped table. You have to close the
+        aggregate with a select statement.
+
+        Example:
+        ::
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w") \
+            ...     .aggregate(agg(window_grouped_table.b) \
+            ...     .alias("c", "d")) \
+            ...     .select("c, d")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> window_grouped_table.group_by("w, a").aggregate(agg_row)
+
+        :param func: user-defined aggregate function.
+        :return: The result table.
+
+        .. versionadded:: 1.13.0
+        """
+        if isinstance(func, str):
+            return AggregatedTable(self._j_table.aggregate(func), self._t_env)
+        elif isinstance(func, Expression):
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+        else:
+            func._set_takes_row_as_input()
+            func = self._to_expr(func)
+            return AggregatedTable(self._j_table.aggregate(func._j_expr), self._t_env)
+
+    def _to_expr(self, func: UserDefinedAggregateFunctionWrapper) -> Expression:
+        group_window_field = self._j_table.getClass().getDeclaredField("window")
+        group_window_field.setAccessible(True)
+        j_group_window = group_window_field.get(self._j_table)
+        j_time_field = j_group_window.getTimeField()
+        fields_without_window = without_columns(j_time_field)
+        if hasattr(func, "_alias_names"):
+            alias_names = getattr(func, "_alias_names")
+            func_expression = func(fields_without_window).alias(*alias_names)
+        else:
+            func_expression = func(fields_without_window)
+        return func_expression
 
 
 class OverWindowedTable(object):
@@ -1041,7 +1361,7 @@ class OverWindowedTable(object):
         self._j_table = java_over_windowed_table
         self._t_env = t_env
 
-    def select(self, *fields: Union[str, Expression]):
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
         """
         Performs a selection operation on a over windowed table. Similar to an SQL SELECT
         statement.
@@ -1057,7 +1377,107 @@ class OverWindowedTable(object):
 
         :param fields: Expression string.
         :return: The result table.
-        :rtype: pyflink.table.Table
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class AggregatedTable(object):
+    """
+    A table that has been performed on the aggregate function.
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation after an aggregate operation. The field expressions
+        cannot contain table functions and aggregations.
+
+        Example:
+        ""
+
+            >>> agg = udaf(lambda a: (a.mean(), a.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.aggregate(agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> # pd is a Pandas.DataFrame
+            >>> agg_row = udaf(lambda pd: (pd.a.mean(), pd.b.max()),
+            ...               result_type=DataTypes.ROW(
+            ...                   [DataTypes.FIELD("a", DataTypes.FLOAT()),
+            ...                    DataTypes.FIELD("b", DataTypes.INT())]),
+            ...               func_type="pandas")
+            >>> tab.group_by(tab.a).aggregate(agg.alias("a, b")).select("a, b")
+
+        :param fields: Expression string.
+        :return: The result table.
+        """
+        if all(isinstance(f, Expression) for f in fields):
+            return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
+        else:
+            assert len(fields) == 1
+            assert isinstance(fields[0], str)
+            return Table(self._j_table.select(fields[0]), self._t_env)
+
+
+class FlatAggregateTable(object):
+    """
+    A table that performs flatAggregate on a :class:`~pyflink.table.Table`, a
+    :class:`~pyflink.table.GroupedTable` or a :class:`~pyflink.table.WindowGroupedTable`
+    """
+
+    def __init__(self, java_table, t_env):
+        self._j_table = java_table
+        self._t_env = t_env
+
+    def select(self, *fields: Union[str, Expression]) -> 'Table':
+        """
+        Performs a selection operation on a FlatAggregateTable. Similar to a SQL SELECT statement.
+        The field expressions can contain complex expressions.
+
+        Example:
+        ::
+
+            >>> table_agg = udtaf(MyTableAggregateFunction())
+            >>> tab.flat_aggregate(table_agg(tab.a).alias("a", "b")).select("a, b")
+            >>> # take all the columns as inputs
+            >>> class Top2(TableAggregateFunction):
+            ...     def emit_value(self, accumulator):
+            ...         yield Row(accumulator[0])
+            ...         yield Row(accumulator[1])
+            ...
+            ...     def create_accumulator(self):
+            ...         return [None, None]
+            ...
+            ...     def accumulate(self, accumulator, *args):
+            ...         args[0] # type: Row
+            ...         if args[0][0] is not None:
+            ...             if accumulator[0] is None or args[0][0] > accumulator[0]:
+            ...                 accumulator[1] = accumulator[0]
+            ...                 accumulator[0] = args[0][0]
+            ...             elif accumulator[1] is None or args[0][0] > accumulator[1]:
+            ...                 accumulator[1] = args[0][0]
+            ...
+            ...     def get_accumulator_type(self):
+            ...         return DataTypes.ARRAY(DataTypes.BIGINT())
+            ...
+            ...     def get_result_type(self):
+            ...         return DataTypes.ROW(
+            ...             [DataTypes.FIELD("a", DataTypes.BIGINT())])
+            >>> top2 = udtaf(Top2())
+            >>> tab.group_by(tab.c).flat_aggregate(top2.alias("a", "b")).select("a, b")
+
+        :param fields: Expression string.
+        :return: The result table.
         """
         if all(isinstance(f, Expression) for f in fields):
             return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)

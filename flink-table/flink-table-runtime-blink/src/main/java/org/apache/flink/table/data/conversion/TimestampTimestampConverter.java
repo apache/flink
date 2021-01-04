@@ -22,21 +22,20 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.TimestampType;
 
-/**
- * Converter for {@link TimestampType} of {@link java.sql.Timestamp} external type.
- */
+/** Converter for {@link TimestampType} of {@link java.sql.Timestamp} external type. */
 @Internal
-public class TimestampTimestampConverter implements DataStructureConverter<TimestampData, java.sql.Timestamp> {
+public class TimestampTimestampConverter
+        implements DataStructureConverter<TimestampData, java.sql.Timestamp> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public TimestampData toInternal(java.sql.Timestamp external) {
-		return TimestampData.fromTimestamp(external);
-	}
+    @Override
+    public TimestampData toInternal(java.sql.Timestamp external) {
+        return TimestampData.fromTimestamp(external);
+    }
 
-	@Override
-	public java.sql.Timestamp toExternal(TimestampData internal) {
-		return internal.toTimestamp();
-	}
+    @Override
+    public java.sql.Timestamp toExternal(TimestampData internal) {
+        return internal.toTimestamp();
+    }
 }

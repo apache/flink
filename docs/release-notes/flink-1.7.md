@@ -81,17 +81,17 @@ Savepoint should not be moved nor deleted if there was no newer checkpoint or sa
 
 The metric query service runs now in its own `ActorSystem`.
 It needs consequently to open a new port for the query services to communicate with each other.
-The [query service port]({{site.baseurl}}/ops/config.html#metrics-internal-query-service-port) can be configured in `flink-conf.yaml`.
+The [query service port]({% link deployment/config.md %}#metrics-internal-query-service-port) can be configured in `flink-conf.yaml`.
 
 ### Granularity of latency metrics
 
 The default granularity for latency metrics has been modified.
-To restore the previous behavior users have to explicitly set the [granularity]({{site.baseurl}}/ops/config.html#metrics-latency-granularity) to `subtask`.
+To restore the previous behavior users have to explicitly set the [granularity]({% link deployment/config.md %}#metrics-latency-granularity) to `subtask`.
 
 ### Latency marker activation
 
 Latency metrics are now disabled by default, which will affect all jobs that do not explicitly set the `latencyTrackingInterval` via `ExecutionConfig#setLatencyTrackingInterval`.
-To restore the previous default behavior users have to configure the [latency interval]({{site.baseurl}}/ops/config.html#metrics-latency-interval) in `flink-conf.yaml`.
+To restore the previous default behavior users have to configure the [latency interval]({% link deployment/config.md %}#metrics-latency-interval) in `flink-conf.yaml`.
 
 ### Relocation of Hadoop's Netty dependency
 
@@ -101,7 +101,7 @@ You can now bundle your own version of Netty into your job but may no longer ass
 ### Local recovery fixed
 
 With the improvements to Flink's scheduling, it can no longer happen that recoveries require more slots than before if local recovery is enabled.
-Consequently, we encourage our users to enable [local recovery]({{site.baseurl}}/ops/config.html#state-backend-local-recovery) in `flink-conf.yaml`.
+Consequently, we encourage our users to enable [local recovery]({% link deployment/config.md %}#state-backend-local-recovery) in `flink-conf.yaml`.
 
 ### Support for multi slot TaskManagers
 
@@ -111,7 +111,7 @@ Consequently, `TaskManagers` can now be started with an arbitrary number of slot
 ### StandaloneJobClusterEntrypoint generates JobGraph with fixed JobID
 
 The `StandaloneJobClusterEntrypoint`, which is launched by the script `standalone-job.sh` and used for the job-mode container images, now starts all jobs with a fixed `JobID`.
-Thus, in order to run a cluster in HA mode, one needs to set a different [cluster id]({{site.baseurl}}/ops/config.html#high-availability-cluster-id) for each job/cluster. 
+Thus, in order to run a cluster in HA mode, one needs to set a different [cluster id]({% link deployment/config.md %}#high-availability-cluster-id) for each job/cluster. 
 
 <!-- Should be removed once FLINK-10911 is fixed -->
 ### Scala shell does not work with Scala 2.12

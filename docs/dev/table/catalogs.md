@@ -49,7 +49,7 @@ See [JdbcCatalog documentation]({% link dev/table/connectors/jdbc.md %}) for mor
 ### HiveCatalog
 
 The `HiveCatalog` serves two purposes; as persistent storage for pure Flink metadata, and as an interface for reading and writing existing Hive metadata. 
-Flink's [Hive documentation]({{ site.baseurl }}/dev/table/hive/index.html) provides full details on setting up the catalog and interfacing with an existing Hive installation.
+Flink's [Hive documentation]({% link dev/table/connectors/hive/index.md %}) provides full details on setting up the catalog and interfacing with an existing Hive installation.
 
 
 {% warn %} The Hive Metastore stores all meta-object names in lower case. This is unlike `GenericInMemoryCatalog` which is case-sensitive
@@ -144,7 +144,7 @@ mytable
 </div>
 
 
-For detailed information, please check out [Flink SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
+For detailed information, please check out [Flink SQL CREATE DDL]({% link dev/table/sql/create.md %}).
 
 ### Using Java, Scala or Python
 
@@ -282,7 +282,7 @@ tables = catalog.list_tables("mydb")
 ## Catalog API
 
 Note: only catalog program APIs are listed here. Users can achieve many of the same funtionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL CREATE DDL]({{ site.baseurl }}/dev/table/sql/create.html).
+For detailed DDL information, please refer to [SQL CREATE DDL]({% link dev/table/sql/create.md %}).
 
 
 ### Database operations

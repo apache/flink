@@ -27,22 +27,23 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 /**
- * This type transformation transforms the legacy decimal type (usually converted from
- * {@link org.apache.flink.api.common.typeinfo.Types#BIG_DEC}) to DECIMAL(38, 18).
+ * This type transformation transforms the legacy decimal type (usually converted from {@link
+ * org.apache.flink.api.common.typeinfo.Types#BIG_DEC}) to DECIMAL(38, 18).
  */
 public class LegacyDecimalTypeTransformation implements TypeTransformation {
 
-	public static final TypeTransformation INSTANCE = new LegacyDecimalTypeTransformation();
+    public static final TypeTransformation INSTANCE = new LegacyDecimalTypeTransformation();
 
-	@Override
-	public DataType transform(DataType typeToTransform) {
-		LogicalType logicalType = typeToTransform.getLogicalType();
-		if (logicalType instanceof LegacyTypeInformationType && logicalType.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
-			DataType decimalType = DataTypes
-				.DECIMAL(DecimalType.MAX_PRECISION, 18)
-				.bridgedTo(typeToTransform.getConversionClass());
-			return logicalType.isNullable() ? decimalType : decimalType.notNull();
-		}
-		return typeToTransform;
-	}
+    @Override
+    public DataType transform(DataType typeToTransform) {
+        LogicalType logicalType = typeToTransform.getLogicalType();
+        if (logicalType instanceof LegacyTypeInformationType
+                && logicalType.getTypeRoot() == LogicalTypeRoot.DECIMAL) {
+            DataType decimalType =
+                    DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)
+                            .bridgedTo(typeToTransform.getConversionClass());
+            return logicalType.isNullable() ? decimalType : decimalType.notNull();
+        }
+        return typeToTransform;
+    }
 }

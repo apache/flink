@@ -30,28 +30,22 @@ import org.apache.flink.connector.file.src.reader.BulkFormat;
 @PublicEvolving
 public class MutableRecordAndPosition<E> extends RecordAndPosition<E> {
 
-	/**
-	 * Updates the record and position in this object.
-	 */
-	public void set(E record, long offset, long recordSkipCount) {
-		this.record = record;
-		this.offset = offset;
-		this.recordSkipCount = recordSkipCount;
-	}
+    /** Updates the record and position in this object. */
+    public void set(E record, long offset, long recordSkipCount) {
+        this.record = record;
+        this.offset = offset;
+        this.recordSkipCount = recordSkipCount;
+    }
 
-	/**
-	 * Sets the position without setting a record.
-	 */
-	public void setPosition(long offset, long recordSkipCount) {
-		this.offset = offset;
-		this.recordSkipCount = recordSkipCount;
-	}
+    /** Sets the position without setting a record. */
+    public void setPosition(long offset, long recordSkipCount) {
+        this.offset = offset;
+        this.recordSkipCount = recordSkipCount;
+    }
 
-	/**
-	 * Sets the next record of a sequence. This increments the {@code recordSkipCount} by one.
-	 */
-	public void setNext(E record) {
-		this.record = record;
-		this.recordSkipCount++;
-	}
+    /** Sets the next record of a sequence. This increments the {@code recordSkipCount} by one. */
+    public void setNext(E record) {
+        this.record = record;
+        this.recordSkipCount++;
+    }
 }

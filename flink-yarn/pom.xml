@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -224,6 +224,11 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>resource-types.xml</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

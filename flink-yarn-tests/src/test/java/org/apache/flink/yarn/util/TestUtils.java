@@ -22,67 +22,65 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
 
-/**
- * Utility methods for YARN tests.
- */
+/** Utility methods for YARN tests. */
 public class TestUtils {
-	public static File getTestJarPath(String fileName) throws FileNotFoundException {
-		File f = new File("target/programs/" + fileName);
-		if (!f.exists()) {
-			throw new FileNotFoundException("Test jar " + f.getPath() + " not present. Invoke tests using maven "
-				+ "or build the jar using 'mvn process-test-classes' in flink-yarn-tests");
-		}
-		return f;
-	}
+    public static File getTestJarPath(String fileName) throws FileNotFoundException {
+        File f = new File("target/programs/" + fileName);
+        if (!f.exists()) {
+            throw new FileNotFoundException(
+                    "Test jar "
+                            + f.getPath()
+                            + " not present. Invoke tests using maven "
+                            + "or build the jar using 'mvn process-test-classes' in flink-yarn-tests");
+        }
+        return f;
+    }
 
-	/**
-	 * Locate a file or directory.
-	 */
-	public static File findFile(String startAt, FilenameFilter fnf) {
-		File root = new File(startAt);
-		String[] files = root.list();
-		if (files == null) {
-			return null;
-		}
-		for (String file : files) {
-			File f = new File(startAt + File.separator + file);
-			if (f.isDirectory()) {
-				File r = findFile(f.getAbsolutePath(), fnf);
-				if (r != null) {
-					return r;
-				}
-			} else if (fnf.accept(f.getParentFile(), f.getName())) {
-				return f;
-			}
-		}
-		return null;
-	}
+    /** Locate a file or directory. */
+    public static File findFile(String startAt, FilenameFilter fnf) {
+        File root = new File(startAt);
+        String[] files = root.list();
+        if (files == null) {
+            return null;
+        }
+        for (String file : files) {
+            File f = new File(startAt + File.separator + file);
+            if (f.isDirectory()) {
+                File r = findFile(f.getAbsolutePath(), fnf);
+                if (r != null) {
+                    return r;
+                }
+            } else if (fnf.accept(f.getParentFile(), f.getName())) {
+                return f;
+            }
+        }
+        return null;
+    }
 
-	/**
-	 * Filename filter which finds the test jar for the given name.
-	 */
-	public static class TestJarFinder implements FilenameFilter {
+    /** Filename filter which finds the test jar for the given name. */
+    public static class TestJarFinder implements FilenameFilter {
 
-		private final String jarName;
+        private final String jarName;
 
-		public TestJarFinder(final String jarName) {
-			this.jarName = jarName;
-		}
+        public TestJarFinder(final String jarName) {
+            this.jarName = jarName;
+        }
 
-		@Override
-		public boolean accept(File dir, String name) {
-			return name.startsWith(jarName) && name.endsWith("-tests.jar") &&
-				dir.getAbsolutePath().contains(File.separator + jarName + File.separator);
-		}
-	}
+        @Override
+        public boolean accept(File dir, String name) {
+            return name.startsWith(jarName)
+                    && name.endsWith("-tests.jar")
+                    && dir.getAbsolutePath().contains(File.separator + jarName + File.separator);
+        }
+    }
 
-	/**
-	 * Filter to find root dir of the flink-yarn dist.
-	 */
-	public static class RootDirFilenameFilter implements FilenameFilter {
-		@Override
-		public boolean accept(File dir, String name) {
-			return name.startsWith("flink-dist") && name.endsWith(".jar") && dir.toString().contains("/lib");
-		}
-	}
+    /** Filter to find root dir of the flink-yarn dist. */
+    public static class RootDirFilenameFilter implements FilenameFilter {
+        @Override
+        public boolean accept(File dir, String name) {
+            return name.startsWith("flink-dist")
+                    && name.endsWith(".jar")
+                    && dir.toString().contains("/lib");
+        }
+    }
 }

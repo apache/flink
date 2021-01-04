@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -51,159 +51,167 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests which verify the cluster behaviour in case of leader changes.
- */
+/** Tests which verify the cluster behaviour in case of leader changes. */
 public class LeaderChangeClusterComponentsTest extends TestLogger {
 
-	private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
+    private static final Duration TESTING_TIMEOUT = Duration.ofMinutes(2L);
 
-	private static final int SLOTS_PER_TM = 2;
-	private static final int NUM_TMS = 2;
-	public static final int PARALLELISM = SLOTS_PER_TM * NUM_TMS;
+    private static final int SLOTS_PER_TM = 2;
+    private static final int NUM_TMS = 2;
+    public static final int PARALLELISM = SLOTS_PER_TM * NUM_TMS;
 
-	private static TestingMiniCluster miniCluster;
+    private static TestingMiniCluster miniCluster;
 
-	private static TestingEmbeddedHaServices highAvailabilityServices;
+    private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
 
-	private JobGraph jobGraph;
+    private JobGraph jobGraph;
 
-	private JobID jobId;
+    private JobID jobId;
 
-	@BeforeClass
-	public static void setupClass() throws Exception  {
-		highAvailabilityServices = new TestingEmbeddedHaServices(TestingUtils.defaultExecutor());
+    @BeforeClass
+    public static void setupClass() throws Exception {
+        highAvailabilityServices =
+                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
 
-		miniCluster = new TestingMiniCluster(
-			new TestingMiniClusterConfiguration.Builder()
-				.setNumTaskManagers(NUM_TMS)
-				.setNumSlotsPerTaskManager(SLOTS_PER_TM)
-				.build(),
-			() -> highAvailabilityServices);
+        miniCluster =
+                new TestingMiniCluster(
+                        new TestingMiniClusterConfiguration.Builder()
+                                .setNumTaskManagers(NUM_TMS)
+                                .setNumSlotsPerTaskManager(SLOTS_PER_TM)
+                                .build(),
+                        () -> highAvailabilityServices);
 
-		miniCluster.start();
-	}
+        miniCluster.start();
+    }
 
-	@Before
-	public void setup() throws Exception  {
-		jobGraph = createJobGraph(PARALLELISM);
-		jobId = jobGraph.getJobID();
-	}
+    @Before
+    public void setup() throws Exception {
+        jobGraph = createJobGraph(PARALLELISM);
+        jobId = jobGraph.getJobID();
+    }
 
-	@AfterClass
-	public static void teardownClass() throws Exception {
-		if (miniCluster != null) {
-			miniCluster.close();
-		}
-	}
+    @AfterClass
+    public static void teardownClass() throws Exception {
+        if (miniCluster != null) {
+            miniCluster.close();
+        }
+    }
 
-	@Test
-	public void testReelectionOfDispatcher() throws Exception {
-		final CompletableFuture<JobSubmissionResult> submissionFuture = miniCluster.submitJob(jobGraph);
+    @Test
+    public void testReelectionOfDispatcher() throws Exception {
+        final CompletableFuture<JobSubmissionResult> submissionFuture =
+                miniCluster.submitJob(jobGraph);
 
-		submissionFuture.get();
+        submissionFuture.get();
 
-		CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
+        CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
 
-		highAvailabilityServices.revokeDispatcherLeadership().get();
+        highAvailabilityServices.revokeDispatcherLeadership().get();
 
-		try {
-			jobResultFuture.get();
-			fail("Expected JobNotFinishedException");
-		} catch (ExecutionException ee) {
-			assertThat(ExceptionUtils.findThrowable(ee, JobNotFinishedException.class).isPresent(), is(true));
-		}
+        try {
+            jobResultFuture.get();
+            fail("Expected JobNotFinishedException");
+        } catch (ExecutionException ee) {
+            assertThat(
+                    ExceptionUtils.findThrowable(ee, JobNotFinishedException.class).isPresent(),
+                    is(true));
+        }
 
-		highAvailabilityServices.grantDispatcherLeadership();
+        highAvailabilityServices.grantDispatcherLeadership();
 
-		BlockingOperator.isBlocking = false;
+        BlockingOperator.isBlocking = false;
 
-		final CompletableFuture<JobSubmissionResult> submissionFuture2 = miniCluster.submitJob(jobGraph);
+        final CompletableFuture<JobSubmissionResult> submissionFuture2 =
+                miniCluster.submitJob(jobGraph);
 
-		submissionFuture2.get();
+        submissionFuture2.get();
 
-		final CompletableFuture<JobResult> jobResultFuture2 = miniCluster.requestJobResult(jobId);
+        final CompletableFuture<JobResult> jobResultFuture2 = miniCluster.requestJobResult(jobId);
 
-		JobResult jobResult = jobResultFuture2.get();
+        JobResult jobResult = jobResultFuture2.get();
 
-		JobResultUtils.assertSuccess(jobResult);
-	}
+        JobResultUtils.assertSuccess(jobResult);
+    }
 
-	@Test
-	public void testReelectionOfJobMaster() throws Exception {
-		final CompletableFuture<JobSubmissionResult> submissionFuture = miniCluster.submitJob(jobGraph);
+    @Test
+    public void testReelectionOfJobMaster() throws Exception {
+        final CompletableFuture<JobSubmissionResult> submissionFuture =
+                miniCluster.submitJob(jobGraph);
 
-		submissionFuture.get();
+        submissionFuture.get();
 
-		CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
+        CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobId);
 
-		// need to wait until init is finished, so that the leadership revocation is possible
-		CommonTestUtils.waitUntilJobManagerIsInitialized(() -> miniCluster.getJobStatus(jobId).get());
+        // need to wait until init is finished, so that the leadership revocation is possible
+        CommonTestUtils.waitUntilJobManagerIsInitialized(
+                () -> miniCluster.getJobStatus(jobId).get());
 
-		highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
+        highAvailabilityServices.revokeJobMasterLeadership(jobId).get();
 
-		JobResultUtils.assertIncomplete(jobResultFuture);
-		BlockingOperator.isBlocking = false;
+        JobResultUtils.assertIncomplete(jobResultFuture);
+        BlockingOperator.isBlocking = false;
 
-		highAvailabilityServices.grantJobMasterLeadership(jobId);
+        highAvailabilityServices.grantJobMasterLeadership(jobId);
 
-		JobResult jobResult = jobResultFuture.get();
+        JobResult jobResult = jobResultFuture.get();
 
-		JobResultUtils.assertSuccess(jobResult);
-	}
+        JobResultUtils.assertSuccess(jobResult);
+    }
 
-	@Test
-	public void testTaskExecutorsReconnectToClusterWithLeadershipChange() throws Exception {
-		final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
-		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
-		highAvailabilityServices.revokeResourceManagerLeadership().get();
-		highAvailabilityServices.grantResourceManagerLeadership();
+    @Test
+    public void testTaskExecutorsReconnectToClusterWithLeadershipChange() throws Exception {
+        final Deadline deadline = Deadline.fromNow(TESTING_TIMEOUT);
+        waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+        highAvailabilityServices.revokeResourceManagerLeadership().get();
+        highAvailabilityServices.grantResourceManagerLeadership();
 
-		// wait for the ResourceManager to confirm the leadership
-		assertThat(
-			LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-				highAvailabilityServices.getResourceManagerLeaderRetriever(),
-				TESTING_TIMEOUT).getLeaderSessionId(),
-			is(notNullValue()));
+        // wait for the ResourceManager to confirm the leadership
+        assertThat(
+                LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+                                highAvailabilityServices.getResourceManagerLeaderRetriever(),
+                                TESTING_TIMEOUT)
+                        .getLeaderSessionId(),
+                is(notNullValue()));
 
-		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
-	}
+        waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
+    }
 
-	private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors, Deadline deadline) throws Exception {
-		CommonTestUtils.waitUntilCondition(
-			() -> miniCluster.requestClusterOverview().get().getNumTaskManagersConnected() == numTaskExecutors,
-			deadline,
-			10L);
-	}
+    private void waitUntilTaskExecutorsHaveConnected(int numTaskExecutors, Deadline deadline)
+            throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        miniCluster.requestClusterOverview().get().getNumTaskManagersConnected()
+                                == numTaskExecutors,
+                deadline,
+                10L);
+    }
 
-	private JobGraph createJobGraph(int parallelism) {
-		BlockingOperator.isBlocking = true;
-		final JobVertex vertex = new JobVertex("blocking operator");
-		vertex.setParallelism(parallelism);
-		vertex.setInvokableClass(BlockingOperator.class);
+    private JobGraph createJobGraph(int parallelism) {
+        BlockingOperator.isBlocking = true;
+        final JobVertex vertex = new JobVertex("blocking operator");
+        vertex.setParallelism(parallelism);
+        vertex.setInvokableClass(BlockingOperator.class);
 
-		return new JobGraph("Blocking test job", vertex);
-	}
+        return new JobGraph("Blocking test job", vertex);
+    }
 
-	/**
-	 * Blocking invokable which is controlled by a static field.
-	 */
-	public static class BlockingOperator extends AbstractInvokable {
-		static boolean isBlocking = true;
+    /** Blocking invokable which is controlled by a static field. */
+    public static class BlockingOperator extends AbstractInvokable {
+        static boolean isBlocking = true;
 
-		public BlockingOperator(Environment environment) {
-			super(environment);
-		}
+        public BlockingOperator(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			if (isBlocking) {
-				synchronized (this) {
-					while (true) {
-						wait();
-					}
-				}
-			}
-		}
-	}
+        @Override
+        public void invoke() throws Exception {
+            if (isBlocking) {
+                synchronized (this) {
+                    while (true) {
+                        wait();
+                    }
+                }
+            }
+        }
+    }
 }

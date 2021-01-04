@@ -48,7 +48,7 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 </div>
 
 Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
+See how to link with them for cluster execution [here]({% link dev/project-configuration.md %}).
 
 ## Kafka Consumer
 
@@ -236,7 +236,7 @@ the streaming program to the state of the latest checkpoint and re-consume the r
 stored in the checkpoint.
 
 The interval of drawing checkpoints therefore defines how much the program may have to go back at most, in case of a failure.
-To use fault tolerant Kafka Consumers, checkpointing of the topology needs to be enabled in the [job]({{ site.baseurl }}/ops/config.html#execution-checkpointing-interval).
+To use fault tolerant Kafka Consumers, checkpointing of the topology needs to be enabled in the [job]({% link deployment/config.md %}#execution-checkpointing-interval).
 
 If checkpointing is disabled, the Kafka consumer will periodically commit the offsets to Zookeeper.
 
@@ -378,7 +378,7 @@ val stream = env.addSource(myConsumer)
 (which is commonly the case), all topics and partitions need to have a continuous stream of records.
 Otherwise, the watermarks of the whole application cannot advance and all time-based operations,
 such as time windows or functions with timers, cannot make progress. A single idle Kafka partition causes this behavior.
-Consider setting appropriate [idelness timeouts]({{ site.baseurl }}/dev/event_timestamps_watermarks.html#dealing-with-idle-sources) to mitigate this issue.
+Consider setting appropriate [idelness timeouts]({% link dev/event_timestamps_watermarks.md %}#dealing-with-idle-sources) to mitigate this issue.
  
 ## Kafka Producer
 
@@ -413,7 +413,7 @@ stream.addSink(myProducer);
 {% highlight scala %}
 val stream: DataStream[String] = ...
 
-Properties properties = new Properties
+val properties = new Properties
 properties.setProperty("bootstrap.servers", "localhost:9092")
 
 val myProducer = new FlinkKafkaProducer[String](
@@ -502,7 +502,7 @@ application before first checkpoint completes, by factor larger than `FlinkKafka
 
 ## Kafka Connector Metrics
 
-Flink's Kafka connectors provide some metrics through Flink's [metrics system]({{ site.baseurl }}/monitoring/metrics.html) to analyze
+Flink's Kafka connectors provide some metrics through Flink's [metrics system]({% link ops/metrics.md %}) to analyze
 the behavior of the connector.
 The producers export Kafka's internal metrics through Flink's metric system for all supported versions.
 The Kafka documentation lists all exported metrics in its [documentation](http://kafka.apache.org/documentation/#selector_monitoring).
@@ -543,13 +543,13 @@ When using standalone Flink deployment, you can also use `SASL_SSL`; please see 
 - Set `sasl.kerberos.service.name` to `kafka` (default `kafka`): The value for this should match the `sasl.kerberos.service.name` used for Kafka broker configurations.
 A mismatch in service name between client and server configuration will cause the authentication to fail.
 
-For more information on Flink configuration for Kerberos security, please see [here]({{ site.baseurl}}/ops/config.html).
-You can also find [here]({{ site.baseurl}}/ops/security-kerberos.html) further details on how Flink internally setups Kerberos-based security.
+For more information on Flink configuration for Kerberos security, please see [here]({% link deployment/config.md %}).
+You can also find [here]({% link deployment/security/security-kerberos.md %}) further details on how Flink internally setups Kerberos-based security.
 
 ## Upgrading to the Latest Connector Version
 
 The generic upgrade steps are outlined in [upgrading jobs and Flink versions
-guide]({{ site.baseurl }}/ops/upgrading.html). For Kafka, you additionally need
+guide]({% link ops/upgrading.md %}). For Kafka, you additionally need
 to follow these steps:
 
 * Do not upgrade Flink and the Kafka Connector version at the same time.

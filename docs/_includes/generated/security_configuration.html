@@ -15,6 +15,12 @@
             <td>List of factories that should be used to instantiate a security context. If multiple are configured, Flink will use the first compatible factory. You should have a NoOpSecurityContextFactory in this list as a fallback.</td>
         </tr>
         <tr>
+            <td><h5>security.kerberos.krb5-conf.path</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify the local location of the krb5.conf file. If defined, this conf would be mounted on the JobManager and TaskManager containers/pods for Kubernetes, Yarn and Mesos. Note: The KDC defined needs to be visible from inside the containers.</td>
+        </tr>
+        <tr>
             <td><h5>security.kerberos.login.contexts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

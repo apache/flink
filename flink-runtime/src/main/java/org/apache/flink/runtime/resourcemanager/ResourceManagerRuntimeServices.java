@@ -28,58 +28,60 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Container class for the {@link ResourceManager} services.
- */
+/** Container class for the {@link ResourceManager} services. */
 public class ResourceManagerRuntimeServices {
 
-	private final SlotManager slotManager;
-	private final JobLeaderIdService jobLeaderIdService;
+    private final SlotManager slotManager;
+    private final JobLeaderIdService jobLeaderIdService;
 
-	public ResourceManagerRuntimeServices(SlotManager slotManager, JobLeaderIdService jobLeaderIdService) {
-		this.slotManager = Preconditions.checkNotNull(slotManager);
-		this.jobLeaderIdService = Preconditions.checkNotNull(jobLeaderIdService);
-	}
+    public ResourceManagerRuntimeServices(
+            SlotManager slotManager, JobLeaderIdService jobLeaderIdService) {
+        this.slotManager = Preconditions.checkNotNull(slotManager);
+        this.jobLeaderIdService = Preconditions.checkNotNull(jobLeaderIdService);
+    }
 
-	public SlotManager getSlotManager() {
-		return slotManager;
-	}
+    public SlotManager getSlotManager() {
+        return slotManager;
+    }
 
-	public JobLeaderIdService getJobLeaderIdService() {
-		return jobLeaderIdService;
-	}
+    public JobLeaderIdService getJobLeaderIdService() {
+        return jobLeaderIdService;
+    }
 
-	// -------------------- Static methods --------------------------------------
+    // -------------------- Static methods --------------------------------------
 
-	public static ResourceManagerRuntimeServices fromConfiguration(
-			ResourceManagerRuntimeServicesConfiguration configuration,
-			HighAvailabilityServices highAvailabilityServices,
-			ScheduledExecutor scheduledExecutor,
-			SlotManagerMetricGroup slotManagerMetricGroup) {
+    public static ResourceManagerRuntimeServices fromConfiguration(
+            ResourceManagerRuntimeServicesConfiguration configuration,
+            HighAvailabilityServices highAvailabilityServices,
+            ScheduledExecutor scheduledExecutor,
+            SlotManagerMetricGroup slotManagerMetricGroup) {
 
-		final SlotManager slotManager = createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
+        final SlotManager slotManager =
+                createSlotManager(configuration, scheduledExecutor, slotManagerMetricGroup);
 
-		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
-			highAvailabilityServices,
-			scheduledExecutor,
-			configuration.getJobTimeout());
+        final JobLeaderIdService jobLeaderIdService =
+                new JobLeaderIdService(
+                        highAvailabilityServices, scheduledExecutor, configuration.getJobTimeout());
 
-		return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
-	}
+        return new ResourceManagerRuntimeServices(slotManager, jobLeaderIdService);
+    }
 
-	private static SlotManager createSlotManager(ResourceManagerRuntimeServicesConfiguration configuration, ScheduledExecutor scheduledExecutor, SlotManagerMetricGroup slotManagerMetricGroup) {
-		if (configuration.isDeclarativeResourceManagementEnabled()) {
-			return new DeclarativeSlotManager(
-				scheduledExecutor,
-				configuration.getSlotManagerConfiguration(),
-				slotManagerMetricGroup,
-				new DefaultResourceTracker(),
-				new DefaultSlotTracker());
-		} else {
-			return new SlotManagerImpl(
-				scheduledExecutor,
-				configuration.getSlotManagerConfiguration(),
-				slotManagerMetricGroup);
-		}
-	}
+    private static SlotManager createSlotManager(
+            ResourceManagerRuntimeServicesConfiguration configuration,
+            ScheduledExecutor scheduledExecutor,
+            SlotManagerMetricGroup slotManagerMetricGroup) {
+        if (configuration.isDeclarativeResourceManagementEnabled()) {
+            return new DeclarativeSlotManager(
+                    scheduledExecutor,
+                    configuration.getSlotManagerConfiguration(),
+                    slotManagerMetricGroup,
+                    new DefaultResourceTracker(),
+                    new DefaultSlotTracker());
+        } else {
+            return new SlotManagerImpl(
+                    scheduledExecutor,
+                    configuration.getSlotManagerConfiguration(),
+                    slotManagerMetricGroup);
+        }
+    }
 }

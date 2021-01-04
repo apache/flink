@@ -18,17 +18,20 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.connector.source.ScanTableSource
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate, WindowTableAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchPhysicalCorrelate}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
 import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
+import org.apache.flink.types.RowKind
+
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._
@@ -40,8 +43,6 @@ import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.sql.{SqlKind, SqlOperatorBinding}
 import org.apache.calcite.util.Util
-import org.apache.flink.table.connector.source.ScanTableSource
-import org.apache.flink.types.RowKind
 
 import java.math.{BigDecimal => JBigDecimal}
 import java.sql.{Date, Time, Timestamp}
@@ -59,10 +60,10 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
   def getRelModifiedMonotonicity(rel: TableScan, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     val monotonicity: RelModifiedMonotonicity = rel match {
-      case _: FlinkLogicalDataStreamTableScan | _: StreamExecDataStreamScan =>
+      case _: FlinkLogicalDataStreamTableScan | _: StreamPhysicalDataStreamScan =>
         val table = rel.getTable.unwrap(classOf[FlinkPreparingTableBase])
         table.getStatistic.getRelModifiedMonotonicity
-      case _: FlinkLogicalTableSourceScan | _: StreamExecTableSourceScan =>
+      case _: FlinkLogicalTableSourceScan | _: StreamPhysicalTableSourceScan =>
         val table = rel.getTable.unwrap(classOf[TableSourceTable])
         table.tableSource match {
           case sts: ScanTableSource if !sts.getChangelogMode.containsOnly(RowKind.INSERT) =>
@@ -164,8 +165,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     }
 
     // if partitionBy a update field or partitionBy a field whose mono is null, just return null
-    if (rel.partitionKey.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (rel.partitionKey.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -209,7 +209,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamExecDeduplicate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput)) {
-      val mono = new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(MONOTONIC))
+      val mono = new RelModifiedMonotonicity(
+        Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
       rel.getUniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
       mono
     } else {
@@ -218,13 +219,27 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecWatermarkAssigner,
+      rel: StreamPhysicalChangelogNormalize,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    val mono = new RelModifiedMonotonicity(Array.fill(rel.getRowType.getFieldCount)(NOT_MONOTONIC))
+    rel.uniqueKeys.foreach(e => mono.fieldMonotonicities(e) = CONSTANT)
+    mono
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: StreamPhysicalDropUpdateBefore,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
 
   def getRelModifiedMonotonicity(
-    rel: StreamExecMiniBatchAssigner,
+      rel: StreamPhysicalWatermarkAssigner,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
+  }
+
+  def getRelModifiedMonotonicity(
+    rel: StreamPhysicalMiniBatchAssigner,
     mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getMonotonicity(rel.getInput, mq, rel.getRowType.getFieldCount)
   }
@@ -336,8 +351,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by an update field or group by a field mono is null, just return null
-    if (grouping.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (inputMonotonicity == null ||
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -357,8 +372,8 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
     val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
 
     // if group by a update field or group by a field mono is null, just return null
-    if (grouping.exists(e =>
-      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+    if (inputMonotonicity == null ||
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -487,11 +502,11 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: BatchExecCorrelate,
+      rel: BatchPhysicalCorrelate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = null
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecCorrelate,
+      rel: StreamPhysicalCorrelate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getMonotonicity(rel.getInput(0), mq, rel.getRowType.getFieldCount)
   }

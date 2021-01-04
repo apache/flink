@@ -24,30 +24,30 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import java.util.Date;
 import java.util.Random;
 
-/**
- * A test for the {@link org.apache.flink.api.common.typeutils.base.DateSerializer}.
- */
+/** A test for the {@link org.apache.flink.api.common.typeutils.base.DateSerializer}. */
 public class DateSerializerTest extends SerializerTestBase<Date> {
-	
-	@Override
-	protected TypeSerializer<Date> createSerializer() {
-		return new DateSerializer();
-	}
-	
-	@Override
-	protected int getLength() {
-		return 8;
-	}
-	
-	@Override
-	protected Class<Date> getTypeClass() {
-		return Date.class;
-	}
-	
-	@Override
-	protected Date[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
-		long rndLong = rnd.nextLong();
-		return new Date[] {new Date(0L), new Date(1L),new Date(Long.MAX_VALUE), new Date(rndLong),};
-	}
-}	
+
+    @Override
+    protected TypeSerializer<Date> createSerializer() {
+        return new DateSerializer();
+    }
+
+    @Override
+    protected int getLength() {
+        return 8;
+    }
+
+    @Override
+    protected Class<Date> getTypeClass() {
+        return Date.class;
+    }
+
+    @Override
+    protected Date[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
+        long rndLong = rnd.nextLong();
+        return new Date[] {
+            new Date(0L), new Date(1L), new Date(Long.MAX_VALUE), new Date(rndLong),
+        };
+    }
+}

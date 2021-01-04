@@ -29,117 +29,141 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Test case for built-in ListAggWs with retraction aggregate function.
- */
+/** Test case for built-in ListAggWs with retraction aggregate function. */
 public final class ListAggWsWithRetractAggFunctionTest
-	extends AggFunctionTestBase<StringData, ListAggWsWithRetractAccumulator> {
+        extends AggFunctionTestBase<StringData, ListAggWsWithRetractAccumulator> {
 
-	@Override
-	protected List<List<StringData>> getInputValueSets() {
-		return Arrays.asList(
-				Arrays.asList(
-						StringData.fromString("a"), StringData.fromString("\n"),
-						StringData.fromString("b"), StringData.fromString("\n"),
-						null, StringData.fromString("\n"),
-						StringData.fromString("c"), StringData.fromString("\n"),
-						null, StringData.fromString("\n"),
-						StringData.fromString("d"), StringData.fromString("\n"),
-						StringData.fromString("e"), StringData.fromString("\n"),
-						null, StringData.fromString("\n"),
-						StringData.fromString("f"), StringData.fromString("\n")),
-				Arrays.asList(null, null, null, null, null, null),
-				Arrays.asList(
-						null, StringData.fromString("\n"),
-						null, StringData.fromString("\n"), null,
-						StringData.fromString("\n")),
-				Arrays.asList(
-						null, StringData.fromString("\n"),
-						StringData.fromString("a"), StringData.fromString("\n"),
-						StringData.fromString("b"), StringData.fromString("\n")),
-				Arrays.asList(
-						StringData.fromString("a"), StringData.fromString(","),
-						StringData.fromString("b"), StringData.fromString(","),
-						null, StringData.fromString("\n"),
-						StringData.fromString("c"), StringData.fromString(",")),
-				Arrays.asList(
-						StringData.fromString("a"), StringData.fromString(","),
-						StringData.fromString("b"), StringData.fromString(","),
-						null, StringData.fromString("\n"),
-						StringData.fromString("c"), StringData.fromString("\n"))
-		);
-	}
+    @Override
+    protected List<List<StringData>> getInputValueSets() {
+        return Arrays.asList(
+                Arrays.asList(
+                        StringData.fromString("a"),
+                        StringData.fromString("\n"),
+                        StringData.fromString("b"),
+                        StringData.fromString("\n"),
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("c"),
+                        StringData.fromString("\n"),
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("d"),
+                        StringData.fromString("\n"),
+                        StringData.fromString("e"),
+                        StringData.fromString("\n"),
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("f"),
+                        StringData.fromString("\n")),
+                Arrays.asList(null, null, null, null, null, null),
+                Arrays.asList(
+                        null,
+                        StringData.fromString("\n"),
+                        null,
+                        StringData.fromString("\n"),
+                        null,
+                        StringData.fromString("\n")),
+                Arrays.asList(
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("a"),
+                        StringData.fromString("\n"),
+                        StringData.fromString("b"),
+                        StringData.fromString("\n")),
+                Arrays.asList(
+                        StringData.fromString("a"),
+                        StringData.fromString(","),
+                        StringData.fromString("b"),
+                        StringData.fromString(","),
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("c"),
+                        StringData.fromString(",")),
+                Arrays.asList(
+                        StringData.fromString("a"),
+                        StringData.fromString(","),
+                        StringData.fromString("b"),
+                        StringData.fromString(","),
+                        null,
+                        StringData.fromString("\n"),
+                        StringData.fromString("c"),
+                        StringData.fromString("\n")));
+    }
 
-	@Override
-	protected List<StringData> getExpectedResults() {
-		return Arrays.asList(
-				StringData.fromString("a\nb\nc\nd\ne\nf"),
-				null,
-				null,
-				StringData.fromString("a\nb"),
-				StringData.fromString("a,b,c"),
-				StringData.fromString("a\nb\nc"));
-	}
+    @Override
+    protected List<StringData> getExpectedResults() {
+        return Arrays.asList(
+                StringData.fromString("a\nb\nc\nd\ne\nf"),
+                null,
+                null,
+                StringData.fromString("a\nb"),
+                StringData.fromString("a,b,c"),
+                StringData.fromString("a\nb\nc"));
+    }
 
-	@Override
-	protected AggregateFunction<StringData, ListAggWsWithRetractAccumulator> getAggregator() {
-		return new ListAggWsWithRetractAggFunction();
-	}
+    @Override
+    protected AggregateFunction<StringData, ListAggWsWithRetractAccumulator> getAggregator() {
+        return new ListAggWsWithRetractAggFunction();
+    }
 
-	@Override
-	protected Method getAccumulateFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod(
-				"accumulate", getAccClass(), StringData.class, StringData.class);
-	}
+    @Override
+    protected Method getAccumulateFunc() throws NoSuchMethodException {
+        return getAggregator()
+                .getClass()
+                .getMethod("accumulate", getAccClass(), StringData.class, StringData.class);
+    }
 
-	@Override
-	protected Method getRetractFunc() throws NoSuchMethodException {
-		return getAggregator().getClass().getMethod("retract", getAccClass(), StringData.class, StringData.class);
-	}
+    @Override
+    protected Method getRetractFunc() throws NoSuchMethodException {
+        return getAggregator()
+                .getClass()
+                .getMethod("retract", getAccClass(), StringData.class, StringData.class);
+    }
 
-	@Override
-	protected Class<?> getAccClass() {
-		return ListAggWsWithRetractAccumulator.class;
-	}
+    @Override
+    protected Class<?> getAccClass() {
+        return ListAggWsWithRetractAccumulator.class;
+    }
 
-	@Override
-	protected ListAggWsWithRetractAccumulator accumulateValues(List<StringData> values)
-			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		AggregateFunction<StringData, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
-		ListAggWsWithRetractAccumulator accumulator = getAggregator().createAccumulator();
-		Method accumulateFunc = getAccumulateFunc();
-		Preconditions.checkArgument(values.size() % 2 == 0,
-				"number of values must be an integer multiple of 2.");
-		for (int i = 0; i < values.size(); i += 2) {
-			StringData value = values.get(i + 1);
-			StringData delimiter = values.get(i);
-			accumulateFunc.invoke(aggregator, accumulator, delimiter, value);
-		}
-		return accumulator;
-	}
+    @Override
+    protected ListAggWsWithRetractAccumulator accumulateValues(List<StringData> values)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        AggregateFunction<StringData, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
+        ListAggWsWithRetractAccumulator accumulator = getAggregator().createAccumulator();
+        Method accumulateFunc = getAccumulateFunc();
+        Preconditions.checkArgument(
+                values.size() % 2 == 0, "number of values must be an integer multiple of 2.");
+        for (int i = 0; i < values.size(); i += 2) {
+            StringData value = values.get(i + 1);
+            StringData delimiter = values.get(i);
+            accumulateFunc.invoke(aggregator, accumulator, delimiter, value);
+        }
+        return accumulator;
+    }
 
-	@Override
-	protected void retractValues(ListAggWsWithRetractAccumulator accumulator, List<StringData> values)
-			throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-		AggregateFunction<StringData, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
-		Method retractFunc = getRetractFunc();
-		Preconditions.checkArgument(values.size() % 2 == 0,
-				"number of values must be an integer multiple of 2.");
-		for (int i = 0; i < values.size(); i += 2) {
-			StringData value = values.get(i + 1);
-			StringData delimiter = values.get(i);
-			retractFunc.invoke(aggregator, accumulator, delimiter, value);
-		}
-	}
+    @Override
+    protected void retractValues(
+            ListAggWsWithRetractAccumulator accumulator, List<StringData> values)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        AggregateFunction<StringData, ListAggWsWithRetractAccumulator> aggregator = getAggregator();
+        Method retractFunc = getRetractFunc();
+        Preconditions.checkArgument(
+                values.size() % 2 == 0, "number of values must be an integer multiple of 2.");
+        for (int i = 0; i < values.size(); i += 2) {
+            StringData value = values.get(i + 1);
+            StringData delimiter = values.get(i);
+            retractFunc.invoke(aggregator, accumulator, delimiter, value);
+        }
+    }
 
-	@Override
-	protected Tuple2<List<StringData>, List<StringData>> splitValues(List<StringData> values) {
-		Preconditions.checkArgument(values.size() % 2 == 0,
-				"number of values must be an integer multiple of 2.");
-		int index = values.size() / 2;
-		if (index % 2 != 0) {
-			index -= 1;
-		}
-		return super.splitValues(values, index);
-	}
+    @Override
+    protected Tuple2<List<StringData>, List<StringData>> splitValues(List<StringData> values) {
+        Preconditions.checkArgument(
+                values.size() % 2 == 0, "number of values must be an integer multiple of 2.");
+        int index = values.size() / 2;
+        if (index % 2 != 0) {
+            index -= 1;
+        }
+        return super.splitValues(values, index);
+    }
 }

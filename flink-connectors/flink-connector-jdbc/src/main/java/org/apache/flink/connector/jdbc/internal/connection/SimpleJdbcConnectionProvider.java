@@ -22,55 +22,85 @@ import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-/**
- * Simple JDBC connection provider.
- */
+/** Simple JDBC connection provider. */
+@NotThreadSafe
 public class SimpleJdbcConnectionProvider implements JdbcConnectionProvider, Serializable {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleJdbcConnectionProvider.class);
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final JdbcConnectionOptions jdbcOptions;
+    private final JdbcConnectionOptions jdbcOptions;
 
-	private transient volatile Connection connection;
+    private transient Connection connection;
 
-	public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
-		this.jdbcOptions = jdbcOptions;
-	}
+    static {
+        // Load DriverManager first to avoid deadlock between DriverManager's
+        // static initialization block and specific driver class's static
+        // initialization block when two different driver classes are loading
+        // concurrently using Class.forName while DriverManager is uninitialized
+        // before.
+        //
+        // This could happen in JDK 8 but not above as driver loading has been
+        // moved out of DriverManager's static initialization block since JDK 9.
+        DriverManager.getDrivers();
+    }
 
-	@Override
-	public Connection getConnection() throws SQLException, ClassNotFoundException {
-		if (connection == null) {
-			synchronized (this) {
-				if (connection == null) {
-					Class.forName(jdbcOptions.getDriverName());
-					if (jdbcOptions.getUsername().isPresent()) {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL(), jdbcOptions.getUsername().get(), jdbcOptions.getPassword().orElse(null));
-					} else {
-						connection = DriverManager.getConnection(jdbcOptions.getDbURL());
-					}
-				}
-			}
-		}
-		return connection;
-	}
+    public SimpleJdbcConnectionProvider(JdbcConnectionOptions jdbcOptions) {
+        this.jdbcOptions = jdbcOptions;
+    }
 
-	@Override
-	public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
-		try {
-			connection.close();
-		} catch (SQLException e) {
-			LOG.info("JDBC connection close failed.", e);
-		} finally {
-			connection = null;
-		}
-		connection = getConnection();
-		return connection;
-	}
+    @Override
+    public Connection getConnection() {
+        return connection;
+    }
+
+    @Override
+    public boolean isConnectionValid() throws SQLException {
+        return connection != null
+                && connection.isValid(jdbcOptions.getConnectionCheckTimeoutSeconds());
+    }
+
+    @Override
+    public Connection getOrEstablishConnection() throws SQLException, ClassNotFoundException {
+        if (connection == null) {
+            Class.forName(jdbcOptions.getDriverName());
+            if (jdbcOptions.getUsername().isPresent()) {
+                connection =
+                        DriverManager.getConnection(
+                                jdbcOptions.getDbURL(),
+                                jdbcOptions.getUsername().get(),
+                                jdbcOptions.getPassword().orElse(null));
+            } else {
+                connection = DriverManager.getConnection(jdbcOptions.getDbURL());
+            }
+        }
+        return connection;
+    }
+
+    @Override
+    public void closeConnection() {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                LOG.warn("JDBC connection close failed.", e);
+            } finally {
+                connection = null;
+            }
+        }
+    }
+
+    @Override
+    public Connection reestablishConnection() throws SQLException, ClassNotFoundException {
+        closeConnection();
+        return getOrEstablishConnection();
+    }
 }

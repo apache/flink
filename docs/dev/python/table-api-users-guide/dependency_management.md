@@ -22,9 +22,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Java Dependency
+* This will be replaced by the TOC
+{:toc}
 
-If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+# Java Dependency in Python Program
+
+If third-party Java dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 {% highlight python %}
 # Specify a list of jar URLs via "pipeline.jars". The jars are separated by ";" and will be uploaded to the cluster.
@@ -36,9 +39,9 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-# Python Dependency
+# Python Dependency in Python Program
 
-If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link ops/cli.md %}#usage) directly when submitting the job.
+If third-party Python dependencies are used, you can specify the dependencies with the following Python Table APIs or through [command line arguments]({% link deployment/cli.md %}#usage) directly when submitting the job.
 
 <table class="table table-bordered">
   <thead>
@@ -108,3 +111,32 @@ table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
     </tr>
   </tbody>
 </table>
+
+# Python Dependency in Java/Scala Program
+
+It also supports to use Python UDFs in the Java Table API programs or pure SQL programs. The following example shows how to
+use the Python UDFs in a Java Table API program:
+
+{% highlight java %}
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+
+TableEnvironment tEnv = TableEnvironment.create(
+    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
+
+// register the Python UDF
+tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");
+
+tEnv.createTemporaryView("source", tEnv.fromValues(1L, 2L, 3L).as("a"));
+
+// use Python UDF in the Java Table API program
+tEnv.executeSql("select add_one(a) as a from source").collect();
+{% endhighlight %}
+
+You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sql/create.md %}#create-function) for more details
+on how to create Python user-defined functions using SQL statements.
+
+The Python dependencies could be specified via the Python [config options]({% link  dev/python/python_config.md %}#python-options),
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link deployment/cli.md %}#usage) when submitting the job.

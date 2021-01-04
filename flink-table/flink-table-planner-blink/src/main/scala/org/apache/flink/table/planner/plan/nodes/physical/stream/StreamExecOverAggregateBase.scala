@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -31,8 +30,6 @@ import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
-
-import java.util
 
 import scala.collection.JavaConverters._
 
@@ -48,7 +45,7 @@ abstract class StreamExecOverAggregateBase(
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
-  with StreamExecNode[RowData] {
+  with LegacyStreamExecNode[RowData] {
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -100,15 +97,4 @@ abstract class StreamExecOverAggregateBase(
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "w0$o" + i)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    getInputs.asScala.map(_.asInstanceOf[ExecNode[StreamPlanner, _]]).asJava
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 }

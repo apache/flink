@@ -36,49 +36,45 @@ import java.util.Properties;
  * @param <T> the type of data emitted
  */
 public class FlinkDynamoDBStreamsConsumer<T> extends FlinkKinesisConsumer<T> {
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkDynamoDBStreamsConsumer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkDynamoDBStreamsConsumer.class);
 
-	/**
-	 * Constructor of FlinkDynamoDBStreamsConsumer.
-	 *
-	 * @param stream stream to consume
-	 * @param deserializer deserialization schema
-	 * @param config config properties
-	 */
-	public FlinkDynamoDBStreamsConsumer(
-			String stream,
-			DeserializationSchema<T> deserializer,
-			Properties config) {
-		super(stream, deserializer, config);
-	}
+    /**
+     * Constructor of FlinkDynamoDBStreamsConsumer.
+     *
+     * @param stream stream to consume
+     * @param deserializer deserialization schema
+     * @param config config properties
+     */
+    public FlinkDynamoDBStreamsConsumer(
+            String stream, DeserializationSchema<T> deserializer, Properties config) {
+        super(stream, deserializer, config);
+    }
 
-	/**
-	 * Constructor of FlinkDynamodbStreamConsumer.
-	 *
-	 * @param streams list of streams to consume
-	 * @param deserializer  deserialization schema
-	 * @param config config properties
-	 */
-	public FlinkDynamoDBStreamsConsumer(
-			List<String> streams,
-			KinesisDeserializationSchema deserializer,
-			Properties config) {
-		super(streams, deserializer, config);
-	}
+    /**
+     * Constructor of FlinkDynamodbStreamConsumer.
+     *
+     * @param streams list of streams to consume
+     * @param deserializer deserialization schema
+     * @param config config properties
+     */
+    public FlinkDynamoDBStreamsConsumer(
+            List<String> streams, KinesisDeserializationSchema deserializer, Properties config) {
+        super(streams, deserializer, config);
+    }
 
-	@Override
-	protected KinesisDataFetcher<T> createFetcher(
-			List<String> streams,
-			SourceFunction.SourceContext<T> sourceContext,
-			RuntimeContext runtimeContext,
-			Properties configProps,
-			KinesisDeserializationSchema<T> deserializationSchema) {
-		return new DynamoDBStreamsDataFetcher<T>(
-				streams,
-				sourceContext,
-				runtimeContext,
-				configProps,
-				deserializationSchema,
-				getShardAssigner());
-	}
+    @Override
+    protected KinesisDataFetcher<T> createFetcher(
+            List<String> streams,
+            SourceFunction.SourceContext<T> sourceContext,
+            RuntimeContext runtimeContext,
+            Properties configProps,
+            KinesisDeserializationSchema<T> deserializationSchema) {
+        return new DynamoDBStreamsDataFetcher<T>(
+                streams,
+                sourceContext,
+                runtimeContext,
+                configProps,
+                deserializationSchema,
+                getShardAssigner());
+    }
 }

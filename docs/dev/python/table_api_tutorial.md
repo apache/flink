@@ -97,9 +97,9 @@ my_source_ddl = """
     create table mySource (
         word VARCHAR
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/input'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/input'
     )
 """
 
@@ -108,9 +108,9 @@ my_sink_ddl = """
         word VARCHAR,
         `count` BIGINT
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/output'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/output'
     )
 """
 
@@ -123,21 +123,17 @@ The table `mySink` has two columns, word and count, and writes data to the file 
 
 You can now create a job which reads input from table `mySource`, preforms some transformations, and writes the results to table `mySink`.
 
+Finally you must execute the actual Flink Python Table API job.
+All operations, such as creating sources, transformations and sinks are lazy.
+Only when `execute_insert(sink_name)` is called, the job will be submitted for execution.
+
 {% highlight python %}
 from pyflink.table.expressions import lit
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
    .select(tab.word, lit(1).count) \
-   .insert_into('mySink')
-{% endhighlight %}
-
-Finally you must execute the actual Flink Python Table API job.
-All operations, such as creating sources, transformations and sinks are lazy.
-Only when `t_env.execute(job_name)` is called will the job be run.
-
-{% highlight python %}
-t_env.execute("tutorial_job")
+   .execute_insert('mySink').wait()
 {% endhighlight %}
 
 The complete code so far:
@@ -173,9 +169,7 @@ t_env.connect(FileSystem().path('/tmp/output')) \
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
    .select(tab.word, lit(1).count) \
-   .insert_into('mySink')
-
-t_env.execute("tutorial_job")
+   .execute_insert('mySink').wait()
 {% endhighlight %}
 
 ## Executing a Flink Python Table API Program
@@ -193,7 +187,7 @@ $ python WordCount.py
 
 The command builds and runs the Python Table API program in a local mini cluster.
 You can also submit the Python Table API program to a remote cluster, you can refer
-[Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples)
+[Job Submission Examples]({% link deployment/cli.md %}#submitting-pyflink-jobs)
 for more details.
 
 Finally, you can see the execution result on the command line:

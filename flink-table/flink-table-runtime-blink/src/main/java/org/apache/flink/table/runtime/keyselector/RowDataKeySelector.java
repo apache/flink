@@ -23,11 +23,9 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
-/**
- * RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData.
- */
-public interface RowDataKeySelector extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
+/** RowDataKeySelector takes an RowData and extracts the deterministic key for the RowData. */
+public interface RowDataKeySelector
+        extends KeySelector<RowData, RowData>, ResultTypeQueryable<RowData> {
 
-	InternalTypeInfo<RowData> getProducedType();
-
+    InternalTypeInfo<RowData> getProducedType();
 }

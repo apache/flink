@@ -2,7 +2,7 @@
 title: "Orc Format"
 nav-title: Orc
 nav-parent_id: sql-formats
-nav-pos: 6
+nav-pos: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -34,12 +34,10 @@ The [Apache Orc](https://orc.apache.org/) format allows to read and write Orc da
 Dependencies
 ------------
 
-In order to setup the Orc format, the following table provides dependency information for both
-projects using a build automation tool (such as Maven or SBT) and SQL Client with SQL JAR bundles.
-
-| Maven dependency   | SQL Client JAR         |
-| :----------------- | :----------------------|
-| flink-orc{{site.scala_version_suffix}}        |{% if site.is_stable %}[Download](https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-orc{{site.scala_version_suffix}}/{{site.version}}/flink-sql-orc{{site.scala_version_suffix}}-{{site.version}}.jar) {% else %} Only available for stable releases {% endif %}|
+{% assign connector = site.data.sql-connectors['orc'] %}
+{% include sql-connector-download-table.html
+    connector=connector
+%}
 
 How to create a table with Orc format
 ----------------

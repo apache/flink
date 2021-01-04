@@ -36,192 +36,194 @@ import org.apache.flink.util.InstantiationUtil;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.readIntoMask;
 import static org.apache.flink.api.java.typeutils.runtime.MaskUtils.writeMask;
 
 /**
- * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be encoded as
- * the first 2 bits instead of the first byte. Currently Python doesn't support RowData natively, so we
- * can't use RowDataSerializer in blink directly.
+ * A {@link TypeSerializer} for {@link RowData}. It should be noted that the row kind will be
+ * encoded as the first 2 bits instead of the first byte. Currently Python doesn't support RowData
+ * natively, so we can't use RowDataSerializer in blink directly.
  */
 @Internal
 public class RowDataSerializer extends org.apache.flink.table.runtime.typeutils.RowDataSerializer {
 
-	private static final int ROW_KIND_OFFSET = 2;
+    private static final long serialVersionUID = 5241636534123419763L;
+    private static final int ROW_KIND_OFFSET = 2;
 
-	private final LogicalType[] fieldTypes;
+    private final LogicalType[] fieldTypes;
 
-	private final TypeSerializer[] fieldSerializers;
+    private final TypeSerializer[] fieldSerializers;
 
-	private transient boolean[] mask;
+    private final RowData.FieldGetter[] fieldGetters;
 
-	public RowDataSerializer(LogicalType[] types, TypeSerializer[] fieldSerializers) {
-		super(types, fieldSerializers);
-		this.fieldTypes = types;
-		this.fieldSerializers = fieldSerializers;
-		this.mask = new boolean[fieldSerializers.length + ROW_KIND_OFFSET];
-	}
+    private transient boolean[] mask;
 
-	@Override
-	public void serialize(RowData row, DataOutputView target) throws IOException {
-		int len = fieldSerializers.length;
+    public RowDataSerializer(LogicalType[] types, TypeSerializer[] fieldSerializers) {
+        super(types, fieldSerializers);
+        this.fieldTypes = types;
+        this.fieldSerializers = fieldSerializers;
+        this.mask = new boolean[fieldSerializers.length + ROW_KIND_OFFSET];
+        this.fieldGetters =
+                IntStream.range(0, types.length)
+                        .mapToObj(i -> RowData.createFieldGetter(types[i], i))
+                        .toArray(RowData.FieldGetter[]::new);
+    }
 
-		if (row.getArity() != len) {
-			throw new RuntimeException("Row arity of input element does not match serializers.");
-		}
+    @Override
+    public void serialize(RowData row, DataOutputView target) throws IOException {
+        int len = fieldSerializers.length;
 
-		// write bitmask
-		fillMask(len, row, mask);
-		writeMask(mask, target);
+        if (row.getArity() != len) {
+            throw new RuntimeException("Row arity of input element does not match serializers.");
+        }
 
-		for (int i = 0; i < row.getArity(); i++) {
-			if (!row.isNullAt(i)) {
-				// TODO: support RowData natively in Python, then we can eliminate the redundant serialize/deserialize
-				fieldSerializers[i].serialize(RowData.get(row, i, fieldTypes[i]), target);
-			}
-		}
-	}
+        // write bitmask
+        fillMask(len, row, mask);
+        writeMask(mask, target);
 
-	@Override
-	public RowData deserialize(DataInputView source) throws IOException {
-		// read bitmask
-		readIntoMask(source, mask);
+        for (int i = 0; i < row.getArity(); i++) {
+            if (!row.isNullAt(i)) {
+                // TODO: support RowData natively in Python, then we can eliminate the redundant
+                // serialize/deserialize
+                fieldSerializers[i].serialize(fieldGetters[i].getFieldOrNull(row), target);
+            }
+        }
+    }
 
-		GenericRowData row = new GenericRowData(fieldSerializers.length);
-		row.setRowKind(readKindFromMask(mask));
-		for (int i = 0; i < row.getArity(); i++) {
-			if (mask[i + ROW_KIND_OFFSET]) {
-				row.setField(i, null);
-			} else {
-				row.setField(i, fieldSerializers[i].deserialize(source));
-			}
-		}
-		return row;
-	}
+    @Override
+    public RowData deserialize(DataInputView source) throws IOException {
+        // read bitmask
+        readIntoMask(source, mask);
 
-	@Override
-	public RowData deserialize(RowData reuse, DataInputView source) throws IOException {
-		return deserialize(source);
-	}
+        GenericRowData row = new GenericRowData(fieldSerializers.length);
+        row.setRowKind(readKindFromMask(mask));
+        for (int i = 0; i < row.getArity(); i++) {
+            if (mask[i + ROW_KIND_OFFSET]) {
+                row.setField(i, null);
+            } else {
+                row.setField(i, fieldSerializers[i].deserialize(source));
+            }
+        }
+        return row;
+    }
 
-	@Override
-	public void copy(DataInputView source, DataOutputView target) throws IOException {
-		serialize(deserialize(source), target);
-	}
+    @Override
+    public RowData deserialize(RowData reuse, DataInputView source) throws IOException {
+        return deserialize(source);
+    }
 
-	private static void fillMask(
-		int fieldLength,
-		RowData row,
-		boolean[] mask) {
-		final byte kind = row.getRowKind().toByteValue();
-		mask[0] = (kind & 0x01) > 0;
-		mask[1] = (kind & 0x02) > 0;
+    @Override
+    public void copy(DataInputView source, DataOutputView target) throws IOException {
+        serialize(deserialize(source), target);
+    }
 
-		for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
-			mask[ROW_KIND_OFFSET + fieldPos] = row.isNullAt(fieldPos);
-		}
-	}
+    private static void fillMask(int fieldLength, RowData row, boolean[] mask) {
+        final byte kind = row.getRowKind().toByteValue();
+        mask[0] = (kind & 0x01) > 0;
+        mask[1] = (kind & 0x02) > 0;
 
-	private static RowKind readKindFromMask(boolean[] mask) {
-		final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
-		return RowKind.fromByteValue(kind);
-	}
+        for (int fieldPos = 0; fieldPos < fieldLength; fieldPos++) {
+            mask[ROW_KIND_OFFSET + fieldPos] = row.isNullAt(fieldPos);
+        }
+    }
 
-	@Override
-	public TypeSerializerSnapshot<RowData> snapshotConfiguration() {
-		return new RowDataSerializerSnapshot(fieldTypes, fieldSerializers);
-	}
+    private static RowKind readKindFromMask(boolean[] mask) {
+        final byte kind = (byte) ((mask[0] ? 0x01 : 0x00) + (mask[1] ? 0x02 : 0x00));
+        return RowKind.fromByteValue(kind);
+    }
 
-	/**
-	 * {@link TypeSerializerSnapshot} for {@link RowDataSerializer}.
-	 */
-	public static final class RowDataSerializerSnapshot implements TypeSerializerSnapshot<RowData> {
-		private static final int CURRENT_VERSION = 3;
+    @Override
+    public TypeSerializerSnapshot<RowData> snapshotConfiguration() {
+        return new RowDataSerializerSnapshot(fieldTypes, fieldSerializers);
+    }
 
-		private LogicalType[] previousTypes;
-		private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
+    /** {@link TypeSerializerSnapshot} for {@link RowDataSerializer}. */
+    public static final class RowDataSerializerSnapshot implements TypeSerializerSnapshot<RowData> {
+        private static final int CURRENT_VERSION = 3;
 
-		@SuppressWarnings("unused")
-		public RowDataSerializerSnapshot() {
-			// this constructor is used when restoring from a checkpoint/savepoint.
-		}
+        private LogicalType[] previousTypes;
+        private NestedSerializersSnapshotDelegate nestedSerializersSnapshotDelegate;
 
-		RowDataSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
-			this.previousTypes = types;
-			this.nestedSerializersSnapshotDelegate = new NestedSerializersSnapshotDelegate(
-				serializers);
-		}
+        @SuppressWarnings("unused")
+        public RowDataSerializerSnapshot() {
+            // this constructor is used when restoring from a checkpoint/savepoint.
+        }
 
-		@Override
-		public int getCurrentVersion() {
-			return CURRENT_VERSION;
-		}
+        RowDataSerializerSnapshot(LogicalType[] types, TypeSerializer[] serializers) {
+            this.previousTypes = types;
+            this.nestedSerializersSnapshotDelegate =
+                    new NestedSerializersSnapshotDelegate(serializers);
+        }
 
-		@Override
-		public void writeSnapshot(DataOutputView out) throws IOException {
-			out.writeInt(previousTypes.length);
-			DataOutputViewStream stream = new DataOutputViewStream(out);
-			for (LogicalType previousType : previousTypes) {
-				InstantiationUtil.serializeObject(stream, previousType);
-			}
-			nestedSerializersSnapshotDelegate.writeNestedSerializerSnapshots(out);
-		}
+        @Override
+        public int getCurrentVersion() {
+            return CURRENT_VERSION;
+        }
 
-		@Override
-		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
-			throws IOException {
-			int length = in.readInt();
-			DataInputViewStream stream = new DataInputViewStream(in);
-			previousTypes = new LogicalType[length];
-			for (int i = 0; i < length; i++) {
-				try {
-					previousTypes[i] = InstantiationUtil.deserializeObject(
-						stream,
-						userCodeClassLoader
-					);
-				} catch (ClassNotFoundException e) {
-					throw new IOException(e);
-				}
-			}
-			this.nestedSerializersSnapshotDelegate = NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(
-				in,
-				userCodeClassLoader
-			);
-		}
+        @Override
+        public void writeSnapshot(DataOutputView out) throws IOException {
+            out.writeInt(previousTypes.length);
+            DataOutputViewStream stream = new DataOutputViewStream(out);
+            for (LogicalType previousType : previousTypes) {
+                InstantiationUtil.serializeObject(stream, previousType);
+            }
+            nestedSerializersSnapshotDelegate.writeNestedSerializerSnapshots(out);
+        }
 
-		@Override
-		public RowDataSerializer restoreSerializer() {
-			return new RowDataSerializer(
-				previousTypes,
-				nestedSerializersSnapshotDelegate.getRestoredNestedSerializers()
-			);
-		}
+        @Override
+        public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+                throws IOException {
+            int length = in.readInt();
+            DataInputViewStream stream = new DataInputViewStream(in);
+            previousTypes = new LogicalType[length];
+            for (int i = 0; i < length; i++) {
+                try {
+                    previousTypes[i] =
+                            InstantiationUtil.deserializeObject(stream, userCodeClassLoader);
+                } catch (ClassNotFoundException e) {
+                    throw new IOException(e);
+                }
+            }
+            this.nestedSerializersSnapshotDelegate =
+                    NestedSerializersSnapshotDelegate.readNestedSerializerSnapshots(
+                            in, userCodeClassLoader);
+        }
 
-		@Override
-		public TypeSerializerSchemaCompatibility<RowData> resolveSchemaCompatibility(TypeSerializer<RowData> newSerializer) {
-			if (!(newSerializer instanceof RowDataSerializer)) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
+        @Override
+        public RowDataSerializer restoreSerializer() {
+            return new RowDataSerializer(
+                    previousTypes,
+                    nestedSerializersSnapshotDelegate.getRestoredNestedSerializers());
+        }
 
-			RowDataSerializer newRowSerializer = (RowDataSerializer) newSerializer;
-			if (!Arrays.equals(previousTypes, newRowSerializer.fieldTypes)) {
-				return TypeSerializerSchemaCompatibility.incompatible();
-			}
+        @Override
+        public TypeSerializerSchemaCompatibility<RowData> resolveSchemaCompatibility(
+                TypeSerializer<RowData> newSerializer) {
+            if (!(newSerializer instanceof RowDataSerializer)) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
 
-			CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData> intermediateResult =
-				CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
-					newRowSerializer.fieldSerializers,
-					nestedSerializersSnapshotDelegate.getNestedSerializerSnapshots()
-				);
+            RowDataSerializer newRowSerializer = (RowDataSerializer) newSerializer;
+            if (!Arrays.equals(previousTypes, newRowSerializer.fieldTypes)) {
+                return TypeSerializerSchemaCompatibility.incompatible();
+            }
 
-			if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
-				RowDataSerializer reconfiguredCompositeSerializer = restoreSerializer();
-				return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
-					reconfiguredCompositeSerializer);
-			}
+            CompositeTypeSerializerUtil.IntermediateCompatibilityResult<RowData>
+                    intermediateResult =
+                            CompositeTypeSerializerUtil.constructIntermediateCompatibilityResult(
+                                    newRowSerializer.fieldSerializers,
+                                    nestedSerializersSnapshotDelegate
+                                            .getNestedSerializerSnapshots());
 
-			return intermediateResult.getFinalResult();
-		}
-	}
+            if (intermediateResult.isCompatibleWithReconfiguredSerializer()) {
+                RowDataSerializer reconfiguredCompositeSerializer = restoreSerializer();
+                return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                        reconfiguredCompositeSerializer);
+            }
+
+            return intermediateResult.getFinalResult();
+        }
+    }
 }

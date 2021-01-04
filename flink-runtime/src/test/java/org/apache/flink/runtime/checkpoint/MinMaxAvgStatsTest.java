@@ -26,71 +26,64 @@ import static org.junit.Assert.assertEquals;
 
 public class MinMaxAvgStatsTest {
 
-	/**
-	 * Test the initial/empty state.
-	 */
-	@Test
-	public void testInitialState() throws Exception {
-		MinMaxAvgStats mma = new MinMaxAvgStats();
+    /** Test the initial/empty state. */
+    @Test
+    public void testInitialState() throws Exception {
+        MinMaxAvgStats mma = new MinMaxAvgStats();
 
-		assertEquals(0, mma.getMinimum());
-		assertEquals(0, mma.getMaximum());
-		assertEquals(0, mma.getSum());
-		assertEquals(0, mma.getCount());
-		assertEquals(0, mma.getAverage());
-	}
+        assertEquals(0, mma.getMinimum());
+        assertEquals(0, mma.getMaximum());
+        assertEquals(0, mma.getSum());
+        assertEquals(0, mma.getCount());
+        assertEquals(0, mma.getAverage());
+    }
 
-	/**
-	 * Test that non-positive numbers are not counted.
-	 */
-	@Test
-	public void testAddNonPositiveStats() throws Exception {
-		MinMaxAvgStats mma = new MinMaxAvgStats();
-		mma.add(-1);
+    /** Test that non-positive numbers are not counted. */
+    @Test
+    public void testAddNonPositiveStats() throws Exception {
+        MinMaxAvgStats mma = new MinMaxAvgStats();
+        mma.add(-1);
 
-		assertEquals(0, mma.getMinimum());
-		assertEquals(0, mma.getMaximum());
-		assertEquals(0, mma.getSum());
-		assertEquals(0, mma.getCount());
-		assertEquals(0, mma.getAverage());
+        assertEquals(0, mma.getMinimum());
+        assertEquals(0, mma.getMaximum());
+        assertEquals(0, mma.getSum());
+        assertEquals(0, mma.getCount());
+        assertEquals(0, mma.getAverage());
 
-		mma.add(0);
+        mma.add(0);
 
-		assertEquals(0, mma.getMinimum());
-		assertEquals(0, mma.getMaximum());
-		assertEquals(0, mma.getSum());
-		assertEquals(1, mma.getCount());
-		assertEquals(0, mma.getAverage());
-	}
+        assertEquals(0, mma.getMinimum());
+        assertEquals(0, mma.getMaximum());
+        assertEquals(0, mma.getSum());
+        assertEquals(1, mma.getCount());
+        assertEquals(0, mma.getAverage());
+    }
 
-	/**
-	 * Test sequence of random numbers.
-	 */
-	@Test
-	public void testAddRandomNumbers() throws Exception {
-		ThreadLocalRandom rand = ThreadLocalRandom.current();
+    /** Test sequence of random numbers. */
+    @Test
+    public void testAddRandomNumbers() throws Exception {
+        ThreadLocalRandom rand = ThreadLocalRandom.current();
 
-		MinMaxAvgStats mma = new MinMaxAvgStats();
+        MinMaxAvgStats mma = new MinMaxAvgStats();
 
-		long count = 13;
-		long sum = 0;
-		long min = Integer.MAX_VALUE;
-		long max = Integer.MIN_VALUE;
+        long count = 13;
+        long sum = 0;
+        long min = Integer.MAX_VALUE;
+        long max = Integer.MIN_VALUE;
 
-		for (int i = 0; i < count; i++) {
-			int number = rand.nextInt(124) + 1;
-			sum += number;
-			min = Math.min(min, number);
-			max = Math.max(max, number);
+        for (int i = 0; i < count; i++) {
+            int number = rand.nextInt(124) + 1;
+            sum += number;
+            min = Math.min(min, number);
+            max = Math.max(max, number);
 
-			mma.add(number);
-		}
+            mma.add(number);
+        }
 
-		assertEquals(min, mma.getMinimum());
-		assertEquals(max, mma.getMaximum());
-		assertEquals(sum, mma.getSum());
-		assertEquals(count, mma.getCount());
-		assertEquals(sum / count, mma.getAverage());
-	}
-
+        assertEquals(min, mma.getMinimum());
+        assertEquals(max, mma.getMaximum());
+        assertEquals(sum, mma.getSum());
+        assertEquals(count, mma.getCount());
+        assertEquals(sum / count, mma.getAverage());
+    }
 }

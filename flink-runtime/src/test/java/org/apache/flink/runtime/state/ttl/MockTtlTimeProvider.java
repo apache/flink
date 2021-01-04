@@ -20,14 +20,14 @@ package org.apache.flink.runtime.state.ttl;
 
 /** Mocked time provider for state TTL. */
 public class MockTtlTimeProvider implements TtlTimeProvider {
-	public long time = 0;
+    public long time = 0;
 
-	@Override
-	public long currentTimestamp() {
-		return time;
-	}
+    @Override
+    public long currentTimestamp() {
+        return time;
+    }
 
-	public void setCurrentTimestamp(long timestamp) {
-		this.time = timestamp;
-	}
+    public void setCurrentTimestamp(long timestamp) {
+        this.time = timestamp;
+    }
 }

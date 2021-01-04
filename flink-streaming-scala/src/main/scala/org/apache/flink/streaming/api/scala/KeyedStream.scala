@@ -29,7 +29,6 @@ import org.apache.flink.streaming.api.functions.aggregation.{AggregationFunction
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
 import org.apache.flink.streaming.api.functions.query.{QueryableAppendingStateOperator, QueryableValueStateOperator}
 import org.apache.flink.streaming.api.functions.{KeyedProcessFunction, ProcessFunction}
-import org.apache.flink.streaming.api.operators.StreamGroupedReduce
 import org.apache.flink.streaming.api.scala.function.StatefulFunction
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
@@ -486,11 +485,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
   }
 
   private def aggregate(aggregationFunc: AggregationFunction[T]): DataStream[T] = {
-    val invokable =
-      new StreamGroupedReduce[T](aggregationFunc, dataType.createSerializer(executionConfig))
-
-    new DataStream[T](javaStream.transform("aggregation", javaStream.getType(), invokable))
-      .asInstanceOf[DataStream[T]]
+    reduce(aggregationFunc).name("Keyed Aggregation")
   }
 
   // ------------------------------------------------------------------------

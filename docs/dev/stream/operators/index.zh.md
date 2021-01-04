@@ -102,7 +102,7 @@ dataStream.filter(new FilterFunction<Integer>() {
           <td>
             <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">specify keys</a>.</p>
             <p>
-            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>. </p>
 {% highlight java %}
 dataStream.keyBy(value -> value.getSomeKey()) // Key by field "someKey"
 dataStream.keyBy(value -> value.f0) // Key by the first element of a Tuple
@@ -426,7 +426,7 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keys</a> on how to specify keys.
             This transformation returns a KeyedStream.</p>
 {% highlight scala %}
 dataStream.keyBy(_.someKey) // Key by field "someKey"
@@ -630,7 +630,7 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{% link dev/scala_api_extensions.zh.md %}">Scala API extension</a>.
 
 
 </div>
@@ -683,7 +683,7 @@ data_stream.filter(lambda x: x != 0)
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。 <em>key_by()</em>内部实现根据 Hash 方式分发数据。</p>
-            <p>这个转换操作将返回一个 <em>KeyedStream</em> , 除此之外，还会应用到 <a href="{{ site.baseurl }}/zh/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+            <p>这个转换操作将返回一个 <em>KeyedStream</em> , 除此之外，还会应用到 <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>. </p>
 {% highlight python %}
 data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
 data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the result of KeySelector
@@ -909,7 +909,7 @@ dataStream.rebalance();
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1017,7 +1017,7 @@ dataStream.rebalance()
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1113,7 +1113,7 @@ data_stream.rebalance()
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1155,7 +1155,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
 这样调用，而不能 `someStream.startNewChain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
@@ -1212,7 +1212,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
 这样调用，而不能 `someStream.startNewChain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
@@ -1269,7 +1269,7 @@ Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `some_stream.map(...).start_new_chain()`
 这样调用，而不能 `some_stream.start_new_chain()`这样。
 
-一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots)。 
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
 你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 

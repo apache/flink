@@ -130,7 +130,7 @@ Next, you can run the example you just created on the command line:
 $ python datastream_tutorial.py
 {% endhighlight %}
 
-The command builds and runs your PyFlink program in a local mini cluster. You can alternatively submit it to a remote cluster using the instructions detailed in [Job Submission Examples]({{ site.baseurl }}/ops/cli.html#job-submission-examples).
+The command builds and runs your PyFlink program in a local mini cluster. You can alternatively submit it to a remote cluster using the instructions detailed in [Job Submission Examples]({% link deployment/cli.md %}#submitting-pyflink-jobs).
 
 Finally, you can see the execution result on the command line:
 

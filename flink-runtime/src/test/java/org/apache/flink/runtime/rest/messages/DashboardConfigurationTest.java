@@ -18,24 +18,18 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-/**
- * Tests for the {@link DashboardConfiguration}.
- */
-public class DashboardConfigurationTest extends RestResponseMarshallingTestBase<DashboardConfiguration> {
+/** Tests for the {@link DashboardConfiguration}. */
+public class DashboardConfigurationTest
+        extends RestResponseMarshallingTestBase<DashboardConfiguration> {
 
-	@Override
-	protected Class<DashboardConfiguration> getTestResponseClass() {
-		return DashboardConfiguration.class;
-	}
+    @Override
+    protected Class<DashboardConfiguration> getTestResponseClass() {
+        return DashboardConfiguration.class;
+    }
 
-	@Override
-	protected DashboardConfiguration getTestResponseInstance() {
-		return new DashboardConfiguration(
-			1L,
-			"foobar",
-			42,
-			"version",
-			"revision",
-			new DashboardConfiguration.Features(true));
-	}
+    @Override
+    protected DashboardConfiguration getTestResponseInstance() {
+        return new DashboardConfiguration(
+                1L, "foobar", 42, "version", "revision", new DashboardConfiguration.Features(true));
+    }
 }

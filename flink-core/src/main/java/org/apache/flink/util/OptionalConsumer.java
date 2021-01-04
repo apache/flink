@@ -24,34 +24,33 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
- * Utility class which allows to run code depending on whether the
- * optional has a value or is empty.
+ * Utility class which allows to run code depending on whether the optional has a value or is empty.
  *
  * <p>This code has been copied from: https://stackoverflow.com/a/29395324/4815083.
  *
  * @param <T> type of the optional
  */
 public class OptionalConsumer<T> {
-	private final Optional<T> optional;
+    private final Optional<T> optional;
 
-	private OptionalConsumer(Optional<T> optional) {
-		this.optional = Preconditions.checkNotNull(optional);
-	}
+    private OptionalConsumer(Optional<T> optional) {
+        this.optional = Preconditions.checkNotNull(optional);
+    }
 
-	public static <T> OptionalConsumer<T> of(Optional<T> optional) {
-		return new OptionalConsumer<>(optional);
-	}
+    public static <T> OptionalConsumer<T> of(Optional<T> optional) {
+        return new OptionalConsumer<>(optional);
+    }
 
-	public OptionalConsumer<T> ifPresent(Consumer<T> c) {
-		optional.ifPresent(c);
-		return this;
-	}
+    public OptionalConsumer<T> ifPresent(Consumer<T> c) {
+        optional.ifPresent(c);
+        return this;
+    }
 
-	public <E extends Exception> OptionalConsumer<T> ifNotPresent(ThrowingRunnable<E> r) throws E {
-		if (!optional.isPresent()) {
-			r.run();
-		}
+    public <E extends Exception> OptionalConsumer<T> ifNotPresent(ThrowingRunnable<E> r) throws E {
+        if (!optional.isPresent()) {
+            r.run();
+        }
 
-		return this;
-	}
+        return this;
+    }
 }

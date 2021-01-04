@@ -27,38 +27,38 @@ import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 
 /**
- * A default {@link RMQDeserializationSchema} implementation that uses the provided {@link DeserializationSchema} to
- * parse the message body.
+ * A default {@link RMQDeserializationSchema} implementation that uses the provided {@link
+ * DeserializationSchema} to parse the message body.
  */
 final class RMQDeserializationSchemaWrapper<OUT> implements RMQDeserializationSchema<OUT> {
-	private final DeserializationSchema<OUT> schema;
+    private final DeserializationSchema<OUT> schema;
 
-	RMQDeserializationSchemaWrapper(DeserializationSchema<OUT> deserializationSchema) {
-		schema = deserializationSchema;
-	}
+    RMQDeserializationSchemaWrapper(DeserializationSchema<OUT> deserializationSchema) {
+        schema = deserializationSchema;
+    }
 
-	@Override
-	public void deserialize(
-		Envelope envelope,
-		AMQP.BasicProperties properties,
-		byte[] body,
-		RMQCollector<OUT> collector)
-		throws IOException {
-		collector.collect(schema.deserialize(body));
-	}
+    @Override
+    public void deserialize(
+            Envelope envelope,
+            AMQP.BasicProperties properties,
+            byte[] body,
+            RMQCollector<OUT> collector)
+            throws IOException {
+        collector.collect(schema.deserialize(body));
+    }
 
-	@Override
-	public TypeInformation<OUT> getProducedType() {
-		return schema.getProducedType();
-	}
+    @Override
+    public TypeInformation<OUT> getProducedType() {
+        return schema.getProducedType();
+    }
 
-	@Override
-	public void open(DeserializationSchema.InitializationContext context) throws Exception {
-		schema.open(context);
-	}
+    @Override
+    public void open(DeserializationSchema.InitializationContext context) throws Exception {
+        schema.open(context);
+    }
 
-	@Override
-	public boolean isEndOfStream(OUT nextElement) {
-		return schema.isEndOfStream(nextElement);
-	}
+    @Override
+    public boolean isEndOfStream(OUT nextElement) {
+        return schema.isEndOfStream(nextElement);
+    }
 }

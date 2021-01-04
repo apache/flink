@@ -20,6 +20,7 @@ package org.apache.flink.formats.parquet;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
 import org.apache.flink.connector.file.src.util.Pool;
@@ -34,6 +35,7 @@ import org.apache.flink.table.data.vector.VectorizedColumnBatch;
 import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 
@@ -68,405 +70,411 @@ import static org.apache.parquet.hadoop.ParquetInputFormat.getFilter;
  * Parquet {@link BulkFormat} that reads data from the file to {@link VectorizedColumnBatch} in
  * vectorized mode.
  */
-public abstract class ParquetVectorizedInputFormat<T> implements BulkFormat<T> {
+public abstract class ParquetVectorizedInputFormat<T, SplitT extends FileSourceSplit>
+        implements BulkFormat<T, SplitT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final SerializableConfiguration hadoopConfig;
-	private final String[] projectedFields;
-	private final LogicalType[] projectedTypes;
-	private final ColumnBatchFactory batchFactory;
-	private final int batchSize;
-	private final boolean isUtcTimestamp;
-	private final boolean isCaseSensitive;
+    private final SerializableConfiguration hadoopConfig;
+    private final String[] projectedFields;
+    private final LogicalType[] projectedTypes;
+    private final ColumnBatchFactory<SplitT> batchFactory;
+    private final int batchSize;
+    private final boolean isUtcTimestamp;
+    private final boolean isCaseSensitive;
 
-	public ParquetVectorizedInputFormat(
-			SerializableConfiguration hadoopConfig,
-			String[] projectedFields,
-			LogicalType[] projectedTypes,
-			ColumnBatchFactory batchFactory,
-			int batchSize,
-			boolean isUtcTimestamp,
-			boolean isCaseSensitive) {
-		Preconditions.checkArgument(
-				projectedFields.length == projectedTypes.length,
-				"The length(%s) of projectedFields should equal to the length(%s) projectedTypes",
-				projectedFields.length,
-				projectedTypes.length);
+    public ParquetVectorizedInputFormat(
+            SerializableConfiguration hadoopConfig,
+            RowType projectedType,
+            ColumnBatchFactory<SplitT> batchFactory,
+            int batchSize,
+            boolean isUtcTimestamp,
+            boolean isCaseSensitive) {
+        this.hadoopConfig = hadoopConfig;
+        this.projectedFields = projectedType.getFieldNames().toArray(new String[0]);
+        this.projectedTypes = projectedType.getChildren().toArray(new LogicalType[0]);
+        this.batchFactory = batchFactory;
+        this.batchSize = batchSize;
+        this.isUtcTimestamp = isUtcTimestamp;
+        this.isCaseSensitive = isCaseSensitive;
+    }
 
-		this.hadoopConfig = hadoopConfig;
-		this.projectedFields = projectedFields;
-		this.projectedTypes = projectedTypes;
-		this.batchFactory = batchFactory;
-		this.batchSize = batchSize;
-		this.isUtcTimestamp = isUtcTimestamp;
-		this.isCaseSensitive = isCaseSensitive;
-	}
+    @Override
+    public ParquetReader createReader(final Configuration config, final SplitT split)
+            throws IOException {
 
-	@Override
-	public ParquetReader createReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength) throws IOException {
-		org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
-		ParquetMetadata footer = readFooter(
-				hadoopConfig.conf(), hadoopPath, range(splitOffset, splitOffset + splitLength));
-		MessageType fileSchema = footer.getFileMetaData().getSchema();
-		FilterCompat.Filter filter = getFilter(hadoopConfig.conf());
-		List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
+        final Path filePath = split.path();
+        final long splitOffset = split.offset();
+        final long splitLength = split.length();
 
-		MessageType requestedSchema = clipParquetSchema(fileSchema);
-		ParquetFileReader reader = new ParquetFileReader(
-				hadoopConfig.conf(),
-				footer.getFileMetaData(),
-				hadoopPath,
-				blocks,
-				requestedSchema.getColumns());
+        org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(filePath.toUri());
+        ParquetMetadata footer =
+                readFooter(
+                        hadoopConfig.conf(),
+                        hadoopPath,
+                        range(splitOffset, splitOffset + splitLength));
+        MessageType fileSchema = footer.getFileMetaData().getSchema();
+        FilterCompat.Filter filter = getFilter(hadoopConfig.conf());
+        List<BlockMetaData> blocks = filterRowGroups(filter, footer.getBlocks(), fileSchema);
 
-		long totalRowCount = 0;
-		for (BlockMetaData block : blocks) {
-			totalRowCount += block.getRowCount();
-		}
+        MessageType requestedSchema = clipParquetSchema(fileSchema);
+        ParquetFileReader reader =
+                new ParquetFileReader(
+                        hadoopConfig.conf(),
+                        footer.getFileMetaData(),
+                        hadoopPath,
+                        blocks,
+                        requestedSchema.getColumns());
 
-		checkSchema(fileSchema, requestedSchema);
+        long totalRowCount = 0;
+        for (BlockMetaData block : blocks) {
+            totalRowCount += block.getRowCount();
+        }
 
-		final int numBatchesToCirculate = config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
-		final Pool<ParquetReaderBatch<T>> poolOfBatches =
-				createPoolOfBatches(filePath, requestedSchema, numBatchesToCirculate);
+        checkSchema(fileSchema, requestedSchema);
 
-		return new ParquetReader(reader, requestedSchema, totalRowCount, poolOfBatches);
-	}
+        final int numBatchesToCirculate =
+                config.getInteger(SourceReaderOptions.ELEMENT_QUEUE_CAPACITY);
+        final Pool<ParquetReaderBatch<T>> poolOfBatches =
+                createPoolOfBatches(split, requestedSchema, numBatchesToCirculate);
 
-	@Override
-	public ParquetReader restoreReader(
-			Configuration config,
-			Path filePath,
-			long splitOffset,
-			long splitLength,
-			CheckpointedPosition checkpointedPosition) throws IOException {
-		Preconditions.checkArgument(
-				checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET,
-				"The offset of CheckpointedPosition should always be NO_OFFSET");
-		ParquetReader reader = createReader(config, filePath, splitOffset, splitLength);
-		reader.seek(checkpointedPosition.getRecordsAfterOffset());
-		return reader;
-	}
+        return new ParquetReader(reader, requestedSchema, totalRowCount, poolOfBatches);
+    }
 
-	@Override
-	public boolean isSplittable() {
-		return true;
-	}
+    @Override
+    public ParquetReader restoreReader(final Configuration config, final SplitT split)
+            throws IOException {
 
-	/**
-	 * Clips `parquetSchema` according to `fieldNames`.
-	 */
-	private MessageType clipParquetSchema(GroupType parquetSchema) {
-		Type[] types = new Type[projectedFields.length];
-		if (isCaseSensitive) {
-			for (int i = 0; i < projectedFields.length; ++i) {
-				String fieldName = projectedFields[i];
-				if (parquetSchema.getFieldIndex(fieldName) < 0) {
-					throw new IllegalArgumentException(fieldName + " does not exist");
-				}
-				types[i] = parquetSchema.getType(fieldName);
-			}
-		} else {
-			Map<String, Type> caseInsensitiveFieldMap = new HashMap<>();
-			for (Type type : parquetSchema.getFields()) {
-				caseInsensitiveFieldMap.compute(type.getName().toLowerCase(Locale.ROOT),
-						(key, previousType) -> {
-							if (previousType != null) {
-								throw new FlinkRuntimeException(
-										"Parquet with case insensitive mode should have no duplicate key: " + key);
-							}
-							return type;
-						});
-			}
-			for (int i = 0; i < projectedFields.length; ++i) {
-				Type type = caseInsensitiveFieldMap.get(projectedFields[i].toLowerCase(Locale.ROOT));
-				if (type == null) {
-					throw new IllegalArgumentException(projectedFields[i] + " does not exist");
-				}
-				// TODO clip for array,map,row types.
-				types[i] = type;
-			}
-		}
+        assert split.getReaderPosition().isPresent();
+        final CheckpointedPosition checkpointedPosition = split.getReaderPosition().get();
 
-		return Types.buildMessage().addFields(types).named("flink-parquet");
-	}
+        Preconditions.checkArgument(
+                checkpointedPosition.getOffset() == CheckpointedPosition.NO_OFFSET,
+                "The offset of CheckpointedPosition should always be NO_OFFSET");
+        ParquetReader reader = createReader(config, split);
+        reader.seek(checkpointedPosition.getRecordsAfterOffset());
+        return reader;
+    }
 
-	private void checkSchema(
-			MessageType fileSchema,
-			MessageType requestedSchema) throws IOException, UnsupportedOperationException {
-		if (projectedFields.length != requestedSchema.getFieldCount()) {
-			throw new RuntimeException("The quality of field type is incompatible with the request schema!");
-		}
+    @Override
+    public boolean isSplittable() {
+        return true;
+    }
 
-		/*
-		 * Check that the requested schema is supported.
-		 */
-		for (int i = 0; i < requestedSchema.getFieldCount(); ++i) {
-			Type t = requestedSchema.getFields().get(i);
-			if (!t.isPrimitive() || t.isRepetition(Type.Repetition.REPEATED)) {
-				throw new UnsupportedOperationException("Complex types not supported.");
-			}
+    /** Clips `parquetSchema` according to `fieldNames`. */
+    private MessageType clipParquetSchema(GroupType parquetSchema) {
+        Type[] types = new Type[projectedFields.length];
+        if (isCaseSensitive) {
+            for (int i = 0; i < projectedFields.length; ++i) {
+                String fieldName = projectedFields[i];
+                if (parquetSchema.getFieldIndex(fieldName) < 0) {
+                    throw new IllegalArgumentException(fieldName + " does not exist");
+                }
+                types[i] = parquetSchema.getType(fieldName);
+            }
+        } else {
+            Map<String, Type> caseInsensitiveFieldMap = new HashMap<>();
+            for (Type type : parquetSchema.getFields()) {
+                caseInsensitiveFieldMap.compute(
+                        type.getName().toLowerCase(Locale.ROOT),
+                        (key, previousType) -> {
+                            if (previousType != null) {
+                                throw new FlinkRuntimeException(
+                                        "Parquet with case insensitive mode should have no duplicate key: "
+                                                + key);
+                            }
+                            return type;
+                        });
+            }
+            for (int i = 0; i < projectedFields.length; ++i) {
+                Type type =
+                        caseInsensitiveFieldMap.get(projectedFields[i].toLowerCase(Locale.ROOT));
+                if (type == null) {
+                    throw new IllegalArgumentException(projectedFields[i] + " does not exist");
+                }
+                // TODO clip for array,map,row types.
+                types[i] = type;
+            }
+        }
 
-			String[] colPath = requestedSchema.getPaths().get(i);
-			if (fileSchema.containsPath(colPath)) {
-				ColumnDescriptor fd = fileSchema.getColumnDescription(colPath);
-				if (!fd.equals(requestedSchema.getColumns().get(i))) {
-					throw new UnsupportedOperationException("Schema evolution not supported.");
-				}
-			} else {
-				if (requestedSchema.getColumns().get(i).getMaxDefinitionLevel() == 0) {
-					// Column is missing in data but the required data is non-nullable. This file is invalid.
-					throw new IOException("Required column is missing in data file. Col: " + Arrays.toString(colPath));
-				}
-			}
-		}
-	}
+        return Types.buildMessage().addFields(types).named("flink-parquet");
+    }
 
-	private Pool<ParquetReaderBatch<T>> createPoolOfBatches(
-			Path filePath, MessageType requestedSchema, int numBatches) {
-		final Pool<ParquetReaderBatch<T>> pool = new Pool<>(numBatches);
+    private void checkSchema(MessageType fileSchema, MessageType requestedSchema)
+            throws IOException, UnsupportedOperationException {
+        if (projectedFields.length != requestedSchema.getFieldCount()) {
+            throw new RuntimeException(
+                    "The quality of field type is incompatible with the request schema!");
+        }
 
-		for (int i = 0; i < numBatches; i++) {
-			pool.add(createReaderBatch(filePath, requestedSchema, pool.recycler()));
-		}
+        /*
+         * Check that the requested schema is supported.
+         */
+        for (int i = 0; i < requestedSchema.getFieldCount(); ++i) {
+            Type t = requestedSchema.getFields().get(i);
+            if (!t.isPrimitive() || t.isRepetition(Type.Repetition.REPEATED)) {
+                throw new UnsupportedOperationException("Complex types not supported.");
+            }
 
-		return pool;
-	}
+            String[] colPath = requestedSchema.getPaths().get(i);
+            if (fileSchema.containsPath(colPath)) {
+                ColumnDescriptor fd = fileSchema.getColumnDescription(colPath);
+                if (!fd.equals(requestedSchema.getColumns().get(i))) {
+                    throw new UnsupportedOperationException("Schema evolution not supported.");
+                }
+            } else {
+                if (requestedSchema.getColumns().get(i).getMaxDefinitionLevel() == 0) {
+                    // Column is missing in data but the required data is non-nullable. This file is
+                    // invalid.
+                    throw new IOException(
+                            "Required column is missing in data file. Col: "
+                                    + Arrays.toString(colPath));
+                }
+            }
+        }
+    }
 
-	private ParquetReaderBatch<T> createReaderBatch(
-			Path filePath,
-			MessageType requestedSchema,
-			Pool.Recycler<ParquetReaderBatch<T>> recycler) {
-		WritableColumnVector[] writableVectors = createWritableVectors(requestedSchema);
-		VectorizedColumnBatch columnarBatch =
-				batchFactory.create(filePath, createReadableVectors(writableVectors));
-		return createReaderBatch(writableVectors, columnarBatch, recycler);
-	}
+    private Pool<ParquetReaderBatch<T>> createPoolOfBatches(
+            SplitT split, MessageType requestedSchema, int numBatches) {
+        final Pool<ParquetReaderBatch<T>> pool = new Pool<>(numBatches);
 
-	private WritableColumnVector[] createWritableVectors(MessageType requestedSchema) {
-		WritableColumnVector[] columns = new WritableColumnVector[projectedTypes.length];
-		for (int i = 0; i < projectedTypes.length; i++) {
-			columns[i] = createWritableColumnVector(
-					batchSize,
-					projectedTypes[i],
-					requestedSchema.getColumns().get(i).getPrimitiveType());
-		}
-		return columns;
-	}
+        for (int i = 0; i < numBatches; i++) {
+            pool.add(createReaderBatch(split, requestedSchema, pool.recycler()));
+        }
 
-	/**
-	 * Create readable vectors from writable vectors.
-	 * Especially for decimal, see {@link ParquetDecimalVector}.
-	 */
-	private ColumnVector[] createReadableVectors(WritableColumnVector[] writableVectors) {
-		ColumnVector[] vectors = new ColumnVector[writableVectors.length];
-		for (int i = 0; i < writableVectors.length; i++) {
-			vectors[i] = projectedTypes[i].getTypeRoot() == LogicalTypeRoot.DECIMAL ?
-					new ParquetDecimalVector(writableVectors[i]) :
-					writableVectors[i];
-		}
-		return vectors;
-	}
+        return pool;
+    }
 
-	private class ParquetReader implements BulkFormat.Reader<T> {
+    private ParquetReaderBatch<T> createReaderBatch(
+            SplitT split,
+            MessageType requestedSchema,
+            Pool.Recycler<ParquetReaderBatch<T>> recycler) {
+        WritableColumnVector[] writableVectors = createWritableVectors(requestedSchema);
+        VectorizedColumnBatch columnarBatch =
+                batchFactory.create(split, createReadableVectors(writableVectors));
+        return createReaderBatch(writableVectors, columnarBatch, recycler);
+    }
 
-		private ParquetFileReader reader;
+    private WritableColumnVector[] createWritableVectors(MessageType requestedSchema) {
+        WritableColumnVector[] columns = new WritableColumnVector[projectedTypes.length];
+        for (int i = 0; i < projectedTypes.length; i++) {
+            columns[i] =
+                    createWritableColumnVector(
+                            batchSize,
+                            projectedTypes[i],
+                            requestedSchema.getColumns().get(i).getPrimitiveType());
+        }
+        return columns;
+    }
 
-		private final MessageType requestedSchema;
+    /**
+     * Create readable vectors from writable vectors. Especially for decimal, see {@link
+     * ParquetDecimalVector}.
+     */
+    private ColumnVector[] createReadableVectors(WritableColumnVector[] writableVectors) {
+        ColumnVector[] vectors = new ColumnVector[writableVectors.length];
+        for (int i = 0; i < writableVectors.length; i++) {
+            vectors[i] =
+                    projectedTypes[i].getTypeRoot() == LogicalTypeRoot.DECIMAL
+                            ? new ParquetDecimalVector(writableVectors[i])
+                            : writableVectors[i];
+        }
+        return vectors;
+    }
 
-		/**
-		 * The total number of rows this RecordReader will eventually read. The sum of the rows of all
-		 * the row groups.
-		 */
-		private final long totalRowCount;
+    private class ParquetReader implements BulkFormat.Reader<T> {
 
-		private final Pool<ParquetReaderBatch<T>> pool;
+        private ParquetFileReader reader;
 
-		/**
-		 * The number of rows that have been returned.
-		 */
-		private long rowsReturned;
+        private final MessageType requestedSchema;
 
-		/**
-		 * The number of rows that have been reading, including the current in flight row group.
-		 */
-		private long totalCountLoadedSoFar;
+        /**
+         * The total number of rows this RecordReader will eventually read. The sum of the rows of
+         * all the row groups.
+         */
+        private final long totalRowCount;
 
-		/**
-		 * For each request column, the reader to read this column. This is NULL if this column is
-		 * missing from the file, in which case we populate the attribute with NULL.
-		 */
-		@SuppressWarnings("rawtypes")
-		private ColumnReader[] columnReaders;
+        private final Pool<ParquetReaderBatch<T>> pool;
 
-		private long recordsToSkip;
+        /** The number of rows that have been returned. */
+        private long rowsReturned;
 
-		private ParquetReader(
-				ParquetFileReader reader,
-				MessageType requestedSchema,
-				long totalRowCount,
-				Pool<ParquetReaderBatch<T>> pool) {
-			this.reader = reader;
-			this.requestedSchema = requestedSchema;
-			this.totalRowCount = totalRowCount;
-			this.pool = pool;
-			this.rowsReturned = 0;
-			this.totalCountLoadedSoFar = 0;
-			this.recordsToSkip = 0;
-		}
+        /** The number of rows that have been reading, including the current in flight row group. */
+        private long totalCountLoadedSoFar;
 
-		@Nullable
-		@Override
-		public RecordIterator<T> readBatch() throws IOException {
-			final ParquetReaderBatch<T> batch = getCachedEntry();
+        /**
+         * For each request column, the reader to read this column. This is NULL if this column is
+         * missing from the file, in which case we populate the attribute with NULL.
+         */
+        @SuppressWarnings("rawtypes")
+        private ColumnReader[] columnReaders;
 
-			final long rowsReturnedBefore = rowsReturned;
-			if (!nextBatch(batch)) {
-				batch.recycle();
-				return null;
-			}
+        private long recordsToSkip;
 
-			final RecordIterator<T> records = batch.convertAndGetIterator(rowsReturnedBefore);
+        private ParquetReader(
+                ParquetFileReader reader,
+                MessageType requestedSchema,
+                long totalRowCount,
+                Pool<ParquetReaderBatch<T>> pool) {
+            this.reader = reader;
+            this.requestedSchema = requestedSchema;
+            this.totalRowCount = totalRowCount;
+            this.pool = pool;
+            this.rowsReturned = 0;
+            this.totalCountLoadedSoFar = 0;
+            this.recordsToSkip = 0;
+        }
 
-			// this may leave an exhausted iterator, which is a valid result for this method
-			// and is not interpreted as end-of-input or anything
-			skipRecord(records);
-			return records;
-		}
+        @Nullable
+        @Override
+        public RecordIterator<T> readBatch() throws IOException {
+            final ParquetReaderBatch<T> batch = getCachedEntry();
 
-		/**
-		 * Advances to the next batch of rows. Returns false if there are no more.
-		 */
-		private boolean nextBatch(ParquetReaderBatch<T> batch) throws IOException {
-			for (WritableColumnVector v : batch.writableVectors) {
-				v.reset();
-			}
-			batch.columnarBatch.setNumRows(0);
-			if (rowsReturned >= totalRowCount) {
-				return false;
-			}
-			if (rowsReturned == totalCountLoadedSoFar) {
-				readNextRowGroup();
-			}
+            final long rowsReturnedBefore = rowsReturned;
+            if (!nextBatch(batch)) {
+                batch.recycle();
+                return null;
+            }
 
-			int num = (int) Math.min(batchSize, totalCountLoadedSoFar - rowsReturned);
-			for (int i = 0; i < columnReaders.length; ++i) {
-				//noinspection unchecked
-				columnReaders[i].readToVector(num, batch.writableVectors[i]);
-			}
-			rowsReturned += num;
-			batch.columnarBatch.setNumRows(num);
-			return true;
-		}
+            final RecordIterator<T> records = batch.convertAndGetIterator(rowsReturnedBefore);
 
-		private void readNextRowGroup() throws IOException {
-			PageReadStore pages = reader.readNextRowGroup();
-			if (pages == null) {
-				throw new IOException("expecting more rows but reached last block. Read "
-						+ rowsReturned + " out of " + totalRowCount);
-			}
-			List<ColumnDescriptor> columns = requestedSchema.getColumns();
-			columnReaders = new AbstractColumnReader[columns.size()];
-			for (int i = 0; i < columns.size(); ++i) {
-				columnReaders[i] = createColumnReader(
-						isUtcTimestamp,
-						projectedTypes[i],
-						columns.get(i),
-						pages.getPageReader(columns.get(i)));
-			}
-			totalCountLoadedSoFar += pages.getRowCount();
-		}
+            // this may leave an exhausted iterator, which is a valid result for this method
+            // and is not interpreted as end-of-input or anything
+            skipRecord(records);
+            return records;
+        }
 
-		public void seek(long rowCount) {
-			if (totalCountLoadedSoFar != 0) {
-				throw new UnsupportedOperationException("Only support seek at first.");
-			}
+        /** Advances to the next batch of rows. Returns false if there are no more. */
+        private boolean nextBatch(ParquetReaderBatch<T> batch) throws IOException {
+            for (WritableColumnVector v : batch.writableVectors) {
+                v.reset();
+            }
+            batch.columnarBatch.setNumRows(0);
+            if (rowsReturned >= totalRowCount) {
+                return false;
+            }
+            if (rowsReturned == totalCountLoadedSoFar) {
+                readNextRowGroup();
+            }
 
-			List<BlockMetaData> blockMetaData = reader.getRowGroups();
+            int num = (int) Math.min(batchSize, totalCountLoadedSoFar - rowsReturned);
+            for (int i = 0; i < columnReaders.length; ++i) {
+                //noinspection unchecked
+                columnReaders[i].readToVector(num, batch.writableVectors[i]);
+            }
+            rowsReturned += num;
+            batch.columnarBatch.setNumRows(num);
+            return true;
+        }
 
-			for (BlockMetaData metaData : blockMetaData) {
-				if (metaData.getRowCount() > rowCount) {
-					break;
-				} else {
-					reader.skipNextRowGroup();
-					rowsReturned += metaData.getRowCount();
-					totalCountLoadedSoFar += metaData.getRowCount();
-					rowCount -= metaData.getRowCount();
-				}
-			}
+        private void readNextRowGroup() throws IOException {
+            PageReadStore pages = reader.readNextRowGroup();
+            if (pages == null) {
+                throw new IOException(
+                        "expecting more rows but reached last block. Read "
+                                + rowsReturned
+                                + " out of "
+                                + totalRowCount);
+            }
+            List<ColumnDescriptor> columns = requestedSchema.getColumns();
+            columnReaders = new AbstractColumnReader[columns.size()];
+            for (int i = 0; i < columns.size(); ++i) {
+                columnReaders[i] =
+                        createColumnReader(
+                                isUtcTimestamp,
+                                projectedTypes[i],
+                                columns.get(i),
+                                pages.getPageReader(columns.get(i)));
+            }
+            totalCountLoadedSoFar += pages.getRowCount();
+        }
 
-			this.recordsToSkip = rowCount;
-		}
+        public void seek(long rowCount) {
+            if (totalCountLoadedSoFar != 0) {
+                throw new UnsupportedOperationException("Only support seek at first.");
+            }
 
-		private ParquetReaderBatch<T> getCachedEntry() throws IOException {
-			try {
-				return pool.pollEntry();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throw new IOException("Interrupted");
-			}
-		}
+            List<BlockMetaData> blockMetaData = reader.getRowGroups();
 
-		private void skipRecord(RecordIterator<T> records) {
-			while (recordsToSkip > 0 && records.next() != null) {
-				recordsToSkip--;
-			}
-		}
+            for (BlockMetaData metaData : blockMetaData) {
+                if (metaData.getRowCount() > rowCount) {
+                    break;
+                } else {
+                    reader.skipNextRowGroup();
+                    rowsReturned += metaData.getRowCount();
+                    totalCountLoadedSoFar += metaData.getRowCount();
+                    rowCount -= metaData.getRowCount();
+                }
+            }
 
-		@Override
-		public void close() throws IOException {
-			if (reader != null) {
-				reader.close();
-				reader = null;
-			}
-		}
-	}
+            this.recordsToSkip = rowCount;
+        }
 
-	// ----------------------- Abstract method and class --------------------------
+        private ParquetReaderBatch<T> getCachedEntry() throws IOException {
+            try {
+                return pool.pollEntry();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted");
+            }
+        }
 
-	/**
-	 * @param writableVectors vectors to be write
-	 * @param columnarBatch vectors to be read
-	 * @param recycler batch recycler
-	 */
-	protected abstract ParquetReaderBatch<T> createReaderBatch(
-			WritableColumnVector[] writableVectors,
-			VectorizedColumnBatch columnarBatch,
-			Pool.Recycler<ParquetReaderBatch<T>> recycler);
+        private void skipRecord(RecordIterator<T> records) {
+            while (recordsToSkip > 0 && records.next() != null) {
+                recordsToSkip--;
+            }
+        }
 
-	/**
-	 * Reader batch that provides writing and reading capabilities.
-	 * Provides {@link RecordIterator} reading interface from {@link #convertAndGetIterator(long)}.
-	 */
-	protected abstract static class ParquetReaderBatch<T> {
+        @Override
+        public void close() throws IOException {
+            if (reader != null) {
+                reader.close();
+                reader = null;
+            }
+        }
+    }
 
-		private final WritableColumnVector[] writableVectors;
-		protected final VectorizedColumnBatch columnarBatch;
-		private final Pool.Recycler<ParquetReaderBatch<T>> recycler;
+    // ----------------------- Abstract method and class --------------------------
 
-		protected ParquetReaderBatch(
-				WritableColumnVector[] writableVectors,
-				VectorizedColumnBatch columnarBatch,
-				Pool.Recycler<ParquetReaderBatch<T>> recycler) {
-			this.writableVectors = writableVectors;
-			this.columnarBatch = columnarBatch;
-			this.recycler = recycler;
-		}
+    /**
+     * @param writableVectors vectors to be write
+     * @param columnarBatch vectors to be read
+     * @param recycler batch recycler
+     */
+    protected abstract ParquetReaderBatch<T> createReaderBatch(
+            WritableColumnVector[] writableVectors,
+            VectorizedColumnBatch columnarBatch,
+            Pool.Recycler<ParquetReaderBatch<T>> recycler);
 
-		public void recycle() {
-			recycler.recycle(this);
-		}
+    /**
+     * Reader batch that provides writing and reading capabilities. Provides {@link RecordIterator}
+     * reading interface from {@link #convertAndGetIterator(long)}.
+     */
+    protected abstract static class ParquetReaderBatch<T> {
 
-		/**
-		 * Provides reading iterator after the records are written to the {@link #columnarBatch}.
-		 *
-		 * @param rowsReturned The number of rows that have been returned before this batch.
-		 */
-		public abstract RecordIterator<T> convertAndGetIterator(long rowsReturned) throws IOException;
-	}
+        private final WritableColumnVector[] writableVectors;
+        protected final VectorizedColumnBatch columnarBatch;
+        private final Pool.Recycler<ParquetReaderBatch<T>> recycler;
+
+        protected ParquetReaderBatch(
+                WritableColumnVector[] writableVectors,
+                VectorizedColumnBatch columnarBatch,
+                Pool.Recycler<ParquetReaderBatch<T>> recycler) {
+            this.writableVectors = writableVectors;
+            this.columnarBatch = columnarBatch;
+            this.recycler = recycler;
+        }
+
+        public void recycle() {
+            recycler.recycle(this);
+        }
+
+        /**
+         * Provides reading iterator after the records are written to the {@link #columnarBatch}.
+         *
+         * @param rowsReturned The number of rows that have been returned before this batch.
+         */
+        public abstract RecordIterator<T> convertAndGetIterator(long rowsReturned)
+                throws IOException;
+    }
 }

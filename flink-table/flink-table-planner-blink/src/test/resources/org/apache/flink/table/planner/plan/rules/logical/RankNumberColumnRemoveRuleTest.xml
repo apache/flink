@@ -26,18 +26,18 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[RANK() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, w0$o0])
-+- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, w0$o0])
+FlinkLogicalCalc(select=[a, rank_num])
++- FlinkLogicalRank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, rank_num])
    +- FlinkLogicalCalc(select=[a, rowtime])
       +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -53,18 +53,18 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 3
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 3))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, w0$o0])
-+- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, w0$o0])
+FlinkLogicalCalc(select=[a, rank_num])
++- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=2], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime, rank_num])
    +- FlinkLogicalCalc(select=[a, rowtime])
       +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -80,15 +80,15 @@ SELECT a FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
@@ -107,17 +107,17 @@ SELECT a, rank_num FROM (
 WHERE rank_num >= 1 AND rank_num < 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], rank_num=[$4])
 +- LogicalFilter(condition=[AND(>=($4, 1), <($4, 2))])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rowtime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $3 DESC NULLS LAST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, 1:BIGINT AS w0$o0])
+FlinkLogicalCalc(select=[a, 1:BIGINT AS rank_num])
 +- FlinkLogicalRank(rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[rowtime DESC], select=[a, rowtime])
    +- FlinkLogicalCalc(select=[a, rowtime])
       +- FlinkLogicalDataStreamTableScan(table=[[default_catalog, default_database, MyTable]])

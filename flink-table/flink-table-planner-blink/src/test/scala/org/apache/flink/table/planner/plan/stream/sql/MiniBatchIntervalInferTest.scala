@@ -81,7 +81,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable1 GROUP BY b"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -89,7 +89,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
         .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyDataStream1 GROUP BY b"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -97,7 +97,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration
         .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -119,7 +119,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | )
         | GROUP BY b
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -139,7 +139,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | )
         | GROUP BY b, TUMBLE(rt, INTERVAL '5' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -160,7 +160,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | )
         | GROUP BY b
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -179,7 +179,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | GROUP BY cnt
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -206,7 +206,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | GROUP BY r_a
       """.stripMargin
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -231,7 +231,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | )
         | GROUP BY b,TUMBLE(rt, INTERVAL '5' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -266,7 +266,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |    t2.rt + INTERVAL '10' SECOND
         | )
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -292,7 +292,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |  ) as t2
         |  ON t1.a = t2.a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   /**
@@ -403,7 +403,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         |FROM T1
         |GROUP BY long, TUMBLE(rowtime, INTERVAL '10' SECOND)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -423,7 +423,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
         | GROUP BY cnt
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {

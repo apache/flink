@@ -45,7 +45,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    RANK() OVER (PARTITION BY b ORDER BY c, b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -60,7 +60,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -75,7 +75,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -90,7 +90,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY a DESC)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -102,7 +102,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    RANK() OVER (PARTITION BY b ORDER BY a ASC)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -115,7 +115,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MAX(a) OVER (PARTITION BY b ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -130,7 +130,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY c ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -145,7 +145,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY c ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -160,7 +160,7 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    AVG(a) OVER (ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -175,6 +175,6 @@ class WindowGroupReorderRuleTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY c ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING)
         | FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

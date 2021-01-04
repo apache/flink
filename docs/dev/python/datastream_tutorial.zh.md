@@ -131,7 +131,7 @@ rm -rf /tmp/output
 $ python datastream_tutorial.py
 {% endhighlight %}
 
-这个命令会在本地集群中构建并运行 PyFlink 程序。你也可以使用 [Job Submission Examples]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples) 中描述的命令将其提交到远程集群。
+这个命令会在本地集群中构建并运行 PyFlink 程序。你也可以使用 [Job Submission Examples]({% link deployment/cli.zh.md %}#submitting-pyflink-jobs) 中描述的命令将其提交到远程集群。
 
 最后，你可以在命令行上看到执行结果:
 

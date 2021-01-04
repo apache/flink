@@ -30,63 +30,65 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 @Internal
 public class PickledByteArrayTypeInfo extends TypeInformation<byte[]> {
 
-	public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO = new PickledByteArrayTypeInfo();
+    private static final long serialVersionUID = 1L;
 
-	protected PickledByteArrayTypeInfo() {
-	}
+    public static final PickledByteArrayTypeInfo PICKLED_BYTE_ARRAY_TYPE_INFO =
+            new PickledByteArrayTypeInfo();
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    protected PickledByteArrayTypeInfo() {}
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public Class<byte[]> getTypeClass() {
-		return byte[].class;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public Class<byte[]> getTypeClass() {
+        return byte[].class;
+    }
 
-	@Override
-	public TypeSerializer<byte[]> createSerializer(ExecutionConfig config) {
-		return BytePrimitiveArraySerializer.INSTANCE;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@Override
-	public String toString() {
-		return "PickledByteArrayTypeInfo";
-	}
+    @Override
+    public TypeSerializer<byte[]> createSerializer(ExecutionConfig config) {
+        return BytePrimitiveArraySerializer.INSTANCE;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof PickledByteArrayTypeInfo;
-	}
+    @Override
+    public String toString() {
+        return "PickledByteArrayTypeInfo";
+    }
 
-	@Override
-	public int hashCode() {
-		return 0;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof PickledByteArrayTypeInfo;
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj instanceof PickledByteArrayTypeInfo;
-	}
+    @Override
+    public int hashCode() {
+        return 0;
+    }
+
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj instanceof PickledByteArrayTypeInfo;
+    }
 }

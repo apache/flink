@@ -123,6 +123,12 @@
             <td>A semicolon-separated list of provided lib directories. They should be pre-uploaded and world-readable. Flink will use them to exclude the local Flink jars(e.g. flink-dist, lib/, plugins/)uploading to accelerate the job submission process. Also YARN will cache them on the nodes so that they doesn't need to be downloaded every time for each application. An example could be hdfs://$namenode_address/path/of/flink/lib</td>
         </tr>
         <tr>
+            <td><h5>yarn.security.kerberos.additionalFileSystems</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>List&lt;String&gt;</td>
+            <td>A comma-separated list of additional Kerberos-secured Hadoop filesystems Flink is going to access. For example, yarn.security.kerberos.additionalFileSystems=hdfs://namenode2:9002,hdfs://namenode3:9003. The client submitting to YARN needs to have access to these file systems to retrieve the security tokens.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.security.kerberos.localized-keytab-path</h5></td>
             <td style="word-wrap: break-word;">"krb5.keytab"</td>
             <td>String</td>

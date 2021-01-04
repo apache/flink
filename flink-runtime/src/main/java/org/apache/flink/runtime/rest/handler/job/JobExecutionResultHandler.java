@@ -42,57 +42,58 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-/**
- * Returns the {@link org.apache.flink.api.common.JobExecutionResult} for a given {@link JobID}.
- */
+/** Returns the {@link org.apache.flink.api.common.JobExecutionResult} for a given {@link JobID}. */
 public class JobExecutionResultHandler
-	extends AbstractRestHandler<RestfulGateway, EmptyRequestBody, JobExecutionResultResponseBody, JobMessageParameters> {
+        extends AbstractRestHandler<
+                RestfulGateway,
+                EmptyRequestBody,
+                JobExecutionResultResponseBody,
+                JobMessageParameters> {
 
-	public JobExecutionResultHandler(
-			final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			final Time timeout,
-			final Map<String, String> responseHeaders) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			JobExecutionResultHeaders.getInstance());
-	}
+    public JobExecutionResultHandler(
+            final GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            final Time timeout,
+            final Map<String, String> responseHeaders) {
+        super(leaderRetriever, timeout, responseHeaders, JobExecutionResultHeaders.getInstance());
+    }
 
-	@Override
-	protected CompletableFuture<JobExecutionResultResponseBody> handleRequest(
-			@Nonnull final HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
-			@Nonnull final RestfulGateway gateway) throws RestHandlerException {
+    @Override
+    protected CompletableFuture<JobExecutionResultResponseBody> handleRequest(
+            @Nonnull final HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+            @Nonnull final RestfulGateway gateway)
+            throws RestHandlerException {
 
-		final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
+        final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
 
-		final CompletableFuture<JobStatus> jobStatusFuture = gateway.requestJobStatus(jobId, timeout);
+        final CompletableFuture<JobStatus> jobStatusFuture =
+                gateway.requestJobStatus(jobId, timeout);
 
-		return jobStatusFuture.thenCompose(
-			jobStatus -> {
-				if (jobStatus.isGloballyTerminalState()) {
-					return gateway
-						.requestJobResult(jobId, timeout)
-						.thenApply(JobExecutionResultResponseBody::created);
-				} else {
-					return CompletableFuture.completedFuture(
-						JobExecutionResultResponseBody.inProgress());
-				}
-			}).exceptionally(throwable -> {
-				throw propagateException(throwable);
-			});
-	}
+        return jobStatusFuture
+                .thenCompose(
+                        jobStatus -> {
+                            if (jobStatus.isGloballyTerminalState()) {
+                                return gateway.requestJobResult(jobId, timeout)
+                                        .thenApply(JobExecutionResultResponseBody::created);
+                            } else {
+                                return CompletableFuture.completedFuture(
+                                        JobExecutionResultResponseBody.inProgress());
+                            }
+                        })
+                .exceptionally(
+                        throwable -> {
+                            throw propagateException(throwable);
+                        });
+    }
 
-	private static CompletionException propagateException(final Throwable throwable) {
-		final Throwable cause = ExceptionUtils.stripCompletionException(throwable);
+    private static CompletionException propagateException(final Throwable throwable) {
+        final Throwable cause = ExceptionUtils.stripCompletionException(throwable);
 
-		if (cause instanceof FlinkJobNotFoundException) {
-			throw new CompletionException(new RestHandlerException(
-				throwable.getMessage(),
-				HttpResponseStatus.NOT_FOUND,
-				throwable));
-		} else {
-			throw new CompletionException(throwable);
-		}
-	}
+        if (cause instanceof FlinkJobNotFoundException) {
+            throw new CompletionException(
+                    new RestHandlerException(
+                            throwable.getMessage(), HttpResponseStatus.NOT_FOUND, throwable));
+        } else {
+            throw new CompletionException(throwable);
+        }
+    }
 }

@@ -33,84 +33,83 @@ import java.util.Iterator;
  */
 public class HashPartitionIterator<BT, PT> implements MutableObjectIterator<BT> {
 
-	private final Iterator<HashPartition<BT, PT>> partitions;
+    private final Iterator<HashPartition<BT, PT>> partitions;
 
-	private final TypeSerializer<BT> serializer;
+    private final TypeSerializer<BT> serializer;
 
-	private HashPartition<BT, PT> currentPartition;
+    private HashPartition<BT, PT> currentPartition;
 
-	public HashPartitionIterator(Iterator<HashPartition<BT, PT>> partitions, TypeSerializer<BT> serializer) {
-		this.partitions = partitions;
-		this.serializer = serializer;
-		currentPartition = null;
-	}
+    public HashPartitionIterator(
+            Iterator<HashPartition<BT, PT>> partitions, TypeSerializer<BT> serializer) {
+        this.partitions = partitions;
+        this.serializer = serializer;
+        currentPartition = null;
+    }
 
-	@Override
-	public BT next(BT reuse) throws IOException {
-		if (currentPartition == null) {
-			if (!partitions.hasNext()) {
-				return null;
-			}
-			currentPartition = partitions.next();
-			currentPartition.setReadPosition(0);
-		}
+    @Override
+    public BT next(BT reuse) throws IOException {
+        if (currentPartition == null) {
+            if (!partitions.hasNext()) {
+                return null;
+            }
+            currentPartition = partitions.next();
+            currentPartition.setReadPosition(0);
+        }
 
-		try {
-			reuse = serializer.deserialize(reuse, currentPartition);
-		} catch (EOFException e) {
-			reuse =  advanceAndRead(reuse);
-		}
+        try {
+            reuse = serializer.deserialize(reuse, currentPartition);
+        } catch (EOFException e) {
+            reuse = advanceAndRead(reuse);
+        }
 
-		return reuse;
-	}
+        return reuse;
+    }
 
-	@Override
-	public BT next() throws IOException {
-		if (currentPartition == null) {
-			if (!partitions.hasNext()) {
-				return null;
-			}
-			currentPartition = partitions.next();
-			currentPartition.setReadPosition(0);
-		}
+    @Override
+    public BT next() throws IOException {
+        if (currentPartition == null) {
+            if (!partitions.hasNext()) {
+                return null;
+            }
+            currentPartition = partitions.next();
+            currentPartition.setReadPosition(0);
+        }
 
-		try {
-			return serializer.deserialize(currentPartition);
-		} catch (EOFException e) {
-			return advanceAndRead();
-		}
+        try {
+            return serializer.deserialize(currentPartition);
+        } catch (EOFException e) {
+            return advanceAndRead();
+        }
+    }
 
-	}
+    /* jump to the next partition and continue reading from that */
+    private BT advanceAndRead(BT reuse) throws IOException {
+        if (!partitions.hasNext()) {
+            return null;
+        }
+        currentPartition = partitions.next();
+        currentPartition.setReadPosition(0);
 
-	/* jump to the next partition and continue reading from that */
-	private BT advanceAndRead(BT reuse) throws IOException {
-		if (!partitions.hasNext()) {
-			return null;
-		}
-		currentPartition = partitions.next();
-		currentPartition.setReadPosition(0);
+        try {
+            reuse = serializer.deserialize(reuse, currentPartition);
+        } catch (EOFException e) {
+            reuse = advanceAndRead(reuse);
+        }
+        return reuse;
+    }
 
-		try {
-			reuse = serializer.deserialize(reuse, currentPartition);
-		} catch (EOFException e) {
-			reuse = advanceAndRead(reuse);
-		}
-		return reuse;
-	}
+    /* jump to the next partition and continue reading from that */
+    private BT advanceAndRead() throws IOException {
+        if (!partitions.hasNext()) {
+            return null;
+        }
+        currentPartition = partitions.next();
+        currentPartition.setReadPosition(0);
 
-	/* jump to the next partition and continue reading from that */
-	private BT advanceAndRead() throws IOException {
-		if (!partitions.hasNext()) {
-			return null;
-		}
-		currentPartition = partitions.next();
-		currentPartition.setReadPosition(0);
-
-		try {
-			return serializer.deserialize(currentPartition);
-		} catch (EOFException e) {
-			return advanceAndRead();
-		}
-	}
-
+        try {
+            return serializer.deserialize(currentPartition);
+        } catch (EOFException e) {
+            return advanceAndRead();
+        }
+    }
 }

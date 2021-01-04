@@ -26,34 +26,29 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Container class for wrapping a {@link DataGenerator with its configuration options}.
- */
+/** Container class for wrapping a {@link DataGenerator with its configuration options}. */
 @Internal
 public class DataGeneratorContainer {
 
-	private final DataGenerator generator;
+    private final DataGenerator generator;
 
-	/**
-	 * Generator config options, for validation.
-	 */
-	private final Set<ConfigOption<?>> options;
+    /** Generator config options, for validation. */
+    private final Set<ConfigOption<?>> options;
 
-	private DataGeneratorContainer(DataGenerator generator, Set<ConfigOption<?>> options) {
-		this.generator = generator;
-		this.options = options;
-	}
+    private DataGeneratorContainer(DataGenerator generator, Set<ConfigOption<?>> options) {
+        this.generator = generator;
+        this.options = options;
+    }
 
-	public static DataGeneratorContainer of(
-		DataGenerator generator, ConfigOption<?>... options) {
-		return new DataGeneratorContainer(generator, new HashSet<>(Arrays.asList(options)));
-	}
+    public static DataGeneratorContainer of(DataGenerator generator, ConfigOption<?>... options) {
+        return new DataGeneratorContainer(generator, new HashSet<>(Arrays.asList(options)));
+    }
 
-	public DataGenerator getGenerator() {
-		return generator;
-	}
+    public DataGenerator getGenerator() {
+        return generator;
+    }
 
-	public Set<ConfigOption<?>> getOptions() {
-		return options;
-	}
+    public Set<ConfigOption<?>> getOptions() {
+        return options;
+    }
 }

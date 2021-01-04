@@ -42,81 +42,82 @@ import java.nio.channels.ClosedChannelException;
  * @param <RESP> the type of response the client expects to receive.
  */
 @Internal
-public class ClientHandler<REQ extends MessageBody, RESP extends MessageBody> extends ChannelInboundHandlerAdapter {
+public class ClientHandler<REQ extends MessageBody, RESP extends MessageBody>
+        extends ChannelInboundHandlerAdapter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ClientHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ClientHandler.class);
 
-	private final String clientName;
+    private final String clientName;
 
-	private final MessageSerializer<REQ, RESP> serializer;
+    private final MessageSerializer<REQ, RESP> serializer;
 
-	private final ClientHandlerCallback<RESP> callback;
+    private final ClientHandlerCallback<RESP> callback;
 
-	/**
-	 * Creates a handler with the callback.
-	 *
-	 * @param clientName the name of the client.
-	 * @param serializer the serializer used to (de-)serialize messages.
-	 * @param callback Callback for responses.
-	 */
-	public ClientHandler(
-			final String clientName,
-			final MessageSerializer<REQ, RESP> serializer,
-			final ClientHandlerCallback<RESP> callback) {
+    /**
+     * Creates a handler with the callback.
+     *
+     * @param clientName the name of the client.
+     * @param serializer the serializer used to (de-)serialize messages.
+     * @param callback Callback for responses.
+     */
+    public ClientHandler(
+            final String clientName,
+            final MessageSerializer<REQ, RESP> serializer,
+            final ClientHandlerCallback<RESP> callback) {
 
-		this.clientName = Preconditions.checkNotNull(clientName);
-		this.serializer = Preconditions.checkNotNull(serializer);
-		this.callback = Preconditions.checkNotNull(callback);
-	}
+        this.clientName = Preconditions.checkNotNull(clientName);
+        this.serializer = Preconditions.checkNotNull(serializer);
+        this.callback = Preconditions.checkNotNull(callback);
+    }
 
-	@Override
-	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		try {
-			ByteBuf buf = (ByteBuf) msg;
-			MessageType msgType = MessageSerializer.deserializeHeader(buf);
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        try {
+            ByteBuf buf = (ByteBuf) msg;
+            MessageType msgType = MessageSerializer.deserializeHeader(buf);
 
-			if (msgType == MessageType.REQUEST_RESULT) {
-				long requestId = MessageSerializer.getRequestId(buf);
-				RESP result = serializer.deserializeResponse(buf);
-				callback.onRequestResult(requestId, result);
-			} else if (msgType == MessageType.REQUEST_FAILURE) {
-				RequestFailure failure = MessageSerializer.deserializeRequestFailure(buf);
-				callback.onRequestFailure(failure.getRequestId(), failure.getCause());
-			} else if (msgType == MessageType.SERVER_FAILURE) {
-				throw MessageSerializer.deserializeServerFailure(buf);
-			} else {
-				throw new IllegalStateException("Unexpected response type '" + msgType + "'");
-			}
-		} catch (Throwable t1) {
-			try {
-				callback.onFailure(t1);
-			} catch (Throwable t2) {
-				LOG.error("Failed to notify callback about failure", t2);
-			}
-		} finally {
-			ReferenceCountUtil.release(msg);
-		}
-	}
+            if (msgType == MessageType.REQUEST_RESULT) {
+                long requestId = MessageSerializer.getRequestId(buf);
+                RESP result = serializer.deserializeResponse(buf);
+                callback.onRequestResult(requestId, result);
+            } else if (msgType == MessageType.REQUEST_FAILURE) {
+                RequestFailure failure = MessageSerializer.deserializeRequestFailure(buf);
+                callback.onRequestFailure(failure.getRequestId(), failure.getCause());
+            } else if (msgType == MessageType.SERVER_FAILURE) {
+                throw MessageSerializer.deserializeServerFailure(buf);
+            } else {
+                throw new IllegalStateException("Unexpected response type '" + msgType + "'");
+            }
+        } catch (Throwable t1) {
+            try {
+                callback.onFailure(t1);
+            } catch (Throwable t2) {
+                LOG.error("Failed to notify callback about failure", t2);
+            }
+        } finally {
+            ReferenceCountUtil.release(msg);
+        }
+    }
 
-	@Override
-	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		try {
-			callback.onFailure(cause);
-		} catch (Throwable t) {
-			LOG.error("Failed to notify callback about failure", t);
-		}
-	}
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        try {
+            callback.onFailure(cause);
+        } catch (Throwable t) {
+            LOG.error("Failed to notify callback about failure", t);
+        }
+    }
 
-	@Override
-	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-		// Only the client is expected to close the channel. Otherwise it
-		// indicates a failure. Note that this will be invoked in both cases
-		// though. If the callback closed the channel, the callback must be
-		// ignored.
-		try {
-			callback.onFailure(new ClosedChannelException());
-		} catch (Throwable t) {
-			LOG.error("Failed to notify callback about failure", t);
-		}
-	}
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        // Only the client is expected to close the channel. Otherwise it
+        // indicates a failure. Note that this will be invoked in both cases
+        // though. If the callback closed the channel, the callback must be
+        // ignored.
+        try {
+            callback.onFailure(new ClosedChannelException());
+        } catch (Throwable t) {
+            LOG.error("Failed to notify callback about failure", t);
+        }
+    }
 }

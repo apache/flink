@@ -39,190 +39,191 @@ import static java.lang.Math.min;
 
 interface ChannelStateSerializer {
 
-	void writeHeader(DataOutputStream dataStream) throws IOException;
+    void writeHeader(DataOutputStream dataStream) throws IOException;
 
-	void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException;
+    void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException;
 
-	void readHeader(InputStream stream) throws IOException;
+    void readHeader(InputStream stream) throws IOException;
 
-	int readLength(InputStream stream) throws IOException;
+    int readLength(InputStream stream) throws IOException;
 
-	int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) throws IOException;
+    int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) throws IOException;
 
-	byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException;
+    byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException;
 
-	long getHeaderLength();
+    long getHeaderLength();
 }
 
-/**
- * Wrapper around various buffers to receive channel state data.
- */
+/** Wrapper around various buffers to receive channel state data. */
 @Internal
 @NotThreadSafe
 interface ChannelStateByteBuffer {
 
-	boolean isWritable();
+    boolean isWritable();
 
-	void recycle();
+    void recycle();
 
-	/**
-	 * Read up to <code>bytesToRead</code> bytes into this buffer from the given {@link InputStream}.
-	 * @return     the total number of bytes read into this buffer.
-	 */
-	int writeBytes(InputStream input, int bytesToRead) throws IOException;
+    /**
+     * Read up to <code>bytesToRead</code> bytes into this buffer from the given {@link
+     * InputStream}.
+     *
+     * @return the total number of bytes read into this buffer.
+     */
+    int writeBytes(InputStream input, int bytesToRead) throws IOException;
 
-	static ChannelStateByteBuffer wrap(Buffer buffer) {
-		return new ChannelStateByteBuffer() {
+    static ChannelStateByteBuffer wrap(Buffer buffer) {
+        return new ChannelStateByteBuffer() {
 
-			private final ByteBuf byteBuf = buffer.asByteBuf();
+            private final ByteBuf byteBuf = buffer.asByteBuf();
 
-			@Override
-			public boolean isWritable() {
-				return byteBuf.isWritable();
-			}
+            @Override
+            public boolean isWritable() {
+                return byteBuf.isWritable();
+            }
 
-			@Override
-			public void recycle() {
-				buffer.recycleBuffer();
-			}
+            @Override
+            public void recycle() {
+                buffer.recycleBuffer();
+            }
 
-			@Override
-			public int writeBytes(InputStream input, int bytesToRead) throws IOException {
-				return byteBuf.writeBytes(input, Math.min(bytesToRead, byteBuf.writableBytes()));
-			}
-		};
-	}
+            @Override
+            public int writeBytes(InputStream input, int bytesToRead) throws IOException {
+                return byteBuf.writeBytes(input, Math.min(bytesToRead, byteBuf.writableBytes()));
+            }
+        };
+    }
 
-	static ChannelStateByteBuffer wrap(BufferBuilder bufferBuilder) {
-		final byte[] buf = new byte[1024];
-		return new ChannelStateByteBuffer() {
-			@Override
-			public boolean isWritable() {
-				return !bufferBuilder.isFull();
-			}
+    static ChannelStateByteBuffer wrap(BufferBuilder bufferBuilder) {
+        final byte[] buf = new byte[1024];
+        return new ChannelStateByteBuffer() {
+            @Override
+            public boolean isWritable() {
+                return !bufferBuilder.isFull();
+            }
 
-			@Override
-			public void recycle() {
-				bufferBuilder.recycle();
-			}
+            @Override
+            public void recycle() {
+                bufferBuilder.recycle();
+            }
 
-			@Override
-			public int writeBytes(InputStream input, int bytesToRead) throws IOException {
-				int left = bytesToRead;
-				for (int toRead = getToRead(left); toRead > 0; toRead = getToRead(left)) {
-					int read = input.read(buf, 0, toRead);
-					int copied = bufferBuilder.append(java.nio.ByteBuffer.wrap(buf, 0, read));
-					Preconditions.checkState(copied == read);
-					left -= read;
-				}
-				bufferBuilder.commit();
-				return bytesToRead - left;
-			}
+            @Override
+            public int writeBytes(InputStream input, int bytesToRead) throws IOException {
+                int left = bytesToRead;
+                for (int toRead = getToRead(left); toRead > 0; toRead = getToRead(left)) {
+                    int read = input.read(buf, 0, toRead);
+                    int copied = bufferBuilder.append(java.nio.ByteBuffer.wrap(buf, 0, read));
+                    Preconditions.checkState(copied == read);
+                    left -= read;
+                }
+                bufferBuilder.commit();
+                return bytesToRead - left;
+            }
 
-			private int getToRead(int bytesToRead) {
-				return min(bytesToRead, min(buf.length, bufferBuilder.getWritableBytes()));
-			}
-		};
-	}
+            private int getToRead(int bytesToRead) {
+                return min(bytesToRead, min(buf.length, bufferBuilder.getWritableBytes()));
+            }
+        };
+    }
 
-	static ChannelStateByteBuffer wrap(byte[] bytes) {
-		return new ChannelStateByteBuffer() {
-			private int written = 0;
+    static ChannelStateByteBuffer wrap(byte[] bytes) {
+        return new ChannelStateByteBuffer() {
+            private int written = 0;
 
-			@Override
-			public boolean isWritable() {
-				return written < bytes.length;
-			}
+            @Override
+            public boolean isWritable() {
+                return written < bytes.length;
+            }
 
-			@Override
-			public void recycle() {
-			}
+            @Override
+            public void recycle() {}
 
-			@Override
-			public int writeBytes(InputStream input, int bytesToRead) throws IOException {
-				final int bytesRead = input.read(bytes, written, bytes.length - written);
-				written += bytesRead;
-				return bytesRead;
-			}
-		};
-	}
+            @Override
+            public int writeBytes(InputStream input, int bytesToRead) throws IOException {
+                final int bytesRead = input.read(bytes, written, bytes.length - written);
+                written += bytesRead;
+                return bytesRead;
+            }
+        };
+    }
 }
 
 class ChannelStateSerializerImpl implements ChannelStateSerializer {
-	private static final int SERIALIZATION_VERSION = 0;
+    private static final int SERIALIZATION_VERSION = 0;
 
-	@Override
-	public void writeHeader(DataOutputStream dataStream) throws IOException {
-		dataStream.writeInt(SERIALIZATION_VERSION);
-	}
+    @Override
+    public void writeHeader(DataOutputStream dataStream) throws IOException {
+        dataStream.writeInt(SERIALIZATION_VERSION);
+    }
 
-	@Override
-	public void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException {
-		stream.writeInt(getSize(flinkBuffers));
-		for (Buffer buffer : flinkBuffers) {
-			ByteBuf nettyByteBuf = buffer.asByteBuf();
-			nettyByteBuf.getBytes(nettyByteBuf.readerIndex(), stream, nettyByteBuf.readableBytes());
-		}
-	}
+    @Override
+    public void writeData(DataOutputStream stream, Buffer... flinkBuffers) throws IOException {
+        stream.writeInt(getSize(flinkBuffers));
+        for (Buffer buffer : flinkBuffers) {
+            ByteBuf nettyByteBuf = buffer.asByteBuf();
+            nettyByteBuf.getBytes(nettyByteBuf.readerIndex(), stream, nettyByteBuf.readableBytes());
+        }
+    }
 
-	private int getSize(Buffer[] buffers) {
-		int len = 0;
-		for (Buffer buffer : buffers) {
-			len = addExact(len, buffer.readableBytes());
-		}
-		return len;
-	}
+    private int getSize(Buffer[] buffers) {
+        int len = 0;
+        for (Buffer buffer : buffers) {
+            len = addExact(len, buffer.readableBytes());
+        }
+        return len;
+    }
 
-	@Override
-	public void readHeader(InputStream stream) throws IOException {
-		int version = readInt(stream);
-		Preconditions.checkArgument(version == SERIALIZATION_VERSION, "unsupported version: " + version);
-	}
+    @Override
+    public void readHeader(InputStream stream) throws IOException {
+        int version = readInt(stream);
+        Preconditions.checkArgument(
+                version == SERIALIZATION_VERSION, "unsupported version: " + version);
+    }
 
-	@Override
-	public int readLength(InputStream stream) throws IOException {
-		int len = readInt(stream);
-		Preconditions.checkArgument(len >= 0, "negative state size");
-		return len;
-	}
+    @Override
+    public int readLength(InputStream stream) throws IOException {
+        int len = readInt(stream);
+        Preconditions.checkArgument(len >= 0, "negative state size");
+        return len;
+    }
 
-	@Override
-	public int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes) throws IOException {
-		return buffer.writeBytes(stream, bytes);
-	}
+    @Override
+    public int readData(InputStream stream, ChannelStateByteBuffer buffer, int bytes)
+            throws IOException {
+        return buffer.writeBytes(stream, bytes);
+    }
 
-	private static int readInt(InputStream stream) throws IOException {
-		return new DataInputStream(stream).readInt();
-	}
+    private static int readInt(InputStream stream) throws IOException {
+        return new DataInputStream(stream).readInt();
+    }
 
-	@Override
-	public byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException {
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		DataOutputStream dataOutputStream = new DataOutputStream(out);
-		byte[] merged = extractByOffsets(bytes, offsets);
-		writeHeader(dataOutputStream);
-		dataOutputStream.writeInt(merged.length);
-		dataOutputStream.write(merged, 0, merged.length);
-		dataOutputStream.close();
-		return out.toByteArray();
-	}
+    @Override
+    public byte[] extractAndMerge(byte[] bytes, List<Long> offsets) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(out);
+        byte[] merged = extractByOffsets(bytes, offsets);
+        writeHeader(dataOutputStream);
+        dataOutputStream.writeInt(merged.length);
+        dataOutputStream.write(merged, 0, merged.length);
+        dataOutputStream.close();
+        return out.toByteArray();
+    }
 
-	private byte[] extractByOffsets(byte[] data, List<Long> offsets) throws IOException {
-		DataInputStream lengthReadingStream = new DataInputStream(new ByteArrayInputStream(data, 0, data.length));
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		long prevOffset = 0;
-		for (long offset : offsets) {
-			lengthReadingStream.skipBytes((int) (offset - prevOffset));
-			int dataWithLengthOffset = (int) offset + Integer.BYTES;
-			out.write(data, dataWithLengthOffset, lengthReadingStream.readInt());
-			prevOffset = dataWithLengthOffset;
-		}
-		return out.toByteArray();
-	}
+    private byte[] extractByOffsets(byte[] data, List<Long> offsets) throws IOException {
+        DataInputStream lengthReadingStream =
+                new DataInputStream(new ByteArrayInputStream(data, 0, data.length));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        long prevOffset = 0;
+        for (long offset : offsets) {
+            lengthReadingStream.skipBytes((int) (offset - prevOffset));
+            int dataWithLengthOffset = (int) offset + Integer.BYTES;
+            out.write(data, dataWithLengthOffset, lengthReadingStream.readInt());
+            prevOffset = dataWithLengthOffset;
+        }
+        return out.toByteArray();
+    }
 
-	@Override
-	public long getHeaderLength() {
-		return Integer.BYTES;
-	}
-
+    @Override
+    public long getHeaderLength() {
+        return Integer.BYTES;
+    }
 }

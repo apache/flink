@@ -21,8 +21,8 @@
 -->
 
 <configuration>
-    <property>
-        <name>yarn.resource-types</name>
-        <value>testing-external-resource</value>
-    </property>
+	<property>
+		<name>yarn.resource-types</name>
+		<value>testing-external-resource</value>
+	</property>
 </configuration>

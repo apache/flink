@@ -142,7 +142,7 @@ class MyUDF(ScalarFunction):
 
 ## Scope
 
-You can refer to the Java metric document for more details on [Scope definition]({% link monitoring/metrics.md %}#Scope).
+You can refer to the Java metric document for more details on [Scope definition]({% link ops/metrics.md %}#Scope).
 
 ### User Scope
 
@@ -169,11 +169,11 @@ function_context
 
 ### System Scope
 
-You can refer to the Java metric document for more details on [System Scope]({% link monitoring/metrics.md %}#system-scope).
+You can refer to the Java metric document for more details on [System Scope]({% link ops/metrics.md %}#system-scope).
 
 ### List of all Variables
 
-You can refer to the Java metric document for more details on [List of all Variables]({% link monitoring/metrics.md %}#list-of-all-variables).
+You can refer to the Java metric document for more details on [List of all Variables]({% link ops/metrics.md %}#list-of-all-variables).
 
 ### User Variables
 
@@ -197,11 +197,11 @@ function_context
 
 You can refer to the Java metric document for more details on the following sections:
 
-- [Reporter]({% link monitoring/metrics.md %}#reporter).
-- [System metrics]({% link monitoring/metrics.md %}#system-metrics).
-- [Latency tracking]({% link monitoring/metrics.md %}#latency-tracking).
-- [REST API integration]({% link monitoring/metrics.md %}#rest-api-integration).
-- [Dashboard integration]({% link monitoring/metrics.md %}#dashboard-integration).
+- [Reporter]({% link deployment/metric_reporters.md %}).
+- [System metrics]({% link ops/metrics.md %}#system-metrics).
+- [Latency tracking]({% link ops/metrics.md %}#latency-tracking).
+- [REST API integration]({% link ops/metrics.md %}#rest-api-integration).
+- [Dashboard integration]({% link ops/metrics.md %}#dashboard-integration).
 
 
 {% top %}

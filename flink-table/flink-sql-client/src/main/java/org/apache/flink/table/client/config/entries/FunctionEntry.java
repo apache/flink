@@ -26,55 +26,53 @@ import org.apache.flink.table.descriptors.FunctionDescriptorValidator;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Describes a user-defined function configuration entry.
- */
+/** Describes a user-defined function configuration entry. */
 public class FunctionEntry extends ConfigEntry {
 
-	public static final String FUNCTIONS_NAME = "name";
+    public static final String FUNCTIONS_NAME = "name";
 
-	private String name;
+    private String name;
 
-	private FunctionEntry(String name, DescriptorProperties properties) {
-		super(properties);
-		this.name = name;
-	}
+    private FunctionEntry(String name, DescriptorProperties properties) {
+        super(properties);
+        this.name = name;
+    }
 
-	@Override
-	protected void validate(DescriptorProperties properties) {
-		new FunctionDescriptorValidator().validate(properties);
-	}
+    @Override
+    protected void validate(DescriptorProperties properties) {
+        new FunctionDescriptorValidator().validate(properties);
+    }
 
-	public String getName() {
-		return name;
-	}
+    public String getName() {
+        return name;
+    }
 
-	public FunctionDescriptor getDescriptor() {
-		return new FunctionEntryDescriptor();
-	}
+    public FunctionDescriptor getDescriptor() {
+        return new FunctionEntryDescriptor();
+    }
 
-	public static FunctionEntry create(Map<String, Object> config) {
-		return create(ConfigUtil.normalizeYaml(config));
-	}
+    public static FunctionEntry create(Map<String, Object> config) {
+        return create(ConfigUtil.normalizeYaml(config));
+    }
 
-	private static FunctionEntry create(DescriptorProperties properties) {
-		properties.validateString(FUNCTIONS_NAME, false, 1);
+    private static FunctionEntry create(DescriptorProperties properties) {
+        properties.validateString(FUNCTIONS_NAME, false, 1);
 
-		final String name = properties.getString(FUNCTIONS_NAME);
+        final String name = properties.getString(FUNCTIONS_NAME);
 
-		final DescriptorProperties cleanedProperties =
-			properties.withoutKeys(Collections.singletonList(FUNCTIONS_NAME));
+        final DescriptorProperties cleanedProperties =
+                properties.withoutKeys(Collections.singletonList(FUNCTIONS_NAME));
 
-		return new FunctionEntry(name, cleanedProperties);
-	}
+        return new FunctionEntry(name, cleanedProperties);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private class FunctionEntryDescriptor extends FunctionDescriptor {
+    private class FunctionEntryDescriptor extends FunctionDescriptor {
 
-		@Override
-		public Map<String, String> toProperties() {
-			return FunctionEntry.this.properties.asMap();
-		}
-	}
+        @Override
+        public Map<String, String> toProperties() {
+            return FunctionEntry.this.properties.asMap();
+        }
+    }
 }

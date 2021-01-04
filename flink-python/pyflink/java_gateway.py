@@ -165,7 +165,7 @@ class PythonFunctionFactory(object):
 
     def getPythonFunction(self, moduleName, objectName):
         udf_wrapper = getattr(importlib.import_module(moduleName), objectName)
-        return udf_wrapper.java_user_defined_function()
+        return udf_wrapper._java_user_defined_function()
 
     class Java:
         implements = ["org.apache.flink.client.python.PythonFunctionFactory"]

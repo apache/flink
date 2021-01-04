@@ -24,27 +24,27 @@ import org.apache.flink.runtime.rest.messages.MessageHeaders;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-/**
- * Based {@link MessageHeaders} class for aggregating metrics.
- */
-public abstract class AbstractAggregatedMetricsHeaders<P extends AbstractAggregatedMetricsParameters<?>> implements MessageHeaders<EmptyRequestBody, AggregatedMetricsResponseBody, P> {
-	@Override
-	public Class<AggregatedMetricsResponseBody> getResponseClass() {
-		return AggregatedMetricsResponseBody.class;
-	}
+/** Based {@link MessageHeaders} class for aggregating metrics. */
+public abstract class AbstractAggregatedMetricsHeaders<
+                P extends AbstractAggregatedMetricsParameters<?>>
+        implements MessageHeaders<EmptyRequestBody, AggregatedMetricsResponseBody, P> {
+    @Override
+    public Class<AggregatedMetricsResponseBody> getResponseClass() {
+        return AggregatedMetricsResponseBody.class;
+    }
 
-	@Override
-	public HttpResponseStatus getResponseStatusCode() {
-		return HttpResponseStatus.OK;
-	}
+    @Override
+    public HttpResponseStatus getResponseStatusCode() {
+        return HttpResponseStatus.OK;
+    }
 
-	@Override
-	public Class<EmptyRequestBody> getRequestClass() {
-		return EmptyRequestBody.class;
-	}
+    @Override
+    public Class<EmptyRequestBody> getRequestClass() {
+        return EmptyRequestBody.class;
+    }
 
-	@Override
-	public HttpMethodWrapper getHttpMethod() {
-		return HttpMethodWrapper.GET;
-	}
+    @Override
+    public HttpMethodWrapper getHttpMethod() {
+        return HttpMethodWrapper.GET;
+    }
 }

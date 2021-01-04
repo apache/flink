@@ -1,5 +1,5 @@
 ---
-title: "Amazon AWS Kinesis Streams Connector"
+title: "Amazon Kinesis Data Streams Connector"
 nav-title: Kinesis
 nav-parent_id: connectors
 nav-pos: 3
@@ -173,16 +173,191 @@ Also note that Flink can only restart the topology if enough processing slots ar
 Therefore, if the topology fails due to loss of a TaskManager, there must still be enough slots available afterwards.
 Flink on YARN supports automatic restart of lost YARN containers.
 
+### Using Enhanced Fan-Out
+
+[Enhanced Fan-Out (EFO)](https://aws.amazon.com/blogs/aws/kds-enhanced-fanout/) increases the maximum 
+number of concurrent consumers per Kinesis stream.
+Without EFO, all concurrent consumers share a single read quota per shard. 
+Using EFO, each consumer gets a distinct dedicated read quota per shard, allowing read throughput to scale with the number of consumers. 
+Using EFO will [incur additional cost](https://aws.amazon.com/kinesis/data-streams/pricing/).
+ 
+In order to enable EFO two additional configuration parameters are required:
+
+- `RECORD_PUBLISHER_TYPE`: Determines whether to use `EFO` or `POLLING`. The default `RecordPublisher` is `POLLING`.
+- `EFO_CONSUMER_NAME`: A name to identify the consumer. 
+For a given Kinesis data stream, each consumer must have a unique name. 
+However, consumer names do not have to be unique across data streams. 
+Reusing a consumer name will result in existing subscriptions being terminated.
+
+The code snippet below shows a simple example configurating an EFO consumer.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties consumerConfig = new Properties();
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), consumerConfig));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val consumerConfig = new Properties()
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+{% endhighlight %}
+</div>
+</div>
+
+#### EFO Stream Consumer Registration/Deregistration
+
+In order to use EFO, a stream consumer must be registered against each stream you wish to consume.
+By default, the `FlinkKinesisConsumer` will register the stream consumer automatically when the Flink job starts.
+The stream consumer will be registered using the name provided by the `EFO_CONSUMER_NAME` configuration.
+`FlinkKinesisConsumer` provides three registration strategies:
+
+- Registration
+  - `LAZY` (default): Stream consumers are registered when the Flink job starts running.
+    If the stream consumer already exists, it will be reused.
+    This is the preferred strategy for the majority of applications.
+    However, jobs with parallelism greater than 1 will result in tasks competing to register and acquire the stream consumer ARN.
+    For jobs with very large parallelism this can result in an increased start-up time.
+    The describe operation has a limit of 20 [transactions per second](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html),
+    this means application startup time will increase by roughly `parallelism/20 seconds`.
+  - `EAGER`: Stream consumers are registered in the `FlinkKinesisConsumer` constructor.
+    If the stream consumer already exists, it will be reused. 
+    This will result in registration occurring when the job is constructed, 
+    either on the Flink Job Manager or client environment submitting the job.
+    Using this strategy results in a single thread registering and retrieving the stream consumer ARN, 
+    reducing startup time over `LAZY` (with large parallelism).
+    However, consider that the client environment will require access to the AWS services.
+  - `NONE`: Stream consumer registration is not performed by `FlinkKinesisConsumer`.
+    Registration must be performed externally using the [AWS CLI or SDK](https://aws.amazon.com/tools/)
+    to invoke [RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html).
+    Stream consumer ARNs should be provided to the job via the consumer configuration.
+- Deregistration
+  - `LAZY|EAGER` (default): Stream consumers are deregistered when the job is shutdown gracefully.
+    In the event that a job terminates within executing the shutdown hooks, stream consumers will remain active.
+    In this situation the stream consumers will be gracefully reused when the application restarts. 
+  - `NONE`: Stream consumer deregistration is not performed by `FlinkKinesisConsumer`.
+
+Below is an example configuration to use the `EAGER` registration strategy:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties consumerConfig = new Properties();
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+consumerConfig.put(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, 
+    ConsumerConfigConstants.EFORegistrationType.EAGER.name());
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), consumerConfig));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val consumerConfig = new Properties()
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+consumerConfig.put(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, 
+    ConsumerConfigConstants.EFORegistrationType.EAGER.name());
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+{% endhighlight %}
+</div>
+</div>
+
+Below is an example configuration to use the `NONE` registration strategy:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+Properties consumerConfig = new Properties();
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1");
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST");
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+consumerConfig.put(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, 
+    ConsumerConfigConstants.EFORegistrationType.NONE.name());
+consumerConfig.put(ConsumerConfigConstants.efoConsumerArn("stream-name"), 
+    "arn:aws:kinesis:<region>:<account>>:stream/<stream-name>/consumer/<consumer-name>:<create-timestamp>");
+
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+DataStream<String> kinesis = env.addSource(new FlinkKinesisConsumer<>(
+    "kinesis_stream_name", new SimpleStringSchema(), consumerConfig));
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val consumerConfig = new Properties()
+consumerConfig.put(AWSConfigConstants.AWS_REGION, "us-east-1")
+consumerConfig.put(ConsumerConfigConstants.STREAM_INITIAL_POSITION, "LATEST")
+
+consumerConfig.put(ConsumerConfigConstants.RECORD_PUBLISHER_TYPE, 
+    ConsumerConfigConstants.RecordPublisherType.EFO.name());
+consumerConfig.put(ConsumerConfigConstants.EFO_CONSUMER_NAME, "my-flink-efo-consumer");
+
+consumerConfig.put(ConsumerConfigConstants.EFO_REGISTRATION_TYPE, 
+    ConsumerConfigConstants.EFORegistrationType.NONE.name());
+consumerConfig.put(ConsumerConfigConstants.efoConsumerArn("stream-name"), 
+    "arn:aws:kinesis:<region>:<account>>:stream/<stream-name>/consumer/<consumer-name>:<create-timestamp>");
+
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val kinesis = env.addSource(new FlinkKinesisConsumer[String](
+    "kinesis_stream_name", new SimpleStringSchema, consumerConfig))
+{% endhighlight %}
+</div>
+</div>
+
 ### Event Time for Consumed Records
 
-If streaming topologies choose to use the [event time notion]({{site.baseurl}}/dev/event_time.html) for record
+If streaming topologies choose to use the [event time notion]({% link dev/event_time.zh.md %}) for record
 timestamps, an *approximate arrival timestamp* will be used by default. This timestamp is attached to records by Kinesis once they
 were successfully received and stored by streams. Note that this timestamp is typically referred to as a Kinesis server-side
 timestamp, and there are no guarantees about the accuracy or order correctness (i.e., the timestamps may not always be
 ascending).
 
-Users can choose to override this default with a custom timestamp, as described [here]({{ site.baseurl }}/dev/event_timestamps_watermarks.html),
-or use one from the [predefined ones]({{ site.baseurl }}/dev/event_timestamp_extractors.html). After doing so,
+Users can choose to override this default with a custom timestamp, as described [here]({% link dev/event_timestamps_watermarks.zh.md %}),
+or use one from the [predefined ones]({% link dev/event_timestamp_extractors.zh.md %}). After doing so,
 it can be passed to the consumer in the following way:
 
 <div class="codetabs" markdown="1">
@@ -258,14 +433,26 @@ How much depends on the average record size. With larger sizes, it may be necess
 
 The Flink Kinesis Consumer uses multiple threads for shard discovery and data consumption.
 
+#### Shard Discovery
+
 For shard discovery, each parallel consumer subtask will have a single thread that constantly queries Kinesis for shard
 information even if the subtask initially did not have shards to read from when the consumer was started. In other words, if
 the consumer is run with a parallelism of 10, there will be a total of 10 threads constantly querying Kinesis regardless
 of the total amount of shards in the subscribed streams.
 
-For data consumption, a single thread will be created to consume each discovered shard. Threads will terminate when the
+#### Polling (default) Record Publisher
+
+For `POLLING` data consumption, a single thread will be created to consume each discovered shard. Threads will terminate when the
 shard it is responsible of consuming is closed as a result of stream resharding. In other words, there will always be
 one thread per open shard.
+
+#### Enhanced Fan-Out Record Publisher
+
+For `EFO` data consumption the threading model is the same as `POLLING`, with additional thread pools to handle 
+asynchronous communication with Kinesis. AWS SDK v2.x `KinesisAsyncClient` uses additional threads for 
+Netty to handle IO and asynchronous response. Each parallel consumer subtask will have their own instance of the `KinesisAsyncClient`.
+In other words, if the consumer is run with a parallelism of 10, there will be a total of 10 `KinesisAsyncClient` instances.
+A separate client will be created and subsequently destroyed when registering and deregistering stream consumers.
 
 ### Internally Used Kinesis APIs
 
@@ -275,6 +462,8 @@ on the APIs, the consumer will be competing with other non-Flink consuming appli
 Below is a list of APIs called by the consumer with description of how the consumer uses the API, as well as information
 on how to deal with any errors or warnings that the Flink Kinesis Consumer may have due to these service limits.
 
+#### Shard Discovery
+
 - *[ListShards](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_ListShards.html)*: this is constantly called
 by a single thread in each parallel consumer subtask to discover any new shards as a result of stream resharding. By default,
 the consumer performs the shard discovery at an interval of 10 seconds, and will retry indefinitely until it gets a result
@@ -283,14 +472,16 @@ calling this API by setting a value for `ConsumerConfigConstants.SHARD_DISCOVERY
 configuration properties. This sets the discovery interval to a different value. Note that this setting directly impacts
 the maximum delay of discovering a new shard and starting to consume it, as shards will not be discovered during the interval.
 
-- *[GetShardIterator](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
+#### Polling (default) Record Publisher
+
+- *[GetShardIterator](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetShardIterator.html)*: this is called
 only once when per shard consuming threads are started, and will retry if Kinesis complains that the transaction limit for the
 API has exceeded, up to a default of 3 attempts. Note that since the rate limit for this API is per shard (not per stream),
 the consumer itself should not exceed the limit. Usually, if this happens, users can either try to slow down any other
 non-Flink consuming applications of calling this API, or modify the retry behaviour of this API call in the consumer by
 setting keys prefixed by `ConsumerConfigConstants.SHARD_GETITERATOR_*` in the supplied configuration properties.
 
-- *[GetRecords](http://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
+- *[GetRecords](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html)*: this is constantly called
 by per shard consuming threads to fetch records from Kinesis. When a shard has multiple concurrent consumers (when there
 are any other non-Flink consuming applications running), the per shard rate limit may be exceeded. By default, on each call
 of this API, the consumer will retry if Kinesis complains that the data size / transaction limit for the API has exceeded,
@@ -300,6 +491,36 @@ of the consumer by setting the `ConsumerConfigConstants.SHARD_GETRECORDS_MAX` an
 adjusts the maximum number of records each consuming thread tries to fetch from shards on each call (default is 10,000), while
 the latter modifies the sleep interval between each fetch (default is 200). The retry behaviour of the
 consumer when calling this API can also be modified by using the other keys prefixed by `ConsumerConfigConstants.SHARD_GETRECORDS_*`.
+
+#### Enhanced Fan-Out Record Publisher
+
+- *[SubscribeToShard](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_SubscribeToShard.html)*: this is called
+by per shard consuming threads to obtain shard subscriptions. A shard subscription is typically active for 5 minutes, 
+but subscriptions will be reaquired if any recoverable errors are thrown. Once a subscription is acquired, the consumer
+will receive a stream of [SubscribeToShardEvents](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_SubscribeToShardEvent.html)s.
+Retry and backoff parameters can be configured using the `ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_*` keys.
+
+- *[DescribeStream](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamSummary.html)*: this is called 
+once per stream, during stream consumer registration. By default, the `LAZY` registration strategy will scale the
+number of calls by the job parallelism. `EAGER` will invoke this once per stream and `NONE` will not invoke this API. 
+Retry and backoff parameters can be configured using the 
+`ConsumerConfigConstants.STREAM_DESCRIBE_*` keys.
+
+- *[DescribeStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DescribeStreamConsumer.html)*:
+this is called during stream consumer registration and deregistration. For each stream this service will be invoked 
+periodically until the stream consumer is reported `ACTIVE`/`not found` for registration/deregistration. By default,
+the `LAZY` registration strategy will scale the number of calls by the job parallelism. `EAGER` will call the service 
+once per stream for registration, and scale the number of calls by the job parallelism for deregistration. 
+`NONE` will not invoke this service. Retry and backoff parameters can be configured using the 
+`ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_*` keys.  
+
+- *[RegisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_RegisterStreamConsumer.html)*: 
+this is called once per stream during stream consumer registration, unless the `NONE` registration strategy is configured.
+Retry and backoff parameters can be configured using the `ConsumerConfigConstants.REGISTER_STREAM_*` keys.
+
+- *[DeregisterStreamConsumer](https://docs.aws.amazon.com/kinesis/latest/APIReference/API_DeregisterStreamConsumer.html)*: 
+this is called once per stream during stream consumer deregistration, unless the `NONE` registration strategy is configured.
+Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
 ## Kinesis Producer
 

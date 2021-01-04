@@ -79,6 +79,6 @@ env.set_stream_time_characteristic(TimeCharacteristic.EventTime)
 
 * [生成 Watermark]({% link dev/event_timestamps_watermarks.zh.md %})：展示如何编写 Flink 应用程序感知事件时间所必需的时间戳分配器和 watermark 生成器。
 * [内置 Watermark 生成器]({% link dev/event_timestamp_extractors.zh.md %})：概述了 Flink 框架内置的 watermark 生成器。
-* [调试窗口和事件时间]({% link monitoring/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
+* [调试窗口和事件时间]({% link ops/debugging/debugging_event_time.zh.md %})：展示如何在含有事件时间语义的 Flink 应用程序中调试 watermark 和时间戳相关的问题。
 
 {% top %}

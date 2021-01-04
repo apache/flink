@@ -37,84 +37,84 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @Internal
 public final class BinaryMapData extends BinarySection implements MapData {
 
-	private final BinaryArrayData keys;
-	private final BinaryArrayData values;
+    private final BinaryArrayData keys;
+    private final BinaryArrayData values;
 
-	public BinaryMapData() {
-		keys = new BinaryArrayData();
-		values = new BinaryArrayData();
-	}
+    public BinaryMapData() {
+        keys = new BinaryArrayData();
+        values = new BinaryArrayData();
+    }
 
-	public int size() {
-		return keys.size();
-	}
+    public int size() {
+        return keys.size();
+    }
 
-	@Override
-	public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
-		// Read the numBytes of key array from the first 4 bytes.
-		final int keyArrayBytes = BinarySegmentUtils.getInt(segments, offset);
-		assert keyArrayBytes >= 0 : "keyArraySize (" + keyArrayBytes + ") should >= 0";
-		final int valueArrayBytes = sizeInBytes - keyArrayBytes - 4;
-		assert valueArrayBytes >= 0 : "valueArraySize (" + valueArrayBytes + ") should >= 0";
+    @Override
+    public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
+        // Read the numBytes of key array from the first 4 bytes.
+        final int keyArrayBytes = BinarySegmentUtils.getInt(segments, offset);
+        assert keyArrayBytes >= 0 : "keyArraySize (" + keyArrayBytes + ") should >= 0";
+        final int valueArrayBytes = sizeInBytes - keyArrayBytes - 4;
+        assert valueArrayBytes >= 0 : "valueArraySize (" + valueArrayBytes + ") should >= 0";
 
-		keys.pointTo(segments, offset + 4, keyArrayBytes);
-		values.pointTo(segments, offset + 4 + keyArrayBytes, valueArrayBytes);
+        keys.pointTo(segments, offset + 4, keyArrayBytes);
+        values.pointTo(segments, offset + 4 + keyArrayBytes, valueArrayBytes);
 
-		assert keys.size() == values.size();
+        assert keys.size() == values.size();
 
-		this.segments = segments;
-		this.offset = offset;
-		this.sizeInBytes = sizeInBytes;
-	}
+        this.segments = segments;
+        this.offset = offset;
+        this.sizeInBytes = sizeInBytes;
+    }
 
-	public BinaryArrayData keyArray() {
-		return keys;
-	}
+    public BinaryArrayData keyArray() {
+        return keys;
+    }
 
-	public BinaryArrayData valueArray() {
-		return values;
-	}
+    public BinaryArrayData valueArray() {
+        return values;
+    }
 
-	public Map<?, ?> toJavaMap(LogicalType keyType, LogicalType valueType) {
-		Object[] keyArray = keys.toObjectArray(keyType);
-		Object[] valueArray = values.toObjectArray(valueType);
+    public Map<?, ?> toJavaMap(LogicalType keyType, LogicalType valueType) {
+        Object[] keyArray = keys.toObjectArray(keyType);
+        Object[] valueArray = values.toObjectArray(valueType);
 
-		Map<Object, Object> map = new HashMap<>();
-		for (int i = 0; i < keyArray.length; i++) {
-			map.put(keyArray[i], valueArray[i]);
-		}
-		return map;
-	}
+        Map<Object, Object> map = new HashMap<>();
+        for (int i = 0; i < keyArray.length; i++) {
+            map.put(keyArray[i], valueArray[i]);
+        }
+        return map;
+    }
 
-	public BinaryMapData copy() {
-		return copy(new BinaryMapData());
-	}
+    public BinaryMapData copy() {
+        return copy(new BinaryMapData());
+    }
 
-	public BinaryMapData copy(BinaryMapData reuse) {
-		byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
-		reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
-		return reuse;
-	}
+    public BinaryMapData copy(BinaryMapData reuse) {
+        byte[] bytes = BinarySegmentUtils.copyToBytes(segments, offset, sizeInBytes);
+        reuse.pointTo(MemorySegmentFactory.wrap(bytes), 0, sizeInBytes);
+        return reuse;
+    }
 
-	@Override
-	public int hashCode() {
-		return BinarySegmentUtils.hashByWords(segments, offset, sizeInBytes);
-	}
+    @Override
+    public int hashCode() {
+        return BinarySegmentUtils.hashByWords(segments, offset, sizeInBytes);
+    }
 
-	// ------------------------------------------------------------------------------------------
-	// Construction Utilities
-	// ------------------------------------------------------------------------------------------
+    // ------------------------------------------------------------------------------------------
+    // Construction Utilities
+    // ------------------------------------------------------------------------------------------
 
-	public static BinaryMapData valueOf(BinaryArrayData key, BinaryArrayData value) {
-		checkArgument(key.segments.length == 1 && value.getSegments().length == 1);
-		byte[] bytes = new byte[4 + key.sizeInBytes + value.sizeInBytes];
-		MemorySegment segment = MemorySegmentFactory.wrap(bytes);
-		segment.putInt(0, key.sizeInBytes);
-		key.getSegments()[0].copyTo(key.getOffset(), segment, 4, key.sizeInBytes);
-		value.getSegments()[0].copyTo(
-			value.getOffset(), segment, 4 + key.sizeInBytes, value.sizeInBytes);
-		BinaryMapData map = new BinaryMapData();
-		map.pointTo(segment, 0, bytes.length);
-		return map;
-	}
+    public static BinaryMapData valueOf(BinaryArrayData key, BinaryArrayData value) {
+        checkArgument(key.segments.length == 1 && value.getSegments().length == 1);
+        byte[] bytes = new byte[4 + key.sizeInBytes + value.sizeInBytes];
+        MemorySegment segment = MemorySegmentFactory.wrap(bytes);
+        segment.putInt(0, key.sizeInBytes);
+        key.getSegments()[0].copyTo(key.getOffset(), segment, 4, key.sizeInBytes);
+        value.getSegments()[0].copyTo(
+                value.getOffset(), segment, 4 + key.sizeInBytes, value.sizeInBytes);
+        BinaryMapData map = new BinaryMapData();
+        map.pointTo(segment, 0, bytes.length);
+        return map;
+    }
 }

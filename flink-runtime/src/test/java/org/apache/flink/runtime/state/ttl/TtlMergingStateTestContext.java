@@ -25,75 +25,73 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-abstract class TtlMergingStateTestContext<S extends InternalMergingState<?, String, ?, ?, GV>, UV, GV>
-	extends TtlStateTestContextBase<S, UV, GV> {
-	static final Random RANDOM = new Random();
+abstract class TtlMergingStateTestContext<
+                S extends InternalMergingState<?, String, ?, ?, GV>, UV, GV>
+        extends TtlStateTestContextBase<S, UV, GV> {
+    static final Random RANDOM = new Random();
 
-	static final List<String> NAMESPACES = Arrays.asList(
-		"unsetNamespace1",
-		"unsetNamespace2",
-		"expiredNamespace",
-		"expiredAndUpdatedNamespace",
-		"unexpiredNamespace",
-		"finalNamespace");
+    static final List<String> NAMESPACES =
+            Arrays.asList(
+                    "unsetNamespace1",
+                    "unsetNamespace2",
+                    "expiredNamespace",
+                    "expiredAndUpdatedNamespace",
+                    "unexpiredNamespace",
+                    "finalNamespace");
 
-	List<Tuple2<String, UV>> generateExpiredUpdatesToMerge() {
-		return Arrays.asList(
-			Tuple2.of("expiredNamespace", generateRandomUpdate()),
-			Tuple2.of("expiredNamespace", generateRandomUpdate()),
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate())
-		);
-	}
+    List<Tuple2<String, UV>> generateExpiredUpdatesToMerge() {
+        return Arrays.asList(
+                Tuple2.of("expiredNamespace", generateRandomUpdate()),
+                Tuple2.of("expiredNamespace", generateRandomUpdate()),
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()));
+    }
 
-	List<Tuple2<String, UV>> generateUnexpiredUpdatesToMerge() {
-		return Arrays.asList(
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
-			Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
-			Tuple2.of("unexpiredNamespace", generateRandomUpdate())
-		);
-	}
+    List<Tuple2<String, UV>> generateUnexpiredUpdatesToMerge() {
+        return Arrays.asList(
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
+                Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
+                Tuple2.of("unexpiredNamespace", generateRandomUpdate()));
+    }
 
-	List<Tuple2<String, UV>> generateFinalUpdatesToMerge() {
-		return Arrays.asList(
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
-			Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
-			Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
-			Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
-			Tuple2.of("finalNamespace", generateRandomUpdate()),
-			Tuple2.of("finalNamespace", generateRandomUpdate())
-		);
-	}
+    List<Tuple2<String, UV>> generateFinalUpdatesToMerge() {
+        return Arrays.asList(
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
+                Tuple2.of("expiredAndUpdatedNamespace", generateRandomUpdate()),
+                Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
+                Tuple2.of("unexpiredNamespace", generateRandomUpdate()),
+                Tuple2.of("finalNamespace", generateRandomUpdate()),
+                Tuple2.of("finalNamespace", generateRandomUpdate()));
+    }
 
-	abstract UV generateRandomUpdate();
+    abstract UV generateRandomUpdate();
 
-	void applyStateUpdates(List<Tuple2<String, UV>> updates) throws Exception {
-		for (Tuple2<String, UV> t : updates) {
-			ttlState.setCurrentNamespace(t.f0);
-			update(t.f1);
-		}
-	}
+    void applyStateUpdates(List<Tuple2<String, UV>> updates) throws Exception {
+        for (Tuple2<String, UV> t : updates) {
+            ttlState.setCurrentNamespace(t.f0);
+            update(t.f1);
+        }
+    }
 
-	abstract GV getMergeResult(
-		List<Tuple2<String, UV>> unexpiredUpdatesToMerge,
-		List<Tuple2<String, UV>> finalUpdatesToMerge);
+    abstract GV getMergeResult(
+            List<Tuple2<String, UV>> unexpiredUpdatesToMerge,
+            List<Tuple2<String, UV>> finalUpdatesToMerge);
 
-	@SuppressWarnings("unchecked")
-	abstract static class TtlIntegerMergingStateTestContext<
-		S extends InternalMergingState<?, String, ?, ?, GV>,
-		UV extends Number, GV>
-		extends TtlMergingStateTestContext<S, UV, GV> {
-		@Override
-		UV generateRandomUpdate() {
-			return (UV) (Integer) RANDOM.nextInt(1000);
-		}
+    @SuppressWarnings("unchecked")
+    abstract static class TtlIntegerMergingStateTestContext<
+                    S extends InternalMergingState<?, String, ?, ?, GV>, UV extends Number, GV>
+            extends TtlMergingStateTestContext<S, UV, GV> {
+        @Override
+        UV generateRandomUpdate() {
+            return (UV) (Integer) RANDOM.nextInt(1000);
+        }
 
-		int getIntegerMergeResult(
-			List<Tuple2<String, UV>> unexpiredUpdatesToMerge,
-			List<Tuple2<String, UV>> finalUpdatesToMerge) {
-			return unexpiredUpdatesToMerge.stream().mapToInt(t -> (Integer) t.f1).sum() +
-				finalUpdatesToMerge.stream().mapToInt(t -> (Integer) t.f1).sum();
-		}
-	}
+        int getIntegerMergeResult(
+                List<Tuple2<String, UV>> unexpiredUpdatesToMerge,
+                List<Tuple2<String, UV>> finalUpdatesToMerge) {
+            return unexpiredUpdatesToMerge.stream().mapToInt(t -> (Integer) t.f1).sum()
+                    + finalUpdatesToMerge.stream().mapToInt(t -> (Integer) t.f1).sum();
+        }
+    }
 }

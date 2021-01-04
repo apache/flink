@@ -270,7 +270,8 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
                                       type_info=Types.ROW(
                                           [Types.LONG(), Types.LONG(), Types.SHORT(),
                                            Types.BOOLEAN(), Types.SHORT(), Types.INT(),
-                                           Types.FLOAT(), Types.DOUBLE(), Types.BYTE(),
+                                           Types.FLOAT(), Types.DOUBLE(),
+                                           Types.PICKLED_BYTE_ARRAY(),
                                            Types.STRING(), Types.SQL_DATE(), Types.SQL_TIME(),
                                            Types.SQL_TIMESTAMP(),
                                            Types.BASIC_ARRAY(Types.LONG()), Types.BIG_DEC(),
@@ -280,11 +281,11 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         results = self.test_sink.get_results(False)
         # if user specifies data types of input data, the collected result should be in row format.
         expected = [
-            '1,null,1,true,32767,-2147483648,1.23,1.98932,null,pyflink,2014-09-13,12:00:00,'
-            '2018-03-11 03:00:00.123,[1, 2, 3],1000000000000000000.05,'
+            '1,null,1,true,32767,-2147483648,1.23,1.98932,[102, 108, 105, 110, 107],pyflink,'
+            '2014-09-13,12:00:00,2018-03-11 03:00:00.123,[1, 2, 3],1000000000000000000.05,'
             '1000000000000000000.05999999999999999899999999999',
-            '2,null,2,true,-21658,557549056,9.87,2.98936,null,pyflink,2015-10-14,11:02:02,'
-            '2020-04-15 08:02:06.235,[2, 4, 6],2000000000000000000.74,'
+            '2,null,2,true,-21658,557549056,9.87,2.98936,[102, 108, 105, 110, 107],pyflink,'
+            '2015-10-14,11:02:02,2020-04-15 08:02:06.235,[2, 4, 6],2000000000000000000.74,'
             '2000000000000000000.06111111111111111111111111111']
         results.sort()
         expected.sort()
@@ -577,6 +578,18 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         # Make sure that user specified files and archives are correctly added.
         self.assertIsNotNone(env_config_with_dependencies['python.files'])
         self.assertIsNotNone(env_config_with_dependencies['python.archives'])
+
+    def test_batch_execution_mode(self):
+        # set the runtime execution mode to BATCH
+        JRuntimeExecutionMode = get_gateway().jvm\
+            .org.apache.flink.api.common.RuntimeExecutionMode.BATCH
+        self.env._j_stream_execution_environment.setRuntimeMode(JRuntimeExecutionMode)
+        self.env.from_collection([(1, 'Hi', 'Hello'), (2, 'Hello', 'Hi')]).map(lambda x: x)\
+            .add_sink(self.test_sink)
+
+        # Running jobs in Batch mode is not supported yet, it should throw an exception.
+        with self.assertRaises(Exception):
+            self.env.get_execution_plan()
 
     def tearDown(self) -> None:
         self.test_sink.clear()

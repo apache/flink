@@ -35,155 +35,160 @@ import java.util.Set;
 
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 
-/**
- * A wrapper class for {@link InputDependencyConstraint} checker.
- */
+/** A wrapper class for {@link InputDependencyConstraint} checker. */
 public class InputDependencyConstraintChecker {
-	private final SchedulingIntermediateDataSetManager intermediateDataSetManager =
-		new SchedulingIntermediateDataSetManager();
+    private final SchedulingIntermediateDataSetManager intermediateDataSetManager =
+            new SchedulingIntermediateDataSetManager();
 
-	public boolean check(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		if (Iterables.isEmpty(schedulingExecutionVertex.getConsumedResults())) {
-			return true;
-		}
+    public boolean check(final SchedulingExecutionVertex schedulingExecutionVertex) {
+        if (Iterables.isEmpty(schedulingExecutionVertex.getConsumedResults())) {
+            return true;
+        }
 
-		final InputDependencyConstraint inputConstraint = schedulingExecutionVertex.getInputDependencyConstraint();
-		switch (inputConstraint) {
-			case ANY:
-				return checkAny(schedulingExecutionVertex);
-			case ALL:
-				return checkAll(schedulingExecutionVertex);
-			default:
-				throw new IllegalStateException("Unknown InputDependencyConstraint " + inputConstraint);
-		}
-	}
+        final InputDependencyConstraint inputConstraint =
+                schedulingExecutionVertex.getInputDependencyConstraint();
+        switch (inputConstraint) {
+            case ANY:
+                return checkAny(schedulingExecutionVertex);
+            case ALL:
+                return checkAll(schedulingExecutionVertex);
+            default:
+                throw new IllegalStateException(
+                        "Unknown InputDependencyConstraint " + inputConstraint);
+        }
+    }
 
-	List<SchedulingResultPartition> markSchedulingResultPartitionFinished(SchedulingResultPartition srp) {
-		return intermediateDataSetManager.markSchedulingResultPartitionFinished(srp);
-	}
+    List<SchedulingResultPartition> markSchedulingResultPartitionFinished(
+            SchedulingResultPartition srp) {
+        return intermediateDataSetManager.markSchedulingResultPartitionFinished(srp);
+    }
 
-	void resetSchedulingResultPartition(SchedulingResultPartition srp) {
-		intermediateDataSetManager.resetSchedulingResultPartition(srp);
-	}
+    void resetSchedulingResultPartition(SchedulingResultPartition srp) {
+        intermediateDataSetManager.resetSchedulingResultPartition(srp);
+    }
 
-	void addSchedulingResultPartition(SchedulingResultPartition srp) {
-		intermediateDataSetManager.addSchedulingResultPartition(srp);
-	}
+    void addSchedulingResultPartition(SchedulingResultPartition srp) {
+        intermediateDataSetManager.addSchedulingResultPartition(srp);
+    }
 
-	private boolean checkAll(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		for (SchedulingResultPartition consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
-			if (!partitionConsumable(consumedResultPartition)) {
-				return false;
-			}
-		}
-		return true;
-	}
+    private boolean checkAll(final SchedulingExecutionVertex schedulingExecutionVertex) {
+        for (SchedulingResultPartition consumedResultPartition :
+                schedulingExecutionVertex.getConsumedResults()) {
+            if (!partitionConsumable(consumedResultPartition)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	private boolean checkAny(final SchedulingExecutionVertex schedulingExecutionVertex) {
-		for (SchedulingResultPartition consumedResultPartition : schedulingExecutionVertex.getConsumedResults()) {
-			if (partitionConsumable(consumedResultPartition)) {
-				return true;
-			}
-		}
-		return false;
-	}
+    private boolean checkAny(final SchedulingExecutionVertex schedulingExecutionVertex) {
+        for (SchedulingResultPartition consumedResultPartition :
+                schedulingExecutionVertex.getConsumedResults()) {
+            if (partitionConsumable(consumedResultPartition)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	private boolean partitionConsumable(SchedulingResultPartition partition) {
-		if (BLOCKING.equals(partition.getResultType())) {
-			return intermediateDataSetManager.allPartitionsFinished(partition);
-		} else {
-			final ResultPartitionState state = partition.getState();
-			return ResultPartitionState.CONSUMABLE.equals(state);
-		}
-	}
+    private boolean partitionConsumable(SchedulingResultPartition partition) {
+        if (BLOCKING.equals(partition.getResultType())) {
+            return intermediateDataSetManager.allPartitionsFinished(partition);
+        } else {
+            final ResultPartitionState state = partition.getState();
+            return ResultPartitionState.CONSUMABLE.equals(state);
+        }
+    }
 
-	private static class SchedulingIntermediateDataSetManager {
+    private static class SchedulingIntermediateDataSetManager {
 
-		private final Map<IntermediateDataSetID, SchedulingIntermediateDataSet> intermediateDataSets = new HashMap<>();
+        private final Map<IntermediateDataSetID, SchedulingIntermediateDataSet>
+                intermediateDataSets = new HashMap<>();
 
-		List<SchedulingResultPartition> markSchedulingResultPartitionFinished(SchedulingResultPartition srp) {
-			SchedulingIntermediateDataSet intermediateDataSet = getSchedulingIntermediateDataSet(srp.getResultId());
-			if (intermediateDataSet.markPartitionFinished(srp.getId())) {
-				return intermediateDataSet.getSchedulingResultPartitions();
-			}
-			return Collections.emptyList();
-		}
+        List<SchedulingResultPartition> markSchedulingResultPartitionFinished(
+                SchedulingResultPartition srp) {
+            SchedulingIntermediateDataSet intermediateDataSet =
+                    getSchedulingIntermediateDataSet(srp.getResultId());
+            if (intermediateDataSet.markPartitionFinished(srp.getId())) {
+                return intermediateDataSet.getSchedulingResultPartitions();
+            }
+            return Collections.emptyList();
+        }
 
-		void resetSchedulingResultPartition(SchedulingResultPartition srp) {
-			SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
-			sid.resetPartition(srp.getId());
-		}
+        void resetSchedulingResultPartition(SchedulingResultPartition srp) {
+            SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
+            sid.resetPartition(srp.getId());
+        }
 
-		void addSchedulingResultPartition(SchedulingResultPartition srp) {
-			SchedulingIntermediateDataSet sid = getOrCreateSchedulingIntermediateDataSetIfAbsent(srp.getResultId());
-			sid.addSchedulingResultPartition(srp);
-		}
+        void addSchedulingResultPartition(SchedulingResultPartition srp) {
+            SchedulingIntermediateDataSet sid =
+                    getOrCreateSchedulingIntermediateDataSetIfAbsent(srp.getResultId());
+            sid.addSchedulingResultPartition(srp);
+        }
 
-		boolean allPartitionsFinished(SchedulingResultPartition srp) {
-			SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
-			return sid.allPartitionsFinished();
-		}
+        boolean allPartitionsFinished(SchedulingResultPartition srp) {
+            SchedulingIntermediateDataSet sid = getSchedulingIntermediateDataSet(srp.getResultId());
+            return sid.allPartitionsFinished();
+        }
 
-		private SchedulingIntermediateDataSet getSchedulingIntermediateDataSet(
-				final IntermediateDataSetID intermediateDataSetId) {
-			return getSchedulingIntermediateDataSetInternal(intermediateDataSetId, false);
-		}
+        private SchedulingIntermediateDataSet getSchedulingIntermediateDataSet(
+                final IntermediateDataSetID intermediateDataSetId) {
+            return getSchedulingIntermediateDataSetInternal(intermediateDataSetId, false);
+        }
 
-		private SchedulingIntermediateDataSet getOrCreateSchedulingIntermediateDataSetIfAbsent(
-				final IntermediateDataSetID intermediateDataSetId) {
-			return getSchedulingIntermediateDataSetInternal(intermediateDataSetId, true);
-		}
+        private SchedulingIntermediateDataSet getOrCreateSchedulingIntermediateDataSetIfAbsent(
+                final IntermediateDataSetID intermediateDataSetId) {
+            return getSchedulingIntermediateDataSetInternal(intermediateDataSetId, true);
+        }
 
-		private SchedulingIntermediateDataSet getSchedulingIntermediateDataSetInternal(
-				final IntermediateDataSetID intermediateDataSetId,
-				boolean createIfAbsent) {
+        private SchedulingIntermediateDataSet getSchedulingIntermediateDataSetInternal(
+                final IntermediateDataSetID intermediateDataSetId, boolean createIfAbsent) {
 
-			return intermediateDataSets.computeIfAbsent(
-				intermediateDataSetId,
-				(key) -> {
-					if (createIfAbsent) {
-						return new SchedulingIntermediateDataSet();
-					} else {
-						throw new IllegalArgumentException("can not find data set for " + intermediateDataSetId);
-					}
-				});
-		}
-	}
+            return intermediateDataSets.computeIfAbsent(
+                    intermediateDataSetId,
+                    (key) -> {
+                        if (createIfAbsent) {
+                            return new SchedulingIntermediateDataSet();
+                        } else {
+                            throw new IllegalArgumentException(
+                                    "can not find data set for " + intermediateDataSetId);
+                        }
+                    });
+        }
+    }
 
-	/**
-	 * Representation of {@link IntermediateDataSet}.
-	 */
-	private static class SchedulingIntermediateDataSet {
+    /** Representation of {@link IntermediateDataSet}. */
+    private static class SchedulingIntermediateDataSet {
 
-		private final List<SchedulingResultPartition> partitions;
+        private final List<SchedulingResultPartition> partitions;
 
-		private final Set<IntermediateResultPartitionID> producingPartitionIds;
+        private final Set<IntermediateResultPartitionID> producingPartitionIds;
 
-		SchedulingIntermediateDataSet() {
-			partitions = new ArrayList<>();
-			producingPartitionIds = new HashSet<>();
-		}
+        SchedulingIntermediateDataSet() {
+            partitions = new ArrayList<>();
+            producingPartitionIds = new HashSet<>();
+        }
 
-		boolean markPartitionFinished(IntermediateResultPartitionID partitionId) {
-			producingPartitionIds.remove(partitionId);
-			return producingPartitionIds.isEmpty();
-		}
+        boolean markPartitionFinished(IntermediateResultPartitionID partitionId) {
+            producingPartitionIds.remove(partitionId);
+            return producingPartitionIds.isEmpty();
+        }
 
-		void resetPartition(IntermediateResultPartitionID partitionId) {
-			producingPartitionIds.add(partitionId);
-		}
+        void resetPartition(IntermediateResultPartitionID partitionId) {
+            producingPartitionIds.add(partitionId);
+        }
 
-		boolean allPartitionsFinished() {
-			return producingPartitionIds.isEmpty();
-		}
+        boolean allPartitionsFinished() {
+            return producingPartitionIds.isEmpty();
+        }
 
-		void addSchedulingResultPartition(SchedulingResultPartition partition) {
-			partitions.add(partition);
-			producingPartitionIds.add(partition.getId());
-		}
+        void addSchedulingResultPartition(SchedulingResultPartition partition) {
+            partitions.add(partition);
+            producingPartitionIds.add(partition.getId());
+        }
 
-		List<SchedulingResultPartition> getSchedulingResultPartitions() {
-			return Collections.unmodifiableList(partitions);
-		}
-	}
+        List<SchedulingResultPartition> getSchedulingResultPartitions() {
+            return Collections.unmodifiableList(partitions);
+        }
+    }
 }

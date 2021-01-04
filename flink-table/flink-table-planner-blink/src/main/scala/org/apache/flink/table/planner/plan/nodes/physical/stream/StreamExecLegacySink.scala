@@ -28,7 +28,8 @@ import org.apache.flink.table.planner.codegen.SinkCodeGenerator.generateRowConve
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, UpdatingPlanChecker}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.typeutils.{InternalTypeInfo, TypeCheckUtils}
@@ -52,8 +53,8 @@ class StreamExecLegacySink[T](
     sink: TableSink[T],
     sinkName: String)
   extends LegacySink(cluster, traitSet, inputRel, sink, sinkName)
-          with StreamPhysicalRel
-          with StreamExecNode[Any] {
+  with StreamPhysicalRel
+  with LegacyStreamExecNode[Any] {
 
   override def requireWatermark: Boolean = false
 
@@ -62,16 +63,6 @@ class StreamExecLegacySink[T](
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
-    List(getInput.asInstanceOf[ExecNode[StreamPlanner, _]])
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[Any] = {
@@ -143,7 +134,6 @@ class StreamExecLegacySink[T](
       withChangeFlag: Boolean,
       planner: StreamPlanner): Transformation[T] = {
     val config = planner.getTableConfig
-    val inputNode = getInput
     // if no change flags are requested, verify table is an insert-only (append-only) table.
     if (!withChangeFlag && !ChangelogPlanUtils.inputInsertOnly(this)) {
       throw new TableException(
@@ -152,15 +142,15 @@ class StreamExecLegacySink[T](
     }
 
     // get RowData plan
-    val parTransformation = inputNode match {
-      // Sink's input must be StreamExecNode[RowData] now.
-      case node: StreamExecNode[RowData] =>
-        node.translateToPlan(planner)
+    val parTransformation = getInputNodes.get(0) match {
+      // Sink's input must be LegacyStreamExecNode[RowData] or StreamExecNode[RowData] now.
+      case legacyNode: LegacyStreamExecNode[RowData] => legacyNode.translateToPlan(planner)
+      case node: StreamExecNode[RowData] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
                                    "This is a bug and should not happen. Please file an issue.")
     }
-    val logicalType = inputNode.getRowType
+    val logicalType = getInput.getRowType
     val rowtimeFields = logicalType.getFieldList
                         .filter(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
 

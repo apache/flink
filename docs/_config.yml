@@ -27,10 +27,10 @@
 # we change the version for the complete docs when forking of a release branch
 # etc.
 # The full version string as referenced in Maven (e.g. 1.2.1)
-version: "1.12-SNAPSHOT"
+version: "1.13-SNAPSHOT"
 # For stable releases, leave the bugfix version out (e.g. 1.2). For snapshot
 # release this should be the same as the regular version
-version_title: "1.12-SNAPSHOT"
+version_title: "1.13-SNAPSHOT"
 # Branch on Github for this version
 github_branch: "master"
 
@@ -39,16 +39,13 @@ scala_version: "2.11"
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
 
-# Plain flink-shaded version is needed for e.g. the hive connector.
-# Please update the shaded_version once new flink-shaded is released.
-shaded_version: "8.0"
-
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
 website_url: "https://flink.apache.org"
 jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "https://flink.apache.org/downloads.html"
+zh_download_url: "https://flink.apache.org/zh/downloads.html"
 
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-master
@@ -67,6 +64,7 @@ is_stable: false
 show_outdated_warning: false
 
 previous_docs:
+  '1.12': http://ci.apache.org/projects/flink/flink-docs-release-1.12
   '1.11': http://ci.apache.org/projects/flink/flink-docs-release-1.11
   '1.10': http://ci.apache.org/projects/flink/flink-docs-release-1.10
   '1.9': http://ci.apache.org/projects/flink/flink-docs-release-1.9
@@ -90,6 +88,7 @@ previous_docs:
 exclude:
   - "build_docs.sh"
   - "check_links.sh"
+  - "spider.log"
 
 # Used in some documents to initialize arrays. Don't delete.
 array: []

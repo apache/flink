@@ -47,7 +47,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.from("rowTimeT").select($"rowtime", $"id", $"name", $"val")
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -68,7 +68,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), rowtime = "rowtime"))
 
     val t = util.tableEnv.from("rowTimeT").select($"rowtime", $"id", $"name", $"val")
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -93,7 +93,7 @@ class LegacyTableSourceTest extends TableTestBase {
       .window(Tumble over 10.minutes on 'rowtime as 'w)
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -113,7 +113,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), proctime = "proctime"))
 
     val t = util.tableEnv.from("procTimeT").select($"proctime", $"id", $"name", $"val")
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -136,7 +136,7 @@ class LegacyTableSourceTest extends TableTestBase {
       .window(Over partitionBy 'id orderBy 'proctime preceding 2.hours as 'w)
       .select('id, 'name, 'val.sum over 'w as 'valSum)
       .filter('valSum > 100)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -156,7 +156,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
     val t = util.tableEnv.from("T").select('name, 'val, 'id)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -176,7 +176,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
     val t = util.tableEnv.from("T").select('ptime, 'name, 'val, 'id)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -196,7 +196,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
     val t = util.tableEnv.from("T").select('name, 'val, 'rtime, 'id)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -216,7 +216,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
     val t = util.tableEnv.from("T").select('ptime)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -236,7 +236,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime"))
 
     val t = util.tableEnv.from("T").select('rtime)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -257,7 +257,7 @@ class LegacyTableSourceTest extends TableTestBase {
         false, tableSchema, returnType, Seq(), "rtime", "ptime", mapping))
 
     val t = util.tableEnv.from("T").select('name, 'rtime, 'val)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
   @Test
@@ -299,7 +299,7 @@ class LegacyTableSourceTest extends TableTestBase {
         'nested.get("value") as 'nestedValue,
         'deepNested.get("nested2").get("flag") as 'nestedFlag,
         'deepNested.get("nested2").get("num") as 'nestedNum)
-    util.verifyPlan(t)
+    util.verifyExecPlan(t)
   }
 
 }

@@ -71,374 +71,401 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
 
 /**
- * Snapshot strategy to create full snapshots of
- * {@link org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}. Iterates and writes all states from a
- * RocksDB snapshot of the column families.
+ * Snapshot strategy to create full snapshots of {@link
+ * org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend}. Iterates and writes all
+ * states from a RocksDB snapshot of the column families.
  *
  * @param <K> type of the backend keys.
  */
 public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K> {
 
-	private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
+    private static final String DESCRIPTION = "Asynchronous full RocksDB snapshot";
 
-	/** This decorator is used to apply compression per key-group for the written snapshot data. */
-	@Nonnull
-	private final StreamCompressionDecorator keyGroupCompressionDecorator;
+    /** This decorator is used to apply compression per key-group for the written snapshot data. */
+    @Nonnull private final StreamCompressionDecorator keyGroupCompressionDecorator;
 
-	public RocksFullSnapshotStrategy(
-		@Nonnull RocksDB db,
-		@Nonnull ResourceGuard rocksDBResourceGuard,
-		@Nonnull TypeSerializer<K> keySerializer,
-		@Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
-		@Nonnull KeyGroupRange keyGroupRange,
-		@Nonnegative int keyGroupPrefixBytes,
-		@Nonnull LocalRecoveryConfig localRecoveryConfig,
-		@Nonnull CloseableRegistry cancelStreamRegistry,
-		@Nonnull StreamCompressionDecorator keyGroupCompressionDecorator) {
-		super(
-			DESCRIPTION,
-			db,
-			rocksDBResourceGuard,
-			keySerializer,
-			kvStateInformation,
-			keyGroupRange,
-			keyGroupPrefixBytes,
-			localRecoveryConfig,
-			cancelStreamRegistry);
+    public RocksFullSnapshotStrategy(
+            @Nonnull RocksDB db,
+            @Nonnull ResourceGuard rocksDBResourceGuard,
+            @Nonnull TypeSerializer<K> keySerializer,
+            @Nonnull LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
+            @Nonnull KeyGroupRange keyGroupRange,
+            @Nonnegative int keyGroupPrefixBytes,
+            @Nonnull LocalRecoveryConfig localRecoveryConfig,
+            @Nonnull CloseableRegistry cancelStreamRegistry,
+            @Nonnull StreamCompressionDecorator keyGroupCompressionDecorator) {
+        super(
+                DESCRIPTION,
+                db,
+                rocksDBResourceGuard,
+                keySerializer,
+                kvStateInformation,
+                keyGroupRange,
+                keyGroupPrefixBytes,
+                localRecoveryConfig,
+                cancelStreamRegistry);
 
-		this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
-	}
+        this.keyGroupCompressionDecorator = keyGroupCompressionDecorator;
+    }
 
-	@Nonnull
-	@Override
-	public RunnableFuture<SnapshotResult<KeyedStateHandle>> doSnapshot(
-		long checkpointId,
-		long timestamp,
-		@Nonnull CheckpointStreamFactory primaryStreamFactory,
-		@Nonnull CheckpointOptions checkpointOptions) throws Exception {
+    @Nonnull
+    @Override
+    public RunnableFuture<SnapshotResult<KeyedStateHandle>> doSnapshot(
+            long checkpointId,
+            long timestamp,
+            @Nonnull CheckpointStreamFactory primaryStreamFactory,
+            @Nonnull CheckpointOptions checkpointOptions)
+            throws Exception {
 
-		final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier =
-			createCheckpointStreamSupplier(checkpointId, primaryStreamFactory, checkpointOptions);
+        final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+                checkpointStreamSupplier =
+                        createCheckpointStreamSupplier(
+                                checkpointId, primaryStreamFactory, checkpointOptions);
 
-		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
-		final List<RocksDbKvStateInfo> metaDataCopy =
-			new ArrayList<>(kvStateInformation.size());
+        final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                new ArrayList<>(kvStateInformation.size());
+        final List<RocksDbKvStateInfo> metaDataCopy = new ArrayList<>(kvStateInformation.size());
 
-		for (RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
-			// snapshot meta info
-			stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
-			metaDataCopy.add(stateInfo);
-		}
+        for (RocksDbKvStateInfo stateInfo : kvStateInformation.values()) {
+            // snapshot meta info
+            stateMetaInfoSnapshots.add(stateInfo.metaInfo.snapshot());
+            metaDataCopy.add(stateInfo);
+        }
 
-		final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
-		final Snapshot snapshot = db.getSnapshot();
+        final ResourceGuard.Lease lease = rocksDBResourceGuard.acquireResource();
+        final Snapshot snapshot = db.getSnapshot();
 
-		final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
-			new SnapshotAsynchronousPartCallable(
-				checkpointStreamSupplier,
-				lease,
-				snapshot,
-				stateMetaInfoSnapshots,
-				metaDataCopy,
-				primaryStreamFactory.toString());
+        final SnapshotAsynchronousPartCallable asyncSnapshotCallable =
+                new SnapshotAsynchronousPartCallable(
+                        checkpointStreamSupplier,
+                        lease,
+                        snapshot,
+                        stateMetaInfoSnapshots,
+                        metaDataCopy,
+                        primaryStreamFactory.toString());
 
-		return asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
-	}
+        return asyncSnapshotCallable.toAsyncSnapshotFutureTask(cancelStreamRegistry);
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) {
-		// nothing to do.
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) {
+        // nothing to do.
+    }
 
-	@Override
-	public void notifyCheckpointAborted(long checkpointId) {
-		// nothing to do.
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) {
+        // nothing to do.
+    }
 
-	private SupplierWithException<CheckpointStreamWithResultProvider, Exception> createCheckpointStreamSupplier(
-		long checkpointId,
-		CheckpointStreamFactory primaryStreamFactory,
-		CheckpointOptions checkpointOptions) {
+    private SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+            createCheckpointStreamSupplier(
+                    long checkpointId,
+                    CheckpointStreamFactory primaryStreamFactory,
+                    CheckpointOptions checkpointOptions) {
 
-		return localRecoveryConfig.isLocalRecoveryEnabled() && !checkpointOptions.getCheckpointType().isSavepoint() ?
+        return localRecoveryConfig.isLocalRecoveryEnabled()
+                        && !checkpointOptions.getCheckpointType().isSavepoint()
+                ? () ->
+                        CheckpointStreamWithResultProvider.createDuplicatingStream(
+                                checkpointId,
+                                CheckpointedStateScope.EXCLUSIVE,
+                                primaryStreamFactory,
+                                localRecoveryConfig.getLocalStateDirectoryProvider())
+                : () ->
+                        CheckpointStreamWithResultProvider.createSimpleStream(
+                                CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);
+    }
 
-			() -> CheckpointStreamWithResultProvider.createDuplicatingStream(
-				checkpointId,
-				CheckpointedStateScope.EXCLUSIVE,
-				primaryStreamFactory,
-				localRecoveryConfig.getLocalStateDirectoryProvider()) :
+    /** Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend. */
+    @VisibleForTesting
+    private class SnapshotAsynchronousPartCallable
+            extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
 
-			() -> CheckpointStreamWithResultProvider.createSimpleStream(
-				CheckpointedStateScope.EXCLUSIVE,
-				primaryStreamFactory);
-	}
+        /** Supplier for the stream into which we write the snapshot. */
+        @Nonnull
+        private final SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+                checkpointStreamSupplier;
 
-	/**
-	 * Encapsulates the process to perform a full snapshot of a RocksDBKeyedStateBackend.
-	 */
-	@VisibleForTesting
-	private class SnapshotAsynchronousPartCallable extends AsyncSnapshotCallable<SnapshotResult<KeyedStateHandle>> {
+        /** This lease protects the native RocksDB resources. */
+        @Nonnull private final ResourceGuard.Lease dbLease;
 
-		/** Supplier for the stream into which we write the snapshot. */
-		@Nonnull
-		private final SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier;
+        /** RocksDB snapshot. */
+        @Nonnull private final Snapshot snapshot;
 
-		/** This lease protects the native RocksDB resources. */
-		@Nonnull
-		private final ResourceGuard.Lease dbLease;
+        @Nonnull private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
 
-		/** RocksDB snapshot. */
-		@Nonnull
-		private final Snapshot snapshot;
+        @Nonnull private List<MetaData> metaData;
 
-		@Nonnull
-		private List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
+        @Nonnull private final String logPathString;
 
-		@Nonnull
-		private List<MetaData> metaData;
+        SnapshotAsynchronousPartCallable(
+                @Nonnull
+                        SupplierWithException<CheckpointStreamWithResultProvider, Exception>
+                                checkpointStreamSupplier,
+                @Nonnull ResourceGuard.Lease dbLease,
+                @Nonnull Snapshot snapshot,
+                @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
+                @Nonnull List<RocksDbKvStateInfo> metaDataCopy,
+                @Nonnull String logPathString) {
 
-		@Nonnull
-		private final String logPathString;
+            this.checkpointStreamSupplier = checkpointStreamSupplier;
+            this.dbLease = dbLease;
+            this.snapshot = snapshot;
+            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+            this.metaData = fillMetaData(metaDataCopy);
+            this.logPathString = logPathString;
+        }
 
-		SnapshotAsynchronousPartCallable(
-			@Nonnull SupplierWithException<CheckpointStreamWithResultProvider, Exception> checkpointStreamSupplier,
-			@Nonnull ResourceGuard.Lease dbLease,
-			@Nonnull Snapshot snapshot,
-			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-			@Nonnull List<RocksDbKvStateInfo> metaDataCopy,
-			@Nonnull String logPathString) {
+        @Override
+        protected SnapshotResult<KeyedStateHandle> callInternal() throws Exception {
+            final KeyGroupRangeOffsets keyGroupRangeOffsets =
+                    new KeyGroupRangeOffsets(keyGroupRange);
+            final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
+                    checkpointStreamSupplier.get();
 
-			this.checkpointStreamSupplier = checkpointStreamSupplier;
-			this.dbLease = dbLease;
-			this.snapshot = snapshot;
-			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-			this.metaData = fillMetaData(metaDataCopy);
-			this.logPathString = logPathString;
-		}
+            snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
+            writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 
-		@Override
-		protected SnapshotResult<KeyedStateHandle> callInternal() throws Exception {
-			final KeyGroupRangeOffsets keyGroupRangeOffsets = new KeyGroupRangeOffsets(keyGroupRange);
-			final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider =
-				checkpointStreamSupplier.get();
+            if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
+                return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
+                        checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
+                        keyGroupRangeOffsets);
+            } else {
+                throw new IOException("Stream is already unregistered/closed.");
+            }
+        }
 
-			snapshotCloseableRegistry.registerCloseable(checkpointStreamWithResultProvider);
-			writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
+        @Override
+        protected void cleanupProvidedResources() {
+            db.releaseSnapshot(snapshot);
+            IOUtils.closeQuietly(snapshot);
+            IOUtils.closeQuietly(dbLease);
+        }
 
-			if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
-				return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
-					checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
-					keyGroupRangeOffsets);
-			} else {
-				throw new IOException("Stream is already unregistered/closed.");
-			}
-		}
+        @Override
+        protected void logAsyncSnapshotComplete(long startTime) {
+            logAsyncCompleted(logPathString, startTime);
+        }
 
-		@Override
-		protected void cleanupProvidedResources() {
-			db.releaseSnapshot(snapshot);
-			IOUtils.closeQuietly(snapshot);
-			IOUtils.closeQuietly(dbLease);
-		}
+        private void writeSnapshotToOutputStream(
+                @Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
+                @Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets)
+                throws IOException, InterruptedException {
 
-		@Override
-		protected void logAsyncSnapshotComplete(long startTime) {
-			logAsyncCompleted(logPathString, startTime);
-		}
+            final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
+                    new ArrayList<>(metaData.size());
+            final DataOutputView outputView =
+                    new DataOutputViewStreamWrapper(
+                            checkpointStreamWithResultProvider.getCheckpointOutputStream());
+            final ReadOptions readOptions = new ReadOptions();
+            try {
+                readOptions.setSnapshot(snapshot);
+                writeKVStateMetaData(kvStateIterators, readOptions, outputView);
+                writeKVStateData(
+                        kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
+            } finally {
 
-		private void writeSnapshotToOutputStream(
-			@Nonnull CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
-			@Nonnull KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
+                for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
+                    IOUtils.closeQuietly(kvStateIterator.f0);
+                }
 
-			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators =
-				new ArrayList<>(metaData.size());
-			final DataOutputView outputView =
-				new DataOutputViewStreamWrapper(checkpointStreamWithResultProvider.getCheckpointOutputStream());
-			final ReadOptions readOptions = new ReadOptions();
-			try {
-				readOptions.setSnapshot(snapshot);
-				writeKVStateMetaData(kvStateIterators, readOptions, outputView);
-				writeKVStateData(kvStateIterators, checkpointStreamWithResultProvider, keyGroupRangeOffsets);
-			} finally {
+                IOUtils.closeQuietly(readOptions);
+            }
+        }
 
-				for (Tuple2<RocksIteratorWrapper, Integer> kvStateIterator : kvStateIterators) {
-					IOUtils.closeQuietly(kvStateIterator.f0);
-				}
+        private void writeKVStateMetaData(
+                final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+                final ReadOptions readOptions,
+                final DataOutputView outputView)
+                throws IOException {
 
-				IOUtils.closeQuietly(readOptions);
-			}
-		}
+            int kvStateId = 0;
 
-		private void writeKVStateMetaData(
-			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-			final ReadOptions readOptions,
-			final DataOutputView outputView) throws IOException {
+            for (MetaData metaDataEntry : metaData) {
+                RocksIteratorWrapper rocksIteratorWrapper =
+                        getRocksIterator(
+                                db,
+                                metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle,
+                                metaDataEntry.stateSnapshotTransformer,
+                                readOptions);
+                kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
+                ++kvStateId;
+            }
 
-			int kvStateId = 0;
+            KeyedBackendSerializationProxy<K> serializationProxy =
+                    new KeyedBackendSerializationProxy<>(
+                            // TODO: this code assumes that writing a serializer is threadsafe, we
+                            // should support to
+                            // get a serialized form already at state registration time in the
+                            // future
+                            keySerializer,
+                            stateMetaInfoSnapshots,
+                            !Objects.equals(
+                                    UncompressedStreamCompressionDecorator.INSTANCE,
+                                    keyGroupCompressionDecorator));
 
-			for (MetaData metaDataEntry : metaData) {
-				RocksIteratorWrapper rocksIteratorWrapper = getRocksIterator(
-					db, metaDataEntry.rocksDbKvStateInfo.columnFamilyHandle, metaDataEntry.stateSnapshotTransformer, readOptions);
-				kvStateIterators.add(Tuple2.of(rocksIteratorWrapper, kvStateId));
-				++kvStateId;
-			}
+            serializationProxy.write(outputView);
+        }
 
-			KeyedBackendSerializationProxy<K> serializationProxy =
-				new KeyedBackendSerializationProxy<>(
-					// TODO: this code assumes that writing a serializer is threadsafe, we should support to
-					// get a serialized form already at state registration time in the future
-					keySerializer,
-					stateMetaInfoSnapshots,
-					!Objects.equals(
-						UncompressedStreamCompressionDecorator.INSTANCE,
-						keyGroupCompressionDecorator));
+        private void writeKVStateData(
+                final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
+                final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
+                final KeyGroupRangeOffsets keyGroupRangeOffsets)
+                throws IOException, InterruptedException {
 
-			serializationProxy.write(outputView);
-		}
+            byte[] previousKey = null;
+            byte[] previousValue = null;
+            DataOutputView kgOutView = null;
+            OutputStream kgOutStream = null;
+            CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
+                    checkpointStreamWithResultProvider.getCheckpointOutputStream();
 
-		private void writeKVStateData(
-			final List<Tuple2<RocksIteratorWrapper, Integer>> kvStateIterators,
-			final CheckpointStreamWithResultProvider checkpointStreamWithResultProvider,
-			final KeyGroupRangeOffsets keyGroupRangeOffsets) throws IOException, InterruptedException {
+            try {
+                // Here we transfer ownership of RocksIterators to the
+                // RocksStatesPerKeyGroupMergeIterator
+                try (RocksStatesPerKeyGroupMergeIterator mergeIterator =
+                        new RocksStatesPerKeyGroupMergeIterator(
+                                kvStateIterators, keyGroupPrefixBytes)) {
 
-			byte[] previousKey = null;
-			byte[] previousValue = null;
-			DataOutputView kgOutView = null;
-			OutputStream kgOutStream = null;
-			CheckpointStreamFactory.CheckpointStateOutputStream checkpointOutputStream =
-				checkpointStreamWithResultProvider.getCheckpointOutputStream();
+                    // preamble: setup with first key-group as our lookahead
+                    if (mergeIterator.isValid()) {
+                        // begin first key-group by recording the offset
+                        keyGroupRangeOffsets.setKeyGroupOffset(
+                                mergeIterator.keyGroup(), checkpointOutputStream.getPos());
+                        // write the k/v-state id as metadata
+                        kgOutStream =
+                                keyGroupCompressionDecorator.decorateWithCompression(
+                                        checkpointOutputStream);
+                        kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
+                        // TODO this could be aware of keyGroupPrefixBytes and write only one byte
+                        // if possible
+                        kgOutView.writeShort(mergeIterator.kvStateId());
+                        previousKey = mergeIterator.key();
+                        previousValue = mergeIterator.value();
+                        mergeIterator.next();
+                    }
 
-			try {
-				// Here we transfer ownership of RocksIterators to the RocksStatesPerKeyGroupMergeIterator
-				try (RocksStatesPerKeyGroupMergeIterator mergeIterator = new RocksStatesPerKeyGroupMergeIterator(
-					kvStateIterators, keyGroupPrefixBytes)) {
+                    // main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking
+                    // key-group offsets.
+                    while (mergeIterator.isValid()) {
 
-					//preamble: setup with first key-group as our lookahead
-					if (mergeIterator.isValid()) {
-						//begin first key-group by recording the offset
-						keyGroupRangeOffsets.setKeyGroupOffset(
-							mergeIterator.keyGroup(),
-							checkpointOutputStream.getPos());
-						//write the k/v-state id as metadata
-						kgOutStream = keyGroupCompressionDecorator.decorateWithCompression(checkpointOutputStream);
-						kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
-						//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-						kgOutView.writeShort(mergeIterator.kvStateId());
-						previousKey = mergeIterator.key();
-						previousValue = mergeIterator.value();
-						mergeIterator.next();
-					}
+                        assert (!hasMetaDataFollowsFlag(previousKey));
 
-					//main loop: write k/v pairs ordered by (key-group, kv-state), thereby tracking key-group offsets.
-					while (mergeIterator.isValid()) {
+                        // set signal in first key byte that meta data will follow in the stream
+                        // after this k/v pair
+                        if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
 
-						assert (!hasMetaDataFollowsFlag(previousKey));
+                            // be cooperative and check for interruption from time to time in the
+                            // hot loop
+                            checkInterrupted();
 
-						//set signal in first key byte that meta data will follow in the stream after this k/v pair
-						if (mergeIterator.isNewKeyGroup() || mergeIterator.isNewKeyValueState()) {
+                            setMetaDataFollowsFlagInKey(previousKey);
+                        }
 
-							//be cooperative and check for interruption from time to time in the hot loop
-							checkInterrupted();
+                        writeKeyValuePair(previousKey, previousValue, kgOutView);
 
-							setMetaDataFollowsFlagInKey(previousKey);
-						}
+                        // write meta data if we have to
+                        if (mergeIterator.isNewKeyGroup()) {
+                            // TODO this could be aware of keyGroupPrefixBytes and write only one
+                            // byte if possible
+                            kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+                            // this will just close the outer stream
+                            kgOutStream.close();
+                            // begin new key-group
+                            keyGroupRangeOffsets.setKeyGroupOffset(
+                                    mergeIterator.keyGroup(), checkpointOutputStream.getPos());
+                            // write the kev-state
+                            // TODO this could be aware of keyGroupPrefixBytes and write only one
+                            // byte if possible
+                            kgOutStream =
+                                    keyGroupCompressionDecorator.decorateWithCompression(
+                                            checkpointOutputStream);
+                            kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
+                            kgOutView.writeShort(mergeIterator.kvStateId());
+                        } else if (mergeIterator.isNewKeyValueState()) {
+                            // write the k/v-state
+                            // TODO this could be aware of keyGroupPrefixBytes and write only one
+                            // byte if possible
+                            kgOutView.writeShort(mergeIterator.kvStateId());
+                        }
 
-						writeKeyValuePair(previousKey, previousValue, kgOutView);
+                        // request next k/v pair
+                        previousKey = mergeIterator.key();
+                        previousValue = mergeIterator.value();
+                        mergeIterator.next();
+                    }
+                }
 
-						//write meta data if we have to
-						if (mergeIterator.isNewKeyGroup()) {
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
-							// this will just close the outer stream
-							kgOutStream.close();
-							//begin new key-group
-							keyGroupRangeOffsets.setKeyGroupOffset(
-								mergeIterator.keyGroup(),
-								checkpointOutputStream.getPos());
-							//write the kev-state
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutStream = keyGroupCompressionDecorator.decorateWithCompression(checkpointOutputStream);
-							kgOutView = new DataOutputViewStreamWrapper(kgOutStream);
-							kgOutView.writeShort(mergeIterator.kvStateId());
-						} else if (mergeIterator.isNewKeyValueState()) {
-							//write the k/v-state
-							//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-							kgOutView.writeShort(mergeIterator.kvStateId());
-						}
+                // epilogue: write last key-group
+                if (previousKey != null) {
+                    assert (!hasMetaDataFollowsFlag(previousKey));
+                    setMetaDataFollowsFlagInKey(previousKey);
+                    writeKeyValuePair(previousKey, previousValue, kgOutView);
+                    // TODO this could be aware of keyGroupPrefixBytes and write only one byte if
+                    // possible
+                    kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
+                    // this will just close the outer stream
+                    kgOutStream.close();
+                    kgOutStream = null;
+                }
 
-						//request next k/v pair
-						previousKey = mergeIterator.key();
-						previousValue = mergeIterator.value();
-						mergeIterator.next();
-					}
-				}
+            } finally {
+                // this will just close the outer stream
+                IOUtils.closeQuietly(kgOutStream);
+            }
+        }
 
-				//epilogue: write last key-group
-				if (previousKey != null) {
-					assert (!hasMetaDataFollowsFlag(previousKey));
-					setMetaDataFollowsFlagInKey(previousKey);
-					writeKeyValuePair(previousKey, previousValue, kgOutView);
-					//TODO this could be aware of keyGroupPrefixBytes and write only one byte if possible
-					kgOutView.writeShort(END_OF_KEY_GROUP_MARK);
-					// this will just close the outer stream
-					kgOutStream.close();
-					kgOutStream = null;
-				}
+        private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out)
+                throws IOException {
+            BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
+            BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
+        }
 
-			} finally {
-				// this will just close the outer stream
-				IOUtils.closeQuietly(kgOutStream);
-			}
-		}
+        private void checkInterrupted() throws InterruptedException {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new InterruptedException("RocksDB snapshot interrupted.");
+            }
+        }
+    }
 
-		private void writeKeyValuePair(byte[] key, byte[] value, DataOutputView out) throws IOException {
-			BytePrimitiveArraySerializer.INSTANCE.serialize(key, out);
-			BytePrimitiveArraySerializer.INSTANCE.serialize(value, out);
-		}
+    private static List<MetaData> fillMetaData(List<RocksDbKvStateInfo> metaDataCopy) {
+        List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
+        for (RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
+            StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
+            if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+                stateSnapshotTransformer =
+                        ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo)
+                                .getStateSnapshotTransformFactory()
+                                .createForSerializedState()
+                                .orElse(null);
+            }
+            metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
+        }
+        return metaData;
+    }
 
-		private void checkInterrupted() throws InterruptedException {
-			if (Thread.currentThread().isInterrupted()) {
-				throw new InterruptedException("RocksDB snapshot interrupted.");
-			}
-		}
-	}
+    @SuppressWarnings("unchecked")
+    private static RocksIteratorWrapper getRocksIterator(
+            RocksDB db,
+            ColumnFamilyHandle columnFamilyHandle,
+            StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
+            ReadOptions readOptions) {
+        RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
+        return stateSnapshotTransformer == null
+                ? new RocksIteratorWrapper(rocksIterator)
+                : new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
+    }
 
-	private static List<MetaData> fillMetaData(
-		List<RocksDbKvStateInfo> metaDataCopy) {
-		List<MetaData> metaData = new ArrayList<>(metaDataCopy.size());
-		for (RocksDbKvStateInfo rocksDbKvStateInfo : metaDataCopy) {
-			StateSnapshotTransformer<byte[]> stateSnapshotTransformer = null;
-			if (rocksDbKvStateInfo.metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
-				stateSnapshotTransformer = ((RegisteredKeyValueStateBackendMetaInfo<?, ?>) rocksDbKvStateInfo.metaInfo).
-					getStateSnapshotTransformFactory().createForSerializedState().orElse(null);
-			}
-			metaData.add(new MetaData(rocksDbKvStateInfo, stateSnapshotTransformer));
-		}
-		return metaData;
-	}
+    private static class MetaData {
+        final RocksDbKvStateInfo rocksDbKvStateInfo;
+        final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
 
-	@SuppressWarnings("unchecked")
-	private static RocksIteratorWrapper getRocksIterator(
-		RocksDB db,
-		ColumnFamilyHandle columnFamilyHandle,
-		StateSnapshotTransformer<byte[]> stateSnapshotTransformer,
-		ReadOptions readOptions) {
-		RocksIterator rocksIterator = db.newIterator(columnFamilyHandle, readOptions);
-		return stateSnapshotTransformer == null ?
-			new RocksIteratorWrapper(rocksIterator) :
-			new RocksTransformingIteratorWrapper(rocksIterator, stateSnapshotTransformer);
-	}
+        private MetaData(
+                RocksDbKvStateInfo rocksDbKvStateInfo,
+                StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
 
-	private static class MetaData {
-		final RocksDbKvStateInfo rocksDbKvStateInfo;
-		final StateSnapshotTransformer<byte[]> stateSnapshotTransformer;
-
-		private MetaData(
-			RocksDbKvStateInfo rocksDbKvStateInfo,
-			StateSnapshotTransformer<byte[]> stateSnapshotTransformer) {
-
-			this.rocksDbKvStateInfo = rocksDbKvStateInfo;
-			this.stateSnapshotTransformer = stateSnapshotTransformer;
-		}
-	}
+            this.rocksDbKvStateInfo = rocksDbKvStateInfo;
+            this.stateSnapshotTransformer = stateSnapshotTransformer;
+        }
+    }
 }

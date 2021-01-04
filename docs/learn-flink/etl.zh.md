@@ -130,35 +130,12 @@ public static class NYCEnrichment implements FlatMapFunction<TaxiRide, EnrichedR
 {% highlight java %}
 rides
     .flatMap(new NYCEnrichment())
-    .keyBy(value -> value.startCell)
+    .keyBy(enrichedRide -> enrichedRide.startCell)
 {% endhighlight %}
 
 每个 `keyBy` 会通过 shuffle 来为数据流进行重新分区。总体来说这个开销是很大的，它涉及网络通信、序列化和反序列化。
 
-<img src="{{ site.baseurl }}/fig/keyBy.png" alt="keyBy and network shuffle" class="offset" width="45%" />
-
-在上面的例子中，将 "startCell" 这个字段定义为键。这种选择键的方式有个缺点，就是编译器无法推断用作键的字段的类型，所以 Flink 会将键值作为元组传递，这有时候会比较难处理。所以最好还是使用一个合适的 KeySelector，
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(
-        new KeySelector<EnrichedRide, int>() {
-
-            @Override
-            public int getKey(EnrichedRide enrichedRide) throws Exception {
-                return enrichedRide.startCell;
-            }
-        })
-{% endhighlight %}
-
-也可以使用更简洁的 lambda 表达式：
-
-{% highlight java %}
-rides
-    .flatMap(new NYCEnrichment())
-    .keyBy(enrichedRide -> enrichedRide.startCell)
-{% endhighlight %}
+<img src="{% link /fig/keyBy.png %}" alt="keyBy and network shuffle" class="offset" width="45%" />
 
 ### 通过计算得到键
 
@@ -251,7 +228,7 @@ minutesByStartCell
 * **持久性**: Flink 状态是容错的，例如，它可以自动按一定的时间间隔产生 checkpoint，并且在任务失败后进行恢复
 * **纵向可扩展性**: Flink 状态可以存储在集成的 RocksDB 实例中，这种方式下可以通过增加本地磁盘来扩展空间
 * **横向可扩展性**: Flink 状态可以随着集群的扩缩容重新分布
-* **可查询性**: Flink 状态可以通过使用 [状态查询 API]({{ site.baseurl }}{% link dev/stream/state/queryable_state.zh.md %}) 从外部进行查询。
+* **可查询性**: Flink 状态可以通过使用 [状态查询 API]({% link dev/stream/state/queryable_state.zh.md %}) 从外部进行查询。
 
 在本节中你将学习如何使用 Flink 的 API 来管理 keyed state。
 
@@ -355,11 +332,11 @@ keyHasBeenSeen.clear()
 
 相比于下面这种预先定义的转换：
 
-<img src="{{ site.baseurl }}/fig/transformation.svg" alt="simple transformation" class="offset" width="45%" />
+<img src="{% link /fig/transformation.svg %}" alt="simple transformation" class="offset" width="45%" />
 
 有时你想要更灵活地调整转换的某些功能，比如数据流的阈值、规则或者其他参数。Flink 支持这种需求的模式称为 _connected streams_ ，一个单独的算子有两个输入流。
 
-<img src="{{ site.baseurl }}/fig/connected-streams.svg" alt="connected streams" class="offset" width="45%" />
+<img src="{% link /fig/connected-streams.svg %}" alt="connected streams" class="offset" width="45%" />
 
 connected stream 也可以被用来实现流的关联。
 

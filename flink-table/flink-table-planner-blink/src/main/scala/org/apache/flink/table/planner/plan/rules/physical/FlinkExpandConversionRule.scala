@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.rules.physical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecExchange, BatchExecSort, BatchPhysicalRel}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExchange
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecSort, BatchPhysicalExchange, BatchPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 
 import org.apache.calcite.plan.RelOptRule._
@@ -127,7 +127,7 @@ object FlinkExpandConversionRule {
                 .replace(requiredDistribution)
                 .replace(flinkConvention)
                 .replace(RelCollations.EMPTY)
-              new BatchExecExchange(node.getCluster, traitSet, node, requiredDistribution)
+              new BatchPhysicalExchange(node.getCluster, traitSet, node, requiredDistribution)
             case FlinkConventions.STREAM_PHYSICAL =>
               val modifyKindSetTrait = fromTraitSet.getTrait(ModifyKindSetTraitDef.INSTANCE)
               val updateKindTrait = fromTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
@@ -138,7 +138,7 @@ object FlinkExpandConversionRule {
                 .replace(RelCollations.EMPTY)
                 .replace(modifyKindSetTrait)
                 .replace(updateKindTrait)
-              new StreamExecExchange(node.getCluster, traitSet, node, requiredDistribution)
+              new StreamPhysicalExchange(node.getCluster, traitSet, node, requiredDistribution)
             case _ => throw new TableException(s"Unsupported convention: $flinkConvention")
           }
         case _ => throw new TableException(s"Unsupported type: ${requiredDistribution.getType}")

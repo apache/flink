@@ -32,10 +32,10 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
-import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
+import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator
 import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.operators.over.frame._
@@ -173,7 +173,7 @@ class BatchExecOverAggregate(
         genComparator,
         inputType.getChildren.forall(t => BinaryRowData.isInFixedLengthPart(t)))
     }
-    ExecNode.createOneInputTransformation(
+    ExecNodeUtil.createOneInputTransformation(
       input,
       getRelDetailedDescription,
       SimpleOperatorFactory.of(operator),

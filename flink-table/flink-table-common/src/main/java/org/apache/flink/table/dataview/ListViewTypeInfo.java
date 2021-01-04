@@ -34,96 +34,96 @@ import org.apache.flink.table.api.dataview.ListView;
 @Deprecated
 public class ListViewTypeInfo<T> extends TypeInformation<ListView<T>> {
 
-	private static final long serialVersionUID = 6468505781419989441L;
+    private static final long serialVersionUID = 6468505781419989441L;
 
-	private final TypeInformation<T> elementType;
-	private boolean nullSerializer;
+    private final TypeInformation<T> elementType;
+    private boolean nullSerializer;
 
-	public ListViewTypeInfo(TypeInformation<T> elementType, boolean nullSerializer) {
-		this.elementType = elementType;
-		this.nullSerializer = nullSerializer;
-	}
+    public ListViewTypeInfo(TypeInformation<T> elementType, boolean nullSerializer) {
+        this.elementType = elementType;
+        this.nullSerializer = nullSerializer;
+    }
 
-	public ListViewTypeInfo(TypeInformation<T> elementType) {
-		this(elementType, false);
-	}
+    public ListViewTypeInfo(TypeInformation<T> elementType) {
+        this(elementType, false);
+    }
 
-	public TypeInformation<T> getElementType() {
-		return elementType;
-	}
+    public TypeInformation<T> getElementType() {
+        return elementType;
+    }
 
-	public boolean isNullSerializer() {
-		return nullSerializer;
-	}
+    public boolean isNullSerializer() {
+        return nullSerializer;
+    }
 
-	public void setNullSerializer(boolean nullSerializer) {
-		this.nullSerializer = nullSerializer;
-	}
+    public void setNullSerializer(boolean nullSerializer) {
+        this.nullSerializer = nullSerializer;
+    }
 
-	@Override
-	public boolean isBasicType() {
-		return false;
-	}
+    @Override
+    public boolean isBasicType() {
+        return false;
+    }
 
-	@Override
-	public boolean isTupleType() {
-		return false;
-	}
+    @Override
+    public boolean isTupleType() {
+        return false;
+    }
 
-	@Override
-	public int getArity() {
-		return 1;
-	}
+    @Override
+    public int getArity() {
+        return 1;
+    }
 
-	@Override
-	public int getTotalFields() {
-		return 1;
-	}
+    @Override
+    public int getTotalFields() {
+        return 1;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<ListView<T>> getTypeClass() {
-		return (Class<ListView<T>>) (Class<?>) ListView.class;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<ListView<T>> getTypeClass() {
+        return (Class<ListView<T>>) (Class<?>) ListView.class;
+    }
 
-	@Override
-	public boolean isKeyType() {
-		return false;
-	}
+    @Override
+    public boolean isKeyType() {
+        return false;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public TypeSerializer<ListView<T>> createSerializer(ExecutionConfig config) {
-		if (nullSerializer) {
-			return (TypeSerializer<ListView<T>>) (TypeSerializer<?>) NullSerializer.INSTANCE;
-		} else {
-			TypeSerializer<T> elementSerializer = elementType.createSerializer(config);
-			return new ListViewSerializer<>(new ListSerializer<>(elementSerializer));
-		}
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public TypeSerializer<ListView<T>> createSerializer(ExecutionConfig config) {
+        if (nullSerializer) {
+            return (TypeSerializer<ListView<T>>) (TypeSerializer<?>) NullSerializer.INSTANCE;
+        } else {
+            TypeSerializer<T> elementSerializer = elementType.createSerializer(config);
+            return new ListViewSerializer<>(new ListSerializer<>(elementSerializer));
+        }
+    }
 
-	@Override
-	public String toString() {
-		return "ListView<" + elementType + ">";
-	}
+    @Override
+    public String toString() {
+        return "ListView<" + elementType + ">";
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof ListViewTypeInfo) {
-			//noinspection unchecked
-			ListViewTypeInfo<T> other = (ListViewTypeInfo<T>) obj;
-			return elementType.equals(other.elementType) && nullSerializer == other.nullSerializer;
-		}
-		return false;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof ListViewTypeInfo) {
+            //noinspection unchecked
+            ListViewTypeInfo<T> other = (ListViewTypeInfo<T>) obj;
+            return elementType.equals(other.elementType) && nullSerializer == other.nullSerializer;
+        }
+        return false;
+    }
 
-	@Override
-	public int hashCode() {
-		return 31 * elementType.hashCode() + Boolean.hashCode(nullSerializer);
-	}
+    @Override
+    public int hashCode() {
+        return 31 * elementType.hashCode() + Boolean.hashCode(nullSerializer);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return obj != null && obj.getClass() == getClass();
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return obj != null && obj.getClass() == getClass();
+    }
 }

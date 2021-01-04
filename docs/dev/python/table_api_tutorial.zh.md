@@ -100,9 +100,9 @@ my_source_ddl = """
     create table mySource (
         word VARCHAR
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/input'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/input'
     )
 """
 
@@ -111,9 +111,9 @@ my_sink_ddl = """
         word VARCHAR,
         `count` BIGINT
     ) with (
-        'connector.type' = 'filesystem',
-        'format.type' = 'csv',
-        'connector.path' = '/tmp/output'
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '/tmp/output'
     )
 """
 
@@ -127,21 +127,17 @@ t_env.sql_update(my_sink_ddl)
 
 接下来，我们介绍如何创建一个作业：该作业读取表`mySource`中的数据，进行一些变换，然后将结果写入表`mySink`。
 
+最后，需要做的就是启动Flink Python Table API作业。上面所有的操作，比如创建源表
+进行变换以及写入结果表的操作都只是构建作业逻辑图，只有当`execute_insert(sink_name)`被调用的时候，
+作业才会被真正提交到集群或者本地进行执行。
+
 {% highlight python %}
 from pyflink.table.expressions import lit
 
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
    .select(tab.word, lit(1).count) \
-   .insert_into('mySink')
-{% endhighlight %}
-
-最后，需要做的就是启动Flink Python Table API作业。上面所有的操作，比如创建源表
-进行变换以及写入结果表的操作都只是构建作业逻辑图，只有当`t_env.execute(job_name)`被调用的时候，
-作业才会被真正提交到集群或者本地进行执行。
-
-{% highlight python %}
-t_env.execute("python_job")
+   .execute_insert('mySink').wait()
 {% endhighlight %}
 
 该教程的完整代码如下:
@@ -177,9 +173,7 @@ t_env.connect(FileSystem().path('/tmp/output')) \
 tab = t_env.from_path('mySource')
 tab.group_by(tab.word) \
    .select(tab.word, lit(1).count) \
-   .insert_into('mySink')
-
-t_env.execute("python_job")
+   .execute_insert('mySink').wait()
 {% endhighlight %}
 
 ## 执行一个Flink Python Table API程序
@@ -197,7 +191,7 @@ $ python WordCount.py
 {% endhighlight %}
 
 上述命令会构建Python Table API程序，并在本地mini cluster中运行。如果想将作业提交到远端集群执行，
-可以参考[作业提交示例]({{ site.baseurl }}/zh/ops/cli.html#job-submission-examples)。
+可以参考[作业提交示例]({% link deployment/cli.zh.md %}#submitting-pyflink-jobs)。
 
 最后，你可以通过如下命令查看你的运行结果：
 

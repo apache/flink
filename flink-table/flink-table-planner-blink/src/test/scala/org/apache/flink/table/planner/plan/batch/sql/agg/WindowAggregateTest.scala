@@ -64,7 +64,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage("HOP window with alignment is not supported yet.")
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -74,14 +74,15 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         "GROUP BY SESSION(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage("SESSION window with alignment is not supported yet.")
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testVariableWindowSize(): Unit = {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage("Only constant window descriptors are supported")
-    util.verifyPlan("SELECT COUNT(*) FROM MyTable2 GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)")
+    util.verifyExecPlan(
+      "SELECT COUNT(*) FROM MyTable2 GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)")
   }
 
   @Test
@@ -94,7 +95,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("SQL validation failed. "
       + "Given parameters of function 'weightedAvg' do not match any signature.")
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -105,7 +106,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "PROCTIME window property is not supported in batch queries.")
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[AssertionError])
@@ -119,45 +120,45 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
       |FROM MyTable1
       |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
     """.stripMargin
-    util.verifyPlanNotExpected(sql, "TUMBLE(ts")
+    util.verifyRelPlanNotExpected(sql, "TUMBLE(ts")
   }
 
   @Test
   def testNoGroupingTumblingWindow(): Unit = {
     val sqlQuery = "SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testTumblingWindowSortAgg1(): Unit = {
     val sqlQuery = "SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testTumblingWindowSortAgg2(): Unit = {
     val sqlQuery = "SELECT AVG(c), countFun(a) FROM MyTable " +
       "GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testTumblingWindowHashAgg1(): Unit = {
     val sqlQuery = "SELECT COUNT(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testTumblingWindowHashAgg2(): Unit = {
     val sql = "SELECT AVG(c), COUNT(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testNonPartitionedTumblingWindow(): Unit = {
     val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -173,7 +174,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |FROM MyTable2
         |    GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -181,7 +182,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.addFunction("weightedAvg", new WeightedAvgWithMerge)
     val sql = "SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -190,7 +191,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -203,42 +204,42 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |FROM MyTable
         |    GROUP BY HOP(b, INTERVAL '3' SECOND, INTERVAL '3' SECOND)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSlidingWindowSortAgg1(): Unit = {
     val sqlQuery = "SELECT MAX(c) FROM MyTable1 " +
       "GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSlidingWindowSortAgg2(): Unit = {
     val sqlQuery = "SELECT MAX(c) FROM MyTable1 " +
       "GROUP BY b, HOP(ts, INTERVAL '0.111' SECOND(1,3), INTERVAL '1' SECOND)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSlidingWindowSortAgg3(): Unit = {
     val sqlQuery = "SELECT countFun(c) FROM MyTable " +
       " GROUP BY a, d, HOP(b, INTERVAL '3' SECOND, INTERVAL '1' HOUR)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSlidingWindowSortAggWithPaneOptimization(): Unit = {
     val sqlQuery = "SELECT COUNT(c) FROM MyTable1 " +
       "GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSlidingWindowHashAgg(): Unit = {
     val sqlQuery = "SELECT count(c) FROM MyTable1 " +
       "GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -248,7 +249,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         "FROM MyTable2 " +
         "GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -264,7 +265,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         "FROM MyTable2 " +
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c"
 
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -278,7 +279,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -288,7 +289,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
       "Cannot generate a valid execution plan for the given query")
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -308,7 +309,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
       "Cannot generate a valid execution plan for the given query")
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -322,7 +323,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       "Window can not be defined over a proctime attribute column for batch mode")
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -330,7 +331,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     val sqlQuery =
       "SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 " +
         "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c"
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -345,7 +346,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |     SUM(a) > 0 AND
         |     QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -361,9 +362,10 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |FROM MyTable1
         |    GROUP BY TUMBLE(ts, INTERVAL '15' MINUTE)
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
+  // TODO: fix the plan regression when FLINK-19668 is fixed.
   @Test
   def testReturnTypeInferenceForWindowAgg() = {
 
@@ -383,7 +385,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -410,7 +412,7 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
         |(SELECT * FROM window_2h)
         |""".stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }
 

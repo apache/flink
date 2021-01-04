@@ -58,6 +58,13 @@ class NonDeterministicTests extends ExpressionTestBase {
   }
 
   @Test
+  def testNow(): Unit = {
+    testSqlApi(
+      "NOW() > TIMESTAMP '1970-01-01 00:00:00'",
+      "true")
+  }
+
+  @Test
   def testLocalTimestamp(): Unit = {
     testAllApis(
       localTimestamp().isGreater("1970-01-01 00:00:00".toTimestamp),

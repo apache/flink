@@ -25,38 +25,41 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerImpl;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
-/**
- * Yarn configuration options that are not meant to be set by the user.
- */
+/** Yarn configuration options that are not meant to be set by the user. */
 @Internal
 public class YarnConfigOptionsInternal {
 
-	public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
-			key("$internal.yarn.log-config-file")
-					.stringType()
-					.noDefaultValue()
-					.withDescription("**DO NOT USE** The location of the log config file, e.g. the path to your log4j.properties for log4j.");
+    public static final ConfigOption<String> APPLICATION_LOG_CONFIG_FILE =
+            key("$internal.yarn.log-config-file")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "**DO NOT USE** The location of the log config file, e.g. the path to your log4j.properties for log4j.");
 
-	/**
-	 * **DO NOT USE** Whether {@link org.apache.flink.yarn.YarnResourceManagerDriver} should match the vcores of allocated containers with those requested.
-	 *
-	 * <p>By default, Yarn ignores vcores in the container requests, and always allocate 1 vcore for each container.
-	 * Iff 'yarn.scheduler.capacity.resource-calculator' is set to 'DominantResourceCalculator' for Yarn, will it
-	 * allocate container vcores as requested.
-	 *
-	 * <P>For Hadoop 2.6+, we can learn whether Yarn matches vcores from
-	 * {@link org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse}. However, this is not
-	 * available to earlier Hadoop versions (pre 2.6). Therefore, for earlier Hadoop versions, the user needs to make
-	 * sure this configuration option is consistent with the Yarn setup.
-	 *
-	 * <p>ATM, it should be fine to keep this option 'false', because with the current {@link SlotManagerImpl} all the
-	 * TM containers should have the same resources. If later we add another {@link SlotManager} implementation that may
-	 * have TMs with different resources, and if we need it to work with pre 2.6 Hadoop versions, we can expose this
-	 * configuration option to users.
-	 */
-	public static final ConfigOption<Boolean> MATCH_CONTAINER_VCORES =
-			key("$internal.yarn.resourcemanager.enable-vcore-matching")
-					.booleanType()
-					.defaultValue(false)
-					.withDescription("**DO NOT USE** Whether YarnResourceManagerDriver should match the container vcores.");
+    /**
+     * **DO NOT USE** Whether {@link org.apache.flink.yarn.YarnResourceManagerDriver} should match
+     * the vcores of allocated containers with those requested.
+     *
+     * <p>By default, Yarn ignores vcores in the container requests, and always allocate 1 vcore for
+     * each container. Iff 'yarn.scheduler.capacity.resource-calculator' is set to
+     * 'DominantResourceCalculator' for Yarn, will it allocate container vcores as requested.
+     *
+     * <p>For Hadoop 2.6+, we can learn whether Yarn matches vcores from {@link
+     * org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse}. However, this
+     * is not available to earlier Hadoop versions (pre 2.6). Therefore, for earlier Hadoop
+     * versions, the user needs to make sure this configuration option is consistent with the Yarn
+     * setup.
+     *
+     * <p>ATM, it should be fine to keep this option 'false', because with the current {@link
+     * SlotManagerImpl} all the TM containers should have the same resources. If later we add
+     * another {@link SlotManager} implementation that may have TMs with different resources, and if
+     * we need it to work with pre 2.6 Hadoop versions, we can expose this configuration option to
+     * users.
+     */
+    public static final ConfigOption<Boolean> MATCH_CONTAINER_VCORES =
+            key("$internal.yarn.resourcemanager.enable-vcore-matching")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "**DO NOT USE** Whether YarnResourceManagerDriver should match the container vcores.");
 }

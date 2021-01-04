@@ -28,27 +28,26 @@ import org.apache.flink.util.clock.SystemClock;
 
 import javax.annotation.Nonnull;
 
-/**
- * Factory interface for {@link SlotPool}.
- */
+/** Factory interface for {@link SlotPool}. */
 public interface SlotPoolFactory {
 
-	@Nonnull
-	SlotPool createSlotPool(@Nonnull JobID jobId);
+    @Nonnull
+    SlotPool createSlotPool(@Nonnull JobID jobId);
 
-	static SlotPoolFactory fromConfiguration(Configuration configuration) {
-		final Time rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
-		final Time slotIdleTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
-		final Time batchSlotTimeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+    static SlotPoolFactory fromConfiguration(Configuration configuration) {
+        final Time rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
+        final Time slotIdleTimeout =
+                Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_IDLE_TIMEOUT));
+        final Time batchSlotTimeout =
+                Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
 
-		if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
-			throw new UnsupportedOperationException("Declarative slot pool is not yet implemented.");
-		} else {
-			return new DefaultSlotPoolFactory(
-				SystemClock.getInstance(),
-				rpcTimeout,
-				slotIdleTimeout,
-				batchSlotTimeout);
-		}
-	}
+        if (ClusterOptions.isDeclarativeResourceManagementEnabled(configuration)) {
+
+            return new DeclarativeSlotPoolBridgeFactory(
+                    SystemClock.getInstance(), rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        } else {
+            return new DefaultSlotPoolFactory(
+                    SystemClock.getInstance(), rpcTimeout, slotIdleTimeout, batchSlotTimeout);
+        }
+    }
 }

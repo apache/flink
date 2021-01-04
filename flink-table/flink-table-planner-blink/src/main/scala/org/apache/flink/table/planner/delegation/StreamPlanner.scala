@@ -25,11 +25,13 @@ import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.`trait`._
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, LegacyStreamExecNode}
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
-import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.sinks.{SelectTableSinkBase, StreamSelectTableSink}
-import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils, PlanUtil}
+import org.apache.flink.table.planner.utils.{DummyStreamExecutionEnvironment, ExecutorUtils}
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.logical.LogicalTableModify
@@ -58,11 +60,12 @@ class StreamPlanner(
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
   override protected def translateToPlan(
-      execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+      execNodes: util.List[ExecNode[_]]): util.List[Transformation[_]] = {
     val planner = createDummyPlanner()
     planner.overrideEnvParallelism()
 
     execNodes.map {
+      case legacyNode: LegacyStreamExecNode[_] => legacyNode.translateToPlan(planner)
       case node: StreamExecNode[_] => node.translateToPlan(planner)
       case _ =>
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
@@ -102,7 +105,6 @@ class StreamPlanner(
 
     val transformations = translateToPlan(execNodes)
     val streamGraph = ExecutorUtils.generateStreamGraph(getExecEnv, transformations)
-    val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
@@ -112,7 +114,7 @@ class StreamPlanner(
       sb.append(System.lineSeparator)
     }
 
-    sb.append("== Optimized Logical Plan ==")
+    sb.append("== Optimized Physical Plan ==")
     sb.append(System.lineSeparator)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -120,15 +122,25 @@ class StreamPlanner(
       SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     val withChangelogTraits = extraDetails.contains(ExplainDetail.CHANGELOG_MODE)
-    sb.append(ExecNodePlanDumper.dagToString(
-      execNodes,
-      explainLevel,
-      withChangelogTraits = withChangelogTraits))
-    sb.append(System.lineSeparator)
+    optimizedRelNodes.foreach { rel =>
+      sb.append(FlinkRelOptUtil.toString(
+        rel,
+        explainLevel,
+        withChangelogTraits = withChangelogTraits))
+      sb.append(System.lineSeparator)
+    }
 
-    sb.append("== Physical Execution Plan ==")
+    sb.append("== Optimized Execution Plan ==")
     sb.append(System.lineSeparator)
-    sb.append(executionPlan)
+    sb.append(ExecNodePlanDumper.dagToString(execNodes))
+
+    if (extraDetails.contains(ExplainDetail.JSON_EXECUTION_PLAN)) {
+      sb.append(System.lineSeparator)
+      sb.append("== Physical Execution Plan ==")
+      sb.append(System.lineSeparator)
+      sb.append(streamGraph.getStreamingPlanAsJSON)
+    }
+
     sb.toString()
   }
 

@@ -31,142 +31,140 @@ import java.util.Objects;
 import java.util.Random;
 
 /**
- * Testing the serialization of classes which are subclasses of a class that implements an interface.
+ * Testing the serialization of classes which are subclasses of a class that implements an
+ * interface.
  */
-public class SubclassFromInterfaceSerializerTest extends SerializerTestBase<SubclassFromInterfaceSerializerTest.TestUserInterface> {
-	private TypeInformation<TestUserInterface> type = TypeExtractor.getForClass(TestUserInterface.class);
+public class SubclassFromInterfaceSerializerTest
+        extends SerializerTestBase<SubclassFromInterfaceSerializerTest.TestUserInterface> {
+    private TypeInformation<TestUserInterface> type =
+            TypeExtractor.getForClass(TestUserInterface.class);
 
-	@Override
-	protected TypeSerializer<TestUserInterface> createSerializer() {
-		// only register one of the two child classes
-		ExecutionConfig conf = new ExecutionConfig();
-		conf.registerPojoType(TestUserClass2.class);
-		TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
-		assert(serializer instanceof KryoSerializer);
-		return serializer;
-	}
+    @Override
+    protected TypeSerializer<TestUserInterface> createSerializer() {
+        // only register one of the two child classes
+        ExecutionConfig conf = new ExecutionConfig();
+        conf.registerPojoType(TestUserClass2.class);
+        TypeSerializer<TestUserInterface> serializer = type.createSerializer(conf);
+        assert (serializer instanceof KryoSerializer);
+        return serializer;
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@Override
-	protected Class<TestUserInterface> getTypeClass() {
-		return TestUserInterface.class;
-	}
+    @Override
+    protected Class<TestUserInterface> getTypeClass() {
+        return TestUserInterface.class;
+    }
 
-	@Override
-	protected TestUserInterface[] getTestData() {
-		Random rnd = new Random(874597969123412341L);
+    @Override
+    protected TestUserInterface[] getTestData() {
+        Random rnd = new Random(874597969123412341L);
 
-		return new TestUserInterface[]{
-				new TestUserClass1(rnd.nextInt(), "foo", rnd.nextLong()),
-				new TestUserClass2(rnd.nextInt(), "bar", rnd.nextFloat())
-		};
+        return new TestUserInterface[] {
+            new TestUserClass1(rnd.nextInt(), "foo", rnd.nextLong()),
+            new TestUserClass2(rnd.nextInt(), "bar", rnd.nextFloat())
+        };
+    }
 
-	}
+    @Override
+    @Test
+    public void testInstantiate() {
+        // don't do anything, since the PojoSerializer with subclass will return null
+    }
 
-	@Override
-	@Test
-	public void testInstantiate() {
-		// don't do anything, since the PojoSerializer with subclass will return null
-	}
+    public interface TestUserInterface {}
 
-	public interface TestUserInterface {}
+    // User code class for testing the serializer
+    public static class TestUserClassBase implements TestUserInterface {
+        public int dumm1;
+        public String dumm2;
 
-	// User code class for testing the serializer
-	public static class TestUserClassBase implements TestUserInterface {
-		public int dumm1;
-		public String dumm2;
+        public TestUserClassBase() {}
 
+        public TestUserClassBase(int dumm1, String dumm2) {
+            this.dumm1 = dumm1;
+            this.dumm2 = dumm2;
+        }
 
-		public TestUserClassBase() {
-		}
+        @Override
+        public int hashCode() {
+            return Objects.hash(dumm1, dumm2);
+        }
 
-		public TestUserClassBase(int dumm1, String dumm2) {
-			this.dumm1 = dumm1;
-			this.dumm2 = dumm2;
-		}
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof TestUserClassBase)) {
+                return false;
+            }
+            TestUserClassBase otherTUC = (TestUserClassBase) other;
+            if (dumm1 != otherTUC.dumm1) {
+                return false;
+            }
+            if (!dumm2.equals(otherTUC.dumm2)) {
+                return false;
+            }
+            return true;
+        }
+    }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(dumm1, dumm2);
-		}
+    public static class TestUserClass1 extends TestUserClassBase {
+        public long dumm3;
 
-		@Override
-		public boolean equals(Object other) {
-			if (!(other instanceof TestUserClassBase)) {
-				return false;
-			}
-			TestUserClassBase otherTUC = (TestUserClassBase) other;
-			if (dumm1 != otherTUC.dumm1) {
-				return false;
-			}
-			if (!dumm2.equals(otherTUC.dumm2)) {
-				return false;
-			}
-			return true;
-		}
-	}
+        public TestUserClass1() {}
 
-	public static class TestUserClass1 extends TestUserClassBase {
-		public long dumm3;
+        public TestUserClass1(int dumm1, String dumm2, long dumm3) {
+            super(dumm1, dumm2);
+            this.dumm3 = dumm3;
+        }
 
-		public TestUserClass1() {
-		}
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof TestUserClass1)) {
+                return false;
+            }
+            TestUserClass1 otherTUC = (TestUserClass1) other;
+            if (dumm1 != otherTUC.dumm1) {
+                return false;
+            }
+            if (!dumm2.equals(otherTUC.dumm2)) {
+                return false;
+            }
+            if (dumm3 != otherTUC.dumm3) {
+                return false;
+            }
+            return true;
+        }
+    }
 
-		public TestUserClass1(int dumm1, String dumm2, long dumm3) {
-			super(dumm1, dumm2);
-			this.dumm3 = dumm3;
-		}
+    public static class TestUserClass2 extends TestUserClassBase {
+        public float dumm4;
 
-		@Override
-		public boolean equals(Object other) {
-			if (!(other instanceof TestUserClass1)) {
-				return false;
-			}
-			TestUserClass1 otherTUC = (TestUserClass1) other;
-			if (dumm1 != otherTUC.dumm1) {
-				return false;
-			}
-			if (!dumm2.equals(otherTUC.dumm2)) {
-				return false;
-			}
-			if (dumm3 != otherTUC.dumm3) {
-				return false;
-			}
-			return true;
-		}
-	}
+        public TestUserClass2() {}
 
-	public static class TestUserClass2 extends TestUserClassBase {
-		public float dumm4;
+        public TestUserClass2(int dumm1, String dumm2, float dumm4) {
+            super(dumm1, dumm2);
+            this.dumm4 = dumm4;
+        }
 
-		public TestUserClass2() {
-		}
-
-		public TestUserClass2(int dumm1, String dumm2, float dumm4) {
-			super(dumm1, dumm2);
-			this.dumm4 = dumm4;
-		}
-
-		@Override
-		public boolean equals(Object other) {
-			if (!(other instanceof TestUserClass2)) {
-				return false;
-			}
-			TestUserClass2 otherTUC = (TestUserClass2) other;
-			if (dumm1 != otherTUC.dumm1) {
-				return false;
-			}
-			if (!dumm2.equals(otherTUC.dumm2)) {
-				return false;
-			}
-			if (dumm4 != otherTUC.dumm4) {
-				return false;
-			}
-			return true;
-		}
-	}
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof TestUserClass2)) {
+                return false;
+            }
+            TestUserClass2 otherTUC = (TestUserClass2) other;
+            if (dumm1 != otherTUC.dumm1) {
+                return false;
+            }
+            if (!dumm2.equals(otherTUC.dumm2)) {
+                return false;
+            }
+            if (dumm4 != otherTUC.dumm4) {
+                return false;
+            }
+            return true;
+        }
+    }
 }

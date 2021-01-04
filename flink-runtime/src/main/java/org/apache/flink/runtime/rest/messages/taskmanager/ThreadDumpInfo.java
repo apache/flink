@@ -27,88 +27,84 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Objects;
 
-/**
- * Class containing thread dump information.
- */
+/** Class containing thread dump information. */
 public final class ThreadDumpInfo implements ResponseBody, Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public static final String FIELD_NAME_THREAD_INFOS = "threadInfos";
+    public static final String FIELD_NAME_THREAD_INFOS = "threadInfos";
 
-	@JsonProperty(FIELD_NAME_THREAD_INFOS)
-	private final Collection<ThreadInfo> threadInfos;
+    @JsonProperty(FIELD_NAME_THREAD_INFOS)
+    private final Collection<ThreadInfo> threadInfos;
 
-	private ThreadDumpInfo(Collection<ThreadInfo> threadInfos) {
-		this.threadInfos = threadInfos;
-	}
+    private ThreadDumpInfo(Collection<ThreadInfo> threadInfos) {
+        this.threadInfos = threadInfos;
+    }
 
-	public Collection<ThreadInfo> getThreadInfos() {
-		return threadInfos;
-	}
+    public Collection<ThreadInfo> getThreadInfos() {
+        return threadInfos;
+    }
 
-	@JsonCreator
-	public static ThreadDumpInfo create(
-			@JsonProperty(FIELD_NAME_THREAD_INFOS) Collection<ThreadInfo> threadInfos) {
-		return new ThreadDumpInfo(threadInfos);
-	}
+    @JsonCreator
+    public static ThreadDumpInfo create(
+            @JsonProperty(FIELD_NAME_THREAD_INFOS) Collection<ThreadInfo> threadInfos) {
+        return new ThreadDumpInfo(threadInfos);
+    }
 
-	/**
-	 * Class containing information about a thread.
-	 */
-	public static final class ThreadInfo implements Serializable {
-		private static final long serialVersionUID = 1L;
+    /** Class containing information about a thread. */
+    public static final class ThreadInfo implements Serializable {
+        private static final long serialVersionUID = 1L;
 
-		public static final String FIELD_NAME_THREAD_NAME = "threadName";
+        public static final String FIELD_NAME_THREAD_NAME = "threadName";
 
-		public static final String FIELD_NAME_THREAD_INFO = "stringifiedThreadInfo";
+        public static final String FIELD_NAME_THREAD_INFO = "stringifiedThreadInfo";
 
-		@JsonProperty(FIELD_NAME_THREAD_NAME)
-		private final String threadName;
+        @JsonProperty(FIELD_NAME_THREAD_NAME)
+        private final String threadName;
 
-		@JsonProperty(FIELD_NAME_THREAD_INFO)
-		private final String stringifiedThreadInfo;
+        @JsonProperty(FIELD_NAME_THREAD_INFO)
+        private final String stringifiedThreadInfo;
 
-		private ThreadInfo(String threadName, String stringifiedThreadInfo) {
-			this.threadName = threadName;
-			this.stringifiedThreadInfo = stringifiedThreadInfo;
-		}
+        private ThreadInfo(String threadName, String stringifiedThreadInfo) {
+            this.threadName = threadName;
+            this.stringifiedThreadInfo = stringifiedThreadInfo;
+        }
 
-		@JsonCreator
-		public static ThreadInfo create(
-			@JsonProperty(FIELD_NAME_THREAD_NAME) String threadName,
-			@JsonProperty(FIELD_NAME_THREAD_INFO) String stringifiedThreadInfo) {
-			return new ThreadInfo(threadName, stringifiedThreadInfo);
-		}
+        @JsonCreator
+        public static ThreadInfo create(
+                @JsonProperty(FIELD_NAME_THREAD_NAME) String threadName,
+                @JsonProperty(FIELD_NAME_THREAD_INFO) String stringifiedThreadInfo) {
+            return new ThreadInfo(threadName, stringifiedThreadInfo);
+        }
 
-		public String getThreadName() {
-			return threadName;
-		}
+        public String getThreadName() {
+            return threadName;
+        }
 
-		public String getStringifiedThreadInfo() {
-			return stringifiedThreadInfo;
-		}
+        public String getStringifiedThreadInfo() {
+            return stringifiedThreadInfo;
+        }
 
-		@Override
-		public String toString() {
-			return stringifiedThreadInfo;
-		}
+        @Override
+        public String toString() {
+            return stringifiedThreadInfo;
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ThreadInfo that = (ThreadInfo) o;
-			return Objects.equals(threadName, that.threadName) &&
-				Objects.equals(stringifiedThreadInfo, that.stringifiedThreadInfo);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ThreadInfo that = (ThreadInfo) o;
+            return Objects.equals(threadName, that.threadName)
+                    && Objects.equals(stringifiedThreadInfo, that.stringifiedThreadInfo);
+        }
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(threadName, stringifiedThreadInfo);
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(threadName, stringifiedThreadInfo);
+        }
+    }
 }

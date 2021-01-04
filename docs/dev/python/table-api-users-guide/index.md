@@ -23,8 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Python Table API allows users to develop [Table API]({% link dev/table/tableApi.md %}) programs using the Python language.
-Apache Flink has provided Python Table API support since 1.9.0.
+The Python Table API allows users to develop [Table API]({% link dev/table/tableApi.md %}) programs using the Python language.
 
 ## Where to go next?
 
@@ -34,5 +33,4 @@ Apache Flink has provided Python Table API support since 1.9.0.
 - [Vectorized User-defined Functions]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}): Explanation of how to define vectorized Python user-defined functions.
 - [Conversions between PyFlink Table and Pandas DataFrame]({% link dev/python/table-api-users-guide/conversion_of_pandas.md %}): Explanation of how to convert between PyFlink Table and Pandas DataFrame.
 - [Dependency Management]({% link dev/python/table-api-users-guide/dependency_management.md %}): Specification of how to use third-part dependencies in a Python Table API program.
-- [Configuration]({% link dev/python/table-api-users-guide/python_config.md %}): Description of the config options available for Python Table API programs.
 - [Common Questions]({% link dev/python/faq.md %})

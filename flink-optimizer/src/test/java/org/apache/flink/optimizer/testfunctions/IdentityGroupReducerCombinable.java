@@ -18,25 +18,24 @@
 
 package org.apache.flink.optimizer.testfunctions;
 
-
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.util.Collector;
 
 public class IdentityGroupReducerCombinable<T>
-	implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
+        implements GroupReduceFunction<T, T>, GroupCombineFunction<T, T> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public void reduce(Iterable<T> values, Collector<T> out) {
-		for (T next : values) {
-			out.collect(next);
-		}
-	}
+    @Override
+    public void reduce(Iterable<T> values, Collector<T> out) {
+        for (T next : values) {
+            out.collect(next);
+        }
+    }
 
-	@Override
-	public void combine(Iterable<T> values, Collector<T> out) {
-		reduce(values, out);
-	}
+    @Override
+    public void combine(Iterable<T> values, Collector<T> out) {
+        reduce(values, out);
+    }
 }

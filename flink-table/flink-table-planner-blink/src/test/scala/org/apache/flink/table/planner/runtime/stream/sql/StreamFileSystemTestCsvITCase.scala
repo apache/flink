@@ -18,27 +18,14 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
-
 import scala.collection.Seq
 
 /**
   * Test csv [[StreamFileSystemITCaseBase]].
   */
-@RunWith(classOf[Parameterized])
-class StreamFileSystemTestCsvITCase(useBulkWriter: Boolean) extends StreamFileSystemITCaseBase {
+class StreamFileSystemTestCsvITCase extends StreamFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {
-    super.formatProperties() ++ Seq(
-      "'format' = 'testcsv'",
-      s"'testcsv.use-bulk-writer' = '$useBulkWriter'")
-  }
-}
-
-object StreamFileSystemTestCsvITCase {
-  @Parameterized.Parameters(name = "useBulkWriter-{0}")
-  def parameters(): java.util.Collection[Boolean] = {
-    java.util.Arrays.asList(true, false)
+    super.formatProperties() ++ Seq("'format' = 'testcsv'")
   }
 }

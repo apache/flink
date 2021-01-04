@@ -18,7 +18,7 @@
             <td><h5>kubernetes.cluster-id</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. If not set, the client will automatically generate it with a random ID.</td>
+            <td>The cluster-id, which should be no more than 45 characters, is used for identifying a unique Flink cluster. The id must only contain lowercase alphanumeric characters and "-". The required format is <span markdown="span">`[a-z]([-a-z0-9]*[a-z0-9])`</span>. If not set, the client will automatically generate it with a random ID.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.config.file</h5></td>
@@ -112,9 +112,9 @@
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.service-account</h5></td>
-            <td style="word-wrap: break-word;">"default"</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server.</td>
+            <td>Service account that is used by jobmanager within kubernetes cluster. The job manager uses this service account when requesting taskmanager pods from the API server. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
         </tr>
         <tr>
             <td><h5>kubernetes.jobmanager.tolerations</h5></td>
@@ -147,6 +147,12 @@
             <td>The user-specified secrets that will be mounted into Flink container. The value should be in the form of <span markdown="span">`foo:/opt/secrets-foo,bar:/opt/secrets-bar`</span>.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.service-account</h5></td>
+            <td style="word-wrap: break-word;">"default"</td>
+            <td>String</td>
+            <td>Service account that is used by jobmanager and taskmanager within kubernetes cluster. Notice that this can be overwritten by config options 'kubernetes.jobmanager.service-account' and 'kubernetes.taskmanager.service-account' for jobmanager and taskmanager respectively.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.annotations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
@@ -171,10 +177,22 @@
             <td>The node selector to be set for TaskManager pods. Specified as key:value pairs separated by commas. For example, environment:production,disk:ssd.</td>
         </tr>
         <tr>
+            <td><h5>kubernetes.taskmanager.service-account</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Service account that is used by taskmanager within kubernetes cluster. The task manager uses this service account when watching config maps on the API server to retrieve leader address of jobmanager and resourcemanager. If not explicitly configured, config option 'kubernetes.service-account' will be used.</td>
+        </tr>
+        <tr>
             <td><h5>kubernetes.taskmanager.tolerations</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>List&lt;Map&gt;</td>
             <td>The user-specified tolerations to be set to the TaskManager pod. The value should be in the form of key:key1,operator:Equal,value:value1,effect:NoSchedule;key:key2,operator:Exists,effect:NoExecute,tolerationSeconds:6000</td>
+        </tr>
+        <tr>
+            <td><h5>kubernetes.transactional-operation.max-retries</h5></td>
+            <td style="word-wrap: break-word;">5</td>
+            <td>Integer</td>
+            <td>Defines the number of Kubernetes transactional operation retries before the client gives up. For example, <span markdown="span">`FlinkKubeClient#checkAndUpdateConfigMap`</span>.</td>
         </tr>
     </tbody>
 </table>

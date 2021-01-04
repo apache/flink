@@ -27,6 +27,7 @@ STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
+STAGE_LEGACY_SLOT_MANAGEMENT="legacy_slot_management"
 
 MODULES_CORE="\
 flink-annotations,\
@@ -97,7 +98,6 @@ flink-connectors/flink-connector-elasticsearch7,\
 flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
-flink-connectors/flink-connector-filesystem,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
@@ -122,6 +122,8 @@ flink-connectors/flink-sql-connector-kafka,"
 
 MODULES_TESTS="\
 flink-tests"
+
+MODULES_LEGACY_SLOT_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
 
 # we can only build the Scala Shell when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then
@@ -159,6 +161,9 @@ function get_compile_modules_for_stage() {
             # compile everything for PyFlink.
             echo ""
         ;;
+        (${STAGE_LEGACY_SLOT_MANAGEMENT})
+            echo "-pl $MODULES_LEGACY_SLOT_MANAGEMENT -am"
+        ;;
     esac
 }
 
@@ -177,6 +182,7 @@ function get_test_modules_for_stage() {
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
     local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
+    local modules_legacy_slot_management=$MODULES_LEGACY_SLOT_MANAGEMENT
 
     case ${stage} in
         (${STAGE_CORE})
@@ -200,5 +206,8 @@ function get_test_modules_for_stage() {
         (${STAGE_MISC})
             echo "-pl $modules_misc"
         ;;
+        (${STAGE_LEGACY_SLOT_MANAGEMENT})
+            echo "-pl $modules_legacy_slot_management"
+        ::
     esac
 }

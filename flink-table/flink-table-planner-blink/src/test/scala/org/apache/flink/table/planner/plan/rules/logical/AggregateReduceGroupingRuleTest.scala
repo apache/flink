@@ -26,7 +26,7 @@ import org.junit.Before
 /**
   * Test for [[AggregateReduceGroupingRule]].
   */
-class AggregateReduceGroupingRuleTest extends AggregateReduceGroupingTestBase {
+class AggregateReduceGroupingRuleTest extends AggregateReduceGroupingTestBase(false) {
 
   @Before
   override def setup(): Unit = {

@@ -42,7 +42,7 @@ main components interact to execute applications and recover from failures.
 
 The Flink runtime consists of two types of processes: a _JobManager_ and one or more _TaskManagers_.
 
-<img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="70%" />
+<img src="{% link /fig/processes.svg %}" alt="The processes involved in executing a Flink dataflow" class="offset" width="70%" />
 
 The *Client* is not part of the runtime and program execution, but is used to
 prepare and send a dataflow to the JobManager.  After that, the client can
@@ -53,9 +53,9 @@ that triggers the execution, or in the command line process `./bin/flink run
 
 The JobManager and TaskManagers can be started in various ways: directly on
 the machines as a [standalone cluster]({% link
-ops/deployment/cluster_setup.md %}), in containers, or managed by resource
-frameworks like [YARN]({% link ops/deployment/yarn_setup.md
-%}) or [Mesos]({% link ops/deployment/mesos.md %}).
+deployment/resource-providers/standalone/index.md %}), in containers, or managed by resource
+frameworks like [YARN]({% link deployment/resource-providers/yarn.md
+%}) or [Mesos]({% link deployment/resource-providers/mesos.md %}).
 TaskManagers connect to JobManagers, announcing themselves as available, and
 are assigned work.
 
@@ -92,7 +92,7 @@ failures, among others. This process consists of three different components:
 
 There is always at least one JobManager. A high-availability setup might have
 multiple JobManagers, one of which is always the *leader*, and the others are
-*standby* (see [High Availability (HA)]({% link ops/jobmanager_high_availability.md %})).
+*standby* (see [High Availability (HA)]({% link deployment/ha/index.md %})).
 
 ### TaskManagers
 
@@ -118,7 +118,7 @@ link dev/stream/operators/index.md %}#task-chaining-and-resource-groups) for det
 The sample dataflow in the figure below is executed with five subtasks, and
 hence with five parallel threads.
 
-<img src="{{ site.baseurl }}/fig/tasks_chains.svg" alt="Operator chaining into Tasks" class="offset" width="80%" />
+<img src="{% link /fig/tasks_chains.svg %}" alt="Operator chaining into Tasks" class="offset" width="80%" />
 
 {% top %}
 
@@ -143,7 +143,7 @@ in the same JVM share TCP connections (via multiplexing) and heartbeat
 messages. They may also share data sets and data structures, thus reducing the
 per-task overhead.
 
-<img src="{{ site.baseurl }}/fig/tasks_slots.svg" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" />
+<img src="{% link /fig/tasks_slots.svg %}" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" />
 
 By default, Flink allows subtasks to share slots even if they are subtasks of
 different tasks, so long as they are from the same job. The result is that one
@@ -161,7 +161,7 @@ two main benefits:
     the slotted resources, while making sure that the heavy subtasks are fairly
     distributed among the TaskManagers.
 
-<img src="{{ site.baseurl }}/fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
+<img src="{% link /fig/slot_sharing.svg %}" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
 
 ## Flink Application Execution
 
@@ -169,7 +169,7 @@ A _Flink Application_ is any user program that spawns one or multiple Flink
 jobs from its ``main()`` method. The execution of these jobs can happen in a
 local JVM (``LocalEnvironment``) or on a remote setup of clusters with multiple
 machines (``RemoteEnvironment``). For each program, the
-[``ExecutionEnvironment``]({{ site.baseurl }}/api/java/) provides methods to
+[``ExecutionEnvironment``]({{ site.javadocs_baseurl }}/api/java/) provides methods to
 control the job execution (e.g. setting the parallelism) and to interact with
 the outside world (see [Anatomy of a Flink Program]({%
 link dev/datastream_api.md %}#anatomy-of-a-flink-program)).

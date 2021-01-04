@@ -23,55 +23,65 @@ import org.apache.mesos.Protos;
 import java.io.Serializable;
 import java.util.Collection;
 
-/**
- * Local message sent by the launch coordinator to the scheduler to accept offers.
- */
+/** Local message sent by the launch coordinator to the scheduler to accept offers. */
 public class AcceptOffers implements Serializable {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final String hostname;
-	private final Collection<Protos.OfferID> offerIds;
-	private final Collection<Protos.Offer.Operation> operations;
-	private final Protos.Filters filters;
+    private final String hostname;
+    private final Collection<Protos.OfferID> offerIds;
+    private final Collection<Protos.Offer.Operation> operations;
+    private final Protos.Filters filters;
 
-	public AcceptOffers(String hostname, Collection<Protos.OfferID> offerIds, Collection<Protos.Offer.Operation> operations) {
-		this.hostname = hostname;
-		this.offerIds = offerIds;
-		this.operations = operations;
-		this.filters = Protos.Filters.newBuilder().build();
-	}
+    public AcceptOffers(
+            String hostname,
+            Collection<Protos.OfferID> offerIds,
+            Collection<Protos.Offer.Operation> operations) {
+        this.hostname = hostname;
+        this.offerIds = offerIds;
+        this.operations = operations;
+        this.filters = Protos.Filters.newBuilder().build();
+    }
 
-	public AcceptOffers(String hostname, Collection<Protos.OfferID> offerIds, Collection<Protos.Offer.Operation> operations, Protos.Filters filters) {
-		this.hostname = hostname;
-		this.offerIds = offerIds;
-		this.operations = operations;
-		this.filters = filters;
-	}
+    public AcceptOffers(
+            String hostname,
+            Collection<Protos.OfferID> offerIds,
+            Collection<Protos.Offer.Operation> operations,
+            Protos.Filters filters) {
+        this.hostname = hostname;
+        this.offerIds = offerIds;
+        this.operations = operations;
+        this.filters = filters;
+    }
 
-	public String hostname() {
-		return hostname;
-	}
+    public String hostname() {
+        return hostname;
+    }
 
-	public Collection<Protos.OfferID> offerIds() {
-		return offerIds;
-	}
+    public Collection<Protos.OfferID> offerIds() {
+        return offerIds;
+    }
 
-	public Collection<Protos.Offer.Operation> operations() {
-		return operations;
-	}
+    public Collection<Protos.Offer.Operation> operations() {
+        return operations;
+    }
 
-	public Protos.Filters filters() {
-		return filters;
-	}
+    public Protos.Filters filters() {
+        return filters;
+    }
 
-	@Override
-	public String toString() {
-		return "AcceptOffers{" +
-			"hostname='" + hostname + '\'' +
-			", offerIds=" + offerIds +
-			", operations=" + operations +
-			", filters=" + filters +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "AcceptOffers{"
+                + "hostname='"
+                + hostname
+                + '\''
+                + ", offerIds="
+                + offerIds
+                + ", operations="
+                + operations
+                + ", filters="
+                + filters
+                + '}';
+    }
 }

@@ -24,7 +24,11 @@ under the License.
 
 User-defined functions (UDFs) are extension points to call frequently used logic or custom logic that cannot be expressed otherwise in queries.
 
-User-defined functions can be implemented in a JVM language (such as Java or Scala) or Python. An implementer can use arbitrary third party libraries within a UDF. This page will focus on JVM-based languages.
+User-defined functions can be implemented in a JVM language (such as Java or Scala) or Python.
+An implementer can use arbitrary third party libraries within a UDF.
+This page will focus on JVM-based languages, please refer to the PyFlink documentation
+for details on writing [general]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) 
+ and [vectorized]({% link dev/python/table-api-users-guide/udfs/vectorized_python_udfs.md %}) UDFs in Python.
 
 * This will be replaced by the TOC
 {:toc}
@@ -132,7 +136,7 @@ public static class SubstringFunction extends ScalarFunction {
   }
 
   public String eval(String s, Integer begin, Integer end) {
-    return s.substring(a, endInclusive ? end + 1 : end);
+    return s.substring(begin, endInclusive ? end + 1 : end);
   }
 }
 
@@ -403,15 +407,15 @@ public static class OverloadedFunction extends TableFunction<Row> {
 // decouples the type inference from evaluation methods,
 // the type inference is entirely determined by the function hints
 @FunctionHint(
-  input = [@DataTypeHint("INT"), @DataTypeHint("INT")],
+  input = {@DataTypeHint("INT"), @DataTypeHint("INT")},
   output = @DataTypeHint("INT")
 )
 @FunctionHint(
-  input = [@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")],
+  input = {@DataTypeHint("BIGINT"), @DataTypeHint("BIGINT")},
   output = @DataTypeHint("BIGINT")
 )
 @FunctionHint(
-  input = [],
+  input = {},
   output = @DataTypeHint("BOOLEAN")
 )
 public static class OverloadedFunction extends TableFunction<Object> {
@@ -920,7 +924,7 @@ function is called to compute and return the final result.
 The following example illustrates the aggregation process:
 
 <center>
-<img alt="UDAGG mechanism" src="{{ site.baseurl }}/fig/udagg-mechanism.png" width="80%">
+<img alt="UDAGG mechanism" src="{% link /fig/udagg-mechanism.png %}" width="80%">
 </center>
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
@@ -1110,9 +1114,9 @@ by Flink's checkpointing mechanism and are restored in case of a failure to ensu
 **The following methods are mandatory for each `AggregateFunction`:**
 
 - `createAccumulator()`
-- `accumulate(...)` 
+- `accumulate(...)`
 - `getValue(...)`
- 
+
 Additionally, there are a few methods that can be optionally implemented. While some of these methods
 allow the system more efficient query execution, others are mandatory for certain use cases. For instance,
 the `merge(...)` method is mandatory if the aggregation function should be applied in the context of a
@@ -1122,7 +1126,7 @@ that "connects" them).
 **The following methods of `AggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and session window and hop window aggregations. Besides, this method is also helpful for optimizations. For example, two phase aggregation optimization requires all the `AggregateFunction` support `merge` method.
 
 If the aggregate function can only be applied in an OVER window, this can be declared by returning the
 requirement `FunctionRequirement.OVER_WINDOW_ONLY` in `getRequirements()`.
@@ -1247,6 +1251,8 @@ def merge(accumulator: ACC, iterable: java.lang.Iterable[ACC]): Unit
 
 </div>
 
+If you intend to implement or call functions in Python, please refer to the [Python Aggregate Functions]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}#aggregate-functions) documentation for more details.
+
 {% top %}
 
 Table Aggregate Functions
@@ -1269,7 +1275,7 @@ method of the function is called to compute and return the final result.
 The following example illustrates the aggregation process:
 
 <center>
-<img alt="UDTAGG mechanism" src="{{ site.baseurl }}/fig/udtagg-mechanism.png" width="80%">
+<img alt="UDTAGG mechanism" src="{% link /fig/udtagg-mechanism.png %}" width="80%">
 </center>
 
 In the example, we assume a table that contains data about beverages. The table consists of three columns (`id`, `name`,
@@ -1487,7 +1493,7 @@ that "connects" them).
 **The following methods of `TableAggregateFunction` are required depending on the use case:**
 
 - `retract(...)` is required for aggregations on `OVER` windows.
-- `merge(...)` is required for many bounded aggregations and session window aggregations.
+- `merge(...)` is required for many bounded aggregations and unbounded session and hop window aggregations.
 - `emitValue(...)` is required for bounded and window aggregations.
 
 **The following methods of `TableAggregateFunction` are used to improve the performance of streaming jobs:**

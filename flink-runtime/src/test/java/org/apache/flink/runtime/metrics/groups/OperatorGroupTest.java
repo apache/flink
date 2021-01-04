@@ -41,134 +41,177 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests for the {@link OperatorMetricGroup}.
- */
+/** Tests for the {@link OperatorMetricGroup}. */
 public class OperatorGroupTest extends TestLogger {
 
-	private MetricRegistryImpl registry;
+    private MetricRegistryImpl registry;
 
-	@Before
-	public void setup() {
-		registry = new MetricRegistryImpl(MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
-	}
+    @Before
+    public void setup() {
+        registry =
+                new MetricRegistryImpl(
+                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
+    }
 
-	@After
-	public void teardown() throws Exception {
-		if (registry != null) {
-			registry.shutdown().get();
-		}
-	}
+    @After
+    public void teardown() throws Exception {
+        if (registry != null) {
+            registry.shutdown().get();
+        }
+    }
 
-	@Test
-	public void testGenerateScopeDefault() throws Exception {
-		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
-		TaskMetricGroup taskGroup = new TaskMetricGroup(
-				registry, jmGroup,  new JobVertexID(),  new ExecutionAttemptID(), "aTaskName", 11, 0);
-		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
+    @Test
+    public void testGenerateScopeDefault() throws Exception {
+        TaskManagerMetricGroup tmGroup =
+                new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+        TaskManagerJobMetricGroup jmGroup =
+                new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+        TaskMetricGroup taskGroup =
+                new TaskMetricGroup(
+                        registry,
+                        jmGroup,
+                        new JobVertexID(),
+                        new ExecutionAttemptID(),
+                        "aTaskName",
+                        11,
+                        0);
+        OperatorMetricGroup opGroup =
+                new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
 
-		assertArrayEquals(
-				new String[] { "theHostName", "taskmanager", "test-tm-id", "myJobName", "myOpName", "11" },
-				opGroup.getScopeComponents());
+        assertArrayEquals(
+                new String[] {
+                    "theHostName", "taskmanager", "test-tm-id", "myJobName", "myOpName", "11"
+                },
+                opGroup.getScopeComponents());
 
-		assertEquals(
-				"theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
-				opGroup.getMetricIdentifier("name"));
-	}
+        assertEquals(
+                "theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name",
+                opGroup.getMetricIdentifier("name"));
+    }
 
-	@Test
-	public void testGenerateScopeCustom() throws Exception {
-		Configuration cfg = new Configuration();
-		cfg.setString(MetricOptions.SCOPE_NAMING_OPERATOR, "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
-		MetricRegistryImpl registry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
-		try {
-			String tmID = "test-tm-id";
-			JobID jid = new JobID();
-			JobVertexID vertexId = new JobVertexID();
-			OperatorID operatorID = new OperatorID();
-			String operatorName = "operatorName";
+    @Test
+    public void testGenerateScopeCustom() throws Exception {
+        Configuration cfg = new Configuration();
+        cfg.setString(
+                MetricOptions.SCOPE_NAMING_OPERATOR,
+                "<tm_id>.<job_id>.<task_id>.<operator_name>.<operator_id>");
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(cfg));
+        try {
+            String tmID = "test-tm-id";
+            JobID jid = new JobID();
+            JobVertexID vertexId = new JobVertexID();
+            OperatorID operatorID = new OperatorID();
+            String operatorName = "operatorName";
 
-			OperatorMetricGroup operatorGroup =
-				new TaskManagerMetricGroup(registry, "theHostName", tmID)
-					.addTaskForJob(jid, "myJobName", vertexId, new ExecutionAttemptID(), "aTaskname", 13, 2)
-					.getOrAddOperator(operatorID, operatorName);
+            OperatorMetricGroup operatorGroup =
+                    new TaskManagerMetricGroup(registry, "theHostName", tmID)
+                            .addTaskForJob(
+                                    jid,
+                                    "myJobName",
+                                    vertexId,
+                                    new ExecutionAttemptID(),
+                                    "aTaskname",
+                                    13,
+                                    2)
+                            .getOrAddOperator(operatorID, operatorName);
 
-			assertArrayEquals(
-				new String[]{tmID, jid.toString(), vertexId.toString(), operatorName, operatorID.toString()},
-				operatorGroup.getScopeComponents());
+            assertArrayEquals(
+                    new String[] {
+                        tmID,
+                        jid.toString(),
+                        vertexId.toString(),
+                        operatorName,
+                        operatorID.toString()
+                    },
+                    operatorGroup.getScopeComponents());
 
-			assertEquals(
-				String.format("%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
-				operatorGroup.getMetricIdentifier("name"));
-		} finally {
-			registry.shutdown().get();
-		}
-	}
+            assertEquals(
+                    String.format(
+                            "%s.%s.%s.%s.%s.name", tmID, jid, vertexId, operatorName, operatorID),
+                    operatorGroup.getMetricIdentifier("name"));
+        } finally {
+            registry.shutdown().get();
+        }
+    }
 
-	@Test
-	public void testIOMetricGroupInstantiation() throws Exception {
-		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
-		TaskMetricGroup taskGroup = new TaskMetricGroup(
-			registry, jmGroup, new JobVertexID(), new ExecutionAttemptID(), "aTaskName", 11, 0);
-		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
+    @Test
+    public void testIOMetricGroupInstantiation() throws Exception {
+        TaskManagerMetricGroup tmGroup =
+                new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+        TaskManagerJobMetricGroup jmGroup =
+                new TaskManagerJobMetricGroup(registry, tmGroup, new JobID(), "myJobName");
+        TaskMetricGroup taskGroup =
+                new TaskMetricGroup(
+                        registry,
+                        jmGroup,
+                        new JobVertexID(),
+                        new ExecutionAttemptID(),
+                        "aTaskName",
+                        11,
+                        0);
+        OperatorMetricGroup opGroup =
+                new OperatorMetricGroup(registry, taskGroup, new OperatorID(), "myOpName");
 
-		assertNotNull(opGroup.getIOMetricGroup());
-		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
-		assertNotNull(opGroup.getIOMetricGroup().getNumRecordsOutCounter());
-	}
+        assertNotNull(opGroup.getIOMetricGroup());
+        assertNotNull(opGroup.getIOMetricGroup().getNumRecordsInCounter());
+        assertNotNull(opGroup.getIOMetricGroup().getNumRecordsOutCounter());
+    }
 
-	@Test
-	public void testVariables() {
-		JobID jid = new JobID();
-		JobVertexID tid = new JobVertexID();
-		ExecutionAttemptID eid = new ExecutionAttemptID();
-		OperatorID oid = new OperatorID();
+    @Test
+    public void testVariables() {
+        JobID jid = new JobID();
+        JobVertexID tid = new JobVertexID();
+        ExecutionAttemptID eid = new ExecutionAttemptID();
+        OperatorID oid = new OperatorID();
 
-		TaskManagerMetricGroup tmGroup = new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
-		TaskManagerJobMetricGroup jmGroup = new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
-		TaskMetricGroup taskGroup = new TaskMetricGroup(
-			registry, jmGroup,  tid,  eid, "aTaskName", 11, 0);
-		OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, oid, "myOpName");
+        TaskManagerMetricGroup tmGroup =
+                new TaskManagerMetricGroup(registry, "theHostName", "test-tm-id");
+        TaskManagerJobMetricGroup jmGroup =
+                new TaskManagerJobMetricGroup(registry, tmGroup, jid, "myJobName");
+        TaskMetricGroup taskGroup =
+                new TaskMetricGroup(registry, jmGroup, tid, eid, "aTaskName", 11, 0);
+        OperatorMetricGroup opGroup = new OperatorMetricGroup(registry, taskGroup, oid, "myOpName");
 
-		Map<String, String> variables = opGroup.getAllVariables();
+        Map<String, String> variables = opGroup.getAllVariables();
 
-		testVariable(variables, ScopeFormat.SCOPE_HOST, "theHostName");
-		testVariable(variables, ScopeFormat.SCOPE_TASKMANAGER_ID, "test-tm-id");
-		testVariable(variables, ScopeFormat.SCOPE_JOB_ID, jid.toString());
-		testVariable(variables, ScopeFormat.SCOPE_JOB_NAME, "myJobName");
-		testVariable(variables, ScopeFormat.SCOPE_TASK_VERTEX_ID, tid.toString());
-		testVariable(variables, ScopeFormat.SCOPE_TASK_NAME, "aTaskName");
-		testVariable(variables, ScopeFormat.SCOPE_TASK_ATTEMPT_ID, eid.toString());
-		testVariable(variables, ScopeFormat.SCOPE_TASK_SUBTASK_INDEX, "11");
-		testVariable(variables, ScopeFormat.SCOPE_TASK_ATTEMPT_NUM, "0");
-		testVariable(variables, ScopeFormat.SCOPE_OPERATOR_ID, oid.toString());
-		testVariable(variables, ScopeFormat.SCOPE_OPERATOR_NAME, "myOpName");
-	}
+        testVariable(variables, ScopeFormat.SCOPE_HOST, "theHostName");
+        testVariable(variables, ScopeFormat.SCOPE_TASKMANAGER_ID, "test-tm-id");
+        testVariable(variables, ScopeFormat.SCOPE_JOB_ID, jid.toString());
+        testVariable(variables, ScopeFormat.SCOPE_JOB_NAME, "myJobName");
+        testVariable(variables, ScopeFormat.SCOPE_TASK_VERTEX_ID, tid.toString());
+        testVariable(variables, ScopeFormat.SCOPE_TASK_NAME, "aTaskName");
+        testVariable(variables, ScopeFormat.SCOPE_TASK_ATTEMPT_ID, eid.toString());
+        testVariable(variables, ScopeFormat.SCOPE_TASK_SUBTASK_INDEX, "11");
+        testVariable(variables, ScopeFormat.SCOPE_TASK_ATTEMPT_NUM, "0");
+        testVariable(variables, ScopeFormat.SCOPE_OPERATOR_ID, oid.toString());
+        testVariable(variables, ScopeFormat.SCOPE_OPERATOR_NAME, "myOpName");
+    }
 
-	private static void testVariable(Map<String, String> variables, String key, String expectedValue) {
-		String actualValue = variables.get(key);
-		assertNotNull(actualValue);
-		assertEquals(expectedValue, actualValue);
-	}
+    private static void testVariable(
+            Map<String, String> variables, String key, String expectedValue) {
+        String actualValue = variables.get(key);
+        assertNotNull(actualValue);
+        assertEquals(expectedValue, actualValue);
+    }
 
-	@Test
-	public void testCreateQueryServiceMetricInfo() {
-		JobID jid = new JobID();
-		JobVertexID vid = new JobVertexID();
-		ExecutionAttemptID eid = new ExecutionAttemptID();
-		OperatorID oid = new OperatorID();
-		TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
-		TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
-		TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
-		OperatorMetricGroup operator = new OperatorMetricGroup(registry, task, oid, "operator");
+    @Test
+    public void testCreateQueryServiceMetricInfo() {
+        JobID jid = new JobID();
+        JobVertexID vid = new JobVertexID();
+        ExecutionAttemptID eid = new ExecutionAttemptID();
+        OperatorID oid = new OperatorID();
+        TaskManagerMetricGroup tm = new TaskManagerMetricGroup(registry, "host", "id");
+        TaskManagerJobMetricGroup job = new TaskManagerJobMetricGroup(registry, tm, jid, "jobname");
+        TaskMetricGroup task = new TaskMetricGroup(registry, job, vid, eid, "taskName", 4, 5);
+        OperatorMetricGroup operator = new OperatorMetricGroup(registry, task, oid, "operator");
 
-		QueryScopeInfo.OperatorQueryScopeInfo info = operator.createQueryServiceMetricInfo(new DummyCharacterFilter());
-		assertEquals("", info.scope);
-		assertEquals(jid.toString(), info.jobID);
-		assertEquals(vid.toString(), info.vertexID);
-		assertEquals(4, info.subtaskIndex);
-		assertEquals("operator", info.operatorName);
-	}
+        QueryScopeInfo.OperatorQueryScopeInfo info =
+                operator.createQueryServiceMetricInfo(new DummyCharacterFilter());
+        assertEquals("", info.scope);
+        assertEquals(jid.toString(), info.jobID);
+        assertEquals(vid.toString(), info.vertexID);
+        assertEquals(4, info.subtaskIndex);
+        assertEquals("operator", info.operatorName);
+    }
 }

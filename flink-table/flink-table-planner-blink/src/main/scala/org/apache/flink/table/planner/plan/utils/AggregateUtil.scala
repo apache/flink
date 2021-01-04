@@ -474,11 +474,8 @@ object AggregateUtil extends Enumeration {
     } else {
       Array()
     }
-    val adjustedAccumulatorDataType = if (hasStateBackedDataViews) {
-      DataViewUtils.replaceDataViewsWithNull(accumulatorDataType)
-    } else {
-      accumulatorDataType
-    }
+    val adjustedAccumulatorDataType =
+      DataViewUtils.adjustDataViews(accumulatorDataType, hasStateBackedDataViews)
 
     AggregateInfo(
         call,
@@ -677,11 +674,8 @@ object AggregateUtil extends Enumeration {
       } else {
         None
       }
-      val adjustedAccumulatorDataType = if (hasStateBackedDataViews) {
-        DataViewUtils.replaceDataViewsWithNull(distinctViewDataType)
-      } else {
-        distinctViewDataType
-      }
+      val adjustedAccumulatorDataType =
+        DataViewUtils.adjustDataViews(distinctViewDataType, hasStateBackedDataViews)
 
       DistinctInfo(
         d.argIndexes,

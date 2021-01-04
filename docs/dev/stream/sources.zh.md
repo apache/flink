@@ -38,7 +38,7 @@ under the License.
 This page describes Flink's Data Source API and the concepts and architecture behind it.
 **Read this, if you are interested in how data sources in Flink work, or if you want to implement a new Data Source.**
 
-If you are looking for pre-defined source connectors, please check the [Connector Docs]({{ site.baseurl }}/dev/connectors/).
+If you are looking for pre-defined source connectors, please check the [Connector Docs]({% link dev/connectors/index.zh.md %}).
 
 
 ## Data Source Concepts
@@ -56,7 +56,7 @@ A Data Source has three core components: *Splits*, the *SplitEnumerator*, and th
 The [Source](https://github.com/apache/flink/blob/master/flink-core/src/main/java/org/apache/flink/api/connector/source/Source.java) class is API entry point that ties the above three components together.
 
 <div style="text-align: center">
-  <img width="70%" src="{{ site.baseurl }}/fig/source_components.svg" alt="Illustration of SplitEnumerator and SourceReader interacting." />
+  <img width="70%" src="{% link /fig/source_components.svg %}" alt="Illustration of SplitEnumerator and SourceReader interacting." />
 </div>
 
 
@@ -250,7 +250,7 @@ The `SplitFetcherManager` helps create and maintain a pool of `SplitFetcher`s ea
 
 As an example, as illustrated below, a `SplitFetcherManager` may have a fixed number of threads, each fetching from some splits assigned to the `SourceReader`.
 <div style="text-align: center">
-  <img width="70%" src="{{ site.baseurl }}/fig/source_reader.svg" alt="One fetcher per split threading model." />
+  <img width="70%" src="{% link /fig/source_reader.svg %}" alt="One fetcher per split threading model." />
 </div>
 The following code snippet implements this threading model.
 <div data-lang="java" markdown="1">
@@ -343,7 +343,7 @@ Apparently, the `SourceReader` implementations can also implement their own thre
 
 ## Event Time and Watermarks
 
-*Event Time* assignment and *Watermark Generation* happen as part of the data sources. The event streams leaving the Source Readers have event timestamps and (during streaming execution) contain watermarks. See [Timely Stream Processing]({{ site.baseurl }}/concepts/timely-stream-processing.html) for an introduction to Event Time and Watermarks.
+*Event Time* assignment and *Watermark Generation* happen as part of the data sources. The event streams leaving the Source Readers have event timestamps and (during streaming execution) contain watermarks. See [Timely Stream Processing]({% link concepts/timely-stream-processing.zh.md %}) for an introduction to Event Time and Watermarks.
 
 <span class="label label-danger">Important</span> Applications based on the legacy [SourceFunction](https://github.com/apache/flink/blob/master/flink-streaming-java/src/main/java/org/apache/flink/streaming/api/functions/source/SourceFunction.java) typically generate timestamps and watermarks in a separate later step via `stream.assignTimestampsAndWatermarks(WatermarkStrategy)`. This function should not be used with the new sources, because timestamps will be already assigned, and it will override the previous split-aware watermarks.
 
@@ -383,7 +383,7 @@ Watermark Generators are only active during streaming execution. Batch execution
 The data source API supports running watermark generators individually *per split*. That allows Flink to observe the event time progress per split individually, which is important to handle *event time skew* properly and prevent *idle partitions* from holding back the event time progress of the entire application.
 
 <div style="text-align: center">
-  <img width="80%" src="{{ site.baseurl }}/fig/per_split_watermarks.svg" alt="Watermark Generation in a Source with two Splits." />
+  <img width="80%" src="{% link /fig/per_split_watermarks.svg %}" alt="Watermark Generation in a Source with two Splits." />
 </div>
 
 When implementing a source connector using the *Split Reader API*, this is automatically handled. All implementations based on the Split Reader API have split-aware watermarks out-of-the-box.

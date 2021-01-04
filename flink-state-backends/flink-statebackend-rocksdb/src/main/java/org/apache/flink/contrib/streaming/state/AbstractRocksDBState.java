@@ -39,8 +39,8 @@ import java.util.List;
 /**
  * Base class for {@link State} implementations that store state in a RocksDB database.
  *
- * <p>State is not stored in this class but in the {@link org.rocksdb.RocksDB} instance that
- * the {@link RocksDBStateBackend} manages and checkpoints.
+ * <p>State is not stored in this class but in the {@link org.rocksdb.RocksDB} instance that the
+ * {@link RocksDBStateBackend} manages and checkpoints.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -48,196 +48,200 @@ import java.util.List;
  */
 public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K, N, V>, State {
 
-	/** Serializer for the namespace. */
-	final TypeSerializer<N> namespaceSerializer;
+    /** Serializer for the namespace. */
+    final TypeSerializer<N> namespaceSerializer;
 
-	/** Serializer for the state values. */
-	final TypeSerializer<V> valueSerializer;
+    /** Serializer for the state values. */
+    final TypeSerializer<V> valueSerializer;
 
-	/** The current namespace, which the next value methods will refer to. */
-	private N currentNamespace;
+    /** The current namespace, which the next value methods will refer to. */
+    private N currentNamespace;
 
-	/** Backend that holds the actual RocksDB instance where we store state. */
-	protected RocksDBKeyedStateBackend<K> backend;
+    /** Backend that holds the actual RocksDB instance where we store state. */
+    protected RocksDBKeyedStateBackend<K> backend;
 
-	/** The column family of this particular instance of state. */
-	protected ColumnFamilyHandle columnFamily;
+    /** The column family of this particular instance of state. */
+    protected ColumnFamilyHandle columnFamily;
 
-	protected final V defaultValue;
+    protected final V defaultValue;
 
-	protected final WriteOptions writeOptions;
+    protected final WriteOptions writeOptions;
 
-	protected final DataOutputSerializer dataOutputView;
+    protected final DataOutputSerializer dataOutputView;
 
-	protected final DataInputDeserializer dataInputView;
+    protected final DataInputDeserializer dataInputView;
 
-	private final RocksDBSerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
+    private final RocksDBSerializedCompositeKeyBuilder<K> sharedKeyNamespaceSerializer;
 
-	/**
-	 * Creates a new RocksDB backed state.
-	 *
-	 * @param columnFamily The RocksDB column family that this state is associated to.
-	 * @param namespaceSerializer The serializer for the namespace.
-	 * @param valueSerializer The serializer for the state.
-	 * @param defaultValue The default value for the state.
-	 * @param backend The backend for which this state is bind to.
-	 */
-	protected AbstractRocksDBState(
-			ColumnFamilyHandle columnFamily,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<V> valueSerializer,
-			V defaultValue,
-			RocksDBKeyedStateBackend<K> backend) {
+    /**
+     * Creates a new RocksDB backed state.
+     *
+     * @param columnFamily The RocksDB column family that this state is associated to.
+     * @param namespaceSerializer The serializer for the namespace.
+     * @param valueSerializer The serializer for the state.
+     * @param defaultValue The default value for the state.
+     * @param backend The backend for which this state is bind to.
+     */
+    protected AbstractRocksDBState(
+            ColumnFamilyHandle columnFamily,
+            TypeSerializer<N> namespaceSerializer,
+            TypeSerializer<V> valueSerializer,
+            V defaultValue,
+            RocksDBKeyedStateBackend<K> backend) {
 
-		this.namespaceSerializer = namespaceSerializer;
-		this.backend = backend;
+        this.namespaceSerializer = namespaceSerializer;
+        this.backend = backend;
 
-		this.columnFamily = columnFamily;
+        this.columnFamily = columnFamily;
 
-		this.writeOptions = backend.getWriteOptions();
-		this.valueSerializer = Preconditions.checkNotNull(valueSerializer, "State value serializer");
-		this.defaultValue = defaultValue;
+        this.writeOptions = backend.getWriteOptions();
+        this.valueSerializer =
+                Preconditions.checkNotNull(valueSerializer, "State value serializer");
+        this.defaultValue = defaultValue;
 
-		this.dataOutputView = new DataOutputSerializer(128);
-		this.dataInputView = new DataInputDeserializer();
-		this.sharedKeyNamespaceSerializer = backend.getSharedRocksKeyBuilder();
-	}
+        this.dataOutputView = new DataOutputSerializer(128);
+        this.dataInputView = new DataInputDeserializer();
+        this.sharedKeyNamespaceSerializer = backend.getSharedRocksKeyBuilder();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void clear() {
-		try {
-			backend.db.delete(columnFamily, writeOptions, serializeCurrentKeyWithGroupAndNamespace());
-		} catch (RocksDBException e) {
-			throw new FlinkRuntimeException("Error while removing entry from RocksDB", e);
-		}
-	}
+    @Override
+    public void clear() {
+        try {
+            backend.db.delete(
+                    columnFamily, writeOptions, serializeCurrentKeyWithGroupAndNamespace());
+        } catch (RocksDBException e) {
+            throw new FlinkRuntimeException("Error while removing entry from RocksDB", e);
+        }
+    }
 
-	@Override
-	public void setCurrentNamespace(N namespace) {
-		this.currentNamespace = namespace;
-	}
+    @Override
+    public void setCurrentNamespace(N namespace) {
+        this.currentNamespace = namespace;
+    }
 
-	@Override
-	public byte[] getSerializedValue(
-			final byte[] serializedKeyAndNamespace,
-			final TypeSerializer<K> safeKeySerializer,
-			final TypeSerializer<N> safeNamespaceSerializer,
-			final TypeSerializer<V> safeValueSerializer) throws Exception {
+    @Override
+    public byte[] getSerializedValue(
+            final byte[] serializedKeyAndNamespace,
+            final TypeSerializer<K> safeKeySerializer,
+            final TypeSerializer<N> safeNamespaceSerializer,
+            final TypeSerializer<V> safeValueSerializer)
+            throws Exception {
 
-		//TODO make KvStateSerializer key-group aware to save this round trip and key-group computation
-		Tuple2<K, N> keyAndNamespace = KvStateSerializer.deserializeKeyAndNamespace(
-				serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
+        // TODO make KvStateSerializer key-group aware to save this round trip and key-group
+        // computation
+        Tuple2<K, N> keyAndNamespace =
+                KvStateSerializer.deserializeKeyAndNamespace(
+                        serializedKeyAndNamespace, safeKeySerializer, safeNamespaceSerializer);
 
-		int keyGroup = KeyGroupRangeAssignment.assignToKeyGroup(keyAndNamespace.f0, backend.getNumberOfKeyGroups());
+        int keyGroup =
+                KeyGroupRangeAssignment.assignToKeyGroup(
+                        keyAndNamespace.f0, backend.getNumberOfKeyGroups());
 
-		RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
-						new RocksDBSerializedCompositeKeyBuilder<>(
-							safeKeySerializer,
-							backend.getKeyGroupPrefixBytes(),
-							32
-						);
-		keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
-		byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
-		return backend.db.get(columnFamily, key);
-	}
+        RocksDBSerializedCompositeKeyBuilder<K> keyBuilder =
+                new RocksDBSerializedCompositeKeyBuilder<>(
+                        safeKeySerializer, backend.getKeyGroupPrefixBytes(), 32);
+        keyBuilder.setKeyAndKeyGroup(keyAndNamespace.f0, keyGroup);
+        byte[] key = keyBuilder.buildCompositeKeyNamespace(keyAndNamespace.f1, namespaceSerializer);
+        return backend.db.get(columnFamily, key);
+    }
 
-	<UK> byte[] serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
-		UK userKey,
-		TypeSerializer<UK> userKeySerializer) throws IOException {
-		return sharedKeyNamespaceSerializer.buildCompositeKeyNamesSpaceUserKey(
-			currentNamespace,
-			namespaceSerializer,
-			userKey,
-			userKeySerializer
-		);
-	}
+    <UK> byte[] serializeCurrentKeyWithGroupAndNamespacePlusUserKey(
+            UK userKey, TypeSerializer<UK> userKeySerializer) throws IOException {
+        return sharedKeyNamespaceSerializer.buildCompositeKeyNamesSpaceUserKey(
+                currentNamespace, namespaceSerializer, userKey, userKeySerializer);
+    }
 
-	private <T> byte[] serializeValueInternal(T value, TypeSerializer<T> serializer) throws IOException {
-		serializer.serialize(value, dataOutputView);
-		return dataOutputView.getCopyOfBuffer();
-	}
+    private <T> byte[] serializeValueInternal(T value, TypeSerializer<T> serializer)
+            throws IOException {
+        serializer.serialize(value, dataOutputView);
+        return dataOutputView.getCopyOfBuffer();
+    }
 
-	byte[] serializeCurrentKeyWithGroupAndNamespace() {
-		return sharedKeyNamespaceSerializer.buildCompositeKeyNamespace(currentNamespace, namespaceSerializer);
-	}
+    byte[] serializeCurrentKeyWithGroupAndNamespace() {
+        return sharedKeyNamespaceSerializer.buildCompositeKeyNamespace(
+                currentNamespace, namespaceSerializer);
+    }
 
-	byte[] serializeValue(V value) throws IOException {
-		return serializeValue(value, valueSerializer);
-	}
+    byte[] serializeValue(V value) throws IOException {
+        return serializeValue(value, valueSerializer);
+    }
 
-	<T> byte[] serializeValueNullSensitive(T value, TypeSerializer<T> serializer) throws IOException {
-		dataOutputView.clear();
-		dataOutputView.writeBoolean(value == null);
-		return serializeValueInternal(value, serializer);
-	}
+    <T> byte[] serializeValueNullSensitive(T value, TypeSerializer<T> serializer)
+            throws IOException {
+        dataOutputView.clear();
+        dataOutputView.writeBoolean(value == null);
+        return serializeValueInternal(value, serializer);
+    }
 
-	<T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
-		dataOutputView.clear();
-		return serializeValueInternal(value, serializer);
-	}
+    <T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
+        dataOutputView.clear();
+        return serializeValueInternal(value, serializer);
+    }
 
-	<T> byte[] serializeValueList(
-		List<T> valueList,
-		TypeSerializer<T> elementSerializer,
-		byte delimiter) throws IOException {
+    <T> byte[] serializeValueList(
+            List<T> valueList, TypeSerializer<T> elementSerializer, byte delimiter)
+            throws IOException {
 
-		dataOutputView.clear();
-		boolean first = true;
+        dataOutputView.clear();
+        boolean first = true;
 
-		for (T value : valueList) {
-			Preconditions.checkNotNull(value, "You cannot add null to a value list.");
+        for (T value : valueList) {
+            Preconditions.checkNotNull(value, "You cannot add null to a value list.");
 
-			if (first) {
-				first = false;
-			} else {
-				dataOutputView.write(delimiter);
-			}
-			elementSerializer.serialize(value, dataOutputView);
-		}
+            if (first) {
+                first = false;
+            } else {
+                dataOutputView.write(delimiter);
+            }
+            elementSerializer.serialize(value, dataOutputView);
+        }
 
-		return dataOutputView.getCopyOfBuffer();
-	}
+        return dataOutputView.getCopyOfBuffer();
+    }
 
-	public void migrateSerializedValue(
-			DataInputDeserializer serializedOldValueInput,
-			DataOutputSerializer serializedMigratedValueOutput,
-			TypeSerializer<V> priorSerializer,
-			TypeSerializer<V> newSerializer) throws StateMigrationException {
+    public void migrateSerializedValue(
+            DataInputDeserializer serializedOldValueInput,
+            DataOutputSerializer serializedMigratedValueOutput,
+            TypeSerializer<V> priorSerializer,
+            TypeSerializer<V> newSerializer)
+            throws StateMigrationException {
 
-		try {
-			V value = priorSerializer.deserialize(serializedOldValueInput);
-			newSerializer.serialize(value, serializedMigratedValueOutput);
-		} catch (Exception e) {
-			throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
-		}
-	}
+        try {
+            V value = priorSerializer.deserialize(serializedOldValueInput);
+            newSerializer.serialize(value, serializedMigratedValueOutput);
+        } catch (Exception e) {
+            throw new StateMigrationException("Error while trying to migrate RocksDB state.", e);
+        }
+    }
 
-	byte[] getKeyBytes() {
-		return serializeCurrentKeyWithGroupAndNamespace();
-	}
+    byte[] getKeyBytes() {
+        return serializeCurrentKeyWithGroupAndNamespace();
+    }
 
-	byte[] getValueBytes(V value) {
-		try {
-			dataOutputView.clear();
-			valueSerializer.serialize(value, dataOutputView);
-			return dataOutputView.getCopyOfBuffer();
-		} catch (IOException e) {
-			throw new FlinkRuntimeException("Error while serializing value", e);
-		}
-	}
+    byte[] getValueBytes(V value) {
+        try {
+            dataOutputView.clear();
+            valueSerializer.serialize(value, dataOutputView);
+            return dataOutputView.getCopyOfBuffer();
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Error while serializing value", e);
+        }
+    }
 
-	protected V getDefaultValue() {
-		if (defaultValue != null) {
-			return valueSerializer.copy(defaultValue);
-		} else {
-			return null;
-		}
-	}
+    protected V getDefaultValue() {
+        if (defaultValue != null) {
+            return valueSerializer.copy(defaultValue);
+        } else {
+            return null;
+        }
+    }
 
-	@Override
-	public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
-		throw new UnsupportedOperationException("Global state entry iterator is unsupported for RocksDb backend");
-	}
+    @Override
+    public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
+            int recommendedMaxNumberOfReturnedRecords) {
+        throw new UnsupportedOperationException(
+                "Global state entry iterator is unsupported for RocksDb backend");
+    }
 }

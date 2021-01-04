@@ -24,9 +24,9 @@ under the License.
 
 The Table API is a unified, relational API for stream and batch processing. Table API queries can be run on batch or streaming input without modifications. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. The Table API is a language-integrated API for Scala, Java and Python. Instead of specifying queries as String values as common with SQL, Table API queries are defined in a language-embedded style in Java, Scala or Python with IDE support like autocompletion and syntax validation. 
 
-The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({{ site.baseurl }}/dev/table/common.html) to learn how to register tables or to create a `Table` object. The [Streaming Concepts](./streaming) pages discuss streaming specific concepts such as dynamic tables and time attributes.
+The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({% link dev/table/common.md %}) to learn how to register tables or to create a `Table` object. The [Streaming Concepts]({% link dev/table/streaming/index.md %}) pages discuss streaming specific concepts such as dynamic tables and time attributes.
 
-The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute](./streaming/time_attributes.html) in streaming or a regular timestamp field in batch.
+The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute]({% link dev/table/streaming/time_attributes.md %}) in streaming or a regular timestamp field in batch.
 
 * This will be replaced by the TOC
 {:toc}
@@ -143,9 +143,7 @@ t_env.execute_sql(sink_ddl)
 # specify table program
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-orders.group_by(orders.a).select(orders.a, orders.b.count.alias('cnt')).insert_into("Result")
-
-t_env.execute("python_job")
+orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_insert("result").wait()
 
 {% endhighlight %}
 
@@ -216,7 +214,7 @@ result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is
 </div>
 </div>
 
-Since the Table API is a unified API for batch and streaming data, both example programs can be executed on batch and streaming inputs without any modification of the table program itself. In both cases, the program produces the same results given that streaming records are not late (see [Streaming Concepts](streaming) for details).
+Since the Table API is a unified API for batch and streaming data, both example programs can be executed on batch and streaming inputs without any modification of the table program itself. In both cases, the program produces the same results given that streaming records are not late (see [Streaming Concepts]({% link dev/table/streaming/index.md %}) for details).
 
 {% top %}
 
@@ -621,7 +619,7 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
@@ -687,7 +685,7 @@ val result = orders.addColumns(concat($"c", "Sunny"))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                     <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
@@ -755,7 +753,7 @@ result = orders.add_columns(concat(orders.c, 'sunny'))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight python %}
 from pyflink.table.expressions import concat
 
@@ -823,7 +821,7 @@ result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 Table orders = tableEnv.from("Orders");
 Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -836,7 +834,7 @@ Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over(lit(5).minutes())).on($("rowtime")).as("w")) // define window
+    .window(Tumble.over(lit(5).minutes()).on($("rowtime")).as("w")) // define window
     .groupBy($("a"), $("w")) // group by key and window
     // access window properties and aggregate
     .select(
@@ -875,7 +873,7 @@ Table result = orders
         $("b").min().over($("w"))
     );
 {% endhighlight %}
-       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{% link dev/table/streaming/time_attributes.md %}">time attribute</a>.</p>
       </td>
     </tr>
     <tr>
@@ -895,7 +893,7 @@ Table groupByDistinctResult = orders
 // Distinct aggregation on time window group by
 Table groupByWindowDistinctResult = orders
     .window(Tumble
-            .over(lit(5).minutes()))
+            .over(lit(5).minutes())
             .on($("rowtime"))
             .as("w")
     )
@@ -926,7 +924,7 @@ orders.groupBy("users")
         call("myUdagg", $("points")).distinct().as("myDistinctResult")
     );
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -941,7 +939,7 @@ orders.groupBy("users")
 Table orders = tableEnv.from("Orders");
 Table result = orders.distinct();
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -971,7 +969,7 @@ Table result = orders.distinct();
 val orders: Table = tableEnv.from("Orders")
 val result = orders.groupBy($"a").select($"a", $"b".sum().as("d"))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1010,7 +1008,7 @@ val result: Table = orders
           as "w")
     .select($"a", $"b".avg over $"w", $"b".max().over($"w"), $"b".min().over($"w")) // sliding aggregate
 {% endhighlight %}
-       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{% link dev/table/streaming/time_attributes.md %}">time attribute</a>.</p>
       </td>
     </tr>
     <tr>
@@ -1048,7 +1046,7 @@ val orders: Table = tEnv.from("Orders");
 val myUdagg = new MyUdagg();
 orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1063,7 +1061,7 @@ orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDist
 val orders: Table = tableEnv.from("Orders")
 val result = orders.distinct()
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1091,7 +1089,7 @@ val result = orders.distinct()
 orders = t_env.from_path("Orders")
 result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1129,7 +1127,7 @@ result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
                             .alias("w")) \
                .select(orders.a, orders.b.avg.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
 {% endhighlight %}
-       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{% link dev/table/streaming/time_attributes.md %}">time attribute</a>.</p>
       </td>
     </tr>
     <tr>
@@ -1159,7 +1157,7 @@ result = orders.over_window(Over
                        .alias("w")) \
                        .select(orders.a, orders.b.avg.distinct.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1174,7 +1172,7 @@ result = orders.over_window(Over
 orders = t_env.from_path("Orders")
 result = orders.distinct()
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1213,7 +1211,7 @@ Table result = left.join(right)
     .where($("a").isEqual($("d")))
     .select($("a"), $("b"), $("e"));
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1237,18 +1235,18 @@ Table rightOuterResult = left.rightOuterJoin(right, $("a").isEqual($("d")))
 Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
                             .select($("a"), $("b"), $("e"));
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
-      <td><strong>Interval Join</strong><br>
+      <td><strong>Inner/Outer Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion. Both inner and outer joins are supported.</p>
 
-        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="{% link dev/table/streaming/time_attributes.md %}">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
@@ -1264,7 +1262,7 @@ Table result = left.join(right)
   .where(
     and(
         $("a").isEqual($("d")),
-        $("ltime").isGreaterEqual($("rtime").minus(lit(5).minutes())),
+        $("ltime").isGreaterOrEqual($("rtime").minus(lit(5).minutes())),
         $("ltime").isLess($("rtime").plus(lit(10).minutes()))
     ))
   .select($("a"), $("b"), $("e"), $("ltime"));
@@ -1281,7 +1279,7 @@ Table result = left.join(right)
         </p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
@@ -1302,7 +1300,7 @@ Table result = orders
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
@@ -1319,8 +1317,8 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.md %}">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1338,7 +1336,7 @@ Table orders = tableEnv.from("Orders");
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -1370,7 +1368,7 @@ val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
 val right = ds2.toTable(tableEnv, $"d", $"e", $"f")
 val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1390,7 +1388,7 @@ val leftOuterResult = left.leftOuterJoin(right, $"a" === $"d").select($"a", $"b"
 val rightOuterResult = left.rightOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
 val fullOuterResult = left.fullOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1401,7 +1399,7 @@ val fullOuterResult = left.fullOuterJoin(right, $"a" === $"d").select($"a", $"b"
       <td>
         <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="{% link dev/table/streaming/time_attributes.md %}">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
         <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
@@ -1463,8 +1461,8 @@ val result: Table = table
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track their changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.md %}">Temporal tables</a> are tables that track their changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1479,7 +1477,7 @@ val orders = tableEnv.from("Orders")
 val result = orders
     .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -1511,7 +1509,7 @@ left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
 result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1534,7 +1532,7 @@ left_outer_result = left.left_outer_join(right, left.a == right.d).select(left.a
 right_outer_result = left.right_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1546,7 +1544,7 @@ full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a
       <td>
               <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
       
-              <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+              <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="{% link dev/table/streaming/time_attributes.md %}">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
               <p>For example, the following predicates are valid interval join conditions:</p>
       
               <ul>
@@ -1743,7 +1741,7 @@ Table right = ds2.toTable(tableEnv, "a");
 Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));
 {% endhighlight %}
 
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1863,7 +1861,7 @@ val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
 val right = ds2.toTable(tableEnv, $"a")
 val result = left.select($"a", $"b", $"c").where($"a".in(right))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1986,7 +1984,7 @@ right = t_env.from_path("Source2").select(col('a'))
 result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 {% endhighlight %}
 
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -2169,7 +2167,7 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
       <td>
         <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="{% link dev/table/common.md %}#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
@@ -2199,7 +2197,7 @@ orders.executeInsert("OutOrders");
       <td>
         <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="{% link dev/table/common.md %}#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
@@ -2229,7 +2227,7 @@ orders.executeInsert("OutOrders")
       <td>
         <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table. The executeInsert method will immediately submit a flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="{% link dev/table/common.md %}#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight python %}
 orders = t_env.from_path("Orders")
@@ -2381,7 +2379,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2420,7 +2418,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2459,7 +2457,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -2508,7 +2506,7 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2557,7 +2555,7 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2600,7 +2598,7 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -2645,7 +2643,7 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2681,7 +2679,7 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2717,7 +2715,7 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -2740,7 +2738,7 @@ A session window is defined by using the `Session` class as follows:
 
 ### Over Windows
 
-Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows. 
+Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
 
 Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
@@ -2797,7 +2795,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.</p>
 
-        <p><b>Note:</b> For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
+        <p><b>Note:</b> For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
       </td>
     </tr>
     <tr>
@@ -2806,9 +2804,9 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
 
-        <p><a href="tableApi.html#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
+        <p><a href="{% link dev/table/tableApi.md %}#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
 
-        <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
+        <p><a href="{% link dev/table/tableApi.md %}#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
 
         <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
       </td>
@@ -2866,7 +2864,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.</p>
 
-        <p><b>Note:</b> For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
+        <p><b>Note:</b> For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.md %}">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
       </td>
     </tr>
     <tr>
@@ -2875,9 +2873,9 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
 
-        <p><a href="tableApi.html#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
+        <p><a href="{% link dev/table/tableApi.md %}#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
 
-        <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
+        <p><a href="{% link dev/table/tableApi.md %}#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
 
         <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
       </td>
@@ -3177,7 +3175,7 @@ Table table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight java %}
 /**
  * Accumulator for Top2.
@@ -3235,7 +3233,7 @@ Table result = orders
     .flatAggregate(call("top2", $("a")).as("v", "rank"))
     .select($("key"), $("v"), $("rank");
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -3403,7 +3401,7 @@ val table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight scala %}
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -3465,7 +3463,7 @@ val result = orders
     .flatAggregate(top2($"a") as ($"v", $"rank"))
     .select($"key", $"v", $"rank")
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -3572,13 +3570,13 @@ val result = orders
 Data Types
 ----------
 
-Please see the dedicated page about [data types](types.html).
+Please see the dedicated page about [data types]({% link dev/table/types.md %}).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({% link dev/table/functions/systemFunctions.md %}#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({% link dev/table/functions/udfs.md %}).
 
 {% top %}
 

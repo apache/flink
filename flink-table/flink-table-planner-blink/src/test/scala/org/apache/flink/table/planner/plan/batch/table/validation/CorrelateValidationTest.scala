@@ -40,6 +40,6 @@ class CorrelateValidationTest extends TableTestBase {
     val result = table
       .leftOuterJoinLateral(func('c) as 's, 'c === 's)
       .select('c, 's)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

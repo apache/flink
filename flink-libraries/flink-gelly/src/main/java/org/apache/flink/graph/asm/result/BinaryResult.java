@@ -29,55 +29,52 @@ import java.io.Serializable;
  *
  * @param <K> graph ID type
  */
-public interface BinaryResult<K>
-extends Serializable {
+public interface BinaryResult<K> extends Serializable {
 
-	/**
-	 * Get the first vertex ID.
-	 *
-	 * @return first vertex ID
-	 */
-	K getVertexId0();
+    /**
+     * Get the first vertex ID.
+     *
+     * @return first vertex ID
+     */
+    K getVertexId0();
 
-	/**
-	 * Set the first vertex ID.
-	 *
-	 * @param vertexId0 new vertex ID
-	 */
-	void setVertexId0(K vertexId0);
+    /**
+     * Set the first vertex ID.
+     *
+     * @param vertexId0 new vertex ID
+     */
+    void setVertexId0(K vertexId0);
 
-	/**
-	 * Get the second vertex ID.
-	 *
-	 * @return second vertex ID
-	 */
-	K getVertexId1();
+    /**
+     * Get the second vertex ID.
+     *
+     * @return second vertex ID
+     */
+    K getVertexId1();
 
-	/**
-	 * Set the second vertex ID.
-	 *
-	 * @param vertexId1 new vertex ID
-	 */
-	void setVertexId1(K vertexId1);
+    /**
+     * Set the second vertex ID.
+     *
+     * @param vertexId1 new vertex ID
+     */
+    void setVertexId1(K vertexId1);
 
-	/**
-	 * Output each input and a second result with the vertex order flipped.
-	 *
-	 * @param <T> graph ID type
-	 * @param <RT> result type
-	 */
-	class MirrorResult<T, RT extends BinaryResult<T>>
-	implements FlatMapFunction<RT, RT> {
-		@Override
-		public void flatMap(RT value, Collector<RT> out)
-				throws Exception {
-			out.collect(value);
+    /**
+     * Output each input and a second result with the vertex order flipped.
+     *
+     * @param <T> graph ID type
+     * @param <RT> result type
+     */
+    class MirrorResult<T, RT extends BinaryResult<T>> implements FlatMapFunction<RT, RT> {
+        @Override
+        public void flatMap(RT value, Collector<RT> out) throws Exception {
+            out.collect(value);
 
-			T tmp = value.getVertexId0();
-			value.setVertexId0(value.getVertexId1());
-			value.setVertexId1(tmp);
+            T tmp = value.getVertexId0();
+            value.setVertexId0(value.getVertexId1());
+            value.setVertexId1(tmp);
 
-			out.collect(value);
-		}
-	}
+            out.collect(value);
+        }
+    }
 }

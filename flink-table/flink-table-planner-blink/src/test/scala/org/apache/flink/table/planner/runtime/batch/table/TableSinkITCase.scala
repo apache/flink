@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.util.ExceptionUtils
-
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.Test
 
@@ -147,6 +146,14 @@ class TableSinkITCase extends BatchTestBase {
 
   @Test
   def testNotNullEnforcer(): Unit = {
+    innerTestNotNullEnforcer("SinkFunction")
+  }
+
+  @Test
+  def testDataStreamNotNullEnforcer(): Unit = {
+    innerTestNotNullEnforcer("DataStream")
+  }
+  def innerTestNotNullEnforcer(provider: String): Unit = {
     val dataId = TestValuesTableFactory.registerData(nullData4)
     tEnv.executeSql(
       s"""
@@ -168,7 +175,8 @@ class TableSinkITCase extends BatchTestBase {
          |  num INT NOT NULL
          |) WITH (
          |  'connector' = 'values',
-         |  'sink-insert-only' = 'true'
+         |  'sink-insert-only' = 'true',
+         |  'runtime-sink' = '$provider'
          |)
          |""".stripMargin)
 

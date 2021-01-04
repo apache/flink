@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -31,89 +32,90 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-
 import static org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay.TARGET_CONF_DIR;
+import static org.junit.Assert.assertEquals;
 
 public class HadoopConfOverlayTest extends ContainerOverlayTestBase {
 
-	@Rule
-	public TemporaryFolder tempFolder = new TemporaryFolder();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
-	@Test
-	public void testConfigure() throws Exception {
+    @Test
+    public void testConfigure() throws Exception {
 
-		File confDir = tempFolder.newFolder();
-		initConfDir(confDir);
+        File confDir = tempFolder.newFolder();
+        initConfDir(confDir);
 
-		HadoopConfOverlay overlay = new HadoopConfOverlay(confDir);
+        HadoopConfOverlay overlay = new HadoopConfOverlay(confDir);
 
-		ContainerSpecification spec = new ContainerSpecification();
-		overlay.configure(spec);
+        ContainerSpecification spec = new ContainerSpecification();
+        overlay.configure(spec);
 
-		assertEquals(TARGET_CONF_DIR.getPath(), spec.getEnvironmentVariables().get("HADOOP_CONF_DIR"));
-		assertEquals(TARGET_CONF_DIR.getPath(), spec.getFlinkConfiguration().getString(ConfigConstants.PATH_HADOOP_CONFIG, null));
+        assertEquals(
+                TARGET_CONF_DIR.getPath(), spec.getEnvironmentVariables().get("HADOOP_CONF_DIR"));
+        assertEquals(
+                TARGET_CONF_DIR.getPath(),
+                spec.getFlinkConfiguration().getString(ConfigConstants.PATH_HADOOP_CONFIG, null));
 
-		checkArtifact(spec, new Path(TARGET_CONF_DIR, "core-site.xml"));
-		checkArtifact(spec, new Path(TARGET_CONF_DIR, "hdfs-site.xml"));
-	}
+        checkArtifact(spec, new Path(TARGET_CONF_DIR, "core-site.xml"));
+        checkArtifact(spec, new Path(TARGET_CONF_DIR, "hdfs-site.xml"));
+    }
 
-	@Test
-	public void testNoConf() throws Exception {
-		HadoopConfOverlay overlay = new HadoopConfOverlay(null);
+    @Test
+    public void testNoConf() throws Exception {
+        HadoopConfOverlay overlay = new HadoopConfOverlay(null);
 
-		ContainerSpecification containerSpecification = new ContainerSpecification();
-		overlay.configure(containerSpecification);
-	}
+        ContainerSpecification containerSpecification = new ContainerSpecification();
+        overlay.configure(containerSpecification);
+    }
 
-	@Test
-	public void testBuilderFromEnvironment() throws Exception {
+    @Test
+    public void testBuilderFromEnvironment() throws Exception {
 
-		// verify that the builder picks up various environment locations
-		HadoopConfOverlay.Builder builder;
-		Map<String, String> env;
+        // verify that the builder picks up various environment locations
+        HadoopConfOverlay.Builder builder;
+        Map<String, String> env;
 
-		// fs.hdfs.hadoopconf
-		File confDir = tempFolder.newFolder();
-		initConfDir(confDir);
-		Configuration conf = new Configuration();
-		conf.setString(ConfigConstants.PATH_HADOOP_CONFIG, confDir.getAbsolutePath());
-		builder = HadoopConfOverlay.newBuilder().fromEnvironment(conf);
-		assertEquals(confDir, builder.hadoopConfDir);
+        // fs.hdfs.hadoopconf
+        File confDir = tempFolder.newFolder();
+        initConfDir(confDir);
+        Configuration conf = new Configuration();
+        conf.setString(ConfigConstants.PATH_HADOOP_CONFIG, confDir.getAbsolutePath());
+        builder = HadoopConfOverlay.newBuilder().fromEnvironment(conf);
+        assertEquals(confDir, builder.hadoopConfDir);
 
-		// HADOOP_CONF_DIR
-		env = new HashMap<String, String>(System.getenv());
-		env.remove("HADOOP_HOME");
-		env.put("HADOOP_CONF_DIR", confDir.getAbsolutePath());
-		CommonTestUtils.setEnv(env);
-		builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
-		assertEquals(confDir, builder.hadoopConfDir);
+        // HADOOP_CONF_DIR
+        env = new HashMap<String, String>(System.getenv());
+        env.remove("HADOOP_HOME");
+        env.put("HADOOP_CONF_DIR", confDir.getAbsolutePath());
+        CommonTestUtils.setEnv(env);
+        builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
+        assertEquals(confDir, builder.hadoopConfDir);
 
-		// HADOOP_HOME/conf
-		File homeDir = tempFolder.newFolder();
-		confDir = initConfDir(new File(homeDir, "conf"));
-		env = new HashMap<String, String>(System.getenv());
-		env.remove("HADOOP_CONF_DIR");
-		env.put("HADOOP_HOME", homeDir.getAbsolutePath());
-		CommonTestUtils.setEnv(env);
-		builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
-		assertEquals(confDir, builder.hadoopConfDir);
+        // HADOOP_HOME/conf
+        File homeDir = tempFolder.newFolder();
+        confDir = initConfDir(new File(homeDir, "conf"));
+        env = new HashMap<String, String>(System.getenv());
+        env.remove("HADOOP_CONF_DIR");
+        env.put("HADOOP_HOME", homeDir.getAbsolutePath());
+        CommonTestUtils.setEnv(env);
+        builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
+        assertEquals(confDir, builder.hadoopConfDir);
 
-		// HADOOP_HOME/etc/hadoop
-		homeDir = tempFolder.newFolder();
-		confDir = initConfDir(new File(homeDir, "etc/hadoop"));
-		env = new HashMap<String, String>(System.getenv());
-		env.remove("HADOOP_CONF_DIR");
-		env.put("HADOOP_HOME", homeDir.getAbsolutePath());
-		CommonTestUtils.setEnv(env);
-		builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
-		assertEquals(confDir, builder.hadoopConfDir);
-	}
+        // HADOOP_HOME/etc/hadoop
+        homeDir = tempFolder.newFolder();
+        confDir = initConfDir(new File(homeDir, "etc/hadoop"));
+        env = new HashMap<String, String>(System.getenv());
+        env.remove("HADOOP_CONF_DIR");
+        env.put("HADOOP_HOME", homeDir.getAbsolutePath());
+        CommonTestUtils.setEnv(env);
+        builder = HadoopConfOverlay.newBuilder().fromEnvironment(new Configuration());
+        assertEquals(confDir, builder.hadoopConfDir);
+    }
 
-	private File initConfDir(File confDir) throws Exception {
-		confDir.mkdirs();
-		new File(confDir, "core-site.xml").createNewFile();
-		new File(confDir, "hdfs-site.xml").createNewFile();
-		return confDir;
-	}
+    private File initConfDir(File confDir) throws Exception {
+        confDir.mkdirs();
+        new File(confDir, "core-site.xml").createNewFile();
+        new File(confDir, "hdfs-site.xml").createNewFile();
+        return confDir;
+    }
 }

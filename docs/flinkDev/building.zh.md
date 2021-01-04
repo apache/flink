@@ -125,9 +125,6 @@ mvn clean install
 
 {% top %}
 
-## Hadoop 版本
-
-请查看 [Hadoop 集成模块]({{ site.baseurl }}/ops/deployment/hadoop.html) 一节中关于处理 Hadoop 的类和版本问题的方法。
 
 ## Scala 版本
 

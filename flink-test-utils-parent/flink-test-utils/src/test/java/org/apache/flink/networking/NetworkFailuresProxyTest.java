@@ -29,96 +29,98 @@ import java.net.SocketException;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for NetworkFailuresProxy.
- */
+/** Tests for NetworkFailuresProxy. */
 public class NetworkFailuresProxyTest {
-	public static final int SOCKET_TIMEOUT = 500_000;
+    public static final int SOCKET_TIMEOUT = 500_000;
 
-	@Test
-	public void testProxy() throws Exception {
-		try (
-				EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
-				NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort());
-				EchoClient echoClient = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
-			echoServer.start();
+    @Test
+    public void testProxy() throws Exception {
+        try (EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
+                NetworkFailuresProxy proxy =
+                        new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort());
+                EchoClient echoClient =
+                        new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
+            echoServer.start();
 
-			assertEquals("42", echoClient.write("42"));
-			assertEquals("Ala ma kota!", echoClient.write("Ala ma kota!"));
-		}
-	}
+            assertEquals("42", echoClient.write("42"));
+            assertEquals("Ala ma kota!", echoClient.write("Ala ma kota!"));
+        }
+    }
 
-	@Test
-	public void testMultipleConnections() throws Exception {
-		try (
-				EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
-				NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort());
-				EchoClient echoClient1 = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT);
-				EchoClient echoClient2 = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
-			echoServer.start();
+    @Test
+    public void testMultipleConnections() throws Exception {
+        try (EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
+                NetworkFailuresProxy proxy =
+                        new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort());
+                EchoClient echoClient1 =
+                        new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT);
+                EchoClient echoClient2 =
+                        new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
+            echoServer.start();
 
-			assertEquals("42", echoClient1.write("42"));
-			assertEquals("Ala ma kota!", echoClient2.write("Ala ma kota!"));
-			assertEquals("Ala hat eine Katze!", echoClient1.write("Ala hat eine Katze!"));
-		}
-	}
+            assertEquals("42", echoClient1.write("42"));
+            assertEquals("Ala ma kota!", echoClient2.write("Ala ma kota!"));
+            assertEquals("Ala hat eine Katze!", echoClient1.write("Ala hat eine Katze!"));
+        }
+    }
 
-	@Test
-	public void testBlockTraffic() throws Exception {
-		try (
-				EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
-				NetworkFailuresProxy proxy = new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort())) {
-			echoServer.start();
+    @Test
+    public void testBlockTraffic() throws Exception {
+        try (EchoServer echoServer = new EchoServer(SOCKET_TIMEOUT);
+                NetworkFailuresProxy proxy =
+                        new NetworkFailuresProxy(0, "localhost", echoServer.getLocalPort())) {
+            echoServer.start();
 
-			try (EchoClient echoClient = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
-				assertEquals("42", echoClient.write("42"));
-				proxy.blockTraffic();
-				try {
-					echoClient.write("Ala ma kota!");
-				} catch (SocketException ex) {
-					assertEquals("Connection reset", ex.getMessage());
-				}
-			}
+            try (EchoClient echoClient =
+                    new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
+                assertEquals("42", echoClient.write("42"));
+                proxy.blockTraffic();
+                try {
+                    echoClient.write("Ala ma kota!");
+                } catch (SocketException ex) {
+                    assertEquals("Connection reset", ex.getMessage());
+                }
+            }
 
-			try (EchoClient echoClient = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
-				assertEquals(null, echoClient.write("42"));
-			} catch (SocketException ex) {
-				assertEquals("Connection reset", ex.getMessage());
-			}
+            try (EchoClient echoClient =
+                    new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
+                assertEquals(null, echoClient.write("42"));
+            } catch (SocketException ex) {
+                assertEquals("Connection reset", ex.getMessage());
+            }
 
-			proxy.unblockTraffic();
-			try (EchoClient echoClient = new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
-				assertEquals("42", echoClient.write("42"));
-				assertEquals("Ala ma kota!", echoClient.write("Ala ma kota!"));
-			}
-		}
-	}
+            proxy.unblockTraffic();
+            try (EchoClient echoClient =
+                    new EchoClient("localhost", proxy.getLocalPort(), SOCKET_TIMEOUT)) {
+                assertEquals("42", echoClient.write("42"));
+                assertEquals("Ala ma kota!", echoClient.write("Ala ma kota!"));
+            }
+        }
+    }
 
-	/**
-	 * Simple echo client that sends a message over the network and waits for the answer.
-	 */
-	public static class EchoClient implements AutoCloseable {
-		private final Socket socket;
-		private final PrintWriter output;
-		private final BufferedReader input;
+    /** Simple echo client that sends a message over the network and waits for the answer. */
+    public static class EchoClient implements AutoCloseable {
+        private final Socket socket;
+        private final PrintWriter output;
+        private final BufferedReader input;
 
-		public EchoClient(String hostName, int portNumber, int socketTimeout) throws IOException {
-			socket = new Socket(hostName, portNumber);
-			socket.setSoTimeout(socketTimeout);
-			output = new PrintWriter(socket.getOutputStream(), true);
-			input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		}
+        public EchoClient(String hostName, int portNumber, int socketTimeout) throws IOException {
+            socket = new Socket(hostName, portNumber);
+            socket.setSoTimeout(socketTimeout);
+            output = new PrintWriter(socket.getOutputStream(), true);
+            input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        }
 
-		public String write(String message) throws IOException {
-			output.println(message);
-			return input.readLine();
-		}
+        public String write(String message) throws IOException {
+            output.println(message);
+            return input.readLine();
+        }
 
-		@Override
-		public void close() throws Exception {
-			input.close();
-			output.close();
-			socket.close();
-		}
-	}
+        @Override
+        public void close() throws Exception {
+            input.close();
+            output.close();
+            socket.close();
+        }
+    }
 }

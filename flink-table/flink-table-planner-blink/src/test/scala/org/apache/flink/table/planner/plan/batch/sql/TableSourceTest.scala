@@ -36,6 +36,7 @@ class TableSourceTest extends TableTestBase {
          |  c varchar(32)
          |) WITH (
          |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
          |  'bounded' = 'true'
          |)
        """.stripMargin
@@ -50,20 +51,38 @@ class TableSourceTest extends TableTestBase {
         |  name string
         |) WITH (
         | 'connector' = 'values',
-        |  'bounded' = 'true'
+        | 'nested-projection-supported' = 'true',
+        | 'bounded' = 'true'
         |)
         |""".stripMargin
     util.tableEnv.executeSql(ddl2)
+    val ddl3 =
+      s"""
+         |CREATE TABLE T (
+         |  id int,
+         |  deepNested row<nested1 row<name string, `value` int>,
+         |    nested2 row<num int, flag boolean>>,
+         |  metadata_1 int metadata,
+         |  metadata_2 string metadata
+         |) WITH (
+         |  'connector' = 'values',
+         |  'nested-projection-supported' = 'true',
+         |  'bounded' = 'true',
+         |  'readable-metadata' =
+         |    'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'
+         |)
+         |""".stripMargin
+    util.tableEnv.executeSql(ddl3)
   }
 
   @Test
   def testSimpleProject(): Unit = {
-    util.verifyPlan("SELECT a, c FROM ProjectableTable")
+    util.verifyExecPlan("SELECT a, c FROM ProjectableTable")
   }
 
   @Test
   def testProjectWithoutInputRef(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) FROM ProjectableTable")
+    util.verifyExecPlan("SELECT COUNT(1) FROM ProjectableTable")
   }
 
   @Test
@@ -77,7 +96,18 @@ class TableSourceTest extends TableTestBase {
         |    deepNested.nested2.num AS nestedNum
         |FROM NestedTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
+  @Test
+  def testNestProjectWithMetadata(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT id,
+        |       deepNested.nested1 AS nested1,
+        |       deepNested.nested1.`value` + deepNested.nested2.num + metadata_1 as results
+        |FROM T
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

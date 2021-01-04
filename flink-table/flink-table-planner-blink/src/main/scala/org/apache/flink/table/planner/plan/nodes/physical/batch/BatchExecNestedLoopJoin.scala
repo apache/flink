@@ -26,7 +26,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
 
 import org.apache.calcite.plan._
@@ -93,7 +94,13 @@ class BatchExecNestedLoopJoin(
       (buildRowSize + BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
     val cpuCost = leftRowCnt * rightRowCnt
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
-    costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    val cost = costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    if (singleRowJoin) {
+      // Make single row join more preferable than non-single row join.
+      cost.multiplyBy(0.99)
+    } else {
+      cost
+    }
   }
 
   private def shuffleBuildCount(mq: RelMetadataQuery): Int = {
@@ -114,9 +121,6 @@ class BatchExecNestedLoopJoin(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def getInputEdges: util.List[ExecEdge] = {
     // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
@@ -141,12 +145,6 @@ class BatchExecNestedLoopJoin(
     } else {
       List(probeEdge, buildEdge)
     }
-  }
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
@@ -177,7 +175,7 @@ class BatchExecNestedLoopJoin(
       MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
     }
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       lInput,
       rInput,
       getRelDetailedDescription,

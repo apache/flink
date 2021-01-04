@@ -18,13 +18,11 @@
 
 package org.apache.flink.table.operations;
 
-/**
- * Operation to describe a SHOW VIEWS statement.
- */
+/** Operation to describe a SHOW VIEWS statement. */
 public class ShowViewsOperation implements ShowOperation {
 
-	@Override
-	public String asSummaryString() {
-		return "SHOW VIEWS";
-	}
+    @Override
+    public String asSummaryString() {
+        return "SHOW VIEWS";
+    }
 }

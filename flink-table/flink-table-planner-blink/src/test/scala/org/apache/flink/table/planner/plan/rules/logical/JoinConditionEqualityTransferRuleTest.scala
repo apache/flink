@@ -53,56 +53,56 @@ class JoinConditionEqualityTransferRuleTest extends TableTestBase {
 
   @Test
   def testInnerJoin1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e")
   }
 
   @Test
   def testInnerJoin2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b = d")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b = d")
   }
 
   @Test
   def testInnerJoin3(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND a = c")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND a = c")
   }
 
   @Test
   def testInnerJoin4(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b + 1 = d")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b + 1 = d")
   }
 
   @Test
   def testInnerJoinWithNonEquiCondition1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a > e")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a > e")
   }
 
   @Test
   def testInnerJoinWithNonEquiCondition2(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b > d")
+    util.verifyRelPlan("SELECT * FROM MyTable1 JOIN MyTable2 ON a = d AND a = e AND b > d")
   }
 
   @Test
   def testSemiJoin_In1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e)")
+    util.verifyRelPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e)")
   }
 
   @Test
   def testSemiJoin_In2(): Unit = {
     val sqlQuery =
       "SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e AND b = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testSemiJoinWithNonEquiCondition_In1(): Unit = {
-    util.verifyPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a > e)")
+    util.verifyRelPlan("SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a > e)")
   }
 
   @Test
   def testSemiJoinWithNonEquiCondition_In2(): Unit = {
     val sqlQuery =
       "SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a > e AND b = d)"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -111,7 +111,7 @@ class JoinConditionEqualityTransferRuleTest extends TableTestBase {
       """
         |SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a = e)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -121,7 +121,7 @@ class JoinConditionEqualityTransferRuleTest extends TableTestBase {
         |SELECT * FROM MyTable1 WHERE EXISTS
         |    (SELECT * FROM MyTable2 WHERE a = d AND a = e AND b = d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -130,7 +130,7 @@ class JoinConditionEqualityTransferRuleTest extends TableTestBase {
       """
         |SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a > e)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -140,6 +140,6 @@ class JoinConditionEqualityTransferRuleTest extends TableTestBase {
         |SELECT * FROM MyTable1 WHERE EXISTS
         |    (SELECT * FROM MyTable2 WHERE a = d AND a = e AND b > d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.contrib.streaming.state.restore;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackend.RocksDbKvStateInfo;
 import org.apache.flink.contrib.streaming.state.RocksDBNativeMetricMonitor;
@@ -41,6 +42,8 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.RocksDB;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -58,160 +61,189 @@ import java.util.function.Function;
  *
  * @param <K> The data type that the serializer serializes.
  */
-public abstract class AbstractRocksDBRestoreOperation<K> implements RocksDBRestoreOperation, AutoCloseable {
-	protected final KeyGroupRange keyGroupRange;
-	protected final int keyGroupPrefixBytes;
-	protected final int numberOfTransferringThreads;
-	protected final CloseableRegistry cancelStreamRegistry;
-	protected final ClassLoader userCodeClassLoader;
-	protected final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
-	protected final DBOptions dbOptions;
-	protected final Map<String, RocksDbKvStateInfo> kvStateInformation;
-	protected final File instanceBasePath;
-	protected final File instanceRocksDBPath;
-	protected final String dbPath;
-	protected List<ColumnFamilyHandle> columnFamilyHandles;
-	protected List<ColumnFamilyDescriptor> columnFamilyDescriptors;
-	protected final StateSerializerProvider<K> keySerializerProvider;
-	protected final RocksDBNativeMetricOptions nativeMetricOptions;
-	protected final MetricGroup metricGroup;
-	protected final Collection<KeyedStateHandle> restoreStateHandles;
-	// Current places to set compact filter into column family options:
-	// - Incremental restore
-	//   - restore with rescaling
-	//     - init from a certain sst: #createAndRegisterColumnFamilyDescriptors when prepare files, before db open
-	//     - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating column family
-	//   - restore without rescaling: #createAndRegisterColumnFamilyDescriptors when prepare files, before db open
-	// - Full restore
-	//   - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating column family
-	protected final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
+public abstract class AbstractRocksDBRestoreOperation<K>
+        implements RocksDBRestoreOperation, AutoCloseable {
+    protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-	protected RocksDB db;
-	protected ColumnFamilyHandle defaultColumnFamilyHandle;
-	protected RocksDBNativeMetricMonitor nativeMetricMonitor;
-	protected boolean isKeySerializerCompatibilityChecked;
+    protected final KeyGroupRange keyGroupRange;
+    protected final int keyGroupPrefixBytes;
+    protected final int numberOfTransferringThreads;
+    protected final CloseableRegistry cancelStreamRegistry;
+    protected final ClassLoader userCodeClassLoader;
+    protected final Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory;
+    protected final DBOptions dbOptions;
+    protected final Map<String, RocksDbKvStateInfo> kvStateInformation;
+    protected final File instanceBasePath;
+    protected final File instanceRocksDBPath;
+    protected final String dbPath;
+    protected List<ColumnFamilyHandle> columnFamilyHandles;
+    protected List<ColumnFamilyDescriptor> columnFamilyDescriptors;
+    protected final StateSerializerProvider<K> keySerializerProvider;
+    protected final RocksDBNativeMetricOptions nativeMetricOptions;
+    protected final MetricGroup metricGroup;
+    protected final Collection<KeyedStateHandle> restoreStateHandles;
+    // Current places to set compact filter into column family options:
+    // - Incremental restore
+    //   - restore with rescaling
+    //     - init from a certain sst: #createAndRegisterColumnFamilyDescriptors when prepare files,
+    // before db open
+    //     - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating
+    // column family
+    //   - restore without rescaling: #createAndRegisterColumnFamilyDescriptors when prepare files,
+    // before db open
+    // - Full restore
+    //   - data ingestion after db open: #getOrRegisterStateColumnFamilyHandle before creating
+    // column family
+    protected final RocksDbTtlCompactFiltersManager ttlCompactFiltersManager;
 
-	protected AbstractRocksDBRestoreOperation(
-		KeyGroupRange keyGroupRange,
-		int keyGroupPrefixBytes,
-		int numberOfTransferringThreads,
-		CloseableRegistry cancelStreamRegistry,
-		ClassLoader userCodeClassLoader,
-		Map<String, RocksDbKvStateInfo> kvStateInformation,
-		StateSerializerProvider<K> keySerializerProvider,
-		File instanceBasePath,
-		File instanceRocksDBPath,
-		DBOptions dbOptions,
-		Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
-		RocksDBNativeMetricOptions nativeMetricOptions,
-		MetricGroup metricGroup,
-		@Nonnull Collection<KeyedStateHandle> stateHandles,
-		@Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager) {
-		this.keyGroupRange = keyGroupRange;
-		this.keyGroupPrefixBytes = keyGroupPrefixBytes;
-		this.numberOfTransferringThreads = numberOfTransferringThreads;
-		this.cancelStreamRegistry = cancelStreamRegistry;
-		this.userCodeClassLoader = userCodeClassLoader;
-		this.kvStateInformation = kvStateInformation;
-		this.keySerializerProvider = keySerializerProvider;
-		this.instanceBasePath = instanceBasePath;
-		this.instanceRocksDBPath = instanceRocksDBPath;
-		this.dbPath = instanceRocksDBPath.getAbsolutePath();
-		this.dbOptions = dbOptions;
-		this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
-		this.nativeMetricOptions = nativeMetricOptions;
-		this.metricGroup = metricGroup;
-		this.restoreStateHandles = stateHandles;
-		this.ttlCompactFiltersManager = ttlCompactFiltersManager;
-		this.columnFamilyHandles = new ArrayList<>(1);
-		this.columnFamilyDescriptors = Collections.emptyList();
-	}
+    protected RocksDB db;
+    protected ColumnFamilyHandle defaultColumnFamilyHandle;
+    protected RocksDBNativeMetricMonitor nativeMetricMonitor;
+    protected boolean isKeySerializerCompatibilityChecked;
+    protected final Long writeBufferManagerCapacity;
 
-	void openDB() throws IOException {
-		db = RocksDBOperationUtils.openDB(
-			dbPath,
-			columnFamilyDescriptors,
-			columnFamilyHandles,
-			RocksDBOperationUtils.createColumnFamilyOptions(columnFamilyOptionsFactory, "default"),
-			dbOptions);
-		// remove the default column family which is located at the first index
-		defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
-		// init native metrics monitor if configured
-		nativeMetricMonitor = nativeMetricOptions.isEnabled() ?
-			new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db) : null;
-	}
+    protected AbstractRocksDBRestoreOperation(
+            KeyGroupRange keyGroupRange,
+            int keyGroupPrefixBytes,
+            int numberOfTransferringThreads,
+            CloseableRegistry cancelStreamRegistry,
+            ClassLoader userCodeClassLoader,
+            Map<String, RocksDbKvStateInfo> kvStateInformation,
+            StateSerializerProvider<K> keySerializerProvider,
+            File instanceBasePath,
+            File instanceRocksDBPath,
+            DBOptions dbOptions,
+            Function<String, ColumnFamilyOptions> columnFamilyOptionsFactory,
+            RocksDBNativeMetricOptions nativeMetricOptions,
+            MetricGroup metricGroup,
+            @Nonnull Collection<KeyedStateHandle> stateHandles,
+            @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
+            Long writeBufferManagerCapacity) {
+        this.keyGroupRange = keyGroupRange;
+        this.keyGroupPrefixBytes = keyGroupPrefixBytes;
+        this.numberOfTransferringThreads = numberOfTransferringThreads;
+        this.cancelStreamRegistry = cancelStreamRegistry;
+        this.userCodeClassLoader = userCodeClassLoader;
+        this.kvStateInformation = kvStateInformation;
+        this.keySerializerProvider = keySerializerProvider;
+        this.instanceBasePath = instanceBasePath;
+        this.instanceRocksDBPath = instanceRocksDBPath;
+        this.dbPath = instanceRocksDBPath.getAbsolutePath();
+        this.dbOptions = dbOptions;
+        this.columnFamilyOptionsFactory = columnFamilyOptionsFactory;
+        this.nativeMetricOptions = nativeMetricOptions;
+        this.metricGroup = metricGroup;
+        this.restoreStateHandles = stateHandles;
+        this.ttlCompactFiltersManager = ttlCompactFiltersManager;
+        this.columnFamilyHandles = new ArrayList<>(1);
+        this.columnFamilyDescriptors = Collections.emptyList();
+        this.writeBufferManagerCapacity = writeBufferManagerCapacity;
+    }
 
-	public RocksDB getDb() {
-		return this.db;
-	}
+    void openDB() throws IOException {
+        db =
+                RocksDBOperationUtils.openDB(
+                        dbPath,
+                        columnFamilyDescriptors,
+                        columnFamilyHandles,
+                        RocksDBOperationUtils.createColumnFamilyOptions(
+                                columnFamilyOptionsFactory, "default"),
+                        dbOptions);
+        // remove the default column family which is located at the first index
+        defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
+        // init native metrics monitor if configured
+        nativeMetricMonitor =
+                nativeMetricOptions.isEnabled()
+                        ? new RocksDBNativeMetricMonitor(nativeMetricOptions, metricGroup, db)
+                        : null;
+    }
 
-	RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
-		ColumnFamilyHandle columnFamilyHandle,
-		StateMetaInfoSnapshot stateMetaInfoSnapshot) {
+    public RocksDB getDb() {
+        return this.db;
+    }
 
-		RocksDbKvStateInfo registeredStateMetaInfoEntry =
-			kvStateInformation.get(stateMetaInfoSnapshot.getName());
+    RocksDbKvStateInfo getOrRegisterStateColumnFamilyHandle(
+            ColumnFamilyHandle columnFamilyHandle, StateMetaInfoSnapshot stateMetaInfoSnapshot) {
 
-		if (null == registeredStateMetaInfoEntry) {
-			// create a meta info for the state on restore;
-			// this allows us to retain the state in future snapshots even if it wasn't accessed
-			RegisteredStateMetaInfoBase stateMetaInfo =
-				RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
-			if (columnFamilyHandle == null) {
-				registeredStateMetaInfoEntry = RocksDBOperationUtils.createStateInfo(
-					stateMetaInfo, db, columnFamilyOptionsFactory, ttlCompactFiltersManager);
-			} else {
-				registeredStateMetaInfoEntry = new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
-			}
+        RocksDbKvStateInfo registeredStateMetaInfoEntry =
+                kvStateInformation.get(stateMetaInfoSnapshot.getName());
 
-			RocksDBOperationUtils.registerKvStateInformation(
-				kvStateInformation,
-				nativeMetricMonitor,
-				stateMetaInfoSnapshot.getName(),
-				registeredStateMetaInfoEntry);
-		} else {
-			// TODO with eager state registration in place, check here for serializer migration strategies
-		}
+        if (null == registeredStateMetaInfoEntry) {
+            // create a meta info for the state on restore;
+            // this allows us to retain the state in future snapshots even if it wasn't accessed
+            RegisteredStateMetaInfoBase stateMetaInfo =
+                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
+            if (columnFamilyHandle == null) {
+                registeredStateMetaInfoEntry =
+                        RocksDBOperationUtils.createStateInfo(
+                                stateMetaInfo,
+                                db,
+                                columnFamilyOptionsFactory,
+                                ttlCompactFiltersManager,
+                                writeBufferManagerCapacity);
+            } else {
+                registeredStateMetaInfoEntry =
+                        new RocksDbKvStateInfo(columnFamilyHandle, stateMetaInfo);
+            }
 
-		return registeredStateMetaInfoEntry;
-	}
+            RocksDBOperationUtils.registerKvStateInformation(
+                    kvStateInformation,
+                    nativeMetricMonitor,
+                    stateMetaInfoSnapshot.getName(),
+                    registeredStateMetaInfoEntry);
+        } else {
+            // TODO with eager state registration in place, check here for serializer migration
+            // strategies
+        }
 
-	KeyedBackendSerializationProxy<K> readMetaData(DataInputView dataInputView)
-		throws IOException, StateMigrationException {
-		// isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
-		// deserialization of state happens lazily during runtime; we depend on the fact
-		// that the new serializer for states could be compatible, and therefore the restore can continue
-		// without old serializers required to be present.
-		KeyedBackendSerializationProxy<K> serializationProxy =
-			new KeyedBackendSerializationProxy<>(userCodeClassLoader);
-		serializationProxy.read(dataInputView);
-		if (!isKeySerializerCompatibilityChecked) {
-			// check for key serializer compatibility; this also reconfigures the
-			// key serializer to be compatible, if it is required and is possible
-			TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
-				keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(serializationProxy.getKeySerializerSnapshot());
-			if (keySerializerSchemaCompat.isCompatibleAfterMigration() || keySerializerSchemaCompat.isIncompatible()) {
-				throw new StateMigrationException("The new key serializer must be compatible.");
-			}
+        return registeredStateMetaInfoEntry;
+    }
 
-			isKeySerializerCompatibilityChecked = true;
-		}
+    KeyedBackendSerializationProxy<K> readMetaData(DataInputView dataInputView)
+            throws IOException, StateMigrationException {
+        // isSerializerPresenceRequired flag is set to false, since for the RocksDB state backend,
+        // deserialization of state happens lazily during runtime; we depend on the fact
+        // that the new serializer for states could be compatible, and therefore the restore can
+        // continue
+        // without old serializers required to be present.
+        KeyedBackendSerializationProxy<K> serializationProxy =
+                new KeyedBackendSerializationProxy<>(userCodeClassLoader);
+        serializationProxy.read(dataInputView);
+        if (!isKeySerializerCompatibilityChecked) {
+            // fetch current serializer now because if it is incompatible, we can't access
+            // it anymore to improve the error message
+            TypeSerializer<K> currentSerializer = keySerializerProvider.currentSchemaSerializer();
+            // check for key serializer compatibility; this also reconfigures the
+            // key serializer to be compatible, if it is required and is possible
+            TypeSerializerSchemaCompatibility<K> keySerializerSchemaCompat =
+                    keySerializerProvider.setPreviousSerializerSnapshotForRestoredState(
+                            serializationProxy.getKeySerializerSnapshot());
+            if (keySerializerSchemaCompat.isCompatibleAfterMigration()
+                    || keySerializerSchemaCompat.isIncompatible()) {
+                throw new StateMigrationException(
+                        "The new key serializer ("
+                                + currentSerializer
+                                + ") must be compatible with the previous key serializer ("
+                                + keySerializerProvider.previousSchemaSerializer()
+                                + ").");
+            }
 
-		return serializationProxy;
-	}
+            isKeySerializerCompatibilityChecked = true;
+        }
 
-	/**
-	 * Necessary clean up iff restore operation failed.
-	 */
-	@Override
-	public void close() {
-		IOUtils.closeQuietly(defaultColumnFamilyHandle);
-		IOUtils.closeQuietly(nativeMetricMonitor);
-		IOUtils.closeQuietly(db);
-		// Making sure the already created column family options will be closed
-		columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
-	}
+        return serializationProxy;
+    }
 
-	@Override
-	public abstract RocksDBRestoreResult restore() throws Exception;
+    /** Necessary clean up iff restore operation failed. */
+    @Override
+    public void close() {
+        IOUtils.closeQuietly(defaultColumnFamilyHandle);
+        IOUtils.closeQuietly(nativeMetricMonitor);
+        IOUtils.closeQuietly(db);
+        // Making sure the already created column family options will be closed
+        columnFamilyDescriptors.forEach((cfd) -> IOUtils.closeQuietly(cfd.getOptions()));
+    }
+
+    @Override
+    public abstract RocksDBRestoreResult restore() throws Exception;
 }

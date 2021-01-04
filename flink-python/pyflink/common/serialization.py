@@ -16,7 +16,8 @@
 # limitations under the License.
 ################################################################################
 from py4j.java_gateway import java_import, JavaObject
-from pyflink.common.typeinfo import TypeInformation, WrapperTypeInfo
+from pyflink.common import typeinfo
+from pyflink.common.typeinfo import TypeInformation
 
 from pyflink.util.utils import load_java_class
 
@@ -112,7 +113,7 @@ class JsonRowDeserializationSchema(DeserializationSchema):
                 raise TypeError("The json_schema must not be None.")
             j_type_info = get_gateway().jvm \
                 .org.apache.flink.formats.json.JsonRowSchemaConverter.convert(json_schema)
-            self._type_info = WrapperTypeInfo(j_type_info)
+            self._type_info = typeinfo._from_java_type(j_type_info)
             return self
 
         def fail_on_missing_field(self):

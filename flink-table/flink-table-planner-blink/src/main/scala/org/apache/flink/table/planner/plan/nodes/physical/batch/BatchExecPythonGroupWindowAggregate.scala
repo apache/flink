@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.expressions.{PlannerRowtimeAttribute, Plan
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.common.CommonPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupWindowAggregate.ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
@@ -83,7 +83,7 @@ class BatchExecPythonGroupWindowAggregate(
     false,
     false,
     true)
-  with BatchExecNode[RowData]
+  with LegacyBatchExecNode[RowData]
   with CommonPythonAggregate {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -121,16 +121,7 @@ class BatchExecPythonGroupWindowAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    List(getInput.asInstanceOf[ExecNode[BatchPlanner, _]])
-
   override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {

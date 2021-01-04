@@ -30,85 +30,117 @@ import java.util.Objects;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link JsonRowSchemaConverter}.
- */
+/** Tests for {@link JsonRowSchemaConverter}. */
 public class JsonRowSchemaConverterTest {
 
-	@Test
-	public void testComplexSchema() throws Exception {
-		final URL url = getClass().getClassLoader().getResource("complex-schema.json");
-		Objects.requireNonNull(url);
-		final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
+    @Test
+    public void testComplexSchema() throws Exception {
+        final URL url = getClass().getClassLoader().getResource("complex-schema.json");
+        Objects.requireNonNull(url);
+        final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
+        final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
 
-		final TypeInformation<?> expected = Types.ROW_NAMED(
-			new String[] {"fn", "familyName", "additionalName", "tuples", "honorificPrefix", "url",
-				"email", "tel", "sound", "org"},
-			Types.STRING, Types.STRING, Types.BOOLEAN, Types.ROW(Types.BIG_DEC, Types.STRING, Types.STRING, Types.STRING),
-			Types.OBJECT_ARRAY(Types.STRING), Types.STRING, Types.ROW_NAMED(new String[] {"type", "value"}, Types.STRING, Types.STRING),
-			Types.ROW_NAMED(new String[] {"type", "value"}, Types.BIG_DEC, Types.STRING), Types.VOID,
-			Types.ROW_NAMED(new String[] {"organizationUnit"}, Types.ROW()));
+        final TypeInformation<?> expected =
+                Types.ROW_NAMED(
+                        new String[] {
+                            "fn",
+                            "familyName",
+                            "additionalName",
+                            "tuples",
+                            "honorificPrefix",
+                            "url",
+                            "email",
+                            "tel",
+                            "sound",
+                            "org"
+                        },
+                        Types.STRING,
+                        Types.STRING,
+                        Types.BOOLEAN,
+                        Types.ROW(Types.BIG_DEC, Types.STRING, Types.STRING, Types.STRING),
+                        Types.OBJECT_ARRAY(Types.STRING),
+                        Types.STRING,
+                        Types.ROW_NAMED(new String[] {"type", "value"}, Types.STRING, Types.STRING),
+                        Types.ROW_NAMED(
+                                new String[] {"type", "value"}, Types.BIG_DEC, Types.STRING),
+                        Types.VOID,
+                        Types.ROW_NAMED(new String[] {"organizationUnit"}, Types.ROW()));
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 
-	@Test
-	public void testReferenceSchema() throws Exception {
-		final URL url = getClass().getClassLoader().getResource("reference-schema.json");
-		Objects.requireNonNull(url);
-		final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
+    @Test
+    public void testReferenceSchema() throws Exception {
+        final URL url = getClass().getClassLoader().getResource("reference-schema.json");
+        Objects.requireNonNull(url);
+        final String schema = FileUtils.readFileUtf8(new File(url.getFile()));
+        final TypeInformation<?> result = JsonRowSchemaConverter.convert(schema);
 
-		final TypeInformation<?> expected = Types.ROW_NAMED(
-			new String[] {"billing_address", "shipping_address", "optional_address"},
-			Types.ROW_NAMED(new String[] {"street_address", "city", "state"}, Types.STRING, Types.STRING, Types.STRING),
-			Types.ROW_NAMED(new String[] {"street_address", "city", "state"}, Types.STRING, Types.STRING, Types.STRING),
-			Types.ROW_NAMED(new String[] {"street_address", "city", "state"}, Types.STRING, Types.STRING, Types.STRING));
+        final TypeInformation<?> expected =
+                Types.ROW_NAMED(
+                        new String[] {"billing_address", "shipping_address", "optional_address"},
+                        Types.ROW_NAMED(
+                                new String[] {"street_address", "city", "state"},
+                                Types.STRING,
+                                Types.STRING,
+                                Types.STRING),
+                        Types.ROW_NAMED(
+                                new String[] {"street_address", "city", "state"},
+                                Types.STRING,
+                                Types.STRING,
+                                Types.STRING),
+                        Types.ROW_NAMED(
+                                new String[] {"street_address", "city", "state"},
+                                Types.STRING,
+                                Types.STRING,
+                                Types.STRING));
 
-		assertEquals(expected, result);
-	}
+        assertEquals(expected, result);
+    }
 
-	@Test
-	public void testAtomicType() {
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'number' }");
+    @Test
+    public void testAtomicType() {
+        final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'number' }");
 
-		assertEquals(Types.BIG_DEC, result);
-	}
+        assertEquals(Types.BIG_DEC, result);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testMissingType() {
-		JsonRowSchemaConverter.convert("{ }");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testMissingType() {
+        JsonRowSchemaConverter.convert("{ }");
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testWrongType() {
-		JsonRowSchemaConverter.convert("{ type: 'whatever' }");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testWrongType() {
+        JsonRowSchemaConverter.convert("{ type: 'whatever' }");
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testArrayWithAdditionalItems() {
-		JsonRowSchemaConverter.convert("{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testArrayWithAdditionalItems() {
+        JsonRowSchemaConverter.convert(
+                "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+    }
 
-	@Test
-	public void testMissingProperties() {
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'object' }");
+    @Test
+    public void testMissingProperties() {
+        final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'object' }");
 
-		assertEquals(Types.ROW(), result);
-	}
+        assertEquals(Types.ROW(), result);
+    }
 
-	@Test
-	public void testNullUnionTypes() {
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: ['string', 'null'] }");
+    @Test
+    public void testNullUnionTypes() {
+        final TypeInformation<?> result =
+                JsonRowSchemaConverter.convert("{ type: ['string', 'null'] }");
 
-		assertEquals(Types.STRING, result);
-	}
+        assertEquals(Types.STRING, result);
+    }
 
-	@Test
-	public void testTimestamp() {
-		final TypeInformation<?> result = JsonRowSchemaConverter.convert("{ type: 'string', format: 'date-time' }");
+    @Test
+    public void testTimestamp() {
+        final TypeInformation<?> result =
+                JsonRowSchemaConverter.convert("{ type: 'string', format: 'date-time' }");
 
-		assertEquals(Types.SQL_TIMESTAMP, result);
-	}
+        assertEquals(Types.SQL_TIMESTAMP, result);
+    }
 }

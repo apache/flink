@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -28,9 +28,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(id, 2), =(part1, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id > 2) OR (part1 = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -39,7 +39,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(i
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -47,9 +47,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(id, 2), =(part1, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id > 2) OR (part1 = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -58,7 +58,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(i
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE (id > 2 OR part1 = 'A') AND part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(OR(>($0, 2), =($2, _UTF-16LE'A')), >($3, 1))])
@@ -66,9 +66,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(id, 2), =(part1, _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[((id > 2) OR (part1 = _UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}, {part1=B, part2=3}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -77,7 +77,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[OR(>(i
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -85,9 +85,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
 ]]>
     </Resource>
@@ -96,7 +96,7 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -104,9 +104,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
 ]]>
     </Resource>
@@ -115,7 +115,7 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE part1 = 'A']]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[=($2, _UTF-16LE'A')])
@@ -123,9 +123,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=A, part2=2}], project=[id, name, part2]]], fields=[id, name, part2])
 ]]>
     </Resource>
@@ -134,7 +134,7 @@ Calc(select=[id, name, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET "UTF-
     <Resource name="sql">
       <![CDATA[select * from MyTable where trim(part1) = 'A' and part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
@@ -142,9 +142,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -153,7 +153,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
     <Resource name="sql">
       <![CDATA[select * from MyTable where trim(part1) = 'A' and part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
@@ -161,9 +161,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -180,9 +180,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 2)])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[(id > 2)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -191,7 +191,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 
     <Resource name="sql">
       <![CDATA[select * from MyTable where trim(part1) = 'A' and part2 > 1]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(=(TRIM(FLAG(BOTH), _UTF-16LE' ', $2), _UTF-16LE'A'), >($3, 1))])
@@ -199,9 +199,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[], partitions=[{part1=A, part2=2}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -210,7 +210,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField])
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -218,9 +218,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 2)])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[(id > 2)])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>
@@ -229,7 +229,7 @@ Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE id > 2 AND MyUdf(part2) < 3]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
 +- LogicalFilter(condition=[AND(>($0, 2), <(MyUdf($3), 3))])
@@ -237,9 +237,9 @@ LogicalProject(id=[$0], name=[$1], part1=[$2], part2=[$3], virtualField=[$4])
       +- LogicalTableScan(table=[[test_catalog, test_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[id, name, part1, part2, +(part2, 1) AS virtualField], where=[>(id, 2)])
+Calc(select=[id, name, part1, part2, (part2 + 1) AS virtualField], where=[(id > 2)])
 +- TableSourceScan(table=[[test_catalog, test_database, MyTable, filter=[], partitions=[{part1=A, part2=1}, {part1=C, part2=1}]]], fields=[id, name, part1, part2])
 ]]>
     </Resource>

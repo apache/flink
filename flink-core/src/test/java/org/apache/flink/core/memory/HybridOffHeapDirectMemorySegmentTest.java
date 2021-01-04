@@ -21,23 +21,21 @@ package org.apache.flink.core.memory;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-/**
- * Tests for the {@link HybridMemorySegment} in off-heap mode using direct memory.
- */
+/** Tests for the {@link HybridMemorySegment} in off-heap mode using direct memory. */
 @RunWith(Parameterized.class)
 public class HybridOffHeapDirectMemorySegmentTest extends HybridOffHeapMemorySegmentTest {
 
-	public HybridOffHeapDirectMemorySegmentTest(int pageSize) {
-		super(pageSize);
-	}
+    public HybridOffHeapDirectMemorySegmentTest(int pageSize) {
+        super(pageSize);
+    }
 
-	@Override
-	MemorySegment createSegment(int size) {
-		return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size);
-	}
+    @Override
+    MemorySegment createSegment(int size) {
+        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size);
+    }
 
-	@Override
-	MemorySegment createSegment(int size, Object owner) {
-		return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
-	}
+    @Override
+    MemorySegment createSegment(int size, Object owner) {
+        return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
+    }
 }

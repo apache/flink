@@ -22,11 +22,14 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<a name="java-dependency"/>
+* This will be replaced by the TOC
+{:toc}
+
+<a name="java-dependency-in-python-program"/>
 
 # Java 依赖管理
 
-如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果应用了第三方 Java 依赖， 用户可以通过以下 Python Table API进行配置，或者在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 {% highlight python %}
 # 通过 "pipeline.jars" 参数指定 jar 包 URL列表， 每个 URL 使用 ";" 分隔。这些 jar 包最终会被上传到集群中。
@@ -38,11 +41,11 @@ table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///
 table_env.get_config().get_configuration().set_string("pipeline.classpaths", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 {% endhighlight %}
 
-<a name="python-dependency"/>
+<a name="python-dependency-in-python-program"/>
 
 # Python 依赖管理
 
-如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link ops/cli.zh.md %}#usage)配置。
+如果程序中应用到了 Python 第三方依赖，用户可以使用以下 Table API 配置依赖信息，或在提交作业时直接通过[命令行参数]({% link deployment/cli.zh.md %}#usage)配置。
 
 <table class="table table-bordered">
   <thead>
@@ -112,3 +115,36 @@ table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
     </tr>
   </tbody>
 </table>
+
+<a name="python-dependency-in-javascala-program"/>
+
+# Java/Scala程序中的Python依赖管理
+
+It also supports to use Python UDFs in the Java Table API programs or pure SQL programs. The following example shows how to
+use the Python UDFs in a Java Table API program:
+
+{% highlight java %}
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.TableEnvironment;
+
+TableEnvironment tEnv = TableEnvironment.create(
+    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
+
+// register the Python UDF
+tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");
+
+tEnv.createTemporaryView("source", tEnv.fromValues(1L, 2L, 3L).as("a"));
+
+// use Python UDF in the Java Table API program
+tEnv.executeSql("select add_one(a) as a from source").collect();
+{% endhighlight %}
+
+You can refer to the SQL statement about [CREATE FUNCTION]({% link  dev/table/sql/create.zh.md %}#create-function) for more details
+on how to create Python user-defined functions using SQL statements.
+
+The Python dependencies could be specified via the Python [config options]({% link  dev/python/python_config.zh.md %}#python-options),
+such as **python.archives**, **python.files**, **python.requirements**, **python.client.executable**, **python.executable**. etc or through [command line arguments]({% link deployment/cli.zh.md %}#usage) when submitting the job.
+
+

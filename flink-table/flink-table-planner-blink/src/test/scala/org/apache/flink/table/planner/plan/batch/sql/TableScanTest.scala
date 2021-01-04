@@ -67,7 +67,7 @@ class TableScanTest extends TableTestBase {
   @Test
   def testLegacyTableSourceScan(): Unit = {
     util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
-    util.verifyPlan("SELECT * FROM MyTable")
+    util.verifyExecPlan("SELECT * FROM MyTable")
   }
 
   @Test
@@ -84,7 +84,7 @@ class TableScanTest extends TableTestBase {
         |  'bounded' = 'true'
         |)
       """.stripMargin)
-    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
   }
 
   @Test
@@ -102,9 +102,10 @@ class TableScanTest extends TableTestBase {
         |)
       """.stripMargin)
     thrown.expect(classOf[ValidationException])
-    thrown.expectMessage("Cannot query on an unbounded source in batch mode, " +
-      "but 'default_catalog.default_database.src' is unbounded")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+    thrown.expectMessage(
+      "Querying an unbounded table 'default_catalog.default_database.src' in batch mode is not " +
+      "allowed. The table source is unbounded.")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
   }
 
   @Test
@@ -121,31 +122,55 @@ class TableScanTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB'
         |)
       """.stripMargin)
-    thrown.expect(classOf[UnsupportedOperationException])
+    thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Currently, batch mode only supports INSERT only source, " +
-        "but 'default_catalog.default_database.src' source produces not INSERT only messages")
-    util.verifyPlan("SELECT * FROM src WHERE a > 1")
+      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+       "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+       "messages than just INSERT.")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
+  }
+
+  @Test
+  def testScanOnUpsertSource(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE src (
+        |  id STRING,
+        |  a INT,
+        |  b DOUBLE,
+        |  PRIMARY KEY (id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'true',
+        |  'changelog-mode' = 'UA,D'
+        |)
+      """.stripMargin)
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage(
+      "Querying a table in batch mode is currently only possible for INSERT-only table sources. " +
+      "But the source for table 'default_catalog.default_database.src' produces other changelog " +
+      "messages than just INSERT.")
+    util.verifyExecPlan("SELECT * FROM src WHERE a > 1")
   }
 
   @Test
   def testDDLWithComputedColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM computed_column_t")
+    util.verifyExecPlan("SELECT * FROM computed_column_t")
   }
 
   @Test
   def testDDLWithWatermarkComputedColumn(): Unit = {
-    util.verifyPlan("SELECT * FROM c_watermark_t")
+    util.verifyExecPlan("SELECT * FROM c_watermark_t")
   }
 
   @Test
   def testTableApiScanWithComputedColumn(): Unit = {
-    util.verifyPlan(util.tableEnv.from("computed_column_t"))
+    util.verifyExecPlan(util.tableEnv.from("computed_column_t"))
   }
 
   @Test
   def testTableApiScanWithWatermark(): Unit = {
-    util.verifyPlan(util.tableEnv.from("c_watermark_t"))
+    util.verifyExecPlan(util.tableEnv.from("c_watermark_t"))
   }
 
   @Test
@@ -160,7 +185,7 @@ class TableScanTest extends TableTestBase {
          |  'bounded' = 'true'
          |)
        """.stripMargin)
-    util.verifyPlan(util.tableEnv.from("t1"))
+    util.verifyExecPlan(util.tableEnv.from("t1"))
   }
 
   @Test
@@ -169,6 +194,6 @@ class TableScanTest extends TableTestBase {
         .withFormat(new OldCsv())
         .withSchema(new Schema().field("word", DataTypes.STRING()))
         .createTemporaryTable("t1")
-    util.verifyPlan(util.tableEnv.from("t1"))
+    util.verifyExecPlan(util.tableEnv.from("t1"))
   }
 }

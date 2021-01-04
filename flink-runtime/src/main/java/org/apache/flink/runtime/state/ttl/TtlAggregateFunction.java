@@ -28,57 +28,62 @@ import org.apache.flink.util.function.ThrowingRunnable;
 /**
  * This class wraps aggregating function with TTL logic.
  *
- * @param <IN>  The type of the values that are aggregated (input values)
+ * @param <IN> The type of the values that are aggregated (input values)
  * @param <ACC> The type of the accumulator (intermediate aggregate state).
  * @param <OUT> The type of the aggregated result
  */
 class TtlAggregateFunction<IN, ACC, OUT>
-	extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
-	implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
-	ThrowingRunnable<Exception> stateClear;
-	ThrowingConsumer<TtlValue<ACC>, Exception> updater;
+        extends AbstractTtlDecorator<AggregateFunction<IN, ACC, OUT>>
+        implements AggregateFunction<IN, TtlValue<ACC>, OUT> {
+    ThrowingRunnable<Exception> stateClear;
+    ThrowingConsumer<TtlValue<ACC>, Exception> updater;
 
-	TtlAggregateFunction(AggregateFunction<IN, ACC, OUT> aggFunction, StateTtlConfig config, TtlTimeProvider timeProvider) {
-		super(aggFunction, config, timeProvider);
-	}
+    TtlAggregateFunction(
+            AggregateFunction<IN, ACC, OUT> aggFunction,
+            StateTtlConfig config,
+            TtlTimeProvider timeProvider) {
+        super(aggFunction, config, timeProvider);
+    }
 
-	@Override
-	public TtlValue<ACC> createAccumulator() {
-		return wrapWithTs(original.createAccumulator());
-	}
+    @Override
+    public TtlValue<ACC> createAccumulator() {
+        return wrapWithTs(original.createAccumulator());
+    }
 
-	@Override
-	public TtlValue<ACC> add(IN value, TtlValue<ACC> accumulator) {
-		ACC userAcc = getUnexpired(accumulator);
-		userAcc = userAcc == null ? original.createAccumulator() : userAcc;
-		return wrapWithTs(original.add(value, userAcc));
-	}
+    @Override
+    public TtlValue<ACC> add(IN value, TtlValue<ACC> accumulator) {
+        ACC userAcc = getUnexpired(accumulator);
+        userAcc = userAcc == null ? original.createAccumulator() : userAcc;
+        return wrapWithTs(original.add(value, userAcc));
+    }
 
-	@Override
-	public OUT getResult(TtlValue<ACC> accumulator) {
-		Preconditions.checkNotNull(updater, "State updater should be set in TtlAggregatingState");
-		Preconditions.checkNotNull(stateClear, "State clearing should be set in TtlAggregatingState");
-		ACC userAcc;
-		try {
-			userAcc = getWithTtlCheckAndUpdate(() -> accumulator, updater, stateClear);
-		} catch (Exception e) {
-			throw new FlinkRuntimeException("Failed to retrieve original internal aggregating state", e);
-		}
-		return userAcc == null ? null : original.getResult(userAcc);
-	}
+    @Override
+    public OUT getResult(TtlValue<ACC> accumulator) {
+        Preconditions.checkNotNull(updater, "State updater should be set in TtlAggregatingState");
+        Preconditions.checkNotNull(
+                stateClear, "State clearing should be set in TtlAggregatingState");
+        ACC userAcc;
+        try {
+            userAcc = getWithTtlCheckAndUpdate(() -> accumulator, updater, stateClear);
+        } catch (Exception e) {
+            throw new FlinkRuntimeException(
+                    "Failed to retrieve original internal aggregating state", e);
+        }
+        return userAcc == null ? null : original.getResult(userAcc);
+    }
 
-	@Override
-	public TtlValue<ACC> merge(TtlValue<ACC> a, TtlValue<ACC> b) {
-		ACC userA = getUnexpired(a);
-		ACC userB = getUnexpired(b);
-		if (userA != null && userB != null) {
-			return wrapWithTs(original.merge(userA, userB));
-		} else if (userA != null) {
-			return rewrapWithNewTs(a);
-		} else if (userB != null) {
-			return rewrapWithNewTs(b);
-		} else {
-			return null;
-		}
-	}
+    @Override
+    public TtlValue<ACC> merge(TtlValue<ACC> a, TtlValue<ACC> b) {
+        ACC userA = getUnexpired(a);
+        ACC userB = getUnexpired(b);
+        if (userA != null && userB != null) {
+            return wrapWithTs(original.merge(userA, userB));
+        } else if (userA != null) {
+            return rewrapWithNewTs(a);
+        } else if (userB != null) {
+            return rewrapWithNewTs(b);
+        } else {
+            return null;
+        }
+    }
 }

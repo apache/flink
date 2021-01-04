@@ -214,7 +214,7 @@ myConsumer.setStartFromSpecificOffsets(specificStartOffsets)
 
 因此，设置 checkpoint 的间隔定义了程序在发生故障时最多需要返回多少。
 
-为了使 Kafka Consumer 支持容错，需要在 [执行环境]({% link ops/config.zh.md %}#execution-checkpointing-interval) 中启用拓扑的 checkpointing。
+为了使 Kafka Consumer 支持容错，需要在 [执行环境]({% link deployment/config.zh.md %}#execution-checkpointing-interval) 中启用拓扑的 checkpointing。
 
 如果未启用 checkpoint，那么 Kafka consumer 将定期向 Zookeeper 提交 offset。
 
@@ -371,7 +371,7 @@ stream.addSink(myProducer);
 {% highlight scala %}
 val stream: DataStream[String] = ...
 
-Properties properties = new Properties
+val properties = new Properties
 properties.setProperty("bootstrap.servers", "localhost:9092")
 
 val myProducer = new FlinkKafkaProducer[String](
@@ -440,7 +440,7 @@ Flink Kafka Producer 需要知道如何将 Java/Scala 对象转化为二进制�
 
 ## Kafka 连接器指标
 
-Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({% link monitoring/metrics.zh.md %}) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
+Flink 的 Kafka 连接器通过 Flink 的 [metric 系统]({% link ops/metrics.zh.md %}) 提供一些指标来分析 Kafka Connector 的状况。Producer 通过 Flink 的 metrics 系统为所有支持的版本导出 Kafka 的内部指标。consumer 从 Kafka 0.10 版本开始导出所有指标。Kafka 在其[文档](http://kafka.apache.org/documentation/#selector_monitoring)中列出了所有导出的指标。
 
 除了这些指标之外，所有 consumer 都暴露了每个主题分区的 `current-offsets` 和 `committed-offsets`。`current-offsets` 是指分区中的当前偏移量。指的是我们成功检索和发出的最后一个元素的偏移量。`committed-offsets` 是最后提交的偏移量。这为用户提供了 at-least-once 语义，用于提交给 Zookeeper 或 broker 的偏移量。对于 Flink 的偏移检查点，系统提供精准一次语义。
 
@@ -463,7 +463,7 @@ Flink 通过 Kafka 连接器提供了一流的支持，可以对 Kerberos 配置
 - 将 `security.protocol` 设置为 `SASL_PLAINTEXT`（默认为 `NONE`）：用于与 Kafka broker 进行通信的协议。使用独立 Flink 部署时，也可以使用 `SASL_SSL`；请在[此处](https://kafka.apache.org/documentation/#security_configclients)查看如何为 SSL 配置 Kafka 客户端。
 - 将 `sasl.kerberos.service.name` 设置为 `kafka`（默认为 `kafka`）：此值应与用于 Kafka broker 配置的 `sasl.kerberos.service.name` 相匹配。客户端和服务器配置之间的服务名称不匹配将导致身份验证失败。
 
-有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({% link ops/config.zh.md %})。你也可以在[这里]({% link ops/security-kerberos.zh.md %})进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
+有关 Kerberos 安全性 Flink 配置的更多信息，请参见[这里]({% link deployment/config.zh.md %})。你也可以在[这里]({% link deployment/security/security-kerberos.zh.md %})进一步了解 Flink 如何在内部设置基于 kerberos 的安全性。
 
 <a name="upgrading-to-the-latest-connector-version"></a>
 

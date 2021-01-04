@@ -28,87 +28,86 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * A {@link CoordinationRequestHandler} to test fetching SELECT query results.
- * It will randomly do checkpoint or restart from checkpoint.
+ * A {@link CoordinationRequestHandler} to test fetching SELECT query results. It will randomly do
+ * checkpoint or restart from checkpoint.
  */
-public class TestCheckpointedCoordinationRequestHandler<T> extends AbstractTestCoordinationRequestHandler<T> {
+public class TestCheckpointedCoordinationRequestHandler<T>
+        extends AbstractTestCoordinationRequestHandler<T> {
 
-	private int checkpointCountDown;
+    private int checkpointCountDown;
 
-	private LinkedList<T> data;
-	private List<T> checkpointingData;
-	private List<T> checkpointedData;
+    private LinkedList<T> data;
+    private List<T> checkpointingData;
+    private List<T> checkpointedData;
 
-	private List<T> checkpointingBuffered;
-	private List<T> checkpointedBuffered;
+    private List<T> checkpointingBuffered;
+    private List<T> checkpointedBuffered;
 
-	private long checkpointingOffset;
+    private long checkpointingOffset;
 
-	public TestCheckpointedCoordinationRequestHandler(
-		List<T> data,
-		TypeSerializer<T> serializer,
-		String accumulatorName) {
-		super(serializer, accumulatorName);
-		this.checkpointCountDown = 0;
+    public TestCheckpointedCoordinationRequestHandler(
+            List<T> data, TypeSerializer<T> serializer, String accumulatorName) {
+        super(serializer, accumulatorName);
+        this.checkpointCountDown = 0;
 
-		this.data = new LinkedList<>(data);
-		this.checkpointedData = new ArrayList<>(data);
+        this.data = new LinkedList<>(data);
+        this.checkpointedData = new ArrayList<>(data);
 
-		this.checkpointedBuffered = new ArrayList<>();
+        this.checkpointedBuffered = new ArrayList<>();
 
-		this.checkpointingOffset = 0;
-	}
+        this.checkpointingOffset = 0;
+    }
 
-	@Override
-	protected void updateBufferedResults() {
-		for (int i = random.nextInt(3) + 1; i > 0; i--) {
-			if (checkpointCountDown > 0) {
-				// countdown on-going checkpoint
-				checkpointCountDown--;
-				if (checkpointCountDown == 0) {
-					// complete a checkpoint
-					checkpointedData = checkpointingData;
-					checkpointedBuffered = checkpointingBuffered;
-					checkpointedOffset = checkpointingOffset;
-				}
-			}
+    @Override
+    protected void updateBufferedResults() {
+        for (int i = random.nextInt(3) + 1; i > 0; i--) {
+            if (checkpointCountDown > 0) {
+                // countdown on-going checkpoint
+                checkpointCountDown--;
+                if (checkpointCountDown == 0) {
+                    // complete a checkpoint
+                    checkpointedData = checkpointingData;
+                    checkpointedBuffered = checkpointingBuffered;
+                    checkpointedOffset = checkpointingOffset;
+                }
+            }
 
-			int r = random.nextInt(10);
-			if (r < 6) {
-				// with 60% chance we add data
-				int size = Math.min(data.size(), BATCH_SIZE * 2 - buffered.size());
-				if (size > 0) {
-					size = random.nextInt(size) + 1;
-				}
-				for (int j = 0; j < size; j++) {
-					buffered.add(data.removeFirst());
-				}
+            int r = random.nextInt(10);
+            if (r < 6) {
+                // with 60% chance we add data
+                int size = Math.min(data.size(), BATCH_SIZE * 2 - buffered.size());
+                if (size > 0) {
+                    size = random.nextInt(size) + 1;
+                }
+                for (int j = 0; j < size; j++) {
+                    buffered.add(data.removeFirst());
+                }
 
-				if (data.isEmpty()) {
-					buildAccumulatorResults();
-					closed = true;
-					break;
-				}
-			} else if (r < 9) {
-				// with 30% chance we do a checkpoint completed in the future
-				if (checkpointCountDown == 0) {
-					checkpointCountDown = random.nextInt(5) + 1;
-					checkpointingData = new ArrayList<>(data);
-					checkpointingBuffered = new ArrayList<>(buffered);
-					checkpointingOffset = offset;
-				}
-			} else {
-				// with 10% chance we fail
-				checkpointCountDown = 0;
-				version = UUID.randomUUID().toString();
+                if (data.isEmpty()) {
+                    buildAccumulatorResults();
+                    closed = true;
+                    break;
+                }
+            } else if (r < 9) {
+                // with 30% chance we do a checkpoint completed in the future
+                if (checkpointCountDown == 0) {
+                    checkpointCountDown = random.nextInt(5) + 1;
+                    checkpointingData = new ArrayList<>(data);
+                    checkpointingBuffered = new ArrayList<>(buffered);
+                    checkpointingOffset = offset;
+                }
+            } else {
+                // with 10% chance we fail
+                checkpointCountDown = 0;
+                version = UUID.randomUUID().toString();
 
-				// we shuffle data to simulate jobs whose result order is undetermined
-				Collections.shuffle(checkpointedData);
-				data = new LinkedList<>(checkpointedData);
+                // we shuffle data to simulate jobs whose result order is undetermined
+                Collections.shuffle(checkpointedData);
+                data = new LinkedList<>(checkpointedData);
 
-				buffered = new LinkedList<>(checkpointedBuffered);
-				offset = checkpointedOffset;
-			}
-		}
-	}
+                buffered = new LinkedList<>(checkpointedBuffered);
+                offset = checkpointedOffset;
+            }
+        }
+    }
 }

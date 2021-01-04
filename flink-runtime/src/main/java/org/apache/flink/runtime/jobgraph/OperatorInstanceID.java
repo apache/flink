@@ -20,54 +20,52 @@ package org.apache.flink.runtime.jobgraph;
 
 import java.util.Objects;
 
-/**
- * An ID for physical instance of the operator.
- */
-public class OperatorInstanceID  {
+/** An ID for physical instance of the operator. */
+public class OperatorInstanceID {
 
-	private final int subtaskId;
-	private final OperatorID operatorId;
+    private final int subtaskId;
+    private final OperatorID operatorId;
 
-	public static OperatorInstanceID of(int subtaskId, OperatorID operatorID) {
-		return new OperatorInstanceID(subtaskId, operatorID);
-	}
+    public static OperatorInstanceID of(int subtaskId, OperatorID operatorID) {
+        return new OperatorInstanceID(subtaskId, operatorID);
+    }
 
-	public OperatorInstanceID(int subtaskId, OperatorID operatorId) {
-		this.subtaskId = subtaskId;
-		this.operatorId = operatorId;
-	}
+    public OperatorInstanceID(int subtaskId, OperatorID operatorId) {
+        this.subtaskId = subtaskId;
+        this.operatorId = operatorId;
+    }
 
-	public int getSubtaskId() {
-		return subtaskId;
-	}
+    public int getSubtaskId() {
+        return subtaskId;
+    }
 
-	public OperatorID getOperatorId() {
-		return operatorId;
-	}
+    public OperatorID getOperatorId() {
+        return operatorId;
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(subtaskId, operatorId);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(subtaskId, operatorId);
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj == this) {
-			return true;
-		}
-		if (obj == null) {
-			return false;
-		}
-		if (!(obj instanceof OperatorInstanceID)) {
-			return false;
-		}
-		OperatorInstanceID other = (OperatorInstanceID) obj;
-		return this.subtaskId == other.subtaskId &&
-			Objects.equals(this.operatorId, other.operatorId);
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (!(obj instanceof OperatorInstanceID)) {
+            return false;
+        }
+        OperatorInstanceID other = (OperatorInstanceID) obj;
+        return this.subtaskId == other.subtaskId
+                && Objects.equals(this.operatorId, other.operatorId);
+    }
 
-	@Override
-	public String toString() {
-		return String.format("<%d, %s>", subtaskId, operatorId);
-	}
+    @Override
+    public String toString() {
+        return String.format("<%d, %s>", subtaskId, operatorId);
+    }
 }
