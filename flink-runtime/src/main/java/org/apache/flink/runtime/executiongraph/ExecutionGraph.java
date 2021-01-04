@@ -416,7 +416,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
             CheckpointIDCounter checkpointIDCounter,
             CompletedCheckpointStore checkpointStore,
             StateBackend checkpointStateBackend,
-            CheckpointStatsTracker statsTracker) {
+            CheckpointStatsTracker statsTracker,
+            CheckpointsCleaner checkpointsCleaner) {
 
         checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
         checkState(checkpointCoordinator == null, "checkpointing already enabled");
@@ -470,7 +471,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
                         checkpointStore,
                         checkpointStateBackend,
                         ioExecutor,
-                        new CheckpointsCleaner(),
+                        checkpointsCleaner,
                         new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
                         SharedStateRegistry.DEFAULT_FACTORY,
                         failureManager);

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
@@ -175,6 +176,7 @@ public class TestingExecutionGraphBuilder {
                 slotProvider,
                 userClassLoader,
                 completedCheckpointStore,
+                new CheckpointsCleaner(),
                 checkpointIdCounter,
                 rpcTimeout,
                 metricGroup,

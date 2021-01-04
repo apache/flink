@@ -983,6 +983,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
             ExecutionVertex commitVertex = mockExecutionVertex(commitAttemptID);
 
             // set up the coordinator and validate the initial state
+            final StandaloneCompletedCheckpointStore completedCheckpointStore =
+                    new StandaloneCompletedCheckpointStore(10);
             CheckpointCoordinator checkpointCoordinator =
                     new CheckpointCoordinatorBuilder()
                             .setJobId(jobId)
@@ -995,7 +997,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             .setTasksToWaitFor(
                                     new ExecutionVertex[] {ackVertex1, ackVertex2, ackVertex3})
                             .setTasksToCommitTo(new ExecutionVertex[] {commitVertex})
-                            .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(10))
+                            .setCompletedCheckpointStore(completedCheckpointStore)
                             .setTimer(manuallyTriggeredScheduledExecutor)
                             .build();
 
@@ -1168,6 +1170,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(subtaskState13, times(1)).discardState();
 
             checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            completedCheckpointStore.shutdown(
+                    JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
 
             // validate that the states in the second checkpoint have been discarded
             verify(subtaskState21, times(1)).discardState();

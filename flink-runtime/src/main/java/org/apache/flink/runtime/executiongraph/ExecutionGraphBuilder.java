@@ -31,6 +31,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
@@ -80,6 +81,7 @@ public class ExecutionGraphBuilder {
             SlotProvider slotProvider,
             ClassLoader classLoader,
             CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
             CheckpointIDCounter checkpointIdCounter,
             Time rpcTimeout,
             MetricGroup metrics,
@@ -289,7 +291,8 @@ public class ExecutionGraphBuilder {
                     checkpointIdCounter,
                     completedCheckpointStore,
                     rootBackend,
-                    checkpointStatsTracker);
+                    checkpointStatsTracker,
+                    checkpointsCleaner);
         }
 
         // create all the metrics for the Execution Graph
