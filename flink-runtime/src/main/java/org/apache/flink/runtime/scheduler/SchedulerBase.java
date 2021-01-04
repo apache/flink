@@ -39,8 +39,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -219,8 +217,16 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
         this.checkpointsCleaner = new CheckpointsCleaner();
-        this.completedCheckpointStore = createCompletedCheckpointStore();
-        this.checkpointIdCounter = createCheckpointIdCounter();
+        this.completedCheckpointStore =
+                SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
+                        jobGraph,
+                        jobMasterConfiguration,
+                        userCodeLoader,
+                        checkpointRecoveryFactory,
+                        log);
+        this.checkpointIdCounter =
+                SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
+                        jobGraph, checkpointRecoveryFactory);
 
         this.executionGraph =
                 createAndRestoreExecutionGraph(
@@ -274,42 +280,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         if (exception != null) {
             log.error("Error while shutting down checkpoint services.", exception);
-        }
-    }
-
-    private CompletedCheckpointStore createCompletedCheckpointStore() throws JobExecutionException {
-        final JobID jobId = jobGraph.getJobID();
-        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
-            try {
-                return ExecutionGraphBuilder.createCompletedCheckpointStore(
-                        jobMasterConfiguration,
-                        userCodeLoader,
-                        checkpointRecoveryFactory,
-                        log,
-                        jobId);
-            } catch (Exception e) {
-                throw new JobExecutionException(
-                        jobId,
-                        "Failed to initialize high-availability completed checkpoint store",
-                        e);
-            }
-        } else {
-            return DeactivatedCheckpointCompletedCheckpointStore.INSTANCE;
-        }
-    }
-
-    private CheckpointIDCounter createCheckpointIdCounter() throws JobExecutionException {
-        final JobID jobId = jobGraph.getJobID();
-        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
-            try {
-                return ExecutionGraphBuilder.createCheckpointIdCounter(
-                        checkpointRecoveryFactory, jobId);
-            } catch (Exception e) {
-                throw new JobExecutionException(
-                        jobId, "Failed to initialize high-availability checkpoint id counter", e);
-            }
-        } else {
-            return DeactivatedCheckpointIDCounter.INSTANCE;
         }
     }
 

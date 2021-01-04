@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -29,7 +28,6 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
@@ -306,41 +304,6 @@ public class ExecutionGraphBuilder {
 
     public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
         return jobGraph.getCheckpointingSettings() != null;
-    }
-
-    public static CheckpointIDCounter createCheckpointIdCounter(
-            CheckpointRecoveryFactory recoveryFactory, JobID jobId) throws Exception {
-        return recoveryFactory.createCheckpointIDCounter(jobId);
-    }
-
-    public static CompletedCheckpointStore createCompletedCheckpointStore(
-            Configuration jobManagerConfig,
-            ClassLoader classLoader,
-            CheckpointRecoveryFactory recoveryFactory,
-            Logger log,
-            JobID jobId)
-            throws Exception {
-        CompletedCheckpointStore completedCheckpoints;
-        int maxNumberOfCheckpointsToRetain =
-                jobManagerConfig.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
-
-        if (maxNumberOfCheckpointsToRetain <= 0) {
-            // warning and use 1 as the default value if the setting in
-            // state.checkpoints.max-retained-checkpoints is not greater than 0.
-            log.warn(
-                    "The setting for '{} : {}' is invalid. Using default value of {}",
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
-                    maxNumberOfCheckpointsToRetain,
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
-
-            maxNumberOfCheckpointsToRetain =
-                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
-        }
-
-        completedCheckpoints =
-                recoveryFactory.createCheckpointStore(
-                        jobId, maxNumberOfCheckpointsToRetain, classLoader);
-        return completedCheckpoints;
     }
 
     private static List<ExecutionJobVertex> idToVertex(
