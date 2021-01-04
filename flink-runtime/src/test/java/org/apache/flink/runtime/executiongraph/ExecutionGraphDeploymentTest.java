@@ -22,17 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.IntCounter;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -40,7 +36,6 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -61,13 +56,11 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.FlinkException;
@@ -77,7 +70,6 @@ import org.apache.flink.util.function.FunctionUtils;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,7 +81,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
 import static junit.framework.TestCase.assertTrue;
@@ -721,8 +712,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
     }
 
     private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
-        final ScheduledExecutorService executor = TestingUtils.defaultExecutor();
-
         final JobID jobId = new JobID();
         final JobGraph jobGraph = new JobGraph(jobId, "test");
         jobGraph.setSnapshotSettings(
@@ -742,25 +731,11 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                                 0),
                         null));
 
-        final Time timeout = Time.seconds(10L);
-        return ExecutionGraphBuilder.buildGraph(
-                null,
-                jobGraph,
-                configuration,
-                executor,
-                executor,
-                new ProgrammedSlotProvider(1),
-                getClass().getClassLoader(),
-                new StandaloneCheckpointRecoveryFactory(),
-                new StandaloneCheckpointIDCounter(),
-                timeout,
-                new UnregisteredMetricsGroup(),
-                blobWriter,
-                timeout,
-                LoggerFactory.getLogger(getClass()),
-                NettyShuffleMaster.INSTANCE,
-                NoOpJobMasterPartitionTracker.INSTANCE,
-                System.currentTimeMillis());
+        return TestingExecutionGraphBuilder.newBuilder()
+                .setJobGraph(jobGraph)
+                .setJobMasterConfig(configuration)
+                .setBlobWriter(blobWriter)
+                .build();
     }
 
     private static final class ExecutionStageMatcher

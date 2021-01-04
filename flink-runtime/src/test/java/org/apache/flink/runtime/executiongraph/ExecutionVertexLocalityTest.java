@@ -19,18 +19,11 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,10 +36,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -228,25 +218,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
 
         JobGraph testJob = new JobGraph(jobId, "test job", source, target);
 
-        final Time timeout = Time.seconds(10L);
-        return ExecutionGraphBuilder.buildGraph(
-                null,
-                testJob,
-                new Configuration(),
-                TestingUtils.defaultExecutor(),
-                TestingUtils.defaultExecutor(),
-                mock(SlotProvider.class),
-                getClass().getClassLoader(),
-                new StandaloneCheckpointRecoveryFactory(),
-                new StandaloneCheckpointIDCounter(),
-                timeout,
-                new UnregisteredMetricsGroup(),
-                VoidBlobWriter.getInstance(),
-                timeout,
-                log,
-                NettyShuffleMaster.INSTANCE,
-                NoOpJobMasterPartitionTracker.INSTANCE,
-                System.currentTimeMillis());
+        return TestingExecutionGraphBuilder.newBuilder().setJobGraph(testJob).build();
     }
 
     private void initializeLocation(ExecutionVertex vertex, TaskManagerLocation location)

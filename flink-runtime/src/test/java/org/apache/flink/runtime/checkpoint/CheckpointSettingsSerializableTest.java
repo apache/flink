@@ -19,25 +19,18 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
+import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
@@ -47,7 +40,6 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -108,26 +100,11 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
         // distributed execution
         final JobGraph copy = CommonTestUtils.createCopySerializable(jobGraph);
 
-        final Time timeout = Time.seconds(10L);
         final ExecutionGraph eg =
-                ExecutionGraphBuilder.buildGraph(
-                        null,
-                        copy,
-                        new Configuration(),
-                        TestingUtils.defaultExecutor(),
-                        TestingUtils.defaultExecutor(),
-                        mock(SlotProvider.class),
-                        classLoader,
-                        new StandaloneCheckpointRecoveryFactory(),
-                        new StandaloneCheckpointIDCounter(),
-                        timeout,
-                        new UnregisteredMetricsGroup(),
-                        VoidBlobWriter.getInstance(),
-                        timeout,
-                        log,
-                        NettyShuffleMaster.INSTANCE,
-                        NoOpJobMasterPartitionTracker.INSTANCE,
-                        System.currentTimeMillis());
+                TestingExecutionGraphBuilder.newBuilder()
+                        .setJobGraph(copy)
+                        .setUserClassLoader(classLoader)
+                        .build();
 
         assertEquals(1, eg.getCheckpointCoordinator().getNumberOfRegisteredMasterHooks());
         assertTrue(
