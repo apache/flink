@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -142,7 +141,7 @@ public class CheckpointCoordinatorMasterHooksTest {
         verify(hook2, times(1)).reset();
 
         // shutdown
-        cc.shutdown(JobStatus.CANCELED);
+        cc.shutdown();
         verify(hook1, times(1)).close();
         verify(hook2, times(1)).close();
     }

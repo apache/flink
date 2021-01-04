@@ -201,7 +201,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -227,7 +227,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -253,7 +253,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -314,7 +314,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(errorMsg, e.getMessage());
         } finally {
             try {
-                checkpointCoordinator.shutdown(JobStatus.FINISHED);
+                checkpointCoordinator.shutdown();
             } catch (Exception e) {
                 e.printStackTrace();
                 fail(e.getMessage());
@@ -346,7 +346,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertTrue(e instanceof RuntimeException);
             assertEquals(errorMsg, e.getMessage());
         } finally {
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         }
     }
 
@@ -455,7 +455,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     TASK_MANAGER_LOCATION_INFO);
             assertTrue(checkpoint.isDisposed());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -604,7 +604,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(vertex2.getCurrentExecutionAttempt(), times(1))
                     .notifyCheckpointAborted(eq(checkpoint1Id), any(Long.class));
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -794,7 +794,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
             }
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -951,7 +951,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(jobId, sc2.getJobId());
             assertTrue(sc2.getOperatorStates().isEmpty());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -1169,7 +1169,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     TASK_MANAGER_LOCATION_INFO);
             verify(subtaskState13, times(1)).discardState();
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
             completedCheckpointStore.shutdown(
                     JobStatus.FINISHED, new CheckpointsCleaner(), () -> {});
 
@@ -1255,7 +1255,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             verify(commitVertex.getCurrentExecutionAttempt(), times(0))
                     .notifyCheckpointComplete(anyLong(), anyLong());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -1316,7 +1316,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     new AcknowledgeCheckpoint(jobId, new ExecutionAttemptID(), checkpointId),
                     TASK_MANAGER_LOCATION_INFO);
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -1663,7 +1663,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     .notifyCheckpointComplete(eq(checkpointIdNew), any(Long.class));
         }
 
-        checkpointCoordinator.shutdown(JobStatus.FINISHED);
+        checkpointCoordinator.shutdown();
     }
 
     /**
@@ -1858,7 +1858,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertEquals(maxConcurrentAttempts + 1, numCalls.get());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -1929,7 +1929,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertNotNull(checkpointCoordinator.getPendingCheckpoints().get(3L));
             assertNotNull(checkpointCoordinator.getPendingCheckpoints().get(4L));
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -2110,7 +2110,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             }
 
             // the now we should have a completed checkpoint
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -2629,7 +2629,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 .getMessage()
                                 .equals(expectedRootCause.getMessage()));
 
-        coordinator.shutdown(JobStatus.FAILING);
+        coordinator.shutdown();
     }
 
     /** Tests that do not trigger checkpoint when stop the coordinator after the eager pre-check. */
@@ -2667,7 +2667,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         checkpointExceptionOptional.get().getCheckpointFailureReason());
             }
         } finally {
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         }
     }
 
@@ -2719,7 +2719,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertTrue(props.isSavepoint());
             assertFalse(props.forceCheckpoint());
         } finally {
-            coordinator.shutdown(JobStatus.FINISHED);
+            coordinator.shutdown();
         }
     }
 
@@ -2889,7 +2889,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertEquals(jobId, success.getJobId());
         assertEquals(2, success.getOperatorStates().size());
 
-        checkpointCoordinator.shutdown(JobStatus.FINISHED);
+        checkpointCoordinator.shutdown();
     }
 
     @Test
@@ -3110,7 +3110,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(Collections.singletonList(1L), context.getAbortedCheckpoints());
             assertEquals(Collections.singletonList(2L), context.getCompletedCheckpoints());
         } finally {
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         }
     }
 

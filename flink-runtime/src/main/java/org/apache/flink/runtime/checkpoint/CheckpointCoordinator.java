@@ -20,7 +20,6 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
@@ -406,7 +405,7 @@ public class CheckpointCoordinator {
      * <p>After this method has been called, the coordinator does not accept and further messages
      * and cannot trigger any further checkpoints.
      */
-    public void shutdown(JobStatus jobStatus) throws Exception {
+    public void shutdown() throws Exception {
         synchronized (lock) {
             if (!shutdown) {
                 shutdown = true;

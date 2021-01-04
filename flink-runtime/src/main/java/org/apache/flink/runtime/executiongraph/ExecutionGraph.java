@@ -1231,7 +1231,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
             CheckpointCoordinator coord = this.checkpointCoordinator;
             this.checkpointCoordinator = null;
             if (coord != null) {
-                coord.shutdown(status);
+                coord.shutdown();
             }
             if (checkpointCoordinatorTimer != null) {
                 checkpointCoordinatorTimer.shutdownNow();
