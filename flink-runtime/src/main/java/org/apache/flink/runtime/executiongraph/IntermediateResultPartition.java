@@ -30,8 +30,6 @@ public class IntermediateResultPartition {
 
     private final ExecutionVertex producer;
 
-    private final int partitionNumber;
-
     private final IntermediateResultPartitionID partitionId;
 
     private List<List<ExecutionEdge>> consumers;
@@ -43,7 +41,6 @@ public class IntermediateResultPartition {
             IntermediateResult totalResult, ExecutionVertex producer, int partitionNumber) {
         this.totalResult = totalResult;
         this.producer = producer;
-        this.partitionNumber = partitionNumber;
         this.consumers = new ArrayList<List<ExecutionEdge>>(0);
         this.partitionId = new IntermediateResultPartitionID(totalResult.getId(), partitionNumber);
     }
@@ -53,7 +50,7 @@ public class IntermediateResultPartition {
     }
 
     public int getPartitionNumber() {
-        return partitionNumber;
+        return partitionId.getPartitionNumber();
     }
 
     public IntermediateResult getIntermediateResult() {
