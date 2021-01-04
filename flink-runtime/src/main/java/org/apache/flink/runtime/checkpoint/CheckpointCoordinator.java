@@ -423,14 +423,6 @@ public class CheckpointCoordinator {
                                 CheckpointFailureReason.CHECKPOINT_COORDINATOR_SHUTDOWN);
                 // clear queued requests and in-flight checkpoints
                 abortPendingAndQueuedCheckpoints(reason);
-
-                completedCheckpointStore.shutdown(
-                        jobStatus,
-                        checkpointsCleaner,
-                        () -> {
-                            // don't schedule anything on shutdown
-                        });
-                checkpointIdCounter.shutdown(jobStatus);
             }
         }
     }
