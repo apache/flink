@@ -172,7 +172,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertEquals(5, numCalls.get());
 
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -261,7 +261,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
             }
         } finally {
             checkpointCoordinator.stopCheckpointScheduler();
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
         }
     }
 
@@ -305,7 +305,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
                 triggerPeriodicCheckpoint(checkpointCoordinator);
 
-        checkpointCoordinator.shutdown(JobStatus.FAILED);
+        checkpointCoordinator.shutdown();
         manuallyTriggeredScheduledExecutor.triggerAll();
         try {
             onCompletionPromise.get();
@@ -600,7 +600,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
                         instanceOf(CheckpointException.class));
             }
         } finally {
-            checkpointCoordinator.shutdown(JobStatus.FINISHED);
+            checkpointCoordinator.shutdown();
             ExecutorUtils.gracefulShutdown(10L, TimeUnit.SECONDS, scheduledExecutorService);
         }
     }
