@@ -36,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointCompletedCheckpointStore;
@@ -157,6 +158,12 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final CheckpointRecoveryFactory checkpointRecoveryFactory;
 
+    private final CompletedCheckpointStore completedCheckpointStore;
+
+    private final CheckpointsCleaner checkpointsCleaner;
+
+    private final CheckpointIDCounter checkpointIdCounter;
+
     private final Time rpcTimeout;
 
     private final BlobWriter blobWriter;
@@ -211,13 +218,22 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
 
+        this.checkpointsCleaner = new CheckpointsCleaner();
+        this.completedCheckpointStore = createCompletedCheckpointStore();
+        this.checkpointIdCounter = createCheckpointIdCounter();
+
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         jobManagerJobMetricGroup,
+                        completedCheckpointStore,
+                        checkpointsCleaner,
+                        checkpointIdCounter,
                         checkNotNull(shuffleMaster),
                         checkNotNull(partitionTracker),
                         checkNotNull(executionDeploymentTracker),
                         initializationTimestamp);
+
+        registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
 
         this.schedulingTopology = executionGraph.getSchedulingTopology();
 
@@ -230,8 +246,78 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.coordinatorMap = createCoordinatorMap();
     }
 
+    private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
+            ExecutionGraph executionGraph) {
+        FutureUtils.assertNoException(
+                executionGraph.getTerminationFuture().thenAccept(this::shutDownCheckpointServices));
+    }
+
+    private void shutDownCheckpointServices(JobStatus jobStatus) {
+        Exception exception = null;
+
+        try {
+            completedCheckpointStore.shutdown(
+                    jobStatus,
+                    checkpointsCleaner,
+                    () -> {
+                        // don't schedule anything on shutdown
+                    });
+        } catch (Exception e) {
+            exception = e;
+        }
+
+        try {
+            checkpointIdCounter.shutdown(jobStatus);
+        } catch (Exception e) {
+            exception = ExceptionUtils.firstOrSuppressed(e, exception);
+        }
+
+        if (exception != null) {
+            log.error("Error while shutting down checkpoint services.", exception);
+        }
+    }
+
+    private CompletedCheckpointStore createCompletedCheckpointStore() throws JobExecutionException {
+        final JobID jobId = jobGraph.getJobID();
+        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
+            try {
+                return ExecutionGraphBuilder.createCompletedCheckpointStore(
+                        jobMasterConfiguration,
+                        userCodeLoader,
+                        checkpointRecoveryFactory,
+                        log,
+                        jobId);
+            } catch (Exception e) {
+                throw new JobExecutionException(
+                        jobId,
+                        "Failed to initialize high-availability completed checkpoint store",
+                        e);
+            }
+        } else {
+            return DeactivatedCheckpointCompletedCheckpointStore.INSTANCE;
+        }
+    }
+
+    private CheckpointIDCounter createCheckpointIdCounter() throws JobExecutionException {
+        final JobID jobId = jobGraph.getJobID();
+        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
+            try {
+                return ExecutionGraphBuilder.createCheckpointIdCounter(
+                        checkpointRecoveryFactory, jobId);
+            } catch (Exception e) {
+                throw new JobExecutionException(
+                        jobId, "Failed to initialize high-availability checkpoint id counter", e);
+            }
+        } else {
+            return DeactivatedCheckpointIDCounter.INSTANCE;
+        }
+    }
+
     private ExecutionGraph createAndRestoreExecutionGraph(
             JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointIDCounter checkpointIdCounter,
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
@@ -241,6 +327,9 @@ public abstract class SchedulerBase implements SchedulerNG {
         ExecutionGraph newExecutionGraph =
                 createExecutionGraph(
                         currentJobManagerJobMetricGroup,
+                        completedCheckpointStore,
+                        checkpointsCleaner,
+                        checkpointIdCounter,
                         shuffleMaster,
                         partitionTracker,
                         executionDeploymentTracker,
@@ -265,6 +354,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private ExecutionGraph createExecutionGraph(
             JobManagerJobMetricGroup currentJobManagerJobMetricGroup,
+            CompletedCheckpointStore completedCheckpointStore,
+            CheckpointsCleaner checkpointsCleaner,
+            CheckpointIDCounter checkpointIdCounter,
             ShuffleMaster<?> shuffleMaster,
             final JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
@@ -280,31 +372,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                     }
                 };
 
-        final JobID jobId = jobGraph.getJobID();
-        final CheckpointIDCounter checkpointIdCounter;
-        final CompletedCheckpointStore completedCheckpointStore;
-
-        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
-            try {
-                checkpointIdCounter =
-                        ExecutionGraphBuilder.createCheckpointIdCounter(
-                                checkpointRecoveryFactory, jobId);
-                completedCheckpointStore =
-                        ExecutionGraphBuilder.createCompletedCheckpointStore(
-                                jobMasterConfiguration,
-                                userCodeLoader,
-                                checkpointRecoveryFactory,
-                                log,
-                                jobId);
-            } catch (Exception e) {
-                throw new JobExecutionException(
-                        jobId, "Failed to initialize high-availability checkpoint handler", e);
-            }
-        } else {
-            checkpointIdCounter = DeactivatedCheckpointIDCounter.INSTANCE;
-            completedCheckpointStore = DeactivatedCheckpointCompletedCheckpointStore.INSTANCE;
-        }
-
         return ExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfiguration,
@@ -313,6 +380,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 slotProvider,
                 userCodeLoader,
                 completedCheckpointStore,
+                checkpointsCleaner,
                 checkpointIdCounter,
                 rpcTimeout,
                 currentJobManagerJobMetricGroup,
