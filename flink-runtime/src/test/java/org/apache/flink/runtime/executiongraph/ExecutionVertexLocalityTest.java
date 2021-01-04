@@ -24,6 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -237,6 +238,7 @@ public class ExecutionVertexLocalityTest extends TestLogger {
                 mock(SlotProvider.class),
                 getClass().getClassLoader(),
                 new StandaloneCheckpointRecoveryFactory(),
+                new StandaloneCheckpointIDCounter(),
                 timeout,
                 new UnregisteredMetricsGroup(),
                 VoidBlobWriter.getInstance(),

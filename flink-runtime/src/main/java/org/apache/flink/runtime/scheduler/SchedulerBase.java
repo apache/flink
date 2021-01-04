@@ -33,9 +33,11 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.checkpoint.DeactivatedCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
@@ -276,6 +278,22 @@ public abstract class SchedulerBase implements SchedulerNG {
                     }
                 };
 
+        final JobID jobId = jobGraph.getJobID();
+        final CheckpointIDCounter checkpointIdCounter;
+
+        if (ExecutionGraphBuilder.isCheckpointingEnabled(jobGraph)) {
+            try {
+                checkpointIdCounter =
+                        ExecutionGraphBuilder.createCheckpointIdCounter(
+                                checkpointRecoveryFactory, jobId);
+            } catch (Exception e) {
+                throw new JobExecutionException(
+                        jobId, "Failed to initialize high-availability checkpoint handler", e);
+            }
+        } else {
+            checkpointIdCounter = DeactivatedCheckpointIDCounter.INSTANCE;
+        }
+
         return ExecutionGraphBuilder.buildGraph(
                 null,
                 jobGraph,
@@ -285,6 +303,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 slotProvider,
                 userCodeLoader,
                 checkpointRecoveryFactory,
+                checkpointIdCounter,
                 rpcTimeout,
                 currentJobManagerJobMetricGroup,
                 blobWriter,
