@@ -249,8 +249,8 @@ public class ExecutionGraphBuilder {
         }
 
         // configure the state checkpointing
-        JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
-        if (snapshotSettings != null) {
+        if (isCheckpointingEnabled(jobGraph)) {
+            JobCheckpointingSettings snapshotSettings = jobGraph.getCheckpointingSettings();
             List<ExecutionJobVertex> triggerVertices =
                     idToVertex(snapshotSettings.getVerticesToTrigger(), executionGraph);
 
@@ -260,29 +260,14 @@ public class ExecutionGraphBuilder {
             List<ExecutionJobVertex> confirmVertices =
                     idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
-            CompletedCheckpointStore completedCheckpoints;
-            CheckpointIDCounter checkpointIdCounter;
+            final CompletedCheckpointStore completedCheckpoints;
+            final CheckpointIDCounter checkpointIdCounter;
+
             try {
-                int maxNumberOfCheckpointsToRetain =
-                        jobManagerConfig.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
-
-                if (maxNumberOfCheckpointsToRetain <= 0) {
-                    // warning and use 1 as the default value if the setting in
-                    // state.checkpoints.max-retained-checkpoints is not greater than 0.
-                    log.warn(
-                            "The setting for '{} : {}' is invalid. Using default value of {}",
-                            CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
-                            maxNumberOfCheckpointsToRetain,
-                            CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
-
-                    maxNumberOfCheckpointsToRetain =
-                            CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
-                }
-
                 completedCheckpoints =
-                        recoveryFactory.createCheckpointStore(
-                                jobId, maxNumberOfCheckpointsToRetain, classLoader);
-                checkpointIdCounter = recoveryFactory.createCheckpointIDCounter(jobId);
+                        createCompletedCheckpointStore(
+                                jobManagerConfig, classLoader, recoveryFactory, log, jobId);
+                checkpointIdCounter = createCheckpointIdCounter(recoveryFactory, jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId, "Failed to initialize high-availability checkpoint handler", e);
@@ -378,6 +363,45 @@ public class ExecutionGraphBuilder {
         metrics.gauge(UpTimeGauge.METRIC_NAME, new UpTimeGauge(executionGraph));
 
         return executionGraph;
+    }
+
+    private static boolean isCheckpointingEnabled(JobGraph jobGraph) {
+        return jobGraph.getCheckpointingSettings() != null;
+    }
+
+    private static CheckpointIDCounter createCheckpointIdCounter(
+            CheckpointRecoveryFactory recoveryFactory, JobID jobId) throws Exception {
+        return recoveryFactory.createCheckpointIDCounter(jobId);
+    }
+
+    private static CompletedCheckpointStore createCompletedCheckpointStore(
+            Configuration jobManagerConfig,
+            ClassLoader classLoader,
+            CheckpointRecoveryFactory recoveryFactory,
+            Logger log,
+            JobID jobId)
+            throws Exception {
+        CompletedCheckpointStore completedCheckpoints;
+        int maxNumberOfCheckpointsToRetain =
+                jobManagerConfig.getInteger(CheckpointingOptions.MAX_RETAINED_CHECKPOINTS);
+
+        if (maxNumberOfCheckpointsToRetain <= 0) {
+            // warning and use 1 as the default value if the setting in
+            // state.checkpoints.max-retained-checkpoints is not greater than 0.
+            log.warn(
+                    "The setting for '{} : {}' is invalid. Using default value of {}",
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.key(),
+                    maxNumberOfCheckpointsToRetain,
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue());
+
+            maxNumberOfCheckpointsToRetain =
+                    CheckpointingOptions.MAX_RETAINED_CHECKPOINTS.defaultValue();
+        }
+
+        completedCheckpoints =
+                recoveryFactory.createCheckpointStore(
+                        jobId, maxNumberOfCheckpointsToRetain, classLoader);
+        return completedCheckpoints;
     }
 
     private static List<ExecutionJobVertex> idToVertex(
