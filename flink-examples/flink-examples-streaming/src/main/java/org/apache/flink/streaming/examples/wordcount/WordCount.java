@@ -20,8 +20,13 @@ package org.apache.flink.streaming.examples.wordcount;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
+import org.apache.flink.configuration.AkkaOptions;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Preconditions;
@@ -55,10 +60,20 @@ public class WordCount {
         final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
 
         // set up the execution environment
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        // final StreamExecutionEnvironment env =
+        // StreamExecutionEnvironment.getExecutionEnvironment();
+        Configuration configuration = new Configuration();
+        configuration.setLong(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 1000000L);
+        configuration.setString(AkkaOptions.ASK_TIMEOUT, "1 h");
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(configuration);
 
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
+        env.getCheckpointConfig().enableUnalignedCheckpoints(true);
+        		env.getCheckpointConfig().setAlignmentTimeout(100000000L);
+//        env.getCheckpointConfig().setAlignmentTimeout(1L);
+        env.enableCheckpointing(500);
 
         // get input data
         DataStream<String> text = null;
@@ -76,7 +91,28 @@ public class WordCount {
             System.out.println("Executing WordCount example with default input data set.");
             System.out.println("Use --input to specify file input.");
             // get default test text data
-            text = env.fromElements(WordCountData.WORDS);
+            // text = env.fromElements(WordCountData.WORDS);
+            text =
+                    env.addSource(
+                            new SourceFunction<String>() {
+                                private volatile boolean running = true;
+
+                                @Override
+                                public void run(SourceContext<String> ctx) throws Exception {
+                                    while (running) {
+                                        for (String word : WordCountData.WORDS) {
+                                            synchronized (ctx.getCheckpointLock()) {
+                                                ctx.collect(word);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                @Override
+                                public void cancel() {
+                                    running = false;
+                                }
+                            });
         }
 
         DataStream<Tuple2<String, Integer>> counts =
@@ -91,7 +127,16 @@ public class WordCount {
             counts.writeAsText(params.get("output"));
         } else {
             System.out.println("Printing result to stdout. Use --output to specify output path.");
-            counts.print();
+            // counts.print();
+            counts.addSink(
+                    new SinkFunction<Tuple2<String, Integer>>() {
+                        @Override
+                        public void invoke(Tuple2<String, Integer> value) throws Exception {
+                            Thread.sleep(1);
+                            // ignore
+                        }
+                    });
+            // counts.print();
         }
         // execute program
         env.execute("Streaming WordCount");
