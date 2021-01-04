@@ -90,6 +90,7 @@ public class ExecutionGraphBuilder {
             SlotProvider slotProvider,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            CheckpointIDCounter checkpointIdCounter,
             Time rpcTimeout,
             MetricGroup metrics,
             BlobWriter blobWriter,
@@ -109,6 +110,7 @@ public class ExecutionGraphBuilder {
                 slotProvider,
                 classLoader,
                 recoveryFactory,
+                checkpointIdCounter,
                 rpcTimeout,
                 metrics,
                 blobWriter,
@@ -130,6 +132,7 @@ public class ExecutionGraphBuilder {
             SlotProvider slotProvider,
             ClassLoader classLoader,
             CheckpointRecoveryFactory recoveryFactory,
+            CheckpointIDCounter checkpointIdCounter,
             Time rpcTimeout,
             MetricGroup metrics,
             BlobWriter blobWriter,
@@ -261,13 +264,11 @@ public class ExecutionGraphBuilder {
                     idToVertex(snapshotSettings.getVerticesToConfirm(), executionGraph);
 
             final CompletedCheckpointStore completedCheckpoints;
-            final CheckpointIDCounter checkpointIdCounter;
 
             try {
                 completedCheckpoints =
                         createCompletedCheckpointStore(
                                 jobManagerConfig, classLoader, recoveryFactory, log, jobId);
-                checkpointIdCounter = createCheckpointIdCounter(recoveryFactory, jobId);
             } catch (Exception e) {
                 throw new JobExecutionException(
                         jobId, "Failed to initialize high-availability checkpoint handler", e);
@@ -365,11 +366,11 @@ public class ExecutionGraphBuilder {
         return executionGraph;
     }
 
-    private static boolean isCheckpointingEnabled(JobGraph jobGraph) {
+    public static boolean isCheckpointingEnabled(JobGraph jobGraph) {
         return jobGraph.getCheckpointingSettings() != null;
     }
 
-    private static CheckpointIDCounter createCheckpointIdCounter(
+    public static CheckpointIDCounter createCheckpointIdCounter(
             CheckpointRecoveryFactory recoveryFactory, JobID jobId) throws Exception {
         return recoveryFactory.createCheckpointIDCounter(jobId);
     }

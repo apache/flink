@@ -31,6 +31,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -751,6 +752,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                 new ProgrammedSlotProvider(1),
                 getClass().getClassLoader(),
                 new StandaloneCheckpointRecoveryFactory(),
+                new StandaloneCheckpointIDCounter(),
                 timeout,
                 new UnregisteredMetricsGroup(),
                 blobWriter,

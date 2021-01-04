@@ -26,7 +26,9 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -72,6 +74,7 @@ public class TestingExecutionGraphBuilder {
     private MetricGroup metricGroup = new UnregisteredMetricsGroup();
     private CheckpointRecoveryFactory checkpointRecoveryFactory =
             new StandaloneCheckpointRecoveryFactory();
+    private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
     private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
@@ -145,6 +148,12 @@ public class TestingExecutionGraphBuilder {
         return this;
     }
 
+    public TestingExecutionGraphBuilder setCheckpointIdCounter(
+            CheckpointIDCounter checkpointIdCounter) {
+        this.checkpointIdCounter = checkpointIdCounter;
+        return this;
+    }
+
     public TestingExecutionGraphBuilder setExecutionDeploymentListener(
             ExecutionDeploymentListener executionDeploymentListener) {
         this.executionDeploymentListener = executionDeploymentListener;
@@ -167,6 +176,7 @@ public class TestingExecutionGraphBuilder {
                 slotProvider,
                 userClassLoader,
                 checkpointRecoveryFactory,
+                checkpointIdCounter,
                 rpcTimeout,
                 metricGroup,
                 blobWriter,

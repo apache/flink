@@ -23,6 +23,7 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -76,6 +77,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                         new TestingSlotProvider(ignore -> new CompletableFuture<>()),
                         Thread.currentThread().getContextClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
+                        new StandaloneCheckpointIDCounter(),
                         AkkaUtils.getDefaultTimeout(),
                         new UnregisteredMetricsGroup(),
                         VoidBlobWriter.getInstance(),
@@ -108,6 +110,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                         new TestingSlotProvider(ignore -> new CompletableFuture<>()),
                         Thread.currentThread().getContextClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
+                        new StandaloneCheckpointIDCounter(),
                         AkkaUtils.getDefaultTimeout(),
                         new UnregisteredMetricsGroup(),
                         VoidBlobWriter.getInstance(),
@@ -140,6 +143,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                         new TestingSlotProvider(ignore -> new CompletableFuture<>()),
                         Thread.currentThread().getContextClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
+                        new StandaloneCheckpointIDCounter(),
                         AkkaUtils.getDefaultTimeout(),
                         new UnregisteredMetricsGroup(),
                         VoidBlobWriter.getInstance(),
@@ -186,6 +190,7 @@ public class ExecutionGraphRescalingTest extends TestLogger {
                     new TestingSlotProvider(ignore -> new CompletableFuture<>()),
                     Thread.currentThread().getContextClassLoader(),
                     new StandaloneCheckpointRecoveryFactory(),
+                    new StandaloneCheckpointIDCounter(),
                     AkkaUtils.getDefaultTimeout(),
                     new UnregisteredMetricsGroup(),
                     VoidBlobWriter.getInstance(),

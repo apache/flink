@@ -119,6 +119,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
                         mock(SlotProvider.class),
                         classLoader,
                         new StandaloneCheckpointRecoveryFactory(),
+                        new StandaloneCheckpointIDCounter(),
                         timeout,
                         new UnregisteredMetricsGroup(),
                         VoidBlobWriter.getInstance(),
