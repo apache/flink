@@ -312,7 +312,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                 ioExecutor,
                 slotProvider,
                 userCodeLoader,
-                checkpointRecoveryFactory,
                 completedCheckpointStore,
                 checkpointIdCounter,
                 rpcTimeout,

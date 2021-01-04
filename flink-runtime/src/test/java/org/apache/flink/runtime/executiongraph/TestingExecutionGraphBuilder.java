@@ -27,10 +27,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -74,8 +72,6 @@ public class TestingExecutionGraphBuilder {
     private Configuration jobMasterConfig = new Configuration();
     private JobGraph jobGraph = new JobGraph();
     private MetricGroup metricGroup = new UnregisteredMetricsGroup();
-    private CheckpointRecoveryFactory checkpointRecoveryFactory =
-            new StandaloneCheckpointRecoveryFactory();
     private CompletedCheckpointStore completedCheckpointStore =
             new StandaloneCompletedCheckpointStore(1);
     private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
@@ -146,12 +142,6 @@ public class TestingExecutionGraphBuilder {
         return this;
     }
 
-    public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(
-            CheckpointRecoveryFactory checkpointRecoveryFactory) {
-        this.checkpointRecoveryFactory = checkpointRecoveryFactory;
-        return this;
-    }
-
     public TestingExecutionGraphBuilder setCompletedCheckpointStore(
             CompletedCheckpointStore completedCheckpointStore) {
         this.completedCheckpointStore = completedCheckpointStore;
@@ -184,7 +174,6 @@ public class TestingExecutionGraphBuilder {
                 ioExecutor,
                 slotProvider,
                 userClassLoader,
-                checkpointRecoveryFactory,
                 completedCheckpointStore,
                 checkpointIdCounter,
                 rpcTimeout,
