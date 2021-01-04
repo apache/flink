@@ -436,25 +436,35 @@ public class ConnectedStreams<IN1, IN2> {
                         outTypeInfo,
                         environment.getParallelism());
 
-        if (inputStream1 instanceof KeyedStream && inputStream2 instanceof KeyedStream) {
+        TypeInformation<?> keyType = null;
+        if (inputStream1 instanceof KeyedStream) {
             KeyedStream<IN1, ?> keyedInput1 = (KeyedStream<IN1, ?>) inputStream1;
+
+            keyType = keyedInput1.getKeyType();
+
+            transform.setStateKeySelectors(keyedInput1.getKeySelector(), null);
+            transform.setStateKeyType(keyType);
+        }
+        if (inputStream2 instanceof KeyedStream) {
             KeyedStream<IN2, ?> keyedInput2 = (KeyedStream<IN2, ?>) inputStream2;
 
-            TypeInformation<?> keyType1 = keyedInput1.getKeyType();
             TypeInformation<?> keyType2 = keyedInput2.getKeyType();
-            if (!(keyType1.canEqual(keyType2) && keyType1.equals(keyType2))) {
+
+            if (keyType != null && !(keyType.canEqual(keyType2) && keyType.equals(keyType2))) {
                 throw new UnsupportedOperationException(
                         "Key types if input KeyedStreams "
                                 + "don't match: "
-                                + keyType1
+                                + keyType
                                 + " and "
                                 + keyType2
                                 + ".");
             }
 
             transform.setStateKeySelectors(
-                    keyedInput1.getKeySelector(), keyedInput2.getKeySelector());
-            transform.setStateKeyType(keyType1);
+                    transform.getStateKeySelector1(), keyedInput2.getKeySelector());
+
+            // we might be overwriting the one that's already set, but it's the same
+            transform.setStateKeyType(keyType2);
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})

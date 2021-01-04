@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -38,6 +39,9 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
@@ -188,6 +192,119 @@ public class DataStreamBatchExecutionITCase {
         try (CloseableIterator<Long> sumsIterator = sums.executeAndCollect()) {
             List<Long> results = CollectionUtil.iteratorToList(sumsIterator);
             assertThat(results, equalTo(Arrays.asList(30L, 25L)));
+        }
+    }
+
+    /**
+     * Verifies that all regular input is processed before keyed input.
+     *
+     * <p>Here, the first input is keyed while the second input is not keyed.
+     */
+    @Test
+    public void batchKeyedNonKeyedTwoInputOperator() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        DataStream<Tuple2<String, Integer>> keyedInput =
+                env.fromElements(
+                                Tuple2.of("regular2", 4),
+                                Tuple2.of("regular1", 3),
+                                Tuple2.of("regular1", 2),
+                                Tuple2.of("regular2", 1))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
+                                        .withTimestampAssigner((in, ts) -> in.f1));
+
+        DataStream<Tuple2<String, Integer>> regularInput =
+                env.fromElements(
+                                Tuple2.of("regular4", 4),
+                                Tuple2.of("regular3", 3),
+                                Tuple2.of("regular3", 2),
+                                Tuple2.of("regular4", 1))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
+                                        .withTimestampAssigner((in, ts) -> in.f1));
+
+        DataStream<String> result =
+                keyedInput
+                        .keyBy(in -> in.f0)
+                        .connect(regularInput)
+                        .transform(
+                                "operator",
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                new TwoInputIdentityOperator());
+
+        try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
+            List<String> results = CollectionUtil.iteratorToList(resultIterator);
+            assertThat(
+                    results,
+                    equalTo(
+                            Arrays.asList(
+                                    "(regular4,4)",
+                                    "(regular3,3)",
+                                    "(regular3,2)",
+                                    "(regular4,1)",
+                                    "(regular1,2)",
+                                    "(regular1,3)",
+                                    "(regular2,1)",
+                                    "(regular2,4)")));
+        }
+    }
+
+    /**
+     * Verifies that all regular input is processed before keyed input.
+     *
+     * <p>Here, the first input is not keyed while the second input is keyed.
+     */
+    @Test
+    public void batchNonKeyedKeyedTwoInputOperator() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        DataStream<Tuple2<String, Integer>> keyedInput =
+                env.fromElements(
+                                Tuple2.of("regular2", 4),
+                                Tuple2.of("regular1", 3),
+                                Tuple2.of("regular1", 2),
+                                Tuple2.of("regular2", 1))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
+                                        .withTimestampAssigner((in, ts) -> in.f1));
+
+        DataStream<Tuple2<String, Integer>> regularInput =
+                env.fromElements(
+                                Tuple2.of("regular4", 4),
+                                Tuple2.of("regular3", 3),
+                                Tuple2.of("regular3", 2),
+                                Tuple2.of("regular4", 1))
+                        .assignTimestampsAndWatermarks(
+                                WatermarkStrategy.<Tuple2<String, Integer>>forMonotonousTimestamps()
+                                        .withTimestampAssigner((in, ts) -> in.f1));
+
+        DataStream<String> result =
+                regularInput
+                        .connect(keyedInput.keyBy(in -> in.f0))
+                        .transform(
+                                "operator",
+                                BasicTypeInfo.STRING_TYPE_INFO,
+                                new TwoInputIdentityOperator());
+
+        try (CloseableIterator<String> resultIterator = result.executeAndCollect()) {
+            List<String> results = CollectionUtil.iteratorToList(resultIterator);
+            assertThat(
+                    results,
+                    equalTo(
+                            Arrays.asList(
+                                    "(regular4,4)",
+                                    "(regular3,3)",
+                                    "(regular3,2)",
+                                    "(regular4,1)",
+                                    "(regular1,2)",
+                                    "(regular1,3)",
+                                    "(regular2,1)",
+                                    "(regular2,4)")));
         }
     }
 
@@ -400,6 +517,24 @@ public class DataStreamBatchExecutionITCase {
                 throws Exception {
             BroadcastState<String, String> state = ctx.getBroadcastState(STATE_DESCRIPTOR);
             state.put(value.f0, value.f0);
+        }
+    }
+
+    private static class TwoInputIdentityOperator extends AbstractStreamOperator<String>
+            implements TwoInputStreamOperator<
+                    Tuple2<String, Integer>, Tuple2<String, Integer>, String> {
+        @Override
+        public void processElement1(StreamRecord<Tuple2<String, Integer>> element)
+                throws Exception {
+            output.collect(
+                    new StreamRecord<>(element.getValue().toString(), element.getTimestamp()));
+        }
+
+        @Override
+        public void processElement2(StreamRecord<Tuple2<String, Integer>> element)
+                throws Exception {
+            output.collect(
+                    new StreamRecord<>(element.getValue().toString(), element.getTimestamp()));
         }
     }
 }
