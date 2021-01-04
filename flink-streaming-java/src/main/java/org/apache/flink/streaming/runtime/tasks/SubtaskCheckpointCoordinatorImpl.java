@@ -583,13 +583,15 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         }
 
         LOG.debug(
-                "{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms",
+                "{} - finished synchronous part of checkpoint {}. Alignment duration: {} ms, snapshot duration {} ms, is unaligned checkpoint : {}",
                 taskName,
                 checkpointId,
                 checkpointMetrics.getAlignmentDurationNanosOrDefault() / 1_000_000,
-                checkpointMetrics.getSyncDurationMillis());
+                checkpointMetrics.getSyncDurationMillis(),
+                checkpointOptions.isUnalignedCheckpoint());
 
         checkpointMetrics.setSyncDurationMillis((System.nanoTime() - started) / 1_000_000);
+        checkpointMetrics.setUnalignedCheckpoint(checkpointOptions.isUnalignedCheckpoint());
         return true;
     }
 
