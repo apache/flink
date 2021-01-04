@@ -38,7 +38,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.util.Collector;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -119,15 +118,25 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 "parallel pipeline with mixed channels, p = 20",
                 createPipelineSettings(20, 10, true)
             },
+            new Object[] {
+                "parallel pipeline with mixed channels, p = 20, timeout=1",
+                createPipelineSettings(20, 10, true, 1)
+            },
             new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
             new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
-            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
-            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
+            // todo: enable after completely  fixing FLINK-20654
+            //            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
+            //            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
         };
     }
 
     private static UnalignedSettings createPipelineSettings(
             int parallelism, int slotsPerTaskManager, boolean slotSharing) {
+        return createPipelineSettings(parallelism, slotsPerTaskManager, slotSharing, 0);
+    }
+
+    private static UnalignedSettings createPipelineSettings(
+            int parallelism, int slotsPerTaskManager, boolean slotSharing, int timeout) {
         int numShuffles = 4;
         return new UnalignedSettings(UnalignedCheckpointITCase::createPipeline)
                 .setParallelism(parallelism)
@@ -135,7 +144,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
                 .setNumSlots(slotSharing ? parallelism : parallelism * numShuffles)
                 .setNumBuffers(getNumBuffers(parallelism, numShuffles))
                 .setSlotsPerTaskManager(slotsPerTaskManager)
-                .setExpectedFailures(5);
+                .setExpectedFailures(5)
+                .setAlignmentTimeout(timeout);
     }
 
     private static UnalignedSettings createCogroupSettings(int parallelism) {
@@ -179,7 +189,6 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
     }
 
     @Test
-    @Ignore
     public void execute() throws Exception {
         execute(settings);
     }

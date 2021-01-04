@@ -19,14 +19,11 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -37,15 +34,11 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
@@ -60,7 +53,6 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -272,35 +264,22 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                 producerVertex, DistributionPattern.ALL_TO_ALL, resultPartitionType);
 
         final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-
-        final SlotProvider slotProvider =
-                new SlotProvider() {
-                    @Override
-                    public CompletableFuture<LogicalSlot> allocateSlot(
-                            SlotRequestId slotRequestId,
-                            ScheduledUnit scheduledUnit,
-                            SlotProfile slotProfile,
-                            Time allocationTimeout) {
-                        return CompletableFuture.completedFuture(
-                                new TestingLogicalSlotBuilder()
-                                        .setTaskManagerLocation(taskManagerLocation)
-                                        .setTaskManagerGateway(taskManagerGateway)
-                                        .setSlotOwner(new SingleSlotTestingSlotOwner())
-                                        .createTestingLogicalSlot());
-                    }
-
-                    @Override
-                    public void cancelSlotRequest(
-                            SlotRequestId slotRequestId,
-                            @Nullable SlotSharingGroupId slotSharingGroupId,
-                            Throwable cause) {}
-                };
+        final TestingPhysicalSlotProvider physicalSlotProvider =
+                TestingPhysicalSlotProvider.create(
+                        (resourceProfile) ->
+                                CompletableFuture.completedFuture(
+                                        TestingPhysicalSlot.builder()
+                                                .withTaskManagerGateway(taskManagerGateway)
+                                                .withTaskManagerLocation(taskManagerLocation)
+                                                .build()));
 
         final JobGraph jobGraph =
                 new JobGraph(new JobID(), "test job", producerVertex, consumerVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                jobGraph, slotProvider, Time.seconds(10))
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        physicalSlotProvider))
                         .setShuffleMaster(shuffleMaster)
                         .setPartitionTracker(partitionTracker)
                         .build();
@@ -335,17 +314,6 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
         jobVertex.setInvokableClass(NoOpInvokable.class);
 
         return jobVertex;
-    }
-
-    /** Slot owner which records the first returned slot. */
-    private static final class SingleSlotTestingSlotOwner implements SlotOwner {
-
-        final CompletableFuture<LogicalSlot> returnedSlot = new CompletableFuture<>();
-
-        @Override
-        public void returnLogicalSlot(LogicalSlot logicalSlot) {
-            returnedSlot.complete(logicalSlot);
-        }
     }
 
     private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {

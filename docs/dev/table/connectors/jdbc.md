@@ -269,7 +269,7 @@ See [CREATE TABLE DDL]({% link dev/table/sql/create.md %}#create-table) for more
 To accelerate reading data in parallel `Source` task instances, Flink provides partitioned scan feature for JDBC table.
 
 All the following scan partition options must all be specified if any of them is specified. They describe how to partition the table when reading in parallel from multiple tasks.
-The `scan.partition.column` must be a numeric, date, or timestamp column from the table in question. Notice that `scan.partition.lower-bound` and `scan.partition.upper-bound` are just used to decide the partition stride, not for filtering the rows in table. So all rows in the table will be partitioned and returned.
+The `scan.partition.column` must be a numeric, date, or timestamp column from the table in question. Notice that `scan.partition.lower-bound` and `scan.partition.upper-bound` are used to decide the partition stride and filter the rows in table. If it is a batch job, it also doable to get the max and min value first before submitting the flink job.
 
 - `scan.partition.column`: The column name used for partitioning the input.
 - `scan.partition.num`: The number of partitions.

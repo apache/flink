@@ -29,19 +29,21 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestBase;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
+import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkException;
 
 import org.junit.Test;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 import static org.apache.flink.api.common.JobStatus.FINISHED;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -61,9 +63,6 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
 
         final long timeout = 5000L;
 
-        // setting up
-        testingSlotProvider.addTaskManager(NUM_TASKS);
-
         JobVertex groupVertex = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
         JobVertex groupVertex2 = ExecutionGraphTestUtils.createNoOpVertex(NUM_TASKS);
         groupVertex2.connectNewDataSetAsInput(
@@ -81,8 +80,14 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilderWithDefaultSlotAllocator(
-                                jobGraph, testingSlotProvider)
+                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        TestingPhysicalSlotProvider.create(
+                                                (ignored) ->
+                                                        CompletableFuture.completedFuture(
+                                                                TestingPhysicalSlot.builder()
+                                                                        .build()))))
                         .setDelayExecutor(delayExecutor)
                         .setRestartBackoffTimeStrategy(
                                 new FixedDelayRestartBackoffTimeStrategy
@@ -141,10 +146,12 @@ public class ExecutionGraphCoLocationRestartTest extends SchedulerTestBase {
                 eg.getAllVertices().values().toArray(new ExecutionJobVertex[2]);
 
         for (int i = 0; i < NUM_TASKS; i++) {
-            CoLocationConstraint constr1 = tasks[0].getTaskVertices()[i].getLocationConstraint();
-            CoLocationConstraint constr2 = tasks[1].getTaskVertices()[i].getLocationConstraint();
-            assertThat(constr1.isAssigned(), is(true));
-            assertThat(constr1.getLocation(), equalTo(constr2.getLocation()));
+            TaskManagerLocation taskManagerLocation0 =
+                    tasks[0].getTaskVertices()[i].getCurrentAssignedResourceLocation();
+            TaskManagerLocation taskManagerLocation1 =
+                    tasks[1].getTaskVertices()[i].getCurrentAssignedResourceLocation();
+
+            assertThat(taskManagerLocation0, is(taskManagerLocation1));
         }
     }
 }

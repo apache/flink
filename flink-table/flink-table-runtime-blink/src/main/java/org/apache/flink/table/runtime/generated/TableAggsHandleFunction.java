@@ -31,12 +31,12 @@ import org.apache.flink.util.Collector;
  */
 public interface TableAggsHandleFunction extends AggsHandleFunctionBase {
 
-	/**
-	 * Emit the result of the table aggregation through the collector.
-	 *
-	 * @param out        the collector used to emit records.
-	 * @param currentKey the current group key.
-	 * @param isRetract  the retraction flag which indicates whether emit retract values.
-	 */
-	void emitValue(Collector<RowData> out, RowData currentKey, boolean isRetract) throws Exception;
+    /**
+     * Emit the result of the table aggregation through the collector.
+     *
+     * @param out the collector used to emit records.
+     * @param currentKey the current group key.
+     * @param isRetract the retraction flag which indicates whether emit retract values.
+     */
+    void emitValue(Collector<RowData> out, RowData currentKey, boolean isRetract) throws Exception;
 }

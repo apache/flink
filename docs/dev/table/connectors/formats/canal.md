@@ -142,6 +142,82 @@ SELECT * FROM topic_products;
 </div>
 </div>
 
+Available Metadata
+------------------
+
+The following format metadata can be exposed as read-only (`VIRTUAL`) columns in a table definition.
+
+<span class="label label-danger">Attention</span> Format metadata fields are only available if the
+corresponding connector forwards format metadata. Currently, only the Kafka connector is able to expose
+metadata fields for its value format.
+
+<table class="table table-bordered">
+    <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Key</th>
+      <th class="text-center" style="width: 40%">Data Type</th>
+      <th class="text-center" style="width: 40%">Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+      <td><code>database</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database. Corresponds to the <code>database</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>table</code></td>
+      <td><code>STRING NULL</code></td>
+      <td>The originating database table. Corresponds to the <code>table</code> field in the
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>sql-type</code></td>
+      <td><code>MAP&lt;STRING, INT&gt; NULL</code></td>
+      <td>Map of various sql types. Corresponds to the <code>sqlType</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>pk-names</code></td>
+      <td><code>ARRAY&lt;STRING&gt; NULL</code></td>
+      <td>Array of primary key names. Corresponds to the <code>pkNames</code> field in the 
+      Canal record if available.</td>
+    </tr>
+    <tr>
+      <td><code>ingestion-timestamp</code></td>
+      <td><code>TIMESTAMP(3) WITH LOCAL TIME ZONE NULL</code></td>
+      <td>The timestamp at which the connector processed the event. Corresponds to the <code>ts</code>
+      field in the Canal record.</td>
+    </tr>
+    </tbody>
+</table>
+
+The following example shows how to access Canal metadata fields in Kafka:
+
+<div class="codetabs" markdown="1">
+<div data-lang="SQL" markdown="1">
+{% highlight sql %}
+CREATE TABLE KafkaTable (
+  origin_database STRING METADATA FROM 'value.database' VIRTUAL,
+  origin_table STRING METADATA FROM 'value.table' VIRTUAL,
+  origin_sql_type MAP<STRING, INT> METADATA FROM 'value.sql-type' VIRTUAL,
+  origin_pk_names ARRAY<STRING> METADATA FROM 'value.pk-names' VIRTUAL,
+  origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+  user_id BIGINT,
+  item_id BIGINT,
+  behavior STRING
+) WITH (
+  'connector' = 'kafka',
+  'topic' = 'user_behavior',
+  'properties.bootstrap.servers' = 'localhost:9092',
+  'properties.group.id' = 'testGroup',
+  'scan.startup.mode' = 'earliest-offset',
+  'value.format' = 'canal-json'
+);
+{% endhighlight %}
+</div>
+</div>
 
 Format Options
 ----------------

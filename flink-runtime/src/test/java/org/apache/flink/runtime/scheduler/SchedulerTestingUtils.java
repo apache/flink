@@ -37,7 +37,6 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
-import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -50,12 +49,11 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.DefaultExecutionDeploymentTracker;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
@@ -109,40 +107,8 @@ public class SchedulerTestingUtils {
         return new DefaultSchedulerBuilder(jobGraph);
     }
 
-    public static DefaultSchedulerBuilder newSchedulerBuilderWithDefaultSlotAllocator(
-            final JobGraph jobGraph, final SlotProvider slotProvider) {
-
-        return newSchedulerBuilderWithDefaultSlotAllocator(jobGraph, slotProvider, DEFAULT_TIMEOUT);
-    }
-
-    public static DefaultSchedulerBuilder newSchedulerBuilderWithDefaultSlotAllocator(
-            final JobGraph jobGraph,
-            final SlotProvider slotProvider,
-            final Time slotRequestTimeout) {
-
-        return new DefaultSchedulerBuilder(jobGraph)
-                .setExecutionSlotAllocatorFactory(
-                        createDefaultExecutionSlotAllocatorFactory(
-                                jobGraph.getScheduleMode(), slotProvider, slotRequestTimeout));
-    }
-
     public static DefaultScheduler createScheduler(final JobGraph jobGraph) throws Exception {
         return newSchedulerBuilder(jobGraph).build();
-    }
-
-    public static DefaultScheduler createScheduler(
-            final JobGraph jobGraph, final SlotProvider slotProvider) throws Exception {
-
-        return createScheduler(jobGraph, slotProvider, DEFAULT_TIMEOUT);
-    }
-
-    public static DefaultScheduler createScheduler(
-            final JobGraph jobGraph, final SlotProvider slotProvider, final Time slotRequestTimeout)
-            throws Exception {
-
-        return newSchedulerBuilderWithDefaultSlotAllocator(
-                        jobGraph, slotProvider, slotRequestTimeout)
-                .build();
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
@@ -177,17 +143,6 @@ public class SchedulerTestingUtils {
                 .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                 .setExecutionSlotAllocatorFactory(
                         new TestExecutionSlotAllocatorFactory(taskManagerGateway));
-    }
-
-    public static DefaultExecutionSlotAllocatorFactory createDefaultExecutionSlotAllocatorFactory(
-            final ScheduleMode scheduleMode,
-            final SlotProvider slotProvider,
-            final Time slotRequestTimeout) {
-
-        final SlotProviderStrategy slotProviderStrategy =
-                SlotProviderStrategy.from(scheduleMode, slotProvider, slotRequestTimeout);
-
-        return new DefaultExecutionSlotAllocatorFactory(slotProviderStrategy);
     }
 
     public static void enableCheckpointing(final JobGraph jobGraph) {
@@ -401,6 +356,28 @@ public class SchedulerTestingUtils {
         }
     }
 
+    public static SlotSharingExecutionSlotAllocatorFactory
+            newSlotSharingExecutionSlotAllocatorFactory() {
+        return newSlotSharingExecutionSlotAllocatorFactory(
+                TestingPhysicalSlotProvider.createWithInfiniteSlotCreation());
+    }
+
+    public static SlotSharingExecutionSlotAllocatorFactory
+            newSlotSharingExecutionSlotAllocatorFactory(PhysicalSlotProvider physicalSlotProvider) {
+        return newSlotSharingExecutionSlotAllocatorFactory(physicalSlotProvider, DEFAULT_TIMEOUT);
+    }
+
+    public static SlotSharingExecutionSlotAllocatorFactory
+            newSlotSharingExecutionSlotAllocatorFactory(
+                    PhysicalSlotProvider physicalSlotProvider, Time allocationTimeout) {
+        return new SlotSharingExecutionSlotAllocatorFactory(
+                physicalSlotProvider,
+                true,
+                new TestingPhysicalSlotRequestBulkChecker(),
+                allocationTimeout,
+                new LocalInputPreferredSlotSharingStrategy.Factory());
+    }
+
     /** Builder for {@link DefaultScheduler}. */
     public static class DefaultSchedulerBuilder {
         private final JobGraph jobGraph;
@@ -435,7 +412,7 @@ public class SchedulerTestingUtils {
         private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
 
-        private DefaultSchedulerBuilder(final JobGraph jobGraph) {
+        public DefaultSchedulerBuilder(final JobGraph jobGraph) {
             this.jobGraph = jobGraph;
         }
 

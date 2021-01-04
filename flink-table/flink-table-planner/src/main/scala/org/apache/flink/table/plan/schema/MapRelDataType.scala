@@ -45,5 +45,4 @@ class MapRelDataType(
   override def hashCode(): Int = {
     Objects.hashCode(keyType, valueType)
   }
-
 }

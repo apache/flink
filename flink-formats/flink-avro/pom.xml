@@ -224,7 +224,7 @@ under the License.
 						</goals>
 						<configuration>
 							<testSourceDirectory>${project.basedir}/src/test/resources/avro</testSourceDirectory>
-							<testOutputDirectory>${project.basedir}/src/test/java/</testOutputDirectory>
+							<testOutputDirectory>${project.basedir}/target/generated-test-sources/</testOutputDirectory>
 						</configuration>
 					</execution>
 				</executions>
