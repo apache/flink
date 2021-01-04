@@ -63,7 +63,8 @@ import static org.apache.flink.types.RowUtils.deepHashCodeRow;
  * the first call to {@link #setField(String, Object)} for the given name. However, the framework will
  * initialize missing fields with {@code null} and reorder all fields once more type information is
  * available during serialization or input conversion. Thus, even name-based rows eventually become
- * fixed-length composite types with a deterministic field order.
+ * fixed-length composite types with a deterministic field order. Name-based rows perform worse than
+ * position-based rows but simplify row creation and code readability.
  *
  * <h1>Hybrid / named-position field mode</h1>
  *
