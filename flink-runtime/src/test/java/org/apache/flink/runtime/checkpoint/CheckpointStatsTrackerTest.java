@@ -464,7 +464,8 @@ public class CheckpointStatsTrackerTest {
                         processedData,
                         persistedData,
                         ignored,
-                        ignored);
+                        ignored,
+                        false);
 
         assertTrue(pending.reportSubtaskStats(jobVertex.getJobVertexId(), subtaskStats));
 
@@ -548,6 +549,6 @@ public class CheckpointStatsTrackerTest {
     }
 
     private SubtaskStateStats createSubtaskStats(int index) {
-        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0);
+        return new SubtaskStateStats(index, 0, 0, 0, 0, 0, 0, 0, 0, false);
     }
 }
