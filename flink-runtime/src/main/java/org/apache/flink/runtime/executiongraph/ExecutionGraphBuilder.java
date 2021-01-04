@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -58,8 +57,6 @@ import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -75,56 +72,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionGraphBuilder {
 
-    /**
-     * Builds the ExecutionGraph from the JobGraph. If a prior execution graph exists, the JobGraph
-     * will be attached. If no prior execution graph exists, then the JobGraph will become attach to
-     * a new empty execution graph.
-     */
-    @VisibleForTesting
     public static ExecutionGraph buildGraph(
-            @Nullable ExecutionGraph prior,
-            JobGraph jobGraph,
-            Configuration jobManagerConfig,
-            ScheduledExecutorService futureExecutor,
-            Executor ioExecutor,
-            SlotProvider slotProvider,
-            ClassLoader classLoader,
-            CheckpointRecoveryFactory recoveryFactory,
-            CheckpointIDCounter checkpointIdCounter,
-            Time rpcTimeout,
-            MetricGroup metrics,
-            BlobWriter blobWriter,
-            Time allocationTimeout,
-            Logger log,
-            ShuffleMaster<?> shuffleMaster,
-            JobMasterPartitionTracker partitionTracker,
-            long initializationTimestamp)
-            throws JobExecutionException, JobException {
-
-        return buildGraph(
-                prior,
-                jobGraph,
-                jobManagerConfig,
-                futureExecutor,
-                ioExecutor,
-                slotProvider,
-                classLoader,
-                recoveryFactory,
-                checkpointIdCounter,
-                rpcTimeout,
-                metrics,
-                blobWriter,
-                allocationTimeout,
-                log,
-                shuffleMaster,
-                partitionTracker,
-                NoOpExecutionDeploymentListener.get(),
-                (execution, newState) -> {},
-                initializationTimestamp);
-    }
-
-    public static ExecutionGraph buildGraph(
-            @Nullable ExecutionGraph prior,
             JobGraph jobGraph,
             Configuration jobManagerConfig,
             ScheduledExecutorService futureExecutor,
@@ -170,25 +118,23 @@ public class ExecutionGraphBuilder {
         final ExecutionGraph executionGraph;
         try {
             executionGraph =
-                    (prior != null)
-                            ? prior
-                            : new ExecutionGraph(
-                                    jobInformation,
-                                    futureExecutor,
-                                    ioExecutor,
-                                    rpcTimeout,
-                                    maxPriorAttemptsHistoryLength,
-                                    slotProvider,
-                                    classLoader,
-                                    blobWriter,
-                                    allocationTimeout,
-                                    partitionReleaseStrategyFactory,
-                                    shuffleMaster,
-                                    partitionTracker,
-                                    jobGraph.getScheduleMode(),
-                                    executionDeploymentListener,
-                                    executionStateUpdateListener,
-                                    initializationTimestamp);
+                    new ExecutionGraph(
+                            jobInformation,
+                            futureExecutor,
+                            ioExecutor,
+                            rpcTimeout,
+                            maxPriorAttemptsHistoryLength,
+                            slotProvider,
+                            classLoader,
+                            blobWriter,
+                            allocationTimeout,
+                            partitionReleaseStrategyFactory,
+                            shuffleMaster,
+                            partitionTracker,
+                            jobGraph.getScheduleMode(),
+                            executionDeploymentListener,
+                            executionStateUpdateListener,
+                            initializationTimestamp);
         } catch (IOException e) {
             throw new JobException("Could not create the ExecutionGraph.", e);
         }

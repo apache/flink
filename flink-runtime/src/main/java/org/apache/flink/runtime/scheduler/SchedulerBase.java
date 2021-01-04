@@ -295,7 +295,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         }
 
         return ExecutionGraphBuilder.buildGraph(
-                null,
                 jobGraph,
                 jobMasterConfiguration,
                 futureExecutor,
