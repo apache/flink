@@ -297,6 +297,11 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         try {
             if (takeSnapshotSync(
                     snapshotFutures, metadata, metrics, options, operatorChain, isCanceled)) {
+                LOG.debug(
+                        "Is unaligned checkpoint for task {} : {}",
+                        taskName,
+                        options.isUnalignedCheckpoint());
+                metrics.setUnalignedCheckpoint(options.isUnalignedCheckpoint());
                 finishAndReportAsync(snapshotFutures, metadata, metrics, options);
             } else {
                 cleanup(snapshotFutures, metadata, metrics, new Exception("Checkpoint declined"));

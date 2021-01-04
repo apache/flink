@@ -49,7 +49,8 @@ public class SubtaskStateStatsTest {
                         Integer.MAX_VALUE + 8L,
                         Integer.MAX_VALUE + 9L,
                         Integer.MAX_VALUE + 6L,
-                        Integer.MAX_VALUE + 7L);
+                        Integer.MAX_VALUE + 7L,
+                        false);
 
         stats = serialize ? CommonTestUtils.createCopySerializable(stats) : stats;
 

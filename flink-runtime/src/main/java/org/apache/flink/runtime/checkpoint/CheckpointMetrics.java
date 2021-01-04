@@ -43,8 +43,11 @@ public class CheckpointMetrics implements Serializable {
 
     private final long checkpointStartDelayNanos;
 
+    /** Is the checkpoint completed as an unaligned checkpoint. */
+    private final boolean unalignedCheckpoint;
+
     public CheckpointMetrics() {
-        this(-1L, -1L, -1L, -1L, -1L, -1L);
+        this(-1L, -1L, -1L, -1L, -1L, -1L, false);
     }
 
     public CheckpointMetrics(
@@ -53,7 +56,8 @@ public class CheckpointMetrics implements Serializable {
             long alignmentDurationNanos,
             long syncDurationMillis,
             long asyncDurationMillis,
-            long checkpointStartDelayNanos) {
+            long checkpointStartDelayNanos,
+            boolean unalignedCheckpoint) {
 
         // these may be "-1", in case the values are unknown or not set
         checkArgument(bytesProcessedDuringAlignment >= -1);
@@ -69,6 +73,7 @@ public class CheckpointMetrics implements Serializable {
         this.syncDurationMillis = syncDurationMillis;
         this.asyncDurationMillis = asyncDurationMillis;
         this.checkpointStartDelayNanos = checkpointStartDelayNanos;
+        this.unalignedCheckpoint = unalignedCheckpoint;
     }
 
     public long getBytesProcessedDuringAlignment() {
@@ -95,6 +100,10 @@ public class CheckpointMetrics implements Serializable {
         return checkpointStartDelayNanos;
     }
 
+    public boolean getUnalignedCheckpoint() {
+        return unalignedCheckpoint;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -111,7 +120,8 @@ public class CheckpointMetrics implements Serializable {
                 && alignmentDurationNanos == that.alignmentDurationNanos
                 && syncDurationMillis == that.syncDurationMillis
                 && asyncDurationMillis == that.asyncDurationMillis
-                && checkpointStartDelayNanos == that.checkpointStartDelayNanos;
+                && checkpointStartDelayNanos == that.checkpointStartDelayNanos
+                && unalignedCheckpoint == that.unalignedCheckpoint;
     }
 
     @Override
@@ -122,7 +132,8 @@ public class CheckpointMetrics implements Serializable {
                 alignmentDurationNanos,
                 syncDurationMillis,
                 asyncDurationMillis,
-                checkpointStartDelayNanos);
+                checkpointStartDelayNanos,
+                unalignedCheckpoint);
     }
 
     @Override
@@ -140,6 +151,8 @@ public class CheckpointMetrics implements Serializable {
                 + asyncDurationMillis
                 + ", checkpointStartDelayNanos="
                 + checkpointStartDelayNanos
+                + ", unalignedCheckpoint="
+                + unalignedCheckpoint
                 + '}';
     }
 }
