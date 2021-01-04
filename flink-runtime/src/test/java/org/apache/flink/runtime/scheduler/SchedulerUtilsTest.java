@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.executiongraph;
+package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CheckpointingOptions;
@@ -29,8 +29,8 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 
-/** Tests for the {@link ExecutionGraphBuilder}. */
-public class ExecutionGraphBuilderTest extends TestLogger {
+/** Tests for the {@link SchedulerUtils} utilities. */
+public class SchedulerUtilsTest extends TestLogger {
 
     @Test
     public void testSettingMaxNumberOfCheckpointsToRetain() throws Exception {
@@ -41,7 +41,7 @@ public class ExecutionGraphBuilderTest extends TestLogger {
                 CheckpointingOptions.MAX_RETAINED_CHECKPOINTS, maxNumberOfCheckpointsToRetain);
 
         final CompletedCheckpointStore completedCheckpointStore =
-                ExecutionGraphBuilder.createCompletedCheckpointStore(
+                SchedulerUtils.createCompletedCheckpointStore(
                         jobManagerConfig,
                         getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
