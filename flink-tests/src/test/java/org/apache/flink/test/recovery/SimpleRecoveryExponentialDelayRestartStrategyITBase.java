@@ -27,28 +27,35 @@ import org.junit.ClassRule;
 
 import java.time.Duration;
 
-/**
- * Test cluster configuration with exponential-delay recovery.
- */
+/** Test cluster configuration with exponential-delay recovery. */
 public class SimpleRecoveryExponentialDelayRestartStrategyITBase extends SimpleRecoveryITCaseBase {
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(2)
-			.setNumberSlotsPerTaskManager(2)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(2)
+                            .build());
 
-	private static Configuration getConfiguration() {
-		Configuration config = new Configuration();
-		config.setString(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
-		config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF, Duration.ofMillis(5));
-		config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF, Duration.ofMillis(100));
-		config.setDouble(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 2);
-		config.set(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD, Duration.ofMillis(1000));
-		config.setDouble(RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.2);
+    private static Configuration getConfiguration() {
+        Configuration config = new Configuration();
+        config.setString(RestartStrategyOptions.RESTART_STRATEGY, "exponential-delay");
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF,
+                Duration.ofMillis(5));
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF,
+                Duration.ofMillis(100));
+        config.setDouble(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_BACKOFF_MULTIPLIER, 2);
+        config.set(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_RESET_BACKOFF_THRESHOLD,
+                Duration.ofMillis(1000));
+        config.setDouble(
+                RestartStrategyOptions.RESTART_STRATEGY_EXPONENTIAL_DELAY_JITTER_FACTOR, 0.2);
 
-		return config;
-	}
+        return config;
+    }
 }
