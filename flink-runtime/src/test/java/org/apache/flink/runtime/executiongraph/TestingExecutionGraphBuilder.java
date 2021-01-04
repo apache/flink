@@ -168,7 +168,6 @@ public class TestingExecutionGraphBuilder {
 
     public ExecutionGraph build() throws JobException, JobExecutionException {
         return ExecutionGraphBuilder.buildGraph(
-                null,
                 jobGraph,
                 jobMasterConfig,
                 futureExecutor,
