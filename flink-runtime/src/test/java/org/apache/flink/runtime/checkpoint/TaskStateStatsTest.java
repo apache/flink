@@ -75,7 +75,8 @@ public class TaskStateStatsTest {
                             rand.nextInt(128),
                             rand.nextInt(128),
                             rand.nextInt(128),
-                            rand.nextInt(128));
+                            rand.nextInt(128),
+                            false);
 
             stateSize += subtasks[i].getStateSize();
             processedData += subtasks[i].getProcessedData();
@@ -94,7 +95,9 @@ public class TaskStateStatsTest {
             assertEquals(persistedData, taskStats.getPersistedDataStats());
         }
 
-        assertFalse(taskStats.reportSubtaskStats(new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0, 0)));
+        assertFalse(
+                taskStats.reportSubtaskStats(
+                        new SubtaskStateStats(0, 0, 0, 0, 0, 0, 0, 0, 0, false)));
 
         taskStats = serialize ? CommonTestUtils.createCopySerializable(taskStats) : taskStats;
 

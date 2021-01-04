@@ -40,6 +40,7 @@ public class CheckpointMetricsBuilder {
     private long syncDurationMillis = -1L;
     private long asyncDurationMillis = -1L;
     private long checkpointStartDelayNanos = -1L;
+    private boolean unalignedCheckpoint = false;
 
     public CheckpointMetricsBuilder setBytesProcessedDuringAlignment(
             long bytesProcessedDuringAlignment) {
@@ -116,6 +117,11 @@ public class CheckpointMetricsBuilder {
         return checkpointStartDelayNanos;
     }
 
+    public CheckpointMetricsBuilder setUnalignedCheckpoint(boolean unalignedCheckpoint) {
+        this.unalignedCheckpoint = unalignedCheckpoint;
+        return this;
+    }
+
     public CheckpointMetrics build() {
         return new CheckpointMetrics(
                 checkStateAndGet(bytesProcessedDuringAlignment),
@@ -123,6 +129,7 @@ public class CheckpointMetricsBuilder {
                 checkStateAndGet(alignmentDurationNanos),
                 syncDurationMillis,
                 asyncDurationMillis,
-                checkpointStartDelayNanos);
+                checkpointStartDelayNanos,
+                unalignedCheckpoint);
     }
 }
