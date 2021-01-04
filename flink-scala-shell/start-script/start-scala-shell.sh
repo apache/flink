@@ -84,7 +84,7 @@ LOG=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-$MODE-$HOSTNAME.log
 
 if [[ $MODE = "yarn" ]]
 then
-	LOG4J_CONFIG=log4j-session.properties
+    LOG4J_CONFIG=log4j-session.properties
     LOGBACK_CONFIG=logback-session.xml
     FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
 else
