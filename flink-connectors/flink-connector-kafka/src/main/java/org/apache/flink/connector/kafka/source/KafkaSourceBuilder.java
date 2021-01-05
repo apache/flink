@@ -423,7 +423,7 @@ public class KafkaSourceBuilder<OUT> {
                 startingOffsetsInitializer.getAutoOffsetResetStrategy().name().toLowerCase(),
                 true);
 
-        // If the source is bounded, do not run periodic partition discovery.
+        // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic partition discovery.
         if (maybeOverridePartitionDiscovery(
                 KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
                 "-1",
@@ -461,7 +461,7 @@ public class KafkaSourceBuilder<OUT> {
     private boolean maybeOverridePartitionDiscovery(String key, String value, boolean override) {
         boolean overridden = false;
         String userValue = props.getProperty(key);
-        if (override) {
+        if (override || !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer)) {
             props.setProperty(key, value);
             overridden = true;
         } else {
