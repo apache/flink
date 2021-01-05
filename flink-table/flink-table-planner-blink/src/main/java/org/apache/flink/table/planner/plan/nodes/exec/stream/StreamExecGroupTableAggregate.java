@@ -100,15 +100,16 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(tableConfig),
-                        planner.getRelBuilder(),
-                        JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
-                        // TODO: heap state backend do not copy key currently, we have to copy input
-                        // field
-                        // TODO: copy is not need when state backend is rocksdb, improve this in
-                        // future
-                        // TODO: but other operators do not copy this input field.....
-                        true);
+                                new CodeGeneratorContext(tableConfig),
+                                planner.getRelBuilder(),
+                                JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
+                                // TODO: heap state backend do not copy key currently,
+                                //  we have to copy input field
+                                // TODO: copy is not need when state backend is rocksdb,
+                                //  improve this in future
+                                // TODO: but other operators do not copy this input field.....
+                                true)
+                        .needAccumulate();
 
         if (needRetraction) {
             generator.needRetract();
@@ -123,9 +124,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         true,
                         true);
         final GeneratedTableAggsHandleFunction aggsHandler =
-                generator
-                        .needAccumulate()
-                        .generateTableAggsHandler("GroupTableAggHandler", aggInfoList);
+                generator.generateTableAggsHandler("GroupTableAggHandler", aggInfoList);
 
         final LogicalType[] accTypes =
                 Arrays.stream(aggInfoList.getAccTypes())
@@ -142,9 +141,6 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedProcessOperator<>(aggFunction);
 
-        final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
-
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
@@ -160,6 +156,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         }
 
         // set KeyType and Selector for state
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
