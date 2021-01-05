@@ -84,7 +84,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
                 columns.indexOf(c)
               }
               val builder = ImmutableSet.builder[ImmutableBitSet]()
-              builder.add(ImmutableBitSet.of(columnIndices:_*))
+              builder.add(ImmutableBitSet.of(columnIndices: _*))
               val uniqueSet = sourceTable.uniqueKeysSet().orElse(null)
               if (uniqueSet != null) {
                 builder.addAll(uniqueSet)
@@ -198,8 +198,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   /**
-    * Whether the [[RexCall]] is a cast that doesn't lose any information.
-    */
+   * Whether the [[RexCall]] is a cast that doesn't lose any information.
+   */
   private def isFidelityCast(call: RexCall): Boolean = {
     if (call.getKind != SqlKind.CAST) {
       return false
@@ -334,11 +334,11 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     if (rel.isFinal) {
-      getUniqueKeysOnAggregate(rel.getGrouping, mq, ignoreNulls)
+      getUniqueKeysOnAggregate(rel.grouping, mq, ignoreNulls)
     } else {
       null
     }

@@ -40,17 +40,15 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
 
 /**
   * Batch physical RelNode for hash-based aggregate operator.
   *
-  * @see [[BatchExecGroupAggregateBase]] for more info.
+  * @see [[BatchPhysicalGroupAggregateBase]] for more info.
   */
 abstract class BatchExecHashAggregateBase(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
@@ -61,13 +59,11 @@ abstract class BatchExecHashAggregateBase(
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     isMerge: Boolean,
     isFinal: Boolean)
-  extends BatchExecGroupAggregateBase(
+  extends BatchPhysicalGroupAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -114,17 +110,25 @@ abstract class BatchExecHashAggregateBase(
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(aggInputRowType), aggCallToAggFunction.map(_._1))
+      FlinkTypeFactory.toLogicalRowType(aggInputRowType), getAggCallList)
 
     var managedMemory: Long = 0L
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(
-        ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
+        ctx, planner.getRelBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
       managedMemory = MemorySize.parse(config.getConfiguration.getString(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
       new HashAggCodeGenerator(
-        ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
+        ctx,
+        planner.getRelBuilder,
+        aggInfos,
+        inputType,
+        outputType,
+        grouping,
+        auxGrouping,
+        isMerge,
+        isFinal
       ).genWithKeys()
     }
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)

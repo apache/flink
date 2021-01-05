@@ -187,11 +187,13 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     sizesBuilder.build
   }
 
-  def averageColumnSizes(rel: BatchExecGroupAggregateBase, mq: RelMetadataQuery): JList[JDouble] = {
+  def averageColumnSizes(
+      rel: BatchPhysicalGroupAggregateBase,
+      mq: RelMetadataQuery): JList[JDouble] = {
     // note: the logical to estimate column sizes of AggregateBatchExecBase is different from
     // Calcite Aggregate because AggregateBatchExecBase's rowTypes is not composed by
     // grouping columns + aggFunctionCall results
-    val mapInputToOutput = (rel.getGrouping ++ rel.getAuxGrouping).zipWithIndex.toMap
+    val mapInputToOutput = (rel.grouping ++ rel.auxGrouping).zipWithIndex.toMap
     getColumnSizesFromInputOrType(rel, mq, mapInputToOutput)
   }
 

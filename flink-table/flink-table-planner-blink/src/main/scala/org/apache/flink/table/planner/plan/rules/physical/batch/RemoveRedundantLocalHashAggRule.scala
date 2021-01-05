@@ -26,9 +26,9 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 
 /**
-  * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
-  * shuffle is removed. The rule could remove redundant localHashAggregate node.
-  */
+ * There maybe exist a subTree like localHashAggregate -> globalHashAggregate which the middle
+ * shuffle is removed. The rule could remove redundant localHashAggregate node.
+ */
 class RemoveRedundantLocalHashAggRule extends RelOptRule(
   operand(classOf[BatchExecHashAggregate],
     operand(classOf[BatchExecLocalHashAggregate],
@@ -36,19 +36,18 @@ class RemoveRedundantLocalHashAggRule extends RelOptRule(
   "RemoveRedundantLocalHashAggRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val globalAgg = call.rels(0).asInstanceOf[BatchExecHashAggregate]
-    val localAgg = call.rels(1).asInstanceOf[BatchExecLocalHashAggregate]
+    val globalAgg: BatchExecHashAggregate = call.rel(0)
+    val localAgg: BatchExecLocalHashAggregate = call.rel(1)
     val inputOfLocalAgg = localAgg.getInput
     val newGlobalAgg = new BatchExecHashAggregate(
       globalAgg.getCluster,
-      call.builder(),
       globalAgg.getTraitSet,
       inputOfLocalAgg,
       globalAgg.getRowType,
       inputOfLocalAgg.getRowType,
       inputOfLocalAgg.getRowType,
-      localAgg.getGrouping,
-      localAgg.getAuxGrouping,
+      localAgg.grouping,
+      localAgg.auxGrouping,
       // Use the localAgg agg calls because the global agg call filters was removed,
       // see BatchExecHashAggRule for details.
       localAgg.getAggCallToAggFunction,

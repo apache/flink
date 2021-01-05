@@ -60,7 +60,7 @@ class BatchExecHashAggRule
     operand(classOf[FlinkLogicalAggregate],
       operand(classOf[RelNode], any)),
     "BatchExecHashAggRule")
-  with BatchExecAggRuleBase {
+  with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
@@ -100,7 +100,6 @@ class BatchExecHashAggRule
       val providedTraitSet = localRequiredTraitSet
       val localHashAgg = createLocalAgg(
         agg.getCluster,
-        call.builder(),
         providedTraitSet,
         newInput,
         agg.getRowType,
@@ -136,7 +135,6 @@ class BatchExecHashAggRule
         val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
         val globalHashAgg = new BatchExecHashAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newLocalHashAgg,
           agg.getRowType,
@@ -167,7 +165,6 @@ class BatchExecHashAggRule
         val newInput = RelOptRule.convert(input, requiredTraitSet)
         val hashAgg = new BatchExecHashAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newInput,
           agg.getRowType,

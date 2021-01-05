@@ -28,32 +28,29 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelNode, SingleRel}
-import org.apache.calcite.tools.RelBuilder
 
 /**
-  * Batch physical RelNode for aggregate.
-  *
-  * <P>There are two differences between this node and [[Aggregate]]:
-  * 1. This node supports two-stage aggregation to reduce data-shuffling:
-  * local-aggregation and global-aggregation.
-  * local-aggregation produces a partial result for each group before shuffle in stage 1,
-  * and then the partially aggregated results are shuffled to global-aggregation
-  * which produces the final result in stage 2.
-  * Two-stage aggregation is enabled only if all aggregate functions are mergeable.
-  * (e.g. SUM, AVG, MAX)
-  * 2. This node supports auxiliary group keys which will not be computed as key and
-  * does not also affect the correctness of the final result. [[Aggregate]] does not distinguish
-  * group keys and auxiliary group keys, and combines them as a complete `groupSet`.
-  */
-abstract class BatchExecGroupAggregateBase(
+ * Batch physical RelNode for aggregate.
+ *
+ * <P>There are two differences between this node and [[Aggregate]]:
+ * 1. This node supports two-stage aggregation to reduce data-shuffling:
+ * local-aggregation and global-aggregation.
+ * local-aggregation produces a partial result for each group before shuffle in stage 1,
+ * and then the partially aggregated results are shuffled to global-aggregation
+ * which produces the final result in stage 2.
+ * Two-stage aggregation is enabled only if all aggregate functions are mergeable.
+ * (e.g. SUM, AVG, MAX)
+ * 2. This node supports auxiliary group keys which will not be computed as key and
+ * does not also affect the correctness of the final result. [[Aggregate]] does not distinguish
+ * group keys and auxiliary group keys, and combines them as a complete `groupSet`.
+ */
+abstract class BatchPhysicalGroupAggregateBase(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
-    grouping: Array[Int],
-    auxGrouping: Array[Int],
+    val grouping: Array[Int],
+    val auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     val isMerge: Boolean,
     val isFinal: Boolean)
@@ -65,10 +62,6 @@ abstract class BatchExecGroupAggregateBase(
   }
 
   override def deriveRowType(): RelDataType = outputRowType
-
-  def getGrouping: Array[Int] = grouping
-
-  def getAuxGrouping: Array[Int] = auxGrouping
 
   def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
 

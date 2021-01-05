@@ -31,8 +31,8 @@ import org.junit.Before
 
 
 /**
-  * Test for [[EnforceLocalHashAggRule]].
-  */
+ * Test for [[EnforceLocalHashAggRule]].
+ */
 class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 
   @Before
@@ -60,10 +60,10 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
 }
 
 /**
-  * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]]
-  * value, and only enable one phase aggregate.
-  * This rule only used for test.
-  */
+ * Planner rule that ignore the [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]]
+ * value, and only enable one phase aggregate.
+ * This rule only used for test.
+ */
 class BatchExecHashAggRuleForOnePhase extends BatchExecHashAggRule {
   override protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
