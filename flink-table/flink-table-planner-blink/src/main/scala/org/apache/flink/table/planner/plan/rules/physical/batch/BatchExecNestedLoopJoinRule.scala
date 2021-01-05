@@ -54,7 +54,7 @@ class BatchExecNestedLoopJoinRule
         val distinctKeys = 0 until join.getRight.getRowType.getFieldCount
         val useBuildDistinct = chooseSemiBuildDistinct(join.getRight, distinctKeys)
         if (useBuildDistinct) {
-          addLocalDistinctAgg(join.getRight, distinctKeys, call.builder())
+          addLocalDistinctAgg(join.getRight, distinctKeys)
         } else {
           join.getRight
         }

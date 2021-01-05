@@ -309,7 +309,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
   }
 
   def getDistinctRowCount(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet,
       predicate: RexNode): JDouble = {
@@ -397,7 +397,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       predicate: RexNode): (Option[RexNode], Option[RexNode]) = agg match {
     case rel: Aggregate =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
-    case rel: BatchExecGroupAggregateBase =>
+    case rel: BatchPhysicalGroupAggregateBase =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)
     case rel: BatchExecWindowAggregateBase =>
       FlinkRelMdUtil.splitPredicateOnAggregate(rel, predicate)

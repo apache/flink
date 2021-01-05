@@ -49,8 +49,8 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode for aggregate (Python user defined aggregate function).
-  */
+ * Batch physical RelNode for aggregate (Python user defined aggregate function).
+ */
 class BatchExecPythonGroupAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -62,13 +62,11 @@ class BatchExecPythonGroupAggregate(
     auxGrouping: Array[Int],
     aggCalls: Seq[AggregateCall],
     aggFunctions: Array[UserDefinedFunction])
-  extends BatchExecGroupAggregateBase(
+  extends BatchPhysicalGroupAggregateBase(
     cluster,
-    null,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCalls.zip(aggFunctions),

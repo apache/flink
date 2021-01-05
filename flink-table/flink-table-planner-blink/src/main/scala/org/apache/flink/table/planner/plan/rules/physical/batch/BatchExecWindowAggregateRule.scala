@@ -46,34 +46,34 @@ import org.apache.commons.math3.util.ArithmeticUtils
 import scala.collection.JavaConversions._
 
 /**
-  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a
-  * {{{
-  *   BatchExecHash(or Sort)WindowAggregate (global)
-  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *      +- BatchExecLocalHash(or Sort)WindowAggregate (local)
-  *         +- input of window agg
-  * }}}
-  * when all aggregate functions are mergeable
-  * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
-  * {{{
-  *   BatchExecHash(or Sort)WindowAggregate
-  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *      +- input of window agg
-  * }}}
-  * when some aggregate functions are not mergeable
-  * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
-  *
-  * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
-  * this rule will try to create two possibilities above, and chooses the best one based on cost.
-  * if all aggregate function buffer are fix length, the rule will choose hash window agg.
-  */
+ * Rule to convert a [[FlinkLogicalWindowAggregate]] into a
+ * {{{
+ *   BatchExecHash(or Sort)WindowAggregate (global)
+ *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *      +- BatchExecLocalHash(or Sort)WindowAggregate (local)
+ *         +- input of window agg
+ * }}}
+ * when all aggregate functions are mergeable
+ * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+ * {{{
+ *   BatchExecHash(or Sort)WindowAggregate
+ *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *      +- input of window agg
+ * }}}
+ * when some aggregate functions are not mergeable
+ * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+ *
+ * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
+ * this rule will try to create two possibilities above, and chooses the best one based on cost.
+ * if all aggregate function buffer are fix length, the rule will choose hash window agg.
+ */
 class BatchExecWindowAggregateRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalWindowAggregate],
       operand(classOf[RelNode], any)),
     FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE,
     "BatchExecWindowAggregateRule")
-  with BatchExecAggRuleBase {
+  with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val agg: FlinkLogicalWindowAggregate = call.rel(0)
@@ -346,11 +346,11 @@ class BatchExecWindowAggregateRule
   }
 
   /**
-    * Return true when sliding window with slideSize < windowSize && gcd(windowSize, slideSize) > 1.
-    * Otherwise return false, including the cases of tumbling window,
-    * sliding window with slideSize >= windowSize and
-    * sliding window with slideSize < windowSize but gcd(windowSize, slideSize) == 1.
-    */
+   * Return true when sliding window with slideSize < windowSize && gcd(windowSize, slideSize) > 1.
+   * Otherwise return false, including the cases of tumbling window,
+   * sliding window with slideSize >= windowSize and
+   * sliding window with slideSize < windowSize but gcd(windowSize, slideSize) == 1.
+   */
   private def useAssignPane(
       aggregateList: Array[UserDefinedFunction],
       windowSize: Long,
@@ -360,12 +360,12 @@ class BatchExecWindowAggregateRule
   }
 
   /**
-    * In the case of sliding window without the optimization of assigning pane which means
-    * slideSize < windowSize && ArithmeticUtils.gcd(windowSize, slideSize) == 1, we will disable the
-    * local aggregate.
-    * Otherwise, we use the same way as the group aggregate to make the decision whether
-    * to use a local aggregate or not.
-    */
+   * In the case of sliding window without the optimization of assigning pane which means
+   * slideSize < windowSize && ArithmeticUtils.gcd(windowSize, slideSize) == 1, we will disable the
+   * local aggregate.
+   * Otherwise, we use the same way as the group aggregate to make the decision whether
+   * to use a local aggregate or not.
+   */
   private def supportLocalWindowAgg(
       call: RelOptRuleCall,
       tableConfig: TableConfig,

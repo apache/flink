@@ -28,7 +28,6 @@ import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
 
 import java.util
@@ -36,13 +35,12 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode for local hash-based aggregate operator.
-  *
-  * @see [[BatchExecGroupAggregateBase]] for more info.
-  */
+ * Batch physical RelNode for local hash-based aggregate operator.
+ *
+ * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ */
 class BatchExecLocalHashAggregate(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
@@ -52,7 +50,6 @@ class BatchExecLocalHashAggregate(
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
   extends BatchExecHashAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
@@ -67,7 +64,6 @@ class BatchExecLocalHashAggregate(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLocalHashAggregate(
       cluster,
-      relBuilder,
       traitSet,
       inputs.get(0),
       outputRowType,

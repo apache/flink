@@ -218,7 +218,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
   }
 
   def getPopulationSize(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
     // for global agg which has inner local agg, it passes the parameters to input directly

@@ -34,35 +34,35 @@ import org.apache.calcite.rel._
 import scala.collection.JavaConversions._
 
 /**
-  * Rule that converts [[FlinkLogicalAggregate]] to
-  * {{{
-  *   BatchExecSortAggregate (global)
-  *   +- Sort (exists if group keys are not empty)
-  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *         +- BatchExecLocalSortAggregate (local)
-  *           +- Sort (exists if group keys are not empty)
-  *              +- input of agg
-  * }}}
-  * when all aggregate functions are mergeable
-  * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
-  * {{{
-  *   BatchExecSortAggregate
-  *   +- Sort (exists if group keys are not empty)
-  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *         +- input of agg
-  * }}}
-  * when some aggregate functions are not mergeable
-  * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
-  *
-  * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
-  * this rule will try to create two possibilities above, and chooses the best one based on cost.
-  */
+ * Rule that converts [[FlinkLogicalAggregate]] to
+ * {{{
+ *   BatchExecSortAggregate (global)
+ *   +- Sort (exists if group keys are not empty)
+ *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *         +- BatchExecLocalSortAggregate (local)
+ *           +- Sort (exists if group keys are not empty)
+ *              +- input of agg
+ * }}}
+ * when all aggregate functions are mergeable
+ * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
+ * {{{
+ *   BatchExecSortAggregate
+ *   +- Sort (exists if group keys are not empty)
+ *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
+ *         +- input of agg
+ * }}}
+ * when some aggregate functions are not mergeable
+ * or [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
+ *
+ * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
+ * this rule will try to create two possibilities above, and chooses the best one based on cost.
+ */
 class BatchExecSortAggRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalAggregate],
       operand(classOf[RelNode], any)),
     "BatchExecSortAggRule")
-  with BatchExecAggRuleBase {
+  with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
@@ -99,7 +99,6 @@ class BatchExecSortAggRule
 
       val localSortAgg = createLocalAgg(
         agg.getCluster,
-        call.builder(),
         providedLocalTraitSet,
         newLocalInput,
         agg.getRowType,
@@ -142,7 +141,6 @@ class BatchExecSortAggRule
         val newInputForFinalAgg = RelOptRule.convert(localSortAgg, requiredTraitSet)
         val globalSortAgg = new BatchExecSortAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newInputForFinalAgg,
           agg.getRowType,
@@ -177,7 +175,6 @@ class BatchExecSortAggRule
         val newInput = RelOptRule.convert(input, requiredTraitSet)
         val sortAgg = new BatchExecSortAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newInput,
           agg.getRowType,
