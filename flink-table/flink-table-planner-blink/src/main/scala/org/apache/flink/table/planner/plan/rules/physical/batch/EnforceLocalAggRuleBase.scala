@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashAggregate, BatchExecSortAggregate, BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecSortAggregate, BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
@@ -81,7 +81,7 @@ abstract class EnforceLocalAggRuleBase(
       .replace(FlinkConventions.BATCH_PHYSICAL)
 
     val isLocalHashAgg = completeAgg match {
-      case _: BatchExecHashAggregate => true
+      case _: BatchPhysicalHashAggregate => true
       case _: BatchExecSortAggregate => false
       case _ =>
         throw new TableException(s"Unsupported aggregate: ${completeAgg.getClass.getSimpleName}")
@@ -131,8 +131,8 @@ abstract class EnforceLocalAggRuleBase(
     val aggInputRowType = completeAgg.getInput.getRowType
 
     completeAgg match {
-      case _: BatchExecHashAggregate =>
-        new BatchExecHashAggregate(
+      case _: BatchPhysicalHashAggregate =>
+        new BatchPhysicalHashAggregate(
           completeAgg.getCluster,
           completeAgg.getTraitSet,
           input,

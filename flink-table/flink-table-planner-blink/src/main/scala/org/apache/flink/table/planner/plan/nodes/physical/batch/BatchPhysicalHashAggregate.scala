@@ -19,8 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 
@@ -40,7 +42,7 @@ import scala.collection.JavaConversions._
   *
   * @see [[BatchPhysicalGroupAggregateBase]] for more info.
   */
-class BatchExecHashAggregate(
+class BatchPhysicalHashAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -51,13 +53,11 @@ class BatchExecHashAggregate(
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     isMerge: Boolean)
-  extends BatchExecHashAggregateBase(
+  extends BatchPhysicalHashAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
-    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -65,7 +65,7 @@ class BatchExecHashAggregate(
     isFinal = true) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecHashAggregate(
+    new BatchPhysicalHashAggregate(
       cluster,
       traitSet,
       inputs.get(0),
@@ -141,10 +141,17 @@ class BatchExecHashAggregate(
     Some(copy(newProvidedTraitSet, Seq(newInput)))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder()
-      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-      .build())
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecHashAggregate(
+      grouping,
+      auxGrouping,
+      getAggCallList.toArray,
+      FlinkTypeFactory.toLogicalRowType(aggInputRowType),
+      isMerge,
+      true, // isFinal is always true
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build(),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
+  }
 }

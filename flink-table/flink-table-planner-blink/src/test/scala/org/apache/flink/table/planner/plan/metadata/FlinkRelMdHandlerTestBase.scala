@@ -991,7 +991,7 @@ class FlinkRelMdHandlerTestBase {
 
     val batchExchange1 = new BatchPhysicalExchange(
       cluster, batchLocalAgg.getTraitSet.replace(hash0), batchLocalAgg, hash0)
-    val batchGlobalAgg = new BatchExecHashAggregate(
+    val batchGlobalAgg = new BatchPhysicalHashAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange1,
@@ -1005,7 +1005,7 @@ class FlinkRelMdHandlerTestBase {
 
     val batchExchange2 = new BatchPhysicalExchange(cluster,
       studentBatchScan.getTraitSet.replace(hash3), studentBatchScan, hash3)
-    val batchGlobalAggWithoutLocal = new BatchExecHashAggregate(
+    val batchGlobalAggWithoutLocal = new BatchPhysicalHashAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange2,
@@ -1127,7 +1127,7 @@ class FlinkRelMdHandlerTestBase {
       .add("avg_score", doubleType)
       .add("sum_score", doubleType)
       .add("cnt", longType).build()
-    val batchGlobalAggWithAuxGroup = new BatchExecHashAggregate(
+    val batchGlobalAggWithAuxGroup = new BatchPhysicalHashAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange,
@@ -1141,7 +1141,7 @@ class FlinkRelMdHandlerTestBase {
 
     val batchExchange2 = new BatchPhysicalExchange(cluster,
       studentBatchScan.getTraitSet.replace(hash0), studentBatchScan, hash0)
-    val batchGlobalAggWithoutLocalWithAuxGroup = new BatchExecHashAggregate(
+    val batchGlobalAggWithoutLocalWithAuxGroup = new BatchPhysicalHashAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange2,

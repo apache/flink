@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecHashAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
   * Rule that matches [[FlinkLogicalAggregate]] which all aggregate function buffer are fix length,
   * and converts it to
   * {{{
-  *   BatchExecHashAggregate (global)
+  *   BatchPhysicalHashAggregate (global)
   *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- BatchExecLocalHashAggregate (local)
   *         +- input of agg
@@ -45,7 +45,7 @@ import scala.collection.JavaConversions._
   * when all aggregate functions are mergeable
   * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
-  *   BatchExecHashAggregate
+  *   BatchPhysicalHashAggregate
   *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- input of agg
   * }}}
@@ -55,11 +55,11 @@ import scala.collection.JavaConversions._
   * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
   * this rule will try to create two possibilities above, and chooses the best one based on cost.
   */
-class BatchExecHashAggRule
+class BatchPhysicalHashAggRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalAggregate],
       operand(classOf[RelNode], any)),
-    "BatchExecHashAggRule")
+    "BatchPhysicalHashAggRule")
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -109,7 +109,7 @@ class BatchExecHashAggRule
         aggCallToAggFunction,
         isLocalHashAgg = true)
 
-      // create global BatchExecHashAggregate
+      // create global BatchPhysicalHashAggregate
       val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)
       val globalDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = globalGroupSet.map(Integer.valueOf).toList
@@ -133,7 +133,7 @@ class BatchExecHashAggRule
       globalDistributions.foreach { globalDistribution =>
         val requiredTraitSet = localHashAgg.getTraitSet.replace(globalDistribution)
         val newLocalHashAgg = RelOptRule.convert(localHashAgg, requiredTraitSet)
-        val globalHashAgg = new BatchExecHashAggregate(
+        val globalHashAgg = new BatchPhysicalHashAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newLocalHashAgg,
@@ -163,7 +163,7 @@ class BatchExecHashAggRule
           .replace(FlinkConventions.BATCH_PHYSICAL)
           .replace(requiredDistribution)
         val newInput = RelOptRule.convert(input, requiredTraitSet)
-        val hashAgg = new BatchExecHashAggregate(
+        val hashAgg = new BatchPhysicalHashAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newInput,
@@ -180,6 +180,6 @@ class BatchExecHashAggRule
   }
 }
 
-object BatchExecHashAggRule {
-  val INSTANCE = new BatchExecHashAggRule
+object BatchPhysicalHashAggRule {
+  val INSTANCE = new BatchPhysicalHashAggRule
 }

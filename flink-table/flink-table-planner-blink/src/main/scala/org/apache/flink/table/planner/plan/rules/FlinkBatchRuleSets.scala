@@ -414,7 +414,7 @@ object FlinkBatchRuleSets {
     // expand
     BatchPhysicalExpandRule.INSTANCE,
     // group agg
-    BatchExecHashAggRule.INSTANCE,
+    BatchPhysicalHashAggRule.INSTANCE,
     BatchExecSortAggRule.INSTANCE,
     RemoveRedundantLocalSortAggRule.WITHOUT_SORT,
     RemoveRedundantLocalSortAggRule.WITH_SORT,
