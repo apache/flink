@@ -106,6 +106,7 @@ formatting on saving with these steps:
 5. Install the [Save Actions
    plugin](https://plugins.jetbrains.com/plugin/7642-save-actions)
 6. Enable the plugin, along with "Optimize imports" and "Reformat file"
+7. In the "Save Actions" settings page, setup a "File Path Inclusion" for `.*\.java`. Otherwise you will get unintended reformatting in other files you edit.
 
 ### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
