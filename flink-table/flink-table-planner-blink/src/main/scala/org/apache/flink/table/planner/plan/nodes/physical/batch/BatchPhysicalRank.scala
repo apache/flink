@@ -227,8 +227,6 @@ class BatchPhysicalRank(
     }
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecRank(
       partitionKey.toArray,

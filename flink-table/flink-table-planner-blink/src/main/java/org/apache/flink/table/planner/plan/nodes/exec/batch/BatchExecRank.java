@@ -37,7 +37,7 @@ import java.util.Collections;
 import java.util.stream.IntStream;
 
 /**
- * Batch physical ExecNode for Rank.
+ * {@link BatchExecNode} for Rank.
  *
  * <p>This node supports two-stage(local and global) rank to reduce data-shuffling.
  */
@@ -56,7 +56,7 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
             long rankEnd,
             boolean outputRankNumber,
             ExecEdge inputEdge,
-            LogicalType outputType,
+            RowType outputType,
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.partitionFields = partitionFields;
@@ -73,7 +73,6 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
         Transformation<RowData> input =
                 (Transformation<RowData>) getInputNodes().get(0).translateToPlan(planner);
 
-        RowType outputType = (RowType) getOutputType();
         RowType inputType = (RowType) getInputNodes().get(0).getOutputType();
 
         LogicalType[] partitionTypes =
@@ -106,6 +105,7 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
                         rankEnd,
                         outputRankNumber);
 
+        RowType outputType = (RowType) getOutputType();
         OneInputTransformation<RowData, RowData> ret =
                 ExecNodeUtil.createOneInputTransformation(
                         input,
