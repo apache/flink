@@ -19,8 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
 
@@ -40,7 +42,7 @@ import scala.collection.JavaConversions._
  *
  * @see [[BatchPhysicalGroupAggregateBase]] for more info.
  */
-class BatchExecSortAggregate(
+class BatchPhysicalSortAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -51,13 +53,11 @@ class BatchExecSortAggregate(
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     isMerge: Boolean)
-  extends BatchExecSortAggregateBase(
+  extends BatchPhysicalSortAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
-    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -65,7 +65,7 @@ class BatchExecSortAggregate(
     isFinal = true) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecSortAggregate(
+    new BatchPhysicalSortAggregate(
       cluster,
       traitSet,
       inputs.get(0),
@@ -153,16 +153,25 @@ class BatchExecSortAggregate(
     Some(copy(newProvidedTraitSet, Seq(newInput)))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecSortAggregate(
+      grouping,
+      auxGrouping,
+      getAggCallList.toArray,
+      FlinkTypeFactory.toLogicalRowType(aggInputRowType),
+      isMerge,
+      true, // isFinal is always true
+      getInputEdge,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
+  }
 
-  override def getInputEdges: util.List[ExecEdge] = {
+  private def getInputEdge: ExecEdge = {
     if (grouping.length == 0) {
-      List(
-        ExecEdge.builder()
-          .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-          .build())
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build()
     } else {
-      List(ExecEdge.DEFAULT)
+      ExecEdge.DEFAULT
     }
   }
 }

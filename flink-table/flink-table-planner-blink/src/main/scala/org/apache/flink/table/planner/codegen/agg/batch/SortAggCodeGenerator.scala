@@ -37,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType
   */
 object SortAggCodeGenerator {
 
-  private[flink] def genWithKeys(
+  def genWithKeys(
       ctx: CodeGeneratorContext,
       builder: RelBuilder,
       aggInfoList: AggregateInfoList,
