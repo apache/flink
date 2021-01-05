@@ -182,7 +182,6 @@ public class StreamExecIncrementalGroupAggregate extends ExecNodeBase<RowData>
                         inputFieldCopy);
 
         return generator
-                .needAccumulate()
                 .needMerge(mergedAccOffset, true, mergedAccExternalTypes)
                 .generateAggsHandler(name, aggInfoList);
     }
