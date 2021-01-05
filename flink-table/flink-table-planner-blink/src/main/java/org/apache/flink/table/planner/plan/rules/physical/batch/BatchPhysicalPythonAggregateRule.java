@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalPythonGroupAggregate;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
@@ -50,18 +50,18 @@ import scala.collection.Seq;
 
 /**
  * The physical rule which is responsible for converting {@link FlinkLogicalAggregate} to {@link
- * BatchExecPythonGroupAggregate}.
+ * BatchPhysicalPythonGroupAggregate}.
  */
-public class BatchExecPythonAggregateRule extends ConverterRule {
+public class BatchPhysicalPythonAggregateRule extends ConverterRule {
 
-    public static final RelOptRule INSTANCE = new BatchExecPythonAggregateRule();
+    public static final RelOptRule INSTANCE = new BatchPhysicalPythonAggregateRule();
 
-    private BatchExecPythonAggregateRule() {
+    private BatchPhysicalPythonAggregateRule() {
         super(
                 FlinkLogicalAggregate.class,
                 FlinkConventions.LOGICAL(),
                 FlinkConventions.BATCH_PHYSICAL(),
-                "BatchExecPythonAggregateRule");
+                "BatchPhysicalPythonAggregateRule");
     }
 
     @Override
@@ -124,7 +124,7 @@ public class BatchExecPythonAggregateRule extends ConverterRule {
         }
         RelNode convInput = RelOptRule.convert(input, requiredTraitSet);
 
-        return new BatchExecPythonGroupAggregate(
+        return new BatchPhysicalPythonGroupAggregate(
                 relNode.getCluster(),
                 traitSet,
                 convInput,

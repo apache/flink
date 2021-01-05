@@ -18,24 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.core.memory.ManagedMemoryUseCase
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupAggregate.ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupAggregate
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -51,7 +40,7 @@ import scala.collection.JavaConversions._
 /**
  * Batch physical RelNode for aggregate (Python user defined aggregate function).
  */
-class BatchExecPythonGroupAggregate(
+class BatchPhysicalPythonGroupAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -71,9 +60,7 @@ class BatchExecPythonGroupAggregate(
     auxGrouping,
     aggCalls.zip(aggFunctions),
     isMerge = false,
-    isFinal = true)
-  with LegacyBatchExecNode[RowData]
-  with CommonExecPythonAggregate {
+    isFinal = true) {
 
   override def explainTerms(pw: RelWriter): RelWriter =
     super.explainTerms(pw)
@@ -149,7 +136,7 @@ class BatchExecPythonGroupAggregate(
   }
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecPythonGroupAggregate(
+    new BatchPhysicalPythonGroupAggregate(
       cluster,
       traitSet,
       inputs.get(0),
@@ -162,84 +149,15 @@ class BatchExecPythonGroupAggregate(
       aggFunctions)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder()
-      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-      .build())
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val input = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
-
-    val ret = createPythonOneInputTransformation(
-      input,
-      inputType,
-      outputType,
-      getConfig(planner.getExecEnv, planner.getTableConfig))
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
-    }
-    ret
-  }
-
-  private[this] def createPythonOneInputTransformation(
-      inputTransform: Transformation[RowData],
-      inputRowType: RowType,
-      outputRowType: RowType,
-      config: Configuration): OneInputTransformation[RowData, RowData] = {
-
-    val (pythonUdafInputOffsets, pythonFunctionInfos) =
-      extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls)
-
-    val pythonOperator = getPythonAggregateFunctionOperator(
-      config,
-      inputRowType,
-      outputRowType,
-      pythonUdafInputOffsets,
-      pythonFunctionInfos)
-
-    new OneInputTransformation(
-      inputTransform,
-      "BatchExecPythonGroupAggregate",
-      pythonOperator,
-      InternalTypeInfo.of(outputRowType),
-      inputTransform.getParallelism)
-  }
-
-  private[this] def getPythonAggregateFunctionOperator(
-      config: Configuration,
-      inputRowType: RowType,
-      outputRowType: RowType,
-      udafInputOffsets: Array[Int],
-      pythonFunctionInfos: Array[PythonFunctionInfo]): OneInputStreamOperator[RowData, RowData] = {
-    val clazz = loadClass(ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME)
-
-    val ctor = clazz.getConstructor(
-      classOf[Configuration],
-      classOf[Array[PythonFunctionInfo]],
-      classOf[RowType],
-      classOf[RowType],
-      classOf[Array[Int]],
-      classOf[Array[Int]],
-      classOf[Array[Int]])
-    ctor.newInstance(
-      config,
-      pythonFunctionInfos,
-      inputRowType,
-      outputRowType,
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecPythonGroupAggregate(
       grouping,
-      grouping ++ auxGrouping,
-      udafInputOffsets).asInstanceOf[OneInputStreamOperator[RowData, RowData]]
+      auxGrouping,
+      aggCalls,
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build(),
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }
 
-object BatchExecPythonGroupAggregate {
-  val ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
-    "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch." +
-      "BatchArrowPythonGroupAggregateFunctionOperator"
-}
