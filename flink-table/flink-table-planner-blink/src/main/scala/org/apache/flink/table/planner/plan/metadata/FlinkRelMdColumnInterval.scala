@@ -625,7 +625,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             }
           case agg: BatchExecLocalSortAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
-          case agg: BatchExecSortAggregate if agg.isMerge =>
+          case agg: BatchPhysicalSortAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
               aggCallIndex, agg.getAggCallList, agg.aggInputRowType)
             if (aggCallIndexInLocalAgg != null) {
