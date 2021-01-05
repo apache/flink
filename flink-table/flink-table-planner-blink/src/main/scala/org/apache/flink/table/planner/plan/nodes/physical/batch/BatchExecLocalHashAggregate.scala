@@ -18,10 +18,22 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.MemorySize
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator}
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type
@@ -48,18 +60,17 @@ class BatchExecLocalHashAggregate(
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)])
-  extends BatchExecHashAggregateBase(
+  extends BatchPhysicalHashAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
     isMerge = false,
-    isFinal = false) {
+    isFinal = false)
+  with LegacyBatchExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecLocalHashAggregate(
@@ -120,6 +131,47 @@ class BatchExecLocalHashAggregate(
   }
 
   //~ ExecNode methods -----------------------------------------------------------
+
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[RowData] = {
+    val config = planner.getTableConfig
+    val input = getInputNodes.get(0).translateToPlan(planner)
+      .asInstanceOf[Transformation[RowData]]
+    val ctx = CodeGeneratorContext(config)
+    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
+
+    val aggInfos = transformToBatchAggregateInfoList(
+      FlinkTypeFactory.toLogicalRowType(inputRowType), getAggCallList)
+
+    var managedMemory: Long = 0L
+    val generatedOperator = if (grouping.isEmpty) {
+      AggWithoutKeysCodeGenerator.genWithoutKeys(
+        ctx, planner.getRelBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
+    } else {
+      managedMemory = MemorySize.parse(config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
+      new HashAggCodeGenerator(
+        ctx,
+        planner.getRelBuilder,
+        aggInfos,
+        inputType,
+        outputType,
+        grouping,
+        auxGrouping,
+        isMerge,
+        isFinal
+      ).genWithKeys()
+    }
+    val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
+    ExecNodeUtil.createOneInputTransformation(
+      input,
+      getRelDetailedDescription,
+      operator,
+      InternalTypeInfo.of(outputType),
+      input.getParallelism,
+      managedMemory)
+  }
 
   override def getInputEdges: util.List[ExecEdge] = {
     if (grouping.length == 0) {
