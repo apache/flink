@@ -137,12 +137,9 @@ public class HiveCatalog extends AbstractCatalog {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveCatalog.class);
 
-    // Prefix used to distinguish Flink functions from Hive functions.
-    // It's appended to Flink function's class name
-    // because Hive's Function object doesn't have properties or other place to store the flag for
-    // Flink functions.
-    private static final String FLINK_FUNCTION_PREFIX = "flink:";
-    private static final String FLINK_PYTHON_FUNCTION_PREFIX = FLINK_FUNCTION_PREFIX + "python:";
+    // Prefix used to distinguish scala/python functions
+    private static final String FLINK_SCALA_FUNCTION_PREFIX = "flink:scala:";
+    private static final String FLINK_PYTHON_FUNCTION_PREFIX = "flink:python:";
 
     private final HiveConf hiveConf;
     private final String hiveVersion;
@@ -1254,15 +1251,8 @@ public class HiveCatalog extends AbstractCatalog {
         checkNotNull(newFunction, "newFunction cannot be null");
 
         try {
-            CatalogFunction existingFunction = getFunction(functionPath);
-            boolean existingType = existingFunction.isGeneric();
-            boolean newType = newFunction.isGeneric();
-            if (existingType != newType) {
-                throw new CatalogException(
-                        String.format(
-                                "Function types don't match. Existing function %s generic, and new function %s generic.",
-                                existingType ? "is" : "isn't", newType ? "is" : "isn't"));
-            }
+            // check if function exists
+            getFunction(functionPath);
 
             Function hiveFunction;
             if (newFunction instanceof CatalogFunctionImpl) {
@@ -1334,16 +1324,18 @@ public class HiveCatalog extends AbstractCatalog {
                     client.getFunction(
                             functionPath.getDatabaseName(), functionPath.getObjectName());
 
-            if (function.getClassName().startsWith(FLINK_FUNCTION_PREFIX)) {
-                if (function.getClassName().startsWith(FLINK_PYTHON_FUNCTION_PREFIX)) {
-                    return new CatalogFunctionImpl(
-                            function.getClassName()
-                                    .substring(FLINK_PYTHON_FUNCTION_PREFIX.length()),
-                            FunctionLanguage.PYTHON);
-                } else {
-                    return new CatalogFunctionImpl(
-                            function.getClassName().substring(FLINK_FUNCTION_PREFIX.length()));
-                }
+            if (function.getClassName().startsWith(FLINK_PYTHON_FUNCTION_PREFIX)) {
+                return new CatalogFunctionImpl(
+                        function.getClassName().substring(FLINK_PYTHON_FUNCTION_PREFIX.length()),
+                        FunctionLanguage.PYTHON);
+            } else if (function.getClassName().startsWith(FLINK_SCALA_FUNCTION_PREFIX)) {
+                return new CatalogFunctionImpl(
+                        function.getClassName().substring(FLINK_SCALA_FUNCTION_PREFIX.length()),
+                        FunctionLanguage.SCALA);
+            } else if (function.getClassName().startsWith("flink:")) {
+                // to be compatible with old behavior
+                return new CatalogFunctionImpl(
+                        function.getClassName().substring("flink:".length()));
             } else {
                 return new CatalogFunctionImpl(function.getClassName());
             }
@@ -1375,23 +1367,19 @@ public class HiveCatalog extends AbstractCatalog {
 
     private static Function instantiateHiveFunction(
             ObjectPath functionPath, CatalogFunction function) {
-
-        boolean isGeneric = function.isGeneric();
-
         // Hive Function does not have properties map
-        // thus, use a prefix in class name to distinguish Flink and Hive functions
+        // thus, use a prefix in class name to distinguish Java/Scala and Python functions
         String functionClassName;
-        if (function.getFunctionLanguage().equals(FunctionLanguage.JAVA)) {
-            functionClassName =
-                    isGeneric
-                            ? FLINK_FUNCTION_PREFIX + function.getClassName()
-                            : function.getClassName();
-        } else if (function.getFunctionLanguage().equals(FunctionLanguage.PYTHON)) {
+        if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
+            functionClassName = function.getClassName();
+        } else if (function.getFunctionLanguage() == FunctionLanguage.SCALA) {
+            functionClassName = FLINK_SCALA_FUNCTION_PREFIX + function.getClassName();
+        } else if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
             functionClassName = FLINK_PYTHON_FUNCTION_PREFIX + function.getClassName();
         } else {
             throw new UnsupportedOperationException(
                     "HiveCatalog supports only creating"
-                            + " JAVA or PYTHON based function for now");
+                            + " JAVA/SCALA or PYTHON based function for now");
         }
 
         return new Function(
