@@ -177,9 +177,6 @@ public class StreamExecGlobalGroupAggregate extends ExecNodeBase<RowData>
             throw new TableException("Local-Global optimization is only worked in miniBatch mode");
         }
 
-        final RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
-
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =
                 new OneInputTransformation<>(
@@ -195,6 +192,8 @@ public class StreamExecGlobalGroupAggregate extends ExecNodeBase<RowData>
         }
 
         // set KeyType and Selector for state
+        final RowDataKeySelector selector =
+                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputRowType));
         transform.setStateKeySelector(selector);
         transform.setStateKeyType(selector.getProducedType());
 
@@ -212,7 +211,7 @@ public class StreamExecGlobalGroupAggregate extends ExecNodeBase<RowData>
         // For local aggregate, the result will be buffered, so copyInputField is true.
         // For global aggregate, result will be put into state, then not need copy
         // but this global aggregate result will be put into a buffered map first,
-        // then multiput to state, so copyInputField is true.
+        // then multi-put to state, so copyInputField is true.
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
                         new CodeGeneratorContext(config),
@@ -221,7 +220,6 @@ public class StreamExecGlobalGroupAggregate extends ExecNodeBase<RowData>
                         true);
 
         return generator
-                .needAccumulate()
                 .needMerge(mergedAccOffset, true, mergedAccExternalTypes)
                 .generateAggsHandler(name, aggInfoList);
     }
