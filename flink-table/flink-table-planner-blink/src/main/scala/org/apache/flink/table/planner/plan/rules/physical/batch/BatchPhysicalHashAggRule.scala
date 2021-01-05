@@ -39,7 +39,7 @@ import scala.collection.JavaConversions._
   * {{{
   *   BatchPhysicalHashAggregate (global)
   *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
-  *      +- BatchExecLocalHashAggregate (local)
+  *      +- BatchPhysicalLocalHashAggregate (local)
   *         +- input of agg
   * }}}
   * when all aggregate functions are mergeable
@@ -94,7 +94,7 @@ class BatchPhysicalHashAggRule
 
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
-      // create BatchExecLocalHashAggregate
+      // create BatchPhysicalLocalHashAggregate
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
       val providedTraitSet = localRequiredTraitSet

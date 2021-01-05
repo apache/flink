@@ -18,22 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.MemorySize
-import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext
-import org.apache.flink.table.planner.codegen.agg.batch.{AggWithoutKeysCodeGenerator, HashAggCodeGenerator}
-import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
-import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type
@@ -51,7 +41,7 @@ import scala.collection.JavaConversions._
  *
  * @see [[BatchPhysicalGroupAggregateBase]] for more info.
  */
-class BatchExecLocalHashAggregate(
+class BatchPhysicalLocalHashAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -69,11 +59,10 @@ class BatchExecLocalHashAggregate(
     auxGrouping,
     aggCallToAggFunction,
     isMerge = false,
-    isFinal = false)
-  with LegacyBatchExecNode[RowData] {
+    isFinal = false) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecLocalHashAggregate(
+    new BatchPhysicalLocalHashAggregate(
       cluster,
       traitSet,
       inputs.get(0),
@@ -130,57 +119,25 @@ class BatchExecLocalHashAggregate(
     Some(copy(providedTraits, Seq(newInput)))
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[RowData] = {
-    val config = planner.getTableConfig
-    val input = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val ctx = CodeGeneratorContext(config)
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
-
-    val aggInfos = transformToBatchAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(inputRowType), getAggCallList)
-
-    var managedMemory: Long = 0L
-    val generatedOperator = if (grouping.isEmpty) {
-      AggWithoutKeysCodeGenerator.genWithoutKeys(
-        ctx, planner.getRelBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
-    } else {
-      managedMemory = MemorySize.parse(config.getConfiguration.getString(
-        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)).getBytes
-      new HashAggCodeGenerator(
-        ctx,
-        planner.getRelBuilder,
-        aggInfos,
-        inputType,
-        outputType,
-        grouping,
-        auxGrouping,
-        isMerge,
-        isFinal
-      ).genWithKeys()
-    }
-    val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
-    ExecNodeUtil.createOneInputTransformation(
-      input,
-      getRelDetailedDescription,
-      operator,
-      InternalTypeInfo.of(outputType),
-      input.getParallelism,
-      managedMemory)
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecHashAggregate(
+      grouping,
+      auxGrouping,
+      getAggCallList.toArray,
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      false, // isMerge is always false
+      false, // isFinal is always false
+      getInputEdge,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 
-  override def getInputEdges: util.List[ExecEdge] = {
+  private def getInputEdge: ExecEdge = {
     if (grouping.length == 0) {
-      List(
-        ExecEdge.builder()
-          .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-          .build())
+      ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build()
     } else {
-      List(ExecEdge.DEFAULT)
+      ExecEdge.DEFAULT
     }
   }
 }

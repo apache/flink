@@ -613,7 +613,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             agg.partialAggCalls(aggCallIndex)
           case agg: StreamExecGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
-          case agg: BatchExecLocalHashAggregate =>
+          case agg: BatchPhysicalLocalHashAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)
           case agg: BatchPhysicalHashAggregate if agg.isMerge =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(

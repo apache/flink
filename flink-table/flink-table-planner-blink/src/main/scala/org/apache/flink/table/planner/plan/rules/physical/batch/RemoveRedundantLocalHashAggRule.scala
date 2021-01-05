@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashAggregate, BatchExecLocalHashAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashAggregate, BatchPhysicalLocalHashAggregate}
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -31,13 +31,13 @@ import org.apache.calcite.rel.RelNode
  */
 class RemoveRedundantLocalHashAggRule extends RelOptRule(
   operand(classOf[BatchPhysicalHashAggregate],
-    operand(classOf[BatchExecLocalHashAggregate],
+    operand(classOf[BatchPhysicalLocalHashAggregate],
       operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
   "RemoveRedundantLocalHashAggRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val globalAgg: BatchPhysicalHashAggregate = call.rel(0)
-    val localAgg: BatchExecLocalHashAggregate = call.rel(1)
+    val localAgg: BatchPhysicalLocalHashAggregate = call.rel(1)
     val inputOfLocalAgg = localAgg.getInput
     val newGlobalAgg = new BatchPhysicalHashAggregate(
       globalAgg.getCluster,

@@ -979,7 +979,7 @@ class FlinkRelMdHandlerTestBase {
     val hash0 = FlinkRelDistribution.hash(Array(0), requireStrict = true)
     val hash3 = FlinkRelDistribution.hash(Array(3), requireStrict = true)
 
-    val batchLocalAgg = new BatchExecLocalHashAggregate(
+    val batchLocalAgg = new BatchPhysicalLocalHashAggregate(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -1106,7 +1106,7 @@ class FlinkRelMdHandlerTestBase {
       .add("sum_score", doubleType)
       .add("cnt", longType).build()
 
-    val batchLocalAggWithAuxGroup = new BatchExecLocalHashAggregate(
+    val batchLocalAggWithAuxGroup = new BatchPhysicalLocalHashAggregate(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
