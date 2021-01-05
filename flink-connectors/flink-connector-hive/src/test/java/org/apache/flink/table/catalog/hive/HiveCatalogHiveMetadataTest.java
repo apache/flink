@@ -25,6 +25,8 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.CatalogDatabase;
+import org.apache.flink.table.catalog.CatalogFunction;
+import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -47,6 +49,8 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.udf.UDFRand;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -289,5 +293,15 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
     @Override
     public CatalogTable createStreamingTable() {
         throw new UnsupportedOperationException("Hive table cannot be streaming.");
+    }
+
+    @Override
+    protected CatalogFunction createFunction() {
+        return new CatalogFunctionImpl(GenericUDFAbs.class.getName());
+    }
+
+    @Override
+    protected CatalogFunction createAnotherFunction() {
+        return new CatalogFunctionImpl(UDFRand.class.getName());
     }
 }
