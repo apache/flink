@@ -40,14 +40,13 @@ abstract class RemoveRedundantLocalSortAggRule(
     val inputOfLocalAgg = getOriginalInputOfLocalAgg(call)
     val newGlobalAgg = new BatchExecSortAggregate(
       globalAgg.getCluster,
-      call.builder(),
       globalAgg.getTraitSet,
       inputOfLocalAgg,
       globalAgg.getRowType,
       inputOfLocalAgg.getRowType,
       inputOfLocalAgg.getRowType,
-      localAgg.getGrouping,
-      localAgg.getAuxGrouping,
+      localAgg.grouping,
+      localAgg.auxGrouping,
       // Use the localAgg agg calls because the global agg call filters was removed,
       // see BatchExecSortAggRule for details.
       localAgg.getAggCallToAggFunction,

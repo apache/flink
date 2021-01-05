@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUti
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.lang.{Boolean => JBoolean, Double => JDouble}
@@ -36,15 +35,13 @@ trait BatchExecJoinRuleBase {
 
   def addLocalDistinctAgg(
       node: RelNode,
-      distinctKeys: Seq[Int],
-      relBuilder: RelBuilder): RelNode = {
+      distinctKeys: Seq[Int]): RelNode = {
     val localRequiredTraitSet = node.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val newInput = RelOptRule.convert(node, localRequiredTraitSet)
     val providedTraitSet = localRequiredTraitSet
 
     new BatchExecLocalHashAggregate(
       node.getCluster,
-      relBuilder,
       providedTraitSet,
       newInput,
       node.getRowType, // output row type

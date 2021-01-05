@@ -36,16 +36,14 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.tools.RelBuilder
 
 /**
-  * Batch physical RelNode for sort-based aggregate operator.
-  *
-  * @see [[BatchExecGroupAggregateBase]] for more info.
-  */
+ * Batch physical RelNode for sort-based aggregate operator.
+ *
+ * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ */
 abstract class BatchExecSortAggregateBase(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
@@ -56,13 +54,11 @@ abstract class BatchExecSortAggregateBase(
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     isMerge: Boolean,
     isFinal: Boolean)
-  extends BatchExecGroupAggregateBase(
+  extends BatchPhysicalGroupAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
@@ -95,14 +91,22 @@ abstract class BatchExecSortAggregateBase(
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType(aggInputRowType), aggCallToAggFunction.map(_._1))
+      FlinkTypeFactory.toLogicalRowType(aggInputRowType), getAggCallList)
 
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(
-        ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
+        ctx, planner.getRelBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
       SortAggCodeGenerator.genWithKeys(
-        ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal)
+        ctx,
+        planner.getRelBuilder,
+        aggInfos,
+        inputType,
+        outputType,
+        grouping,
+        auxGrouping,
+        isMerge,
+        isFinal)
     }
     val operator = new CodeGenOperatorFactory[RowData](generatedOperator)
     ExecNodeUtil.createOneInputTransformation(

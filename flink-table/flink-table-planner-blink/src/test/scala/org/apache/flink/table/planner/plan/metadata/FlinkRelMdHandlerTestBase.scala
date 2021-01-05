@@ -88,17 +88,17 @@ class FlinkRelMdHandlerTestBase {
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
   val plannerContext: PlannerContext =
-    new PlannerContext(
-      tableConfig,
-      new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-      catalogManager,
-      CalciteSchema.from(rootSchema),
-      util.Arrays.asList(
-        ConventionTraitDef.INSTANCE,
-        FlinkRelDistributionTraitDef.INSTANCE,
-        RelCollationTraitDef.INSTANCE
-      )
+  new PlannerContext(
+    tableConfig,
+    new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+    catalogManager,
+    CalciteSchema.from(rootSchema),
+    util.Arrays.asList(
+      ConventionTraitDef.INSTANCE,
+      FlinkRelDistributionTraitDef.INSTANCE,
+      RelCollationTraitDef.INSTANCE
     )
+  )
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
 
@@ -981,7 +981,6 @@ class FlinkRelMdHandlerTestBase {
 
     val batchLocalAgg = new BatchExecLocalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       studentBatchScan,
       rowTypeOfLocalAgg,
@@ -994,7 +993,6 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchLocalAgg.getTraitSet.replace(hash0), batchLocalAgg, hash0)
     val batchGlobalAgg = new BatchExecHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange1,
       rowTypeOfGlobalAgg,
@@ -1009,7 +1007,6 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getTraitSet.replace(hash3), studentBatchScan, hash3)
     val batchGlobalAggWithoutLocal = new BatchExecHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       rowTypeOfGlobalAgg,
@@ -1111,7 +1108,6 @@ class FlinkRelMdHandlerTestBase {
 
     val batchLocalAggWithAuxGroup = new BatchExecLocalHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       studentBatchScan,
       rowTypeOfLocalAgg,
@@ -1133,7 +1129,6 @@ class FlinkRelMdHandlerTestBase {
       .add("cnt", longType).build()
     val batchGlobalAggWithAuxGroup = new BatchExecHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange,
       rowTypeOfGlobalAgg,
@@ -1148,7 +1143,6 @@ class FlinkRelMdHandlerTestBase {
       studentBatchScan.getTraitSet.replace(hash0), studentBatchScan, hash0)
     val batchGlobalAggWithoutLocalWithAuxGroup = new BatchExecHashAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       batchExchange2,
       rowTypeOfGlobalAgg,
@@ -2415,49 +2409,6 @@ class FlinkRelMdHandlerTestBase {
     .scan("MyTable1")
     .scan("MyTable2")
     .minus(false).build()
-
-  private def createGlobalAgg(
-      table: String, groupBy: String, sum: String): BatchExecHashAggregate = {
-    val scan: BatchPhysicalBoundedStreamScan =
-      createDataStreamScan(ImmutableList.of(table), batchPhysicalTraits)
-    relBuilder.push(scan)
-    val groupByField = relBuilder.field(groupBy)
-    val sumField = relBuilder.field(sum)
-    val hash = FlinkRelDistribution.hash(Array(groupByField.getIndex), requireStrict = true)
-
-    val exchange = new BatchPhysicalExchange(cluster, batchPhysicalTraits.replace(hash), scan, hash)
-    relBuilder.push(exchange)
-
-    val logicalAgg = relBuilder.aggregate(
-      relBuilder.groupKey(groupBy),
-      relBuilder.aggregateCall(SqlStdOperatorTable.SUM, relBuilder.field(sum))
-    ).build().asInstanceOf[LogicalAggregate]
-    val aggCalls = logicalAgg.getAggCallList
-    val aggFunctionFactory = new AggFunctionFactory(
-      FlinkTypeFactory.toLogicalRowType(studentBatchScan.getRowType),
-      Array.empty[Int],
-      Array.fill(aggCalls.size())(false))
-    val aggCallToAggFunction = aggCalls.zipWithIndex.map {
-      case (call, index) => (call, aggFunctionFactory.createAggFunction(call, index))
-    }
-
-    val rowTypeOfGlobalAgg = typeFactory.builder
-      .add(groupByField.getName, groupByField.getType)
-      .add(sumField.getName, sumField.getType).build()
-
-    new BatchExecHashAggregate(
-      cluster,
-      relBuilder,
-      batchPhysicalTraits,
-      exchange,
-      rowTypeOfGlobalAgg,
-      exchange.getRowType,
-      exchange.getRowType,
-      Array(groupByField.getIndex),
-      auxGrouping = Array(),
-      aggCallToAggFunction,
-      isMerge = false)
-  }
 
   protected def createDataStreamScan[T](
       tableNames: util.List[String], traitSet: RelTraitSet): T = {

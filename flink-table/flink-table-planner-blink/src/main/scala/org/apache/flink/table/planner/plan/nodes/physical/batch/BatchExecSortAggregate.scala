@@ -29,7 +29,6 @@ import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.{ImmutableIntList, Util}
 
 import java.util
@@ -37,13 +36,12 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Batch physical RelNode for (global) sort-based aggregate operator.
-  *
-  * @see [[BatchExecGroupAggregateBase]] for more info.
-  */
+ * Batch physical RelNode for (global) sort-based aggregate operator.
+ *
+ * @see [[BatchPhysicalGroupAggregateBase]] for more info.
+ */
 class BatchExecSortAggregate(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
@@ -55,7 +53,6 @@ class BatchExecSortAggregate(
     isMerge: Boolean)
   extends BatchExecSortAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
@@ -70,7 +67,6 @@ class BatchExecSortAggregate(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecSortAggregate(
       cluster,
-      relBuilder,
       traitSet,
       inputs.get(0),
       outputRowType,

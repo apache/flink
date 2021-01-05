@@ -66,7 +66,7 @@ class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
 
     val enableTwoPhaseAgg = isTwoPhaseAggEnabled(agg)
 
-    val grouping = agg.getGrouping
+    val grouping = agg.grouping
     val constantShuffleKey = hasConstantShuffleKey(grouping, expand)
 
     grouping.nonEmpty && enableTwoPhaseAgg && constantShuffleKey
@@ -76,17 +76,17 @@ class EnforceLocalSortAggRule extends EnforceLocalAggRuleBase(
     val agg: BatchExecSortAggregate = call.rel(0)
     val expand: BatchPhysicalExpand = call.rel(3)
 
-    val localGrouping = agg.getGrouping
+    val localGrouping = agg.grouping
     // create local sort
     val localSort = createSort(expand, localGrouping)
-    val localAgg = createLocalAgg(agg, localSort, call.builder)
+    val localAgg = createLocalAgg(agg, localSort)
 
     val exchange = createExchange(agg, localAgg)
 
     // create global sort
     val globalGrouping = localGrouping.indices.toArray
     val globalSort = createSort(exchange, globalGrouping)
-    val globalAgg = createGlobalAgg(agg, globalSort, call.builder)
+    val globalAgg = createGlobalAgg(agg, globalSort)
     call.transformTo(globalAgg)
   }
 

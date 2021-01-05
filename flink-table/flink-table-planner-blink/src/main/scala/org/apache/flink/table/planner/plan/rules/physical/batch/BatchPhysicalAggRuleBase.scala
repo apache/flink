@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashAggregate, BatchExecLocalSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashAggregate, BatchExecLocalSortAggregate, BatchPhysicalGroupAggregateBase}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
@@ -36,12 +36,11 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation, RelNode}
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
 
 import scala.collection.JavaConversions._
 
-trait BatchExecAggRuleBase {
+trait BatchPhysicalAggRuleBase {
 
   protected def inferLocalAggType(
       inputRowType: RelDataType,
@@ -185,7 +184,6 @@ trait BatchExecAggRuleBase {
 
   protected def createLocalAgg(
       cluster: RelOptCluster,
-      relBuilder: RelBuilder,
       traitSet: RelTraitSet,
       input: RelNode,
       originalAggRowType: RelDataType,
@@ -193,7 +191,7 @@ trait BatchExecAggRuleBase {
       auxGrouping: Array[Int],
       aggBufferTypes: Array[Array[DataType]],
       aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      isLocalHashAgg: Boolean): BatchExecGroupAggregateBase = {
+      isLocalHashAgg: Boolean): BatchPhysicalGroupAggregateBase = {
     val inputRowType = input.getRowType
     val aggFunctions = aggCallToAggFunction.map(_._2).toArray
 
@@ -213,7 +211,6 @@ trait BatchExecAggRuleBase {
     if (isLocalHashAgg) {
       new BatchExecLocalHashAggregate(
         cluster,
-        relBuilder,
         traitSet,
         input,
         localAggRowType,
@@ -224,7 +221,6 @@ trait BatchExecAggRuleBase {
     } else {
       new BatchExecLocalSortAggregate(
         cluster,
-        relBuilder,
         traitSet,
         input,
         localAggRowType,

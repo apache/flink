@@ -138,15 +138,15 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     }
   }
 
-  def getRowCount(rel: BatchExecGroupAggregateBase, mq: RelMetadataQuery): JDouble = {
+  def getRowCount(rel: BatchPhysicalGroupAggregateBase, mq: RelMetadataQuery): JDouble = {
     getRowCountOfBatchExecAgg(rel, mq)
   }
 
   private def getRowCountOfBatchExecAgg(rel: SingleRel, mq: RelMetadataQuery): JDouble = {
     val input = rel.getInput
     val (grouping, isFinal, isMerge) = rel match {
-      case agg: BatchExecGroupAggregateBase =>
-        (ImmutableBitSet.of(agg.getGrouping: _*), agg.isFinal, agg.isMerge)
+      case agg: BatchPhysicalGroupAggregateBase =>
+        (ImmutableBitSet.of(agg.grouping: _*), agg.isFinal, agg.isMerge)
       case windowAgg: BatchExecWindowAggregateBase =>
         (ImmutableBitSet.of(windowAgg.getGrouping: _*), windowAgg.isFinal, windowAgg.isMerge)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate type ${rel.getRelTypeName}!")
