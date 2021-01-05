@@ -39,7 +39,7 @@ import scala.collection.JavaConversions._
  *   BatchPhysicalSortAggregate (global)
  *   +- Sort (exists if group keys are not empty)
  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *         +- BatchExecLocalSortAggregate (local)
+ *         +- BatchPhysicalLocalSortAggregate (local)
  *           +- Sort (exists if group keys are not empty)
  *              +- input of agg
  * }}}
@@ -88,7 +88,7 @@ class BatchPhysicalSortAggRule
 
     // create two-phase agg if possible
     if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
-      // create BatchExecLocalSortAggregate
+      // create BatchPhysicalLocalSortAggregate
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       if (agg.getGroupCount != 0) {
         val sortCollation = createRelCollation(groupSet)
