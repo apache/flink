@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMapSpillMemorySegmentPool, BytesMap}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 /**
@@ -91,10 +91,11 @@ class HashAggCodeGenerator(
     HashAggCodeGenHelper.prepareHashAggKVTypes(
       ctx, groupKeyTypesTerm, aggBufferTypesTerm, groupKeyRowType, aggBufferRowType)
 
+    val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to aggregate and output using hash map
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
     val lookupInfo = ctx.addReusableLocalVariable(
-      classOf[BytesHashMap.LookupInfo].getCanonicalName,
+      classOf[BytesMap.LookupInfo[BinaryRowData]].getCanonicalName,
       "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
@@ -103,17 +104,14 @@ class HashAggCodeGenerator(
       aggregateMapTerm)
 
     val outputTerm = CodeGenUtils.newName("hashAggOutput")
-    val (reuseAggMapEntryTerm, reuseGroupKeyTerm, reuseAggBufferTerm) =
+    val (reuseGroupKeyTerm, reuseAggBufferTerm) =
       HashAggCodeGenHelper.prepareTermForAggMapIteration(
         ctx,
         outputTerm,
         outputType,
-        groupKeyRowType,
-        aggBufferRowType,
         if (grouping.isEmpty) classOf[GenericRowData] else classOf[JoinedRowData])
 
-    val currentAggBufferTerm = ctx.addReusableLocalVariable(
-      classOf[BinaryRowData].getName, "currentAggBuffer")
+    val currentAggBufferTerm = ctx.addReusableLocalVariable(binaryRowTypeTerm, "currentAggBuffer")
     val (initedAggBuffer, aggregate, outputExpr) = HashAggCodeGenHelper.genHashAggCodes(
       isMerge,
       isFinal,
@@ -132,7 +130,7 @@ class HashAggCodeGenerator(
       reuseAggBufferTerm)
 
     val outputResultFromMap = HashAggCodeGenHelper.genAggMapIterationAndOutput(
-      ctx, isFinal, aggregateMapTerm, reuseAggMapEntryTerm, reuseAggBufferTerm, outputExpr)
+      ctx, isFinal, aggregateMapTerm, reuseGroupKeyTerm, reuseAggBufferTerm, outputExpr)
 
     // gen code to deal with hash map oom, if enable fallback we will use sort agg strategy
     val sorterTerm = CodeGenUtils.newName("sorter")
@@ -177,7 +175,7 @@ class HashAggCodeGenerator(
          |$keyProjectionCode
          | // look up output buffer using current group key
          |$lookupInfo = $aggregateMapTerm.lookup($currentKeyTerm);
-         |$currentAggBufferTerm = $lookupInfo.getValue();
+         |$currentAggBufferTerm = ($binaryRowTypeTerm) $lookupInfo.getValue();
          |
          |if (!$lookupInfo.isFound()) {
          |  $lazyInitAggBufferCode
