@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSortAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSortAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
@@ -36,7 +36,7 @@ import scala.collection.JavaConversions._
 /**
  * Rule that converts [[FlinkLogicalAggregate]] to
  * {{{
- *   BatchExecSortAggregate (global)
+ *   BatchPhysicalSortAggregate (global)
  *   +- Sort (exists if group keys are not empty)
  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
  *         +- BatchExecLocalSortAggregate (local)
@@ -46,7 +46,7 @@ import scala.collection.JavaConversions._
  * when all aggregate functions are mergeable
  * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
  * {{{
- *   BatchExecSortAggregate
+ *   BatchPhysicalSortAggregate
  *   +- Sort (exists if group keys are not empty)
  *      +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
  *         +- input of agg
@@ -57,11 +57,11 @@ import scala.collection.JavaConversions._
  * Notes: if [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
  * this rule will try to create two possibilities above, and chooses the best one based on cost.
  */
-class BatchExecSortAggRule
+class BatchPhysicalSortAggRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalAggregate],
       operand(classOf[RelNode], any)),
-    "BatchExecSortAggRule")
+    "BatchPhysicalSortAggRule")
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -108,7 +108,7 @@ class BatchExecSortAggRule
         aggCallToAggFunction,
         isLocalHashAgg = false)
 
-      // create global BatchExecSortAggregate
+      // create global BatchPhysicalSortAggregate
       val (globalGroupSet, globalAuxGroupSet) = getGlobalAggGroupSetPair(groupSet, auxGroupSet)
       val (globalDistributions, globalCollation) = if (agg.getGroupCount != 0) {
         // global agg should use groupSet's indices as distribution fields
@@ -139,7 +139,7 @@ class BatchExecSortAggRule
           .replace(globalCollation)
 
         val newInputForFinalAgg = RelOptRule.convert(localSortAgg, requiredTraitSet)
-        val globalSortAgg = new BatchExecSortAggregate(
+        val globalSortAgg = new BatchPhysicalSortAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newInputForFinalAgg,
@@ -173,7 +173,7 @@ class BatchExecSortAggRule
           requiredTraitSet = requiredTraitSet.replace(sortCollation)
         }
         val newInput = RelOptRule.convert(input, requiredTraitSet)
-        val sortAgg = new BatchExecSortAggregate(
+        val sortAgg = new BatchPhysicalSortAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newInput,
@@ -191,6 +191,6 @@ class BatchExecSortAggRule
   }
 }
 
-object BatchExecSortAggRule {
-  val INSTANCE = new BatchExecSortAggRule
+object BatchPhysicalSortAggRule {
+  val INSTANCE = new BatchPhysicalSortAggRule
 }
