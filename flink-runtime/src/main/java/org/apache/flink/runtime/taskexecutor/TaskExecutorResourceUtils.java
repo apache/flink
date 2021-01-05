@@ -58,6 +58,10 @@ public class TaskExecutorResourceUtils {
                     TaskManagerOptions.JVM_OVERHEAD_MAX,
                     TaskManagerOptions.JVM_OVERHEAD_FRACTION);
 
+    private static final MemorySize LOCAL_EXECUTION_TASK_MEMORY =
+            MemorySize.ofMebiBytes(1024 * 1024);
+    private static final double LOCAL_EXECUTION_CPU_CORES = 1000000.0;
+
     static final MemorySize DEFAULT_SHUFFLE_MEMORY_SIZE = MemorySize.parse("64m");
     static final MemorySize DEFAULT_MANAGED_MEMORY_SIZE = MemorySize.parse("128m");
 
@@ -134,11 +138,12 @@ public class TaskExecutorResourceUtils {
     public static Configuration adjustForLocalExecution(Configuration config) {
         UNUSED_CONFIG_OPTIONS.forEach(option -> warnOptionHasNoEffectIfSet(config, option));
 
-        setConfigOptionToPassedMaxIfNotSet(config, TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
         setConfigOptionToPassedMaxIfNotSet(
-                config, TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.MAX_VALUE);
+                config, TaskManagerOptions.CPU_CORES, LOCAL_EXECUTION_CPU_CORES);
         setConfigOptionToPassedMaxIfNotSet(
-                config, TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.MAX_VALUE);
+                config, TaskManagerOptions.TASK_HEAP_MEMORY, LOCAL_EXECUTION_TASK_MEMORY);
+        setConfigOptionToPassedMaxIfNotSet(
+                config, TaskManagerOptions.TASK_OFF_HEAP_MEMORY, LOCAL_EXECUTION_TASK_MEMORY);
 
         adjustNetworkMemoryForLocalExecution(config);
         setConfigOptionToDefaultIfNotSet(
