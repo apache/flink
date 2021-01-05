@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLocalHashAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil}
 
 import org.apache.calcite.plan.RelOptRule
@@ -40,7 +40,7 @@ trait BatchExecJoinRuleBase {
     val newInput = RelOptRule.convert(node, localRequiredTraitSet)
     val providedTraitSet = localRequiredTraitSet
 
-    new BatchExecLocalHashAggregate(
+    new BatchPhysicalLocalHashAggregate(
       node.getCluster,
       providedTraitSet,
       newInput,
