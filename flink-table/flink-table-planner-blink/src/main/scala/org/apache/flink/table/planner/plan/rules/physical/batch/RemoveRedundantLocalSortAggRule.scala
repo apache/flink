@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchPhysicalSort, BatchPhysicalSortAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalLocalSortAggregate, BatchPhysicalSort, BatchPhysicalSortAggregate}
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
@@ -56,7 +56,7 @@ abstract class RemoveRedundantLocalSortAggRule(
 
   private[table] def getOriginalGlobalAgg(call: RelOptRuleCall): BatchPhysicalSortAggregate
 
-  private[table] def getOriginalLocalAgg(call: RelOptRuleCall): BatchExecLocalSortAggregate
+  private[table] def getOriginalLocalAgg(call: RelOptRuleCall): BatchPhysicalLocalSortAggregate
 
   private[table] def getOriginalInputOfLocalAgg(call: RelOptRuleCall): RelNode
 
@@ -64,7 +64,7 @@ abstract class RemoveRedundantLocalSortAggRule(
 
 class RemoveRedundantLocalSortAggWithoutSortRule extends RemoveRedundantLocalSortAggRule(
   operand(classOf[BatchPhysicalSortAggregate],
-    operand(classOf[BatchExecLocalSortAggregate],
+    operand(classOf[BatchPhysicalLocalSortAggregate],
       operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any))),
   "RemoveRedundantLocalSortAggWithoutSortRule") {
 
@@ -74,8 +74,8 @@ class RemoveRedundantLocalSortAggWithoutSortRule extends RemoveRedundantLocalSor
   }
 
   override private[table] def getOriginalLocalAgg(
-      call: RelOptRuleCall): BatchExecLocalSortAggregate = {
-    call.rels(1).asInstanceOf[BatchExecLocalSortAggregate]
+      call: RelOptRuleCall): BatchPhysicalLocalSortAggregate = {
+    call.rels(1).asInstanceOf[BatchPhysicalLocalSortAggregate]
   }
 
   override private[table] def getOriginalInputOfLocalAgg(call: RelOptRuleCall): RelNode = {
@@ -87,7 +87,7 @@ class RemoveRedundantLocalSortAggWithoutSortRule extends RemoveRedundantLocalSor
 class RemoveRedundantLocalSortAggWithSortRule extends RemoveRedundantLocalSortAggRule(
   operand(classOf[BatchPhysicalSortAggregate],
     operand(classOf[BatchPhysicalSort],
-      operand(classOf[BatchExecLocalSortAggregate],
+      operand(classOf[BatchPhysicalLocalSortAggregate],
         operand(classOf[RelNode], FlinkConventions.BATCH_PHYSICAL, any)))),
   "RemoveRedundantLocalSortAggWithSortRule") {
 
@@ -97,8 +97,8 @@ class RemoveRedundantLocalSortAggWithSortRule extends RemoveRedundantLocalSortAg
   }
 
   override private[table] def getOriginalLocalAgg(
-      call: RelOptRuleCall): BatchExecLocalSortAggregate = {
-    call.rels(2).asInstanceOf[BatchExecLocalSortAggregate]
+      call: RelOptRuleCall): BatchPhysicalLocalSortAggregate = {
+    call.rels(2).asInstanceOf[BatchPhysicalLocalSortAggregate]
   }
 
   override private[table] def getOriginalInputOfLocalAgg(call: RelOptRuleCall): RelNode = {
