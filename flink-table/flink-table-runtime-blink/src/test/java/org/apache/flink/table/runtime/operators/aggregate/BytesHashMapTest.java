@@ -23,10 +23,10 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.disk.RandomAccessInputView;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.util.KeyValueIterator;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DoubleType;
@@ -36,7 +36,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -46,12 +45,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/** */
-public class BytesHashMapTest {
+/** Test case for {@link BytesHashMap}. */
+public class BytesHashMapTest extends BytesMapTestBase {
 
-    private static final long RANDOM_SEED = 76518743207143L;
-    private static final int PAGE_SIZE = 32 * 1024;
-    private static final int NUM_ENTRIES = 10000;
     private static final int NUM_REWRITES = 10;
 
     private final LogicalType[] keyTypes;
@@ -185,7 +181,7 @@ public class BytesHashMapTest {
 
         table.reset();
         Assert.assertEquals(0, table.getNumElements());
-        Assert.assertTrue(table.getRecordAreaMemorySegments().size() == 1);
+        Assert.assertEquals(1, table.getRecordAreaMemorySegments().size());
 
         expected.clear();
         verifyInsertAndUpdate(rnd, rows, expected, table);
@@ -213,7 +209,7 @@ public class BytesHashMapTest {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = rows[i];
             // look up and insert
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertFalse(info.isFound());
             try {
                 BinaryRowData entry = table.append(info, defaultValue);
@@ -229,12 +225,11 @@ public class BytesHashMapTest {
                         new RandomAccessInputView(segments, segments.get(0).size());
                 BinaryRowData reuseKey = this.keySerializer.createInstance();
                 BinaryRowData reuseValue = this.valueSerializer.createInstance();
-                BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
                 for (int index = 0; index < table.getNumElements(); index++) {
                     reuseKey = keySerializer.mapFromPages(reuseKey, inView);
                     reuseValue = valueSerializer.mapFromPages(reuseValue, inView);
-                    actualKeys.add(reuse.getKey().copy());
-                    actualValues.add(reuse.getValue().copy());
+                    actualKeys.add(reuseKey.copy());
+                    actualValues.add(reuseValue.copy());
                 }
                 table.reset();
                 // retry
@@ -248,14 +243,10 @@ public class BytesHashMapTest {
                 expected.add(entry.copy());
             }
         }
-        MutableObjectIterator<BytesHashMap.Entry> iter = table.getEntryIterator();
-        BinaryRowData reuseKey = this.keySerializer.createInstance();
-        BinaryRowData reuseValue = this.valueSerializer.createInstance();
-        BytesHashMap.Entry reuse = new BytesHashMap.Entry(reuseKey, reuseValue);
-
-        while ((reuse = iter.next(reuse)) != null) {
-            actualKeys.add(reuse.getKey().copy());
-            actualValues.add(reuse.getValue().copy());
+        KeyValueIterator<RowData, RowData> iter = table.getEntryIterator();
+        while (iter.advanceNext()) {
+            actualKeys.add(((BinaryRowData) iter.getKey()).copy());
+            actualValues.add(((BinaryRowData) iter.getValue()).copy());
         }
         Assert.assertEquals(NUM_ENTRIES, expected.size());
         Assert.assertEquals(NUM_ENTRIES, actualKeys.size());
@@ -281,12 +272,12 @@ public class BytesHashMapTest {
         final Random rnd = new Random(RANDOM_SEED);
         BinaryRowData row = getNullableGroupkeyInput(rnd);
         for (int i = 0; i < 3; i++) {
-            BytesHashMap.LookupInfo info = table.lookup(row);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(row);
             Assert.assertFalse(info.isFound());
         }
 
         for (int i = 0; i < 3; i++) {
-            BytesHashMap.LookupInfo info = table.lookup(row);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(row);
             BinaryRowData entry = info.getValue();
             if (i == 0) {
                 Assert.assertFalse(info.isFound());
@@ -313,13 +304,12 @@ public class BytesHashMapTest {
     // ----------------------- Utilities  -----------------------
 
     private void verifyRetrieve(
-            BytesHashMap table, BinaryRowData[] keys, List<BinaryRowData> expected)
-            throws IOException {
+            BytesHashMap table, BinaryRowData[] keys, List<BinaryRowData> expected) {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = keys[i];
             // look up and retrieve
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertTrue(info.isFound());
             Assert.assertNotNull(info.getValue());
             Assert.assertEquals(expected.get(i), info.getValue());
@@ -332,7 +322,7 @@ public class BytesHashMapTest {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = keys[i];
             // look up and insert
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertFalse(info.isFound());
             BinaryRowData entry = table.append(info, defaultValue);
             Assert.assertNotNull(entry);
@@ -348,7 +338,7 @@ public class BytesHashMapTest {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = keys[i];
             // look up and insert
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertFalse(info.isFound());
             BinaryRowData entry = table.append(info, defaultValue);
             Assert.assertNotNull(entry);
@@ -361,14 +351,14 @@ public class BytesHashMapTest {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
     }
 
-    private void verifyKeyPresent(BinaryRowData[] keys, BytesHashMap table) throws IOException {
+    private void verifyKeyPresent(BinaryRowData[] keys, BytesHashMap table) {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
         BinaryRowData present = new BinaryRowData(0);
         present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = keys[i];
             // look up and retrieve
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertTrue(info.isFound());
             Assert.assertNotNull(info.getValue());
             Assert.assertEquals(present, info.getValue());
@@ -381,7 +371,7 @@ public class BytesHashMapTest {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             BinaryRowData groupKey = keys[i];
             // look up and insert
-            BytesHashMap.LookupInfo info = table.lookup(groupKey);
+            BytesHashMap.LookupInfo<BinaryRowData> info = table.lookup(groupKey);
             Assert.assertFalse(info.isFound());
             BinaryRowData entry = table.append(info, defaultValue);
             Assert.assertNotNull(entry);
@@ -392,101 +382,13 @@ public class BytesHashMapTest {
 
     // ----------------------------------------------
 
-    private List<MemorySegment> getMemory(int numSegments, int segmentSize) {
-        ArrayList<MemorySegment> list = new ArrayList<>(numSegments);
-        for (int i = 0; i < numSegments; i++) {
-            list.add(MemorySegmentFactory.allocateUnpooledSegment(segmentSize));
-        }
-        return list;
-    }
-
-    private int needNumMemSegments(int numEntries, int valLen, int keyLen, int pageSize) {
-        return 2 * (valLen + keyLen + 1024 * 3 + 4 + 8 + 8) * numEntries / pageSize;
-    }
-
-    // ----------------------------------------------
-
-    private BinaryRowData[] getRandomizedInput(int num, Random rnd, boolean nullable) {
-        BinaryRowData[] lists = new BinaryRowData[num];
-        for (int i = 0; i < num; i++) {
-            Integer intVal = rnd.nextInt(Integer.MAX_VALUE);
-            Long longVal = -rnd.nextLong();
-            Boolean boolVal = longVal % 2 == 0;
-            String strVal = nullable && boolVal ? null : getString(intVal, intVal % 1024) + i;
-            Double doubleVal = rnd.nextDouble();
-            Short shotVal = intVal.shortValue();
-            Float floatVal = nullable && boolVal ? null : rnd.nextFloat();
-            lists[i] = createRow(intVal, strVal, doubleVal, longVal, boolVal, floatVal, shotVal);
-        }
-        return lists;
-    }
-
     private BinaryRowData getNullableGroupkeyInput(Random rnd) {
-        Integer intVal = -rnd.nextInt(Integer.MAX_VALUE);
+        int intVal = -rnd.nextInt(Integer.MAX_VALUE);
         Long longVal = rnd.nextLong();
         Boolean boolVal = intVal % 2 == 0;
         Double doubleVal = rnd.nextDouble();
-        Short shotVal = intVal.shortValue();
+        Short shotVal = (short) intVal;
         Float floatVal = rnd.nextFloat();
         return createRow(intVal, null, doubleVal, longVal, boolVal, floatVal, shotVal);
-    }
-
-    private BinaryRowData createRow(
-            Integer f0, String f1, Double f2, Long f3, Boolean f4, Float f5, Short f6) {
-
-        BinaryRowData row = new BinaryRowData(7);
-        BinaryRowWriter writer = new BinaryRowWriter(row);
-
-        // int, string, double, long, boolean
-        if (f0 == null) {
-            writer.setNullAt(0);
-        } else {
-            writer.writeInt(0, f0);
-        }
-        if (f1 == null) {
-            writer.setNullAt(1);
-        } else {
-            writer.writeString(1, StringData.fromString(f1));
-        }
-        if (f2 == null) {
-            writer.setNullAt(2);
-        } else {
-            writer.writeDouble(2, f2);
-        }
-        if (f3 == null) {
-            writer.setNullAt(3);
-        } else {
-            writer.writeLong(3, f3);
-        }
-        if (f4 == null) {
-            writer.setNullAt(4);
-        } else {
-            writer.writeBoolean(4, f4);
-        }
-        if (f5 == null) {
-            writer.setNullAt(5);
-        } else {
-            writer.writeFloat(5, f5);
-        }
-        if (f6 == null) {
-            writer.setNullAt(6);
-        } else {
-            writer.writeShort(6, f6);
-        }
-        writer.complete();
-        return row;
-    }
-
-    private String getString(int count, int length) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < length; i++) {
-            builder.append(count);
-        }
-        return builder.toString();
-    }
-
-    private int rowLength(RowType tpe) {
-        return BinaryRowData.calculateFixPartSizeInBytes(tpe.getFieldCount())
-                + BytesHashMap.getVariableLength(tpe.getChildren().toArray(new LogicalType[0]));
     }
 }
