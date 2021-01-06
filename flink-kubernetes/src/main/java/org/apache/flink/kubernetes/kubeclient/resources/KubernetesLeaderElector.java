@@ -61,7 +61,6 @@ public class KubernetesLeaderElector {
 
     public KubernetesLeaderElector(
             NamespacedKubernetesClient kubernetesClient,
-            String namespace,
             KubernetesLeaderElectionConfiguration leaderConfig,
             LeaderCallbackHandler leaderCallbackHandler) {
         final LeaderElectionConfig leaderElectionConfig =
@@ -70,7 +69,7 @@ public class KubernetesLeaderElector {
                         .withLeaseDuration(leaderConfig.getLeaseDuration())
                         .withLock(
                                 new ConfigMapLock(
-                                        namespace,
+                                        kubernetesClient.getNamespace(),
                                         leaderConfig.getConfigMapName(),
                                         leaderConfig.getLockIdentity()))
                         .withRenewDeadline(leaderConfig.getRenewDeadline())

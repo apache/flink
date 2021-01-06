@@ -27,6 +27,8 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.Preconditions;
 
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -413,12 +415,11 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
 
     /** Testing implementation of {@link KubernetesLeaderElector}. */
     public static class TestingKubernetesLeaderElector extends KubernetesLeaderElector {
-        private static final String NAMESPACE = "test";
 
         public TestingKubernetesLeaderElector(
                 KubernetesLeaderElectionConfiguration leaderConfig,
                 LeaderCallbackHandler leaderCallbackHandler) {
-            super(null, NAMESPACE, leaderConfig, leaderCallbackHandler);
+            super(new KubernetesMockServer().createClient(), leaderConfig, leaderCallbackHandler);
         }
 
         @Override

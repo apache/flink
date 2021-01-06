@@ -25,8 +25,8 @@ import org.apache.flink.util.FileUtils;
 
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.DefaultKubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +83,11 @@ public class DefaultKubeClientFactory implements KubeClientFactory {
             config = Config.autoConfigure(kubeContext);
         }
 
-        final KubernetesClient client = new DefaultKubernetesClient(config);
+        final String namespace = flinkConfig.getString(KubernetesConfigOptions.NAMESPACE);
+        LOG.debug("Setting namespace of Kubernetes client to {}", namespace);
+        config.setNamespace(namespace);
+
+        final NamespacedKubernetesClient client = new DefaultKubernetesClient(config);
 
         return new Fabric8FlinkKubeClient(flinkConfig, client, () -> ioExecutor);
     }
