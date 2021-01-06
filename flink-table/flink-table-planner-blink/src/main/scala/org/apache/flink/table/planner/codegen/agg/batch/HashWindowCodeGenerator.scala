@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.tools.RelBuilder
-import org.apache.commons.math3.util.ArithmeticUtils
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.runtime.operators.sort.QuickSort
@@ -47,6 +44,9 @@ import org.apache.flink.table.runtime.util.KeyValueIterator
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.MutableObjectIterator
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.tools.RelBuilder
+import org.apache.commons.math3.util.ArithmeticUtils
 
 import scala.collection.JavaConversions._
 
@@ -772,8 +772,8 @@ class HashWindowCodeGenerator(
       ""
     }
 
-    val lookupInfo = ctx.addReusableLocalVariable(
-      classOf[BytesMap.LookupInfo[_]].getCanonicalName, "lookupInfo")
+    val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
+    val lookupInfo = ctx.addReusableLocalVariable(lookupInfoTypeTerm, "lookupInfo")
     val dealWithAggHashMapOOM = if (isFinal) {
       s"""throw new java.io.IOException("Hash window aggregate map OOM.");"""
     } else {
@@ -794,7 +794,7 @@ class HashWindowCodeGenerator(
     val process =
       s"""
          |// look up output buffer using current key (grouping keys ..., assigned timestamp)
-         |$lookupInfo = $aggregateMapTerm.lookup($aggMapKey);
+         |$lookupInfo = ($lookupInfoTypeTerm) $aggregateMapTerm.lookup($aggMapKey);
          |$currentAggBufferTerm = ($binaryRowTypeTerm) $lookupInfo.getValue();
          |if (!$lookupInfo.isFound()) {
          |  $lazyInitAggBufferCode

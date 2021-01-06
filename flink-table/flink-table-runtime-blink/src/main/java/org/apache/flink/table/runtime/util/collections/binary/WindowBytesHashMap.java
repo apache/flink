@@ -19,28 +19,31 @@
 package org.apache.flink.table.runtime.util.collections.binary;
 
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
+import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/** Test case for {@link BytesHashMap}. */
-public class BytesHashMapTest extends BytesHashMapTestBase<BinaryRowData> {
+import static org.apache.flink.util.Preconditions.checkArgument;
 
-    public BytesHashMapTest() {
-        super(new BinaryRowDataSerializer(KEY_TYPES.length));
-    }
+/**
+ * A binary map in the structure like {@code Map<WindowKey, BinaryRowData>}.
+ *
+ * @see AbstractBytesHashMap for more information about the binary layout.
+ */
+public final class WindowBytesHashMap extends AbstractBytesHashMap<WindowKey> {
 
-    @Override
-    public AbstractBytesHashMap<BinaryRowData> createBytesHashMap(
+    public WindowBytesHashMap(
+            final Object owner,
             MemoryManager memoryManager,
-            int memorySize,
+            long memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        return new BytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
-    }
-
-    @Override
-    public BinaryRowData[] generateRandomKeys(int num) {
-        return getRandomizedInputs(num);
+        super(
+                owner,
+                memoryManager,
+                memorySize,
+                new WindowKeySerializer(keyTypes.length),
+                valueTypes);
+        checkArgument(keyTypes.length > 0);
     }
 }
