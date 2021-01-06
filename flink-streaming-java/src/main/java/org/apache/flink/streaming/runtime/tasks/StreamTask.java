@@ -416,7 +416,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>> extends Ab
             resumeFuture = inputProcessor.getAvailableFuture();
         }
         assertNoException(
-                resumeFuture.thenRun(new ResumeWrapper(controller.suspendDefaultAction(), timer)));
+                resumeFuture.thenRun(
+                        new ResumeWrapper(controller.suspendDefaultAction(timer), timer)));
     }
 
     private void resetSynchronousSavepointId() {

@@ -82,8 +82,7 @@ public class MailboxExecutorImplTest {
 
     @Test
     public void testIsIdle() throws Exception {
-        MailboxProcessor processor =
-                new MailboxProcessor(MailboxDefaultAction.Controller::suspendDefaultAction);
+        MailboxProcessor processor = new MailboxProcessor();
         MailboxExecutorImpl executor =
                 (MailboxExecutorImpl) processor.getMailboxExecutor(DEFAULT_PRIORITY);
 
