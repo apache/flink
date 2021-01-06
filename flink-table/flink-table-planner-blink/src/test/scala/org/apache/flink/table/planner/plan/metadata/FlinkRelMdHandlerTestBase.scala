@@ -899,17 +899,15 @@ class FlinkRelMdHandlerTestBase {
     val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowTableAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
@@ -1308,17 +1306,15 @@ class FlinkRelMdHandlerTestBase {
     val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(0, 1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
@@ -1454,17 +1450,15 @@ class FlinkRelMdHandlerTestBase {
     val streamExchange = new StreamPhysicalExchange(
       cluster, streamPhysicalTraits.replace(hash1), streamCalc, hash1)
     val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
-    val streamWindowAgg = new StreamExecGroupWindowAggregate(
+    val streamWindowAgg = new StreamPhysicalGroupWindowAggregate(
       cluster,
       streamPhysicalTraits,
       streamExchange,
       flinkLogicalWindowAgg.getRowType,
-      streamExchange.getRowType,
       Array(1),
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2,
       emitStrategy
     )
 
