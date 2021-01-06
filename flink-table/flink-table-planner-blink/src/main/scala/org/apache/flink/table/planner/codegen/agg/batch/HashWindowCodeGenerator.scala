@@ -38,12 +38,13 @@ import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupW
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.runtime.operators.TableStreamOperator
-import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMapSpillMemorySegmentPool, BytesMap}
+import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
 import org.apache.flink.table.runtime.operators.sort.BinaryKVInMemorySortBuffer
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.runtime.util.KeyValueIterator
+import org.apache.flink.table.runtime.util.collections.binary.BytesMap
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.util.MutableObjectIterator
 
