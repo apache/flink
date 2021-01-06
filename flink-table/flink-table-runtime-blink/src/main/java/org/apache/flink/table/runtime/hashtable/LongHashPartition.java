@@ -160,7 +160,7 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
         this.partitionNum = partitionNum;
         this.recursionLevel = recursionLevel;
 
-        int numBuckets = MathUtils.roundDownToPowerOf2(bucketNumSegs * segmentSize / 16);
+        int numBuckets = MathUtils.roundDownToPowerOf2(segmentSize / 16 * bucketNumSegs);
         MemorySegment[] buckets = new MemorySegment[bucketNumSegs];
         for (int i = 0; i < bucketNumSegs; i++) {
             buckets[i] = longTable.nextSegment();
