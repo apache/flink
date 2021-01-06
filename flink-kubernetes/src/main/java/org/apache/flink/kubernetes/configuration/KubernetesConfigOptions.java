@@ -197,7 +197,7 @@ public class KubernetesConfigOptions {
                     .withDescription(
                             "Image to use for Flink containers. "
                                     + "The specified image must be based upon the same Apache Flink and Scala versions as used by the application. "
-                                    + "Visit https://hub.docker.com/_/flink?tab=tags for the images provided by the Flink project.");
+                                    + "Visit https://hub.docker.com/_/flink?tab=tags for the official docker images provided by the Flink project. The Flink project also publishes docker images here: https://hub.docker.com/r/apache/flink");
 
     /** The following config options need to be set according to the image. */
     public static final ConfigOption<String> KUBERNETES_ENTRY_PATH =
@@ -352,7 +352,7 @@ public class KubernetesConfigOptions {
                         : EnvironmentInformation.getVersion()
                                 + "-scala_"
                                 + EnvironmentInformation.getScalaVersion();
-        return "flink:" + tag;
+        return "apache/flink:" + tag;
     }
 
     /** The flink rest service exposed type. */
