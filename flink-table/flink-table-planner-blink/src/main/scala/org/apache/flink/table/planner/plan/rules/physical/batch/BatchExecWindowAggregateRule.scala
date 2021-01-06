@@ -182,7 +182,6 @@ class BatchExecWindowAggregateRule
 
         new BatchExecLocalHashWindowAggregate(
           agg.getCluster,
-          call.builder(),
           localProvidedTraitSet,
           newLocalInput,
           localAggRelType,
@@ -205,7 +204,6 @@ class BatchExecWindowAggregateRule
 
         new BatchExecLocalSortWindowAggregate(
           agg.getCluster,
-          call.builder(),
           localProvidedTraitSet,
           newLocalInput,
           localAggRelType,
@@ -238,11 +236,9 @@ class BatchExecWindowAggregateRule
 
         new BatchExecHashWindowAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newGlobalAggInput,
           agg.getRowType,
-          newGlobalAggInput.getRowType,
           input.getRowType,
           groupSet.indices.toArray,
           // auxGroupSet starts from `size of groupSet + 1(assignTs)`
@@ -263,11 +259,9 @@ class BatchExecWindowAggregateRule
 
         new BatchExecSortWindowAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newGlobalAggInput,
           agg.getRowType,
-          newGlobalAggInput.getRowType,
           input.getRowType,
           groupSet.indices.toArray,
           // auxGroupSet starts from `size of groupSet + 1(assignTs)`
@@ -301,11 +295,9 @@ class BatchExecWindowAggregateRule
 
         new BatchExecHashWindowAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newInput,
           agg.getRowType,
-          newInput.getRowType,
           newInput.getRowType,
           groupSet,
           auxGroupSet,
@@ -324,11 +316,9 @@ class BatchExecWindowAggregateRule
 
         new BatchExecSortWindowAggregate(
           agg.getCluster,
-          call.builder(),
           aggProvidedTraitSet,
           newInput,
           agg.getRowType,
-          newInput.getRowType,
           newInput.getRowType,
           groupSet,
           auxGroupSet,

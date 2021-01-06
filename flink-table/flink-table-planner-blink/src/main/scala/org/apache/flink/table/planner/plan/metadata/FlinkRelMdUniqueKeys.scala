@@ -384,14 +384,14 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
     if (rel.isFinal) {
       getUniqueKeysOnWindowAgg(
         rel.getRowType.getFieldCount,
-        rel.getNamedProperties,
-        rel.getGrouping,
+        rel.namedWindowProperties,
+        rel.grouping,
         mq,
         ignoreNulls)
     } else {

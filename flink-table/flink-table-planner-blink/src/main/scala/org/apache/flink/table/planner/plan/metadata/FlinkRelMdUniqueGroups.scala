@@ -264,12 +264,11 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
   }
 
   def getUniqueGroups(
-      agg: BatchExecWindowAggregateBase,
+      agg: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
-    val grouping = agg.getGrouping
-    val namedProperties = agg.getNamedProperties
-    getUniqueGroupsOfWindowAgg(agg, grouping, agg.getAuxGrouping, namedProperties, mq, columns)
+    getUniqueGroupsOfWindowAgg(
+      agg, agg.grouping, agg.auxGrouping, agg.namedWindowProperties, mq, columns)
   }
 
   private def getUniqueGroupsOfWindowAgg(

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase, BatchPhysicalGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchPhysicalGroupAggregateBase, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 
@@ -63,13 +63,13 @@ class AggCallSelectivityEstimator(agg: RelNode, mq: FlinkRelMetadataQuery)
       case rel: BatchPhysicalGroupAggregateBase =>
         (rel.grouping ++ rel.auxGrouping, rel.getAggCallList)
       case rel: BatchExecLocalHashWindowAggregate =>
-        val fullGrouping = rel.getGrouping ++ Array(rel.inputTimeFieldIndex) ++ rel.getAuxGrouping
+        val fullGrouping = rel.grouping ++ Array(rel.inputTimeFieldIndex) ++ rel.auxGrouping
         (fullGrouping, rel.getAggCallList)
       case rel: BatchExecLocalSortWindowAggregate =>
-        val fullGrouping = rel.getGrouping ++ Array(rel.inputTimeFieldIndex) ++ rel.getAuxGrouping
+        val fullGrouping = rel.grouping ++ Array(rel.inputTimeFieldIndex) ++ rel.auxGrouping
         (fullGrouping, rel.getAggCallList)
-      case rel: BatchExecWindowAggregateBase =>
-        (rel.getGrouping ++ rel.getAuxGrouping, rel.getAggCallList)
+      case rel: BatchPhysicalWindowAggregateBase =>
+        (rel.grouping ++ rel.auxGrouping, rel.getAggCallList)
       case _ => throw new IllegalArgumentException(s"Cannot handle ${agg.getRelTypeName}!")
     }
     require(outputIdx >= fullGrouping.length)

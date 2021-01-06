@@ -45,7 +45,6 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.tools.RelBuilder
 
 import java.util
 
@@ -56,7 +55,6 @@ import scala.collection.JavaConversions._
   */
 class BatchExecPythonGroupWindowAggregate(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
@@ -68,18 +66,17 @@ class BatchExecPythonGroupWindowAggregate(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedProperties: Seq[PlannerNamedWindowProperty])
-  extends BatchExecWindowAggregateBase(
+    namedWindowProperties: Seq[PlannerNamedWindowProperty])
+  extends BatchPhysicalWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCalls.zip(aggFunctions),
     window,
-    namedProperties,
+    namedWindowProperties,
     false,
     false,
     true)
@@ -89,7 +86,6 @@ class BatchExecPythonGroupWindowAggregate(
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecPythonGroupWindowAggregate(
       cluster,
-      relBuilder,
       traitSet,
       inputs.get(0),
       outputRowType,
@@ -101,7 +97,7 @@ class BatchExecPythonGroupWindowAggregate(
       window,
       inputTimeFieldIndex,
       inputTimeIsDate,
-      namedProperties)
+      namedWindowProperties)
   }
 
   override def computeSelfCost(planner: RelOptPlanner, mq: RelMetadataQuery): RelOptCost = {
@@ -160,7 +156,7 @@ class BatchExecPythonGroupWindowAggregate(
       windowSize: Long,
       slideSize: Long,
       config: Configuration): OneInputTransformation[RowData, RowData] = {
-    val namePropertyTypeArray = namedProperties.map {
+    val namePropertyTypeArray = namedWindowProperties.map {
       case PlannerNamedWindowProperty(_, p) => p match {
         case PlannerWindowStart(_) => 0
         case PlannerWindowEnd(_) => 1
@@ -199,7 +195,7 @@ class BatchExecPythonGroupWindowAggregate(
       maxLimitSize: Int,
       windowSize: Long,
       slideSize: Long,
-      namedProperties: Array[Int],
+      namedWindowProperties: Array[Int],
       udafInputOffsets: Array[Int],
       pythonFunctionInfos: Array[PythonFunctionInfo]): OneInputStreamOperator[RowData, RowData] = {
     val clazz = loadClass(ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME)
@@ -227,7 +223,7 @@ class BatchExecPythonGroupWindowAggregate(
       Integer.valueOf(maxLimitSize),
       java.lang.Long.valueOf(windowSize),
       java.lang.Long.valueOf(slideSize),
-      namedProperties,
+      namedWindowProperties,
       grouping,
       grouping ++ auxGrouping,
       udafInputOffsets)
