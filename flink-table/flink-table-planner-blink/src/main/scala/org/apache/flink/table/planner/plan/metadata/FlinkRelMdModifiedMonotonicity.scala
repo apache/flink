@@ -352,7 +352,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
     // if group by an update field or group by a field mono is null, just return null
     if (inputMonotonicity == null ||
-      grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -373,7 +373,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
 
     // if group by a update field or group by a field mono is null, just return null
     if (inputMonotonicity == null ||
-      grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+        grouping.exists(e => inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
       return null
     }
 
@@ -398,7 +398,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
           val childMono = inputMonotonicity.fieldMonotonicities(aggCall.getArgList.head)
           val currentMono = fieldMonotonicities(index)
           if (childMono != currentMono &&
-            !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
+              !aggCall.getAggregation.isInstanceOf[SqlCountAggFunction]) {
             // count will Increasing even child is NOT_MONOTONIC
             fieldMonotonicities(index) = NOT_MONOTONIC
           }
