@@ -1241,9 +1241,60 @@ public class StreamTaskTest extends TestLogger {
         }
     }
 
+    /**
+     * In this weird construct, we are:
+     *
+     * <ul>
+     *   <li>1. We start a thread, which will...
+     *   <li>2. ... sleep for X ms, and enqueue another mail, that will...
+     *   <li>3. ... sleep for Y ms, and make the output available again
+     * </ul>
+     *
+     * <p>2nd step is to check that back pressure or idle counter is at least X. In the last 3rd
+     * step, we test whether this counter was paused for the duration of processing mails.
+     */
+    private static class WaitingThread extends Thread {
+        private final MailboxExecutor executor;
+        private final RunnableWithException resumeTask;
+        private final long sleepTimeInsideMail;
+        private final long sleepTimeOutsideMail;
+
+        public WaitingThread(
+                MailboxExecutor executor,
+                RunnableWithException resumeTask,
+                long sleepTimeInsideMail,
+                long sleepTimeOutsideMail) {
+            this.executor = executor;
+            this.resumeTask = resumeTask;
+            this.sleepTimeInsideMail = sleepTimeInsideMail;
+            this.sleepTimeOutsideMail = sleepTimeOutsideMail;
+        }
+
+        @Override
+        public void run() {
+            try {
+                Thread.sleep(sleepTimeOutsideMail);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            executor.submit(
+                    () -> {
+                        try {
+                            Thread.sleep(sleepTimeInsideMail);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        resumeTask.run();
+                    },
+                    "This task will complete the future to resume process input action.");
+        }
+    }
+
     @Test
     public void testProcessWithUnAvailableOutput() throws Exception {
-        final long sleepTime = 42;
+        final long sleepTimeOutsideMail = 42;
+        final long sleepTimeInsideMail = 44;
+
         try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, false})) {
             final int numberOfProcessCalls = 10;
             final AvailabilityTestInputProcessor inputProcessor =
@@ -1256,26 +1307,33 @@ public class StreamTaskTest extends TestLogger {
 
             final RunnableWithException completeFutureTask =
                     () -> {
-                        Thread.sleep(sleepTime + 1);
                         assertEquals(1, inputProcessor.currentNumProcessCalls);
                         assertTrue(task.mailboxProcessor.isDefaultActionUnavailable());
                         environment.getWriter(1).getAvailableFuture().complete(null);
                     };
 
+            // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
-                    () -> {
-                        executor.submit(
-                                completeFutureTask,
-                                "This task will complete the future to resume process input action.");
-                    },
+                    () ->
+                            new WaitingThread(
+                                            executor,
+                                            completeFutureTask,
+                                            sleepTimeInsideMail,
+                                            sleepTimeOutsideMail)
+                                    .start(),
                     "This task will submit another task to execute after processing input once.");
 
+            long startTs = System.currentTimeMillis();
             TaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
             task.invoke();
+            long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
                     ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
-                    Matchers.greaterThanOrEqualTo(sleepTime));
+                    Matchers.greaterThanOrEqualTo(sleepTimeOutsideMail));
+            assertThat(
+                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
         }
@@ -1283,22 +1341,48 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testProcessWithUnAvailableInput() throws Exception {
-        final long unAvailableTime = 42;
+        final long sleepTimeOutsideMail = 42;
+        final long sleepTimeInsideMail = 44;
         try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, true})) {
             final UnAvailableTestInputProcessor inputProcessor =
-                    new UnAvailableTestInputProcessor(unAvailableTime);
+                    new UnAvailableTestInputProcessor();
             final StreamTask task =
                     new MockStreamTaskBuilder(environment)
                             .setStreamInputProcessor(inputProcessor)
                             .build();
 
+            final MailboxExecutor executor = task.mailboxProcessor.getMainMailboxExecutor();
+            final RunnableWithException completeFutureTask =
+                    () -> {
+                        inputProcessor
+                                .availabilityProvider
+                                .getUnavailableToResetAvailable()
+                                .complete(null);
+                    };
+
+            // Make sure WaitingThread is started after Task starts processing.
+            executor.submit(
+                    () ->
+                            new WaitingThread(
+                                            executor,
+                                            completeFutureTask,
+                                            sleepTimeInsideMail,
+                                            sleepTimeOutsideMail)
+                                    .start(),
+                    "Start WaitingThread after Task starts processing input.");
+
+            long startTs = System.currentTimeMillis();
             TaskIOMetricGroup ioMetricGroup =
                     task.getEnvironment().getMetricGroup().getIOMetricGroup();
             task.invoke();
+            long totalDuration = System.currentTimeMillis() - startTs;
 
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
-                    Matchers.greaterThanOrEqualTo(unAvailableTime));
+                    Matchers.greaterThanOrEqualTo(sleepTimeOutsideMail));
+            assertThat(
+                    ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
+                    Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
         }
     }
@@ -1471,32 +1555,9 @@ public class StreamTaskTest extends TestLogger {
      */
     private static class UnAvailableTestInputProcessor implements StreamInputProcessor {
         private final AvailabilityHelper availabilityProvider = new AvailabilityHelper();
-        private final Thread timerThread;
-
-        private boolean timerTriggered;
-
-        private volatile Exception asyncException;
-
-        public UnAvailableTestInputProcessor(long unAvailableTime) {
-            timerThread =
-                    new Thread() {
-                        @Override
-                        public void run() {
-                            try {
-                                Thread.sleep(unAvailableTime);
-                                availabilityProvider
-                                        .getUnavailableToResetAvailable()
-                                        .complete(null);
-                            } catch (Exception e) {
-                                asyncException = e;
-                            }
-                        }
-                    };
-        }
 
         @Override
         public InputStatus processInput() {
-            maybeTriggerTimer();
             return availabilityProvider.isAvailable()
                     ? InputStatus.END_OF_INPUT
                     : InputStatus.NOTHING_AVAILABLE;
@@ -1509,29 +1570,11 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void close() throws IOException {
-            if (asyncException != null) {
-                throw new IOException(asyncException);
-            }
-            try {
-                timerThread.join();
-            } catch (InterruptedException e) {
-                throw new IOException(e);
-            }
-        }
+        public void close() throws IOException {}
 
         @Override
         public CompletableFuture<?> getAvailableFuture() {
-            maybeTriggerTimer();
             return availabilityProvider.getAvailableFuture();
-        }
-
-        private void maybeTriggerTimer() {
-            if (timerTriggered) {
-                return;
-            }
-            timerTriggered = true;
-            timerThread.start();
         }
     }
 
