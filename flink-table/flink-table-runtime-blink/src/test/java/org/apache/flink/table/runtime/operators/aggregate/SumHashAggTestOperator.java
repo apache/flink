@@ -37,6 +37,7 @@ import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
 import org.apache.flink.table.runtime.util.collections.binary.BytesHashMap;
+import org.apache.flink.table.runtime.util.collections.binary.BytesMap;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -98,7 +99,8 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
         currentKeyWriter.complete();
 
         // look up output buffer using current group key
-        BytesHashMap.LookupInfo<BinaryRowData> lookupInfo = aggregateMap.lookup(currentKey);
+        BytesMap.LookupInfo<BinaryRowData, BinaryRowData> lookupInfo =
+                aggregateMap.lookup(currentKey);
         BinaryRowData currentAggBuffer = lookupInfo.getValue();
 
         if (!lookupInfo.isFound()) {
@@ -156,7 +158,7 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 
         if (sorter == null) {
             // no spilling, output by iterating aggregate map.
-            KeyValueIterator<RowData, RowData> iter = aggregateMap.getEntryIterator();
+            KeyValueIterator<BinaryRowData, BinaryRowData> iter = aggregateMap.getEntryIterator();
 
             while (iter.advanceNext()) {
                 // set result and output

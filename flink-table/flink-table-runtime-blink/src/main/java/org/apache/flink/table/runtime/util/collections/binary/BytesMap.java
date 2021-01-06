@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.runtime.util.collections.binary;
 
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.LazyMemorySegmentPool;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.MathUtils;
 
 import org.slf4j.Logger;
@@ -34,14 +33,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * Base class for {@link BytesHashMap} and BytesMultiMap.
  *
+ * @param <K> type of the map key.
  * @param <V> type of the map value.
  */
-public abstract class BytesMap<V> {
+public abstract class BytesMap<K, V> {
     private static final Logger LOG = LoggerFactory.getLogger(BytesMap.class);
 
     public static final int BUCKET_SIZE = 8;
@@ -76,19 +74,16 @@ public abstract class BytesMap<V> {
     protected int growthThreshold;
 
     /** The segments where the actual data is stored. */
-    protected RecordArea<V> recordArea;
-
-    /** Used to serialize map key into RecordArea's MemorySegments. */
-    protected final BinaryRowDataSerializer keySerializer;
+    protected RecordArea<K, V> recordArea;
 
     /** Used as a reused object when lookup and iteration. */
-    protected BinaryRowData reusedKey;
+    protected K reusedKey;
 
     /** Used as a reused object when retrieve the map's value by key and iteration. */
     protected V reusedValue;
 
     /** Used as a reused object which lookup returned. */
-    private final LookupInfo<V> reuseLookInfo;
+    private final LookupInfo<K, V> reuseLookupInfo;
 
     // metric
     protected long numSpillFiles;
@@ -96,9 +91,9 @@ public abstract class BytesMap<V> {
 
     public BytesMap(
             final Object owner,
-            LogicalType[] keyTypes,
             MemoryManager memoryManager,
-            long memorySize) {
+            long memorySize,
+            TypeSerializer<K> keySerializer) {
         this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, memorySize);
         this.segmentSize = memoryPool.pageSize();
         this.reservedNumBuffers = (int) (memorySize / segmentSize);
@@ -107,14 +102,12 @@ public abstract class BytesMap<V> {
         this.numBucketsPerSegmentMask = (1 << this.numBucketsPerSegmentBits) - 1;
         this.lastBucketPosition = (numBucketsPerSegment - 1) * BUCKET_SIZE;
 
-        this.keySerializer = new BinaryRowDataSerializer(keyTypes.length);
-        this.reusedKey = this.keySerializer.createInstance();
-        this.reuseLookInfo = new LookupInfo<>();
+        this.reusedKey = keySerializer.createInstance();
+        this.reuseLookupInfo = new LookupInfo<>();
     }
 
-    public abstract BinaryRowData createReusedKey();
-
-    public abstract BinaryRowData createReusedValue();
+    /** Returns the number of keys in this map. */
+    public abstract long getNumKeys();
 
     protected void initBucketSegments(int numBucketSegments) {
         if (numBucketSegments < 1) {
@@ -153,8 +146,6 @@ public abstract class BytesMap<V> {
         return numElements;
     }
 
-    public abstract long getNumKeys();
-
     /** @param reservedRecordMemory reserved fixed memory or not. */
     public void free(boolean reservedRecordMemory) {
         returnSegments(this.bucketSegments);
@@ -182,9 +173,7 @@ public abstract class BytesMap<V> {
      *     BinaryRowData form who has only one MemorySegment.
      * @return {@link LookupInfo}
      */
-    public LookupInfo<V> lookup(BinaryRowData key) {
-        // check the looking up key having only one memory segment
-        checkArgument(key.getSegments().length == 1);
+    public LookupInfo<K, V> lookup(K key) {
         final int hashCode1 = key.hashCode();
         int newPos = hashCode1 & numBucketsMask;
         // which segment contains the bucket
@@ -232,8 +221,8 @@ public abstract class BytesMap<V> {
             throw new RuntimeException(
                     "Error reading record from the aggregate map: " + ex.getMessage(), ex);
         }
-        reuseLookInfo.set(found, hashCode1, key, reusedValue, bucketSegmentIndex, bucketOffset);
-        return reuseLookInfo;
+        reuseLookupInfo.set(found, hashCode1, key, reusedValue, bucketSegmentIndex, bucketOffset);
+        return reuseLookupInfo;
     }
 
     /** @throws EOFException if the map can't allocate much more memory. */
@@ -319,15 +308,15 @@ public abstract class BytesMap<V> {
     }
 
     /** Record area. */
-    interface RecordArea<V> {
+    interface RecordArea<K, V> {
 
         void setReadPosition(int position);
 
-        boolean readKeyAndEquals(BinaryRowData lookup) throws IOException;
+        boolean readKeyAndEquals(K lookupKey) throws IOException;
 
         V readValue(V reuse) throws IOException;
 
-        int appendRecord(LookupInfo<V> info, BinaryRowData value) throws IOException;
+        int appendRecord(LookupInfo<K, V> lookupInfo, BinaryRowData value) throws IOException;
 
         long getSegmentsSize();
 
@@ -336,16 +325,16 @@ public abstract class BytesMap<V> {
         void reset();
     }
 
-    /** Information fetched when looking up a key. */
-    public static final class LookupInfo<V> {
+    /** Result fetched when looking up a key. */
+    public static final class LookupInfo<K, V> {
         boolean found;
-        BinaryRowData key;
+        K key;
         V value;
 
         /**
-         * The hashcode of the look up key passed to {@link BytesMap#lookup(BinaryRowData)}, Caching
-         * this hashcode here allows us to avoid re-hashing the key when inserting a value for that
-         * key. The same purpose with bucketSegmentIndex, bucketOffset.
+         * The hashcode of the look up key passed to {@link BytesMap#lookup(K)}, Caching this
+         * hashcode here allows us to avoid re-hashing the key when inserting a value for that key.
+         * The same purpose with bucketSegmentIndex, bucketOffset.
          */
         int keyHashCode;
 
@@ -364,7 +353,7 @@ public abstract class BytesMap<V> {
         void set(
                 boolean found,
                 int keyHashCode,
-                BinaryRowData key,
+                K key,
                 V value,
                 int bucketSegmentIndex,
                 int bucketOffset) {
@@ -380,7 +369,7 @@ public abstract class BytesMap<V> {
             return found;
         }
 
-        public BinaryRowData getKey() {
+        public K getKey() {
             return key;
         }
 

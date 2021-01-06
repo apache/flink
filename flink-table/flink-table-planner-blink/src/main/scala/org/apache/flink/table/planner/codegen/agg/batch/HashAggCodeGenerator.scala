@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -32,6 +31,7 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
 import org.apache.flink.table.runtime.util.collections.binary.BytesMap
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.calcite.tools.RelBuilder
 
 /**
   * Operator code generator for HashAggregation, Only deal with [[DeclarativeAggregateFunction]]
@@ -95,8 +95,9 @@ class HashAggCodeGenerator(
     val binaryRowTypeTerm = classOf[BinaryRowData].getName
     // gen code to aggregate and output using hash map
     val aggregateMapTerm = CodeGenUtils.newName("aggregateMap")
+    val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
     val lookupInfo = ctx.addReusableLocalVariable(
-      classOf[BytesMap.LookupInfo[BinaryRowData]].getCanonicalName,
+      lookupInfoTypeTerm,
       "lookupInfo")
     HashAggCodeGenHelper.prepareHashAggMap(
       ctx,
@@ -175,7 +176,7 @@ class HashAggCodeGenerator(
          | // project key from input
          |$keyProjectionCode
          | // look up output buffer using current group key
-         |$lookupInfo = $aggregateMapTerm.lookup($currentKeyTerm);
+         |$lookupInfo = ($lookupInfoTypeTerm) $aggregateMapTerm.lookup($currentKeyTerm);
          |$currentAggBufferTerm = ($binaryRowTypeTerm) $lookupInfo.getValue();
          |
          |if (!$lookupInfo.isFound()) {

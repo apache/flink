@@ -40,7 +40,7 @@ import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemor
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 import org.apache.flink.table.runtime.util.KeyValueIterator
-import org.apache.flink.table.runtime.util.collections.binary.BytesHashMap
+import org.apache.flink.table.runtime.util.collections.binary.{BytesHashMap, BytesMap}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import scala.collection.JavaConversions._
@@ -550,10 +550,11 @@ object HashAggCodeGenHelper {
       initedAggBuffer: GeneratedExpression,
       lookupInfo: String,
       currentAggBufferTerm: String): String = {
+    val lookupInfoTypeTerm = classOf[BytesMap.LookupInfo[_, _]].getCanonicalName
     s"""
        | // reset aggregate map retry append
        |$aggregateMapTerm.reset();
-       |$lookupInfo = $aggregateMapTerm.lookup($currentKeyTerm);
+       |$lookupInfo = ($lookupInfoTypeTerm) $aggregateMapTerm.lookup($currentKeyTerm);
        |try {
        |  $currentAggBufferTerm =
        |    $aggregateMapTerm.append($lookupInfo, ${initedAggBuffer.resultTerm});
