@@ -400,11 +400,11 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      rel: StreamExecGroupWindowAggregate,
+      rel: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
     getUniqueKeysOnWindowAgg(
-      rel.getRowType.getFieldCount, rel.getWindowProperties, rel.getGrouping, mq, ignoreNulls)
+      rel.getRowType.getFieldCount, rel.namedWindowProperties, rel.grouping, mq, ignoreNulls)
   }
 
   private def getUniqueKeysOnWindowAgg(

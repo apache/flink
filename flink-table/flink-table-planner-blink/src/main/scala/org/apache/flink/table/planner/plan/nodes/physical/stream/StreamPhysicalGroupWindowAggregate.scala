@@ -19,8 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWindowAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, WindowEmitStrategy}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -30,44 +33,52 @@ import org.apache.calcite.rel.core.AggregateCall
 /**
   * Streaming group window aggregate physical node which will be translate to window operator.
   */
-class StreamExecGroupWindowAggregate(
+class StreamPhysicalGroupWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     grouping: Array[Int],
     aggCalls: Seq[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty],
-    inputTimeFieldIndex: Int,
+    namedWindowProperties: Seq[PlannerNamedWindowProperty],
     emitStrategy: WindowEmitStrategy)
-  extends StreamExecGroupWindowAggregateBase(
+  extends StreamPhysicalGroupWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     aggCalls,
     window,
-    namedProperties,
-    inputTimeFieldIndex,
-    emitStrategy,
-    "Aggregate") {
+    namedWindowProperties,
+    emitStrategy) {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecGroupWindowAggregate(
+    new StreamPhysicalGroupWindowAggregate(
       cluster,
       traitSet,
       inputs.get(0),
       outputRowType,
-      inputRowType,
       grouping,
       aggCalls,
       window,
-      namedProperties,
-      inputTimeFieldIndex,
+      namedWindowProperties,
       emitStrategy)
+  }
+
+  override def translateToExecNode(): ExecNode[_] = {
+    val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
+    new StreamExecGroupWindowAggregate(
+      grouping,
+      aggCalls.toArray,
+      window,
+      namedWindowProperties.toArray,
+      emitStrategy,
+      needRetraction,
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
   }
 }

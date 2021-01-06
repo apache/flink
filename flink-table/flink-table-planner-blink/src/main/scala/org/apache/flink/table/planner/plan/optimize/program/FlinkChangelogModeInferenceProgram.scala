@@ -199,7 +199,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val providedTrait = new ModifyKindSetTrait(builder.build())
         createNewNode(agg, children, providedTrait, requiredTrait, requester)
 
-      case window: StreamExecGroupWindowAggregateBase =>
+      case window: StreamPhysicalGroupWindowAggregateBase =>
         // WindowAggregate and WindowTableAggregate support insert-only in input
         val children = visitChildren(window, ModifyKindSetTrait.INSERT_ONLY)
         val builder = ModifyKindSet.newBuilder()
@@ -470,7 +470,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // use requiredTrait as providedTrait, because they should support all kinds of UpdateKind
         createNewNode(rel, children, requiredTrait)
 
-      case _: StreamExecGroupWindowAggregate | _: StreamExecGroupWindowTableAggregate |
+      case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
            _: StreamExecOverAggregate | _: StreamExecIntervalJoin |
            _: StreamExecPythonGroupWindowAggregate | _: StreamExecPythonOverAggregate =>

@@ -1012,7 +1012,7 @@ object AggregateUtil extends Enumeration {
   def toDuration(literalExpr: ValueLiteralExpression): Duration =
     extractValue(literalExpr, classOf[Duration]).get()
 
-  private[flink] def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
+  def isTableAggregate(aggCalls: util.List[AggregateCall]): Boolean = {
     aggCalls
       .flatMap(call => call.getAggregation match {
         case asf: AggSqlFunction => Some(asf.aggregateFunction)

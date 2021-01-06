@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonGroupWindowAggregate.ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
 import org.apache.flink.table.planner.plan.utils.AggregateUtil._
@@ -46,34 +47,31 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 
 /**
-  * Stream physical RelNode for group widow aggregate (Python user defined aggregate function).
-  */
+ * Stream physical RelNode for group widow aggregate (Python user defined aggregate function).
+ */
 class StreamExecPythonGroupWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     grouping: Array[Int],
     aggCalls: Seq[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty],
     inputTimeFieldIndex: Int,
     emitStrategy: WindowEmitStrategy)
-  extends StreamExecGroupWindowAggregateBase(
+  extends StreamPhysicalGroupWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     aggCalls,
     window,
     namedProperties,
-    inputTimeFieldIndex,
-    emitStrategy,
-    "PythonAggregate")
-  with CommonExecPythonAggregate {
+    emitStrategy)
+  with CommonExecPythonAggregate
+  with LegacyStreamExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecPythonGroupWindowAggregate(
@@ -81,7 +79,6 @@ class StreamExecPythonGroupWindowAggregate(
       traitSet,
       inputs.get(0),
       outputRowType,
-      inputRowType,
       grouping,
       aggCalls,
       window,
@@ -99,7 +96,7 @@ class StreamExecPythonGroupWindowAggregate(
     val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
 
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
+    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
 
     val isCountWindow = window match {
       case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) => true

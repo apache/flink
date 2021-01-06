@@ -511,7 +511,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
    * @return interval of the given column on stream window Aggregate
    */
   def getColumnInterval(
-      agg: StreamExecGroupWindowAggregate,
+      agg: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
@@ -524,7 +524,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
    * @return interval of the given column on stream window Aggregate
    */
   def getColumnInterval(
-      agg: StreamExecGroupWindowTableAggregate,
+      agg: StreamPhysicalGroupWindowTableAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
@@ -539,7 +539,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: StreamPhysicalLocalGroupAggregate => agg.grouping
       case agg: StreamPhysicalGlobalGroupAggregate => agg.grouping
       case agg: StreamPhysicalIncrementalGroupAggregate => agg.partialAggGrouping
-      case agg: StreamExecGroupWindowAggregate => agg.getGrouping
+      case agg: StreamPhysicalGroupWindowAggregate => agg.grouping
       case agg: BatchPhysicalGroupAggregateBase => agg.grouping ++ agg.auxGrouping
       case agg: Aggregate => AggregateUtil.checkAndGetFullGroupSet(agg)
       case agg: BatchExecLocalSortWindowAggregate =>
@@ -551,7 +551,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
       case agg: StreamPhysicalGroupTableAggregate => agg.grouping
-      case agg: StreamExecGroupWindowTableAggregate => agg.getGrouping
+      case agg: StreamPhysicalGroupWindowTableAggregate => agg.grouping
     }
 
     if (index < groupSet.length) {
@@ -611,7 +611,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           case agg: StreamPhysicalIncrementalGroupAggregate
             if agg.partialAggCalls.length > aggCallIndex =>
             agg.partialAggCalls(aggCallIndex)
-          case agg: StreamExecGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
+          case agg: StreamPhysicalGroupWindowAggregate if agg.aggCalls.length > aggCallIndex =>
             agg.aggCalls(aggCallIndex)
           case agg: BatchPhysicalLocalHashAggregate =>
             getAggCallFromLocalAgg(aggCallIndex, agg.getAggCallList, agg.getInput.getRowType)

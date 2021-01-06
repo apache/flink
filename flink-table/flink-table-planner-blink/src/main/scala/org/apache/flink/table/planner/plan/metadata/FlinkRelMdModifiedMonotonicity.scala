@@ -314,7 +314,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       mq: RelMetadataQuery): RelModifiedMonotonicity = null
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecGroupWindowAggregate,
+      rel: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput) && !rel.emitStrategy.produceUpdates) {
       constants(rel.getRowType.getFieldCount)
@@ -324,7 +324,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecGroupWindowTableAggregate,
+      rel: StreamPhysicalGroupWindowTableAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput)) {
       constants(rel.getRowType.getFieldCount)

@@ -41,7 +41,6 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
-import org.apache.calcite.rel.type.RelDataType;
 
 import java.util.List;
 
@@ -106,7 +105,6 @@ public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
             throw new TableException("Session Group Window is currently not supported.");
         }
         RelNode input = agg.getInput();
-        RelDataType inputRowType = input.getRowType();
         RelOptCluster cluster = rel.getCluster();
         FlinkRelDistribution requiredDistribution;
         if (agg.getGroupCount() != 0) {
@@ -132,7 +130,7 @@ public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
         if (AggregateUtil.isRowtimeAttribute(timeField)) {
             inputTimestampIndex =
                     AggregateUtil.timeFieldIndex(
-                            inputRowType, relBuilderFactory.create(cluster, null), timeField);
+                            input.getRowType(), relBuilderFactory.create(cluster, null), timeField);
         } else {
             inputTimestampIndex = -1;
         }
@@ -142,7 +140,6 @@ public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
                 providedTraitSet,
                 newInput,
                 rel.getRowType(),
-                inputRowType,
                 agg.getGroupSet().toArray(),
                 JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator())
                         .asScala()
