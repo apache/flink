@@ -149,7 +149,6 @@ public class BatchExecPythonWindowAggregateRule extends RelOptRule {
         BatchExecPythonGroupWindowAggregate windowAgg =
                 new BatchExecPythonGroupWindowAggregate(
                         agg.getCluster(),
-                        call.builder(),
                         traitSet,
                         newInput,
                         agg.getRowType(),

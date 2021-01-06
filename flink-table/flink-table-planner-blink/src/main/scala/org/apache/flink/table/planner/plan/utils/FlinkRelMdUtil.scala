@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase, BatchPhysicalGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchPhysicalGroupAggregateBase, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES
@@ -174,12 +174,12 @@ object FlinkRelMdUtil {
    *         a predicate that stores NamedProperties predicate's selectivity
    */
   def makeNamePropertiesSelectivityRexNode(
-      globalWinAgg: BatchExecWindowAggregateBase,
+      globalWinAgg: BatchPhysicalWindowAggregateBase,
       predicate: RexNode): RexNode = {
     require(globalWinAgg.isFinal, "local window agg does not contain NamedProperties!")
-    val fullGrouping = globalWinAgg.getGrouping ++ globalWinAgg.getAuxGrouping
+    val fullGrouping = globalWinAgg.grouping ++ globalWinAgg.auxGrouping
     makeNamePropertiesSelectivityRexNode(
-      globalWinAgg, fullGrouping, globalWinAgg.getNamedProperties, predicate)
+      globalWinAgg, fullGrouping, globalWinAgg.namedWindowProperties, predicate)
   }
 
   /**
@@ -321,7 +321,7 @@ object FlinkRelMdUtil {
    */
   def setAggChildKeys(
       groupKey: ImmutableBitSet,
-      aggRel: BatchExecWindowAggregateBase): (ImmutableBitSet, Array[AggregateCall]) = {
+      aggRel: BatchPhysicalWindowAggregateBase): (ImmutableBitSet, Array[AggregateCall]) = {
     require(!aggRel.isFinal || !aggRel.isMerge, "Cannot handle global agg which has local agg!")
     setChildKeysOfAgg(groupKey, aggRel)
   }
@@ -333,13 +333,13 @@ object FlinkRelMdUtil {
       case agg: BatchExecLocalSortWindowAggregate =>
         // grouping + assignTs + auxGrouping
         (agg.getAggCallList,
-          agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping)
+          agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
       case agg: BatchExecLocalHashWindowAggregate =>
         // grouping + assignTs + auxGrouping
         (agg.getAggCallList,
-          agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping)
-      case agg: BatchExecWindowAggregateBase =>
-        (agg.getAggCallList, agg.getGrouping ++ agg.getAuxGrouping)
+          agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
+      case agg: BatchPhysicalWindowAggregateBase =>
+        (agg.getAggCallList, agg.grouping ++ agg.auxGrouping)
       case agg: BatchPhysicalGroupAggregateBase =>
         (agg.getAggCallList, agg.grouping ++ agg.auxGrouping)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate: ${agg.getRelTypeName}")
@@ -373,11 +373,11 @@ object FlinkRelMdUtil {
    */
   def setChildKeysOfWinAgg(
       groupKey: ImmutableBitSet,
-      globalWinAgg: BatchExecWindowAggregateBase): ImmutableBitSet = {
+      globalWinAgg: BatchPhysicalWindowAggregateBase): ImmutableBitSet = {
     require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local window agg!")
     val childKeyBuilder = ImmutableBitSet.builder
     groupKey.toArray.foreach { key =>
-      if (key < globalWinAgg.getGrouping.length) {
+      if (key < globalWinAgg.grouping.length) {
         childKeyBuilder.set(key)
       } else {
         // skips `assignTs`
@@ -422,9 +422,9 @@ object FlinkRelMdUtil {
         val (childKeys, aggCalls) = setAggChildKeys(groupKey, rel)
         val childKeyExcludeAuxKey = removeAuxKey(childKeys, rel.grouping, rel.auxGrouping)
         (childKeyExcludeAuxKey, aggCalls)
-      case rel: BatchExecWindowAggregateBase =>
+      case rel: BatchPhysicalWindowAggregateBase =>
         val (childKeys, aggCalls) = setAggChildKeys(groupKey, rel)
-        val childKeyExcludeAuxKey = removeAuxKey(childKeys, rel.getGrouping, rel.getAuxGrouping)
+        val childKeyExcludeAuxKey = removeAuxKey(childKeys, rel.grouping, rel.auxGrouping)
         (childKeyExcludeAuxKey, aggCalls)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate: ${agg.getRelTypeName}.")
     }
@@ -471,9 +471,9 @@ object FlinkRelMdUtil {
    *         Note, pushable condition will be converted based on the input field position.
    */
   def splitPredicateOnAggregate(
-      agg: BatchExecWindowAggregateBase,
+      agg: BatchPhysicalWindowAggregateBase,
       predicate: RexNode): (Option[RexNode], Option[RexNode]) = {
-    splitPredicateOnAgg(agg.getGrouping ++ agg.getAuxGrouping, agg, predicate)
+    splitPredicateOnAgg(agg.grouping ++ agg.auxGrouping, agg, predicate)
   }
 
   /**
@@ -488,13 +488,13 @@ object FlinkRelMdUtil {
    */
   def setChildPredicateOfWinAgg(
       predicate: RexNode,
-      globalWinAgg: BatchExecWindowAggregateBase): RexNode = {
+      globalWinAgg: BatchPhysicalWindowAggregateBase): RexNode = {
     require(globalWinAgg.isMerge, "Cannot handle global agg which does not have local window agg!")
     if (predicate == null) {
       return null
     }
     // grouping + assignTs + auxGrouping
-    val fullGrouping = globalWinAgg.getGrouping ++ globalWinAgg.getAuxGrouping
+    val fullGrouping = globalWinAgg.grouping ++ globalWinAgg.auxGrouping
     // skips `assignTs`
     RexUtil.shift(predicate, fullGrouping.length, 1)
   }

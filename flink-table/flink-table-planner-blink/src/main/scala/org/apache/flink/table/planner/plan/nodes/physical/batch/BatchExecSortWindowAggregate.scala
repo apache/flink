@@ -27,7 +27,6 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.tools.RelBuilder
 
 import java.util
 
@@ -35,11 +34,9 @@ import scala.collection.JavaConversions._
 
 class BatchExecSortWindowAggregate(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
@@ -47,16 +44,14 @@ class BatchExecSortWindowAggregate(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedProperties: Seq[PlannerNamedWindowProperty],
+    namedWindowProperties: Seq[PlannerNamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean)
   extends BatchExecSortWindowAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     aggInputRowType,
     grouping,
     auxGrouping,
@@ -64,7 +59,7 @@ class BatchExecSortWindowAggregate(
     window,
     inputTimeFieldIndex,
     inputTimeIsDate,
-    namedProperties,
+    namedWindowProperties,
     enableAssignPane,
     isMerge,
     isFinal = true) {
@@ -72,11 +67,9 @@ class BatchExecSortWindowAggregate(
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecSortWindowAggregate(
       cluster,
-      relBuilder,
       traitSet,
       inputs.get(0),
       getRowType,
-      inputRowType,
       aggInputRowType,
       grouping,
       auxGrouping,
@@ -84,7 +77,7 @@ class BatchExecSortWindowAggregate(
       window,
       inputTimeFieldIndex,
       inputTimeIsDate,
-      namedProperties,
+      namedWindowProperties,
       enableAssignPane,
       isMerge)
   }
