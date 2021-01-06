@@ -20,27 +20,36 @@ package org.apache.flink.table.runtime.util.collections.binary;
 
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
+import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/** Verify the correctness of {@link BytesMultiMap}. */
-public class BytesMultiMapTest extends BytesMultiMapTestBase<BinaryRowData> {
+import java.util.Random;
 
-    public BytesMultiMapTest() {
-        super(new BinaryRowDataSerializer(KEY_TYPES.length));
+/** Test case for {@link BytesWindowHashMap}. */
+public class BytesWindowHashMapTest extends BytesHashMapTestBase<WindowKey> {
+
+    public BytesWindowHashMapTest() {
+        super(new WindowKeySerializer(KEY_TYPES.length));
     }
 
     @Override
-    public BytesMultiMapBase<BinaryRowData> createBytesMultiMap(
+    public BytesHashMapBase<WindowKey> createBytesHashMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        return new BytesMultiMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+        return new BytesWindowHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
     }
 
     @Override
-    public BinaryRowData[] generateRandomKeys(int num) {
-        return getRandomizedInputs(num);
+    public WindowKey[] generateRandomKeys(int num) {
+        final Random rnd = new Random(RANDOM_SEED);
+        BinaryRowData[] keys = getRandomizedInputs(num, rnd, true);
+        WindowKey[] windowKeys = new WindowKey[num];
+        for (int i = 0; i < num; i++) {
+            windowKeys[i] = new WindowKey(rnd.nextLong(), keys[i]);
+        }
+        return windowKeys;
     }
 }

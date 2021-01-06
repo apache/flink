@@ -245,6 +245,11 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     }
 
     @Override
+    public void skipRecordToRead(AbstractPagedInputView source) throws IOException {
+        binarySerializer.skipRecordToRead(source);
+    }
+
+    @Override
     public boolean equals(Object obj) {
         if (obj instanceof RowDataSerializer) {
             RowDataSerializer other = (RowDataSerializer) obj;

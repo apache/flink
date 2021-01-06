@@ -19,28 +19,37 @@
 package org.apache.flink.table.runtime.util.collections.binary;
 
 import org.apache.flink.runtime.memory.MemoryManager;
-import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
+import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-/** Verify the correctness of {@link BytesMultiMap}. */
-public class BytesMultiMapTest extends BytesMultiMapTestBase<BinaryRowData> {
+import static org.apache.flink.util.Preconditions.checkArgument;
 
-    public BytesMultiMapTest() {
-        super(new BinaryRowDataSerializer(KEY_TYPES.length));
-    }
+/**
+ * A binary map in the structure like {@code Map<WindowKey, List<BinaryRowData>>}.
+ *
+ * @see BytesMultiMapBase for more information about the binary layout.
+ */
+public final class BytesWindowMultiMap extends BytesMultiMapBase<WindowKey> {
 
-    @Override
-    public BytesMultiMapBase<BinaryRowData> createBytesMultiMap(
+    public BytesWindowMultiMap(
+            Object owner,
             MemoryManager memoryManager,
-            int memorySize,
+            long memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        return new BytesMultiMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+        super(
+                owner,
+                memoryManager,
+                memorySize,
+                new WindowKeySerializer(keyTypes.length),
+                valueTypes);
+        checkArgument(keyTypes.length > 0);
     }
 
     @Override
-    public BinaryRowData[] generateRandomKeys(int num) {
-        return getRandomizedInputs(num);
+    public void validateKey(WindowKey key) {
+        // check the looking up key having only one memory segment
+        checkArgument(key.getKey().getSegments().length == 1);
     }
 }

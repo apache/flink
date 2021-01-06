@@ -32,7 +32,12 @@ public class BytesMapTestBase {
     protected static final int PAGE_SIZE = 32 * 1024;
     protected static final int NUM_ENTRIES = 10000;
 
-    protected BinaryRowData[] getRandomizedInput(int num, Random rnd, boolean nullable) {
+    protected BinaryRowData[] getRandomizedInputs(int num) {
+        final Random rnd = new Random(RANDOM_SEED);
+        return getRandomizedInputs(num, rnd, true);
+    }
+
+    protected BinaryRowData[] getRandomizedInputs(int num, Random rnd, boolean nullable) {
         BinaryRowData[] lists = new BinaryRowData[num];
         for (int i = 0; i < num; i++) {
             int intVal = rnd.nextInt(Integer.MAX_VALUE);

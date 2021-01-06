@@ -197,6 +197,11 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
         return reuse;
     }
 
+    @Override
+    public void skipRecordToRead(AbstractPagedInputView source) throws IOException {
+        source.skipBytes(source.readInt());
+    }
+
     /**
      * Copy a binaryRow which stored in paged input view to output view.
      *
