@@ -83,7 +83,6 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -161,6 +160,8 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
+    private final KvStateHandler kvStateHandler;
+
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
     private final ComponentMainThreadExecutor mainThreadExecutor;
@@ -232,6 +233,8 @@ public abstract class SchedulerBase implements SchedulerNG {
                         getExecutionVertex(executionVertexId).getPreferredLocationBasedOnState();
         inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
+
+        this.kvStateHandler = new KvStateHandler(executionGraph);
 
         this.coordinatorMap = createCoordinatorMap(this.mainThreadExecutor);
     }
@@ -809,29 +812,7 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws UnknownKvStateLocation, FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        // sanity check for the correct JobID
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Lookup key-value state for job {} with registration " + "name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            final KvStateLocationRegistry registry = executionGraph.getKvStateLocationRegistry();
-            final KvStateLocation location = registry.getKvStateLocation(registrationName);
-            if (location != null) {
-                return location;
-            } else {
-                throw new UnknownKvStateLocation(registrationName);
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Request of key-value state location for unknown job {} received.", jobId);
-            }
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        return kvStateHandler.requestKvStateLocation(jobId, registrationName);
     }
 
     @Override
@@ -845,29 +826,13 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Key value state registered for job {} under name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            try {
-                executionGraph
-                        .getKvStateLocationRegistry()
-                        .notifyKvStateRegistered(
-                                jobVertexId,
-                                keyGroupRange,
-                                registrationName,
-                                kvStateId,
-                                kvStateServerAddress);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        kvStateHandler.notifyKvStateRegistered(
+                jobId,
+                jobVertexId,
+                keyGroupRange,
+                registrationName,
+                kvStateId,
+                kvStateServerAddress);
     }
 
     @Override
@@ -879,24 +844,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             throws FlinkJobNotFoundException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        if (jobGraph.getJobID().equals(jobId)) {
-            if (log.isDebugEnabled()) {
-                log.debug(
-                        "Key value state unregistered for job {} under name {}.",
-                        jobGraph.getJobID(),
-                        registrationName);
-            }
-
-            try {
-                executionGraph
-                        .getKvStateLocationRegistry()
-                        .notifyKvStateUnregistered(jobVertexId, keyGroupRange, registrationName);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new FlinkJobNotFoundException(jobId);
-        }
+        kvStateHandler.notifyKvStateUnregistered(
+                jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
     @Override
