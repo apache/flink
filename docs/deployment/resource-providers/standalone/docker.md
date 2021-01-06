@@ -34,7 +34,7 @@ This *Getting Started* section guides you through the local setup (on one machin
 ### Introduction
 
 [Docker](https://www.docker.com) is a popular container runtime.
-There are Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
+There are official Docker images for Apache Flink available [on Docker Hub](https://hub.docker.com/_/flink).
 You can use the Docker images to deploy a *Session* or *Application cluster* on Docker. This page focuses on the setup of Flink on Docker, Docker Swarm and Docker Compose.
 
 Deployment into managed containerized environments, such as [standalone Kubernetes]({% link deployment/resource-providers/standalone/kubernetes.md %}) or [native Kubernetes]({% link deployment/resource-providers/native_kubernetes.md %}), are described on separate pages.
@@ -209,6 +209,16 @@ Local deployment in the Session Mode has already been described in the [Getting 
 {% top %}
 
 ## Flink on Docker Reference
+
+### Image hosting
+
+There are two distribution channels for the Flink Docker images:
+1. [Official Flink images on Docker Hub (reviewed and build by Docker)](https://hub.docker.com/_/flink/)
+2. [Flink images on Docker Hub `apache/flink` (managed by the Flink developers)](https://hub.docker.com/r/apache/flink)
+
+We recommend using the official images on Docker Hub, as they are reviewed by Docker. The images on `apache/flink` are provided in case of delays in the review process by Docker.
+
+Launching an image named `flink:latest` will pull the latest image from Docker Hub. In order to use the images hosted in `apache/flink`, replace `flink` by `apache/flink`. Any of the image tags (starting from Flink 1.11.3) are avaialble on `apache/flink` as well.
 
 ### Image tags
 
