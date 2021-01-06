@@ -22,27 +22,27 @@ import java.io.IOException;
 import java.util.Iterator;
 
 /**
- * An internal iterator interface which presents a more restrictive API than {@link Iterator}.
- * This iterator can avoid using Tuple2 to wrap key and value.
+ * An internal iterator interface which presents a more restrictive API than {@link Iterator}. This
+ * iterator can avoid using Tuple2 to wrap key and value.
  */
 public interface KeyValueIterator<K, V> {
 
-	/**
-	 * Advance this iterator by a single kv. Returns `false` if this iterator has no more kvs
-	 * and `true` otherwise. If this returns `true`, then the new kv can be retrieved by calling
-	 * {@link #getKey()} and {@link #getValue()}.
-	 */
-	boolean advanceNext() throws IOException;
+    /**
+     * Advance this iterator by a single kv. Returns {@code false} if this iterator has no more kvs
+     * and {@code true} otherwise. If this returns {@code true}, then the new kv can be retrieved by
+     * calling {@link #getKey()} and {@link #getValue()}.
+     */
+    boolean advanceNext() throws IOException;
 
-	/**
-	 * Retrieve the key from this iterator. This method is idempotent. It is illegal to call this
-	 * method after {@link #advanceNext()} has returned `false`.
-	 */
-	K getKey();
+    /**
+     * Retrieve the key from this iterator. This method is idempotent. It is illegal to call this
+     * method after {@link #advanceNext()} has returned {@code false}.
+     */
+    K getKey();
 
-	/**
-	 * Retrieve the value from this iterator. This method is idempotent. It is illegal to call this
-	 * method after {@link #advanceNext()} has returned `false`.
-	 */
-	V getValue();
+    /**
+     * Retrieve the value from this iterator. This method is idempotent. It is illegal to call this
+     * method after {@link #advanceNext()} has returned {@code false}.
+     */
+    V getValue();
 }
