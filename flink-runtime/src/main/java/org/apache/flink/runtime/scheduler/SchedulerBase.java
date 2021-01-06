@@ -1050,7 +1050,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
         for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
             for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
-                holder.lazyInitialize(this, mainThreadExecutor);
+                holder.lazyInitialize(this::handleGlobalFailure, mainThreadExecutor);
                 coordinatorMap.put(holder.operatorId(), holder);
             }
         }
