@@ -25,7 +25,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -53,7 +52,6 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
@@ -70,7 +68,6 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -89,16 +86,13 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.IntArrayList;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
-import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
-import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 
@@ -161,6 +155,8 @@ public abstract class SchedulerBase implements SchedulerNG {
     protected final ExecutionVertexVersioner executionVertexVersioner;
 
     private final KvStateHandler kvStateHandler;
+
+    private final ExecutionGraphHandler executionGraphHandler;
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
@@ -235,6 +231,8 @@ public abstract class SchedulerBase implements SchedulerNG {
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
         this.kvStateHandler = new KvStateHandler(executionGraph);
+        this.executionGraphHandler =
+                new ExecutionGraphHandler(executionGraph, log, ioExecutor, this.mainThreadExecutor);
 
         this.coordinatorMap = createCoordinatorMap(this.mainThreadExecutor);
     }
@@ -698,48 +696,7 @@ public abstract class SchedulerBase implements SchedulerNG {
             JobVertexID vertexID, ExecutionAttemptID executionAttempt) throws IOException {
         mainThreadExecutor.assertRunningInMainThread();
 
-        final Execution execution = executionGraph.getRegisteredExecutions().get(executionAttempt);
-        if (execution == null) {
-            // can happen when JobManager had already unregistered this execution upon on task
-            // failure,
-            // but TaskManager get some delay to aware of that situation
-            if (log.isDebugEnabled()) {
-                log.debug("Can not find Execution for attempt {}.", executionAttempt);
-            }
-            // but we should TaskManager be aware of this
-            throw new IllegalArgumentException(
-                    "Can not find Execution for attempt " + executionAttempt);
-        }
-
-        final ExecutionJobVertex vertex = executionGraph.getJobVertex(vertexID);
-        if (vertex == null) {
-            throw new IllegalArgumentException(
-                    "Cannot find execution vertex for vertex ID " + vertexID);
-        }
-
-        if (vertex.getSplitAssigner() == null) {
-            throw new IllegalStateException("No InputSplitAssigner for vertex ID " + vertexID);
-        }
-
-        final InputSplit nextInputSplit = execution.getNextInputSplit();
-
-        if (log.isDebugEnabled()) {
-            log.debug("Send next input split {}.", nextInputSplit);
-        }
-
-        try {
-            final byte[] serializedInputSplit = InstantiationUtil.serializeObject(nextInputSplit);
-            return new SerializedInputSplit(serializedInputSplit);
-        } catch (Exception ex) {
-            IOException reason =
-                    new IOException(
-                            "Could not serialize the next input split of class "
-                                    + nextInputSplit.getClass()
-                                    + ".",
-                            ex);
-            vertex.fail(reason);
-            throw reason;
-        }
+        return executionGraphHandler.requestNextInputSplit(vertexID, executionAttempt);
     }
 
     @Override
@@ -750,32 +707,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         mainThreadExecutor.assertRunningInMainThread();
 
-        final Execution execution =
-                executionGraph.getRegisteredExecutions().get(resultPartitionId.getProducerId());
-        if (execution != null) {
-            return execution.getState();
-        } else {
-            final IntermediateResult intermediateResult =
-                    executionGraph.getAllIntermediateResults().get(intermediateResultId);
-
-            if (intermediateResult != null) {
-                // Try to find the producing execution
-                Execution producerExecution =
-                        intermediateResult
-                                .getPartitionById(resultPartitionId.getPartitionId())
-                                .getProducer()
-                                .getCurrentExecutionAttempt();
-
-                if (producerExecution.getAttemptId().equals(resultPartitionId.getProducerId())) {
-                    return producerExecution.getState();
-                } else {
-                    throw new PartitionProducerDisposedException(resultPartitionId);
-                }
-            } else {
-                throw new IllegalArgumentException(
-                        "Intermediate data set with ID " + intermediateResultId + " not found.");
-            }
-        }
+        return executionGraphHandler.requestPartitionState(intermediateResultId, resultPartitionId);
     }
 
     @Override
@@ -929,62 +861,21 @@ public abstract class SchedulerBase implements SchedulerNG {
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
             final TaskStateSnapshot checkpointState) {
-        processCheckpointCoordinatorMessage(
-                "AcknowledgeCheckpoint",
-                coordinator ->
-                        coordinator.receiveAcknowledgeMessage(
-                                new AcknowledgeCheckpoint(
-                                        jobID,
-                                        executionAttemptID,
-                                        checkpointId,
-                                        checkpointMetrics,
-                                        checkpointState),
-                                retrieveTaskManagerLocation(executionAttemptID)));
+
+        executionGraphHandler.acknowledgeCheckpoint(
+                jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
+    }
+
+    @Override
+    public void declineCheckpoint(final DeclineCheckpoint decline) {
+
+        executionGraphHandler.declineCheckpoint(decline);
     }
 
     @Override
     public void reportCheckpointMetrics(
             JobID jobID, ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
-        processCheckpointCoordinatorMessage(
-                "ReportCheckpointStats",
-                coordinator -> coordinator.reportStats(id, attemptId, metrics));
-    }
-
-    @Override
-    public void declineCheckpoint(final DeclineCheckpoint decline) {
-        processCheckpointCoordinatorMessage(
-                "DeclineCheckpoint",
-                coordinator ->
-                        coordinator.receiveDeclineMessage(
-                                decline,
-                                retrieveTaskManagerLocation(decline.getTaskExecutionId())));
-    }
-
-    private void processCheckpointCoordinatorMessage(
-            String messageType, ThrowingConsumer<CheckpointCoordinator, Exception> process) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-
-        if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            process.accept(checkpointCoordinator);
-                        } catch (Exception t) {
-                            log.warn("Error while processing " + messageType + " message", t);
-                        }
-                    });
-        } else {
-            String errorMessage =
-                    "Received " + messageType + " message for job {} with no CheckpointCoordinator";
-            if (executionGraph.getState() == JobStatus.RUNNING) {
-                log.error(errorMessage, jobGraph.getJobID());
-            } else {
-                log.debug(errorMessage, jobGraph.getJobID());
-            }
-        }
+        executionGraphHandler.reportCheckpointMetrics(attemptId, id, metrics);
     }
 
     @Override
@@ -1067,17 +958,6 @@ public abstract class SchedulerBase implements SchedulerNG {
                             return path;
                         },
                         mainThreadExecutor);
-    }
-
-    private String retrieveTaskManagerLocation(ExecutionAttemptID executionAttemptID) {
-        final Optional<Execution> currentExecution =
-                Optional.ofNullable(
-                        executionGraph.getRegisteredExecutions().get(executionAttemptID));
-
-        return currentExecution
-                .map(Execution::getAssignedResourceLocation)
-                .map(TaskManagerLocation::toString)
-                .orElse("Unknown location");
     }
 
     // ------------------------------------------------------------------------
