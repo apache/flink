@@ -498,7 +498,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
    * @return interval of the given column on batch window Aggregate
    */
   def getColumnInterval(
-      agg: BatchExecWindowAggregateBase,
+      agg: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
@@ -544,11 +544,11 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: Aggregate => AggregateUtil.checkAndGetFullGroupSet(agg)
       case agg: BatchExecLocalSortWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
+        agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping
       case agg: BatchExecLocalHashWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
-      case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
+        agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping
+      case agg: BatchPhysicalWindowAggregateBase => agg.grouping ++ agg.auxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
       case agg: StreamPhysicalGroupTableAggregate => agg.grouping
       case agg: StreamPhysicalGroupWindowTableAggregate => agg.grouping
@@ -642,7 +642,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
             } else {
               null
             }
-          case agg: BatchExecWindowAggregateBase if agg.getAggCallList.length > aggCallIndex =>
+          case agg: BatchPhysicalWindowAggregateBase if agg.getAggCallList.length > aggCallIndex =>
             agg.getAggCallList(aggCallIndex)
           case _ => null
         }

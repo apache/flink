@@ -40,15 +40,12 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.tools.RelBuilder
 
 abstract class BatchExecSortWindowAggregateBase(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     aggInputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
@@ -56,21 +53,20 @@ abstract class BatchExecSortWindowAggregateBase(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedProperties: Seq[PlannerNamedWindowProperty],
+    namedWindowProperties: Seq[PlannerNamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean,
     isFinal: Boolean)
-  extends BatchExecWindowAggregateBase(
+  extends BatchPhysicalWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
     window,
-    namedProperties,
+    namedWindowProperties,
     enableAssignPane,
     isMerge,
     isFinal)
@@ -98,6 +94,7 @@ abstract class BatchExecSortWindowAggregateBase(
         .asInstanceOf[Transformation[RowData]]
     val ctx = CodeGeneratorContext(planner.getTableConfig)
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
+    val inputRowType = getInput().getRowType
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
     val aggInfos = transformToBatchAggregateInfoList(
@@ -109,8 +106,8 @@ abstract class BatchExecSortWindowAggregateBase(
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 
     val generator = new SortWindowCodeGenerator(
-      ctx, relBuilder, window, inputTimeFieldIndex,
-      inputTimeIsDate, namedProperties,
+      ctx, planner.getRelBuilder, window, inputTimeFieldIndex,
+      inputTimeIsDate, namedWindowProperties,
       aggInfos, inputRowType, inputType, outputType,
       groupBufferLimitSize, 0L, windowSize, slideSize,
       grouping, auxGrouping, enableAssignPane, isMerge, isFinal)

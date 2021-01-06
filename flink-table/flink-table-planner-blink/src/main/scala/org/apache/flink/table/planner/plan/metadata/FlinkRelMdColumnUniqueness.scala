@@ -387,14 +387,14 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     if (rel.isFinal) {
       areColumnsUniqueOnWindowAggregate(
-        rel.getGrouping,
-        rel.getNamedProperties,
+        rel.grouping,
+        rel.namedWindowProperties,
         rel.getRowType.getFieldCount,
         mq,
         columns,

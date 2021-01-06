@@ -29,17 +29,19 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 
-abstract class BatchExecWindowAggregateBase(
+/**
+ * Base batch group window aggregate physical node.
+ */
+abstract class BatchPhysicalWindowAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
-    grouping: Array[Int],
-    auxGrouping: Array[Int],
+    val grouping: Array[Int],
+    val auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-    window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty],
+    val window: LogicalWindow,
+    val namedWindowProperties: Seq[PlannerNamedWindowProperty],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean)
@@ -50,25 +52,19 @@ abstract class BatchExecWindowAggregateBase(
     throw new TableException("auxGrouping should be empty if grouping is empty.")
   }
 
-  def getGrouping: Array[Int] = grouping
-
-  def getAuxGrouping: Array[Int] = auxGrouping
-
-  def getWindow: LogicalWindow = window
-
-  def getNamedProperties: Seq[PlannerNamedWindowProperty] = namedProperties
-
   def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
 
   override def deriveRowType(): RelDataType = outputRowType
 
   override def explainTerms(pw: RelWriter): RelWriter = {
+    val inputRowType = getInput.getRowType
     super.explainTerms(pw)
       .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("auxGrouping", RelExplainUtil.fieldToString(auxGrouping, inputRowType),
         auxGrouping.nonEmpty)
       .item("window", window)
-      .itemIf("properties", namedProperties.map(_.name).mkString(", "), namedProperties.nonEmpty)
+      .itemIf("properties",
+        namedWindowProperties.map(_.name).mkString(", "), namedWindowProperties.nonEmpty)
       .item("select", RelExplainUtil.windowAggregationToString(
         inputRowType,
         grouping,
