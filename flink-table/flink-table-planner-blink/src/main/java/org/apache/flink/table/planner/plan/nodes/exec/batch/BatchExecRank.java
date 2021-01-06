@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.RankOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -107,13 +106,12 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
 
         RowType outputType = (RowType) getOutputType();
         OneInputTransformation<RowData, RowData> ret =
-                ExecNodeUtil.createOneInputTransformation(
+                new OneInputTransformation<>(
                         input,
                         getDesc(),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(outputType),
-                        input.getParallelism(),
-                        0);
+                        input.getParallelism());
         if (inputsContainSingleton()) {
             ret.setParallelism(1);
             ret.setMaxParallelism(1);
