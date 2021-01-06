@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.stream
+package org.apache.flink.table.planner.plan.nodes.exec.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
@@ -28,82 +28,53 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonGroupWindowAggregate.ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
-import org.apache.flink.table.planner.plan.utils.AggregateUtil._
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupWindowAggregate.ARROW_STREAM_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, timeFieldIndex, toDuration, toLong}
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, WindowEmitStrategy}
-import org.apache.flink.table.runtime.operators.window.assigners._
+import org.apache.flink.table.planner.utils.Logging
+import org.apache.flink.table.runtime.operators.window.assigners.{CountSlidingWindowAssigner, CountTumblingWindowAssigner, SlidingWindowAssigner, TumblingWindowAssigner, WindowAssigner}
 import org.apache.flink.table.runtime.operators.window.triggers.{ElementTriggers, EventTimeTriggers, ProcessingTimeTriggers, Trigger}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 
+import java.util.Collections
+
 /**
- * Stream physical RelNode for group widow aggregate (Python user defined aggregate function).
+ * Stream [[ExecNode]] for group widow aggregate (Python user defined aggregate function).
+ *
+ * <p>Note: This class can't be ported to Java,
+ * because java class can't extend scala interface with default implementation.
+ * FLINK-20858 will port this class to Java.
  */
 class StreamExecPythonGroupWindowAggregate(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputRel: RelNode,
-    outputRowType: RelDataType,
     grouping: Array[Int],
-    aggCalls: Seq[AggregateCall],
+    aggCalls: Array[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty],
-    inputTimeFieldIndex: Int,
-    emitStrategy: WindowEmitStrategy)
-  extends StreamPhysicalGroupWindowAggregateBase(
-    cluster,
-    traitSet,
-    inputRel,
-    outputRowType,
-    grouping,
-    aggCalls,
-    window,
-    namedProperties,
-    emitStrategy)
+    namedWindowProperties: Array[PlannerNamedWindowProperty],
+    emitStrategy: WindowEmitStrategy,
+    inputEdge: ExecEdge,
+    outputType: RowType,
+    description: String)
+  extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
+  with StreamExecNode[RowData]
   with CommonExecPythonAggregate
-  with LegacyStreamExecNode[RowData] {
+  with Logging {
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecPythonGroupWindowAggregate(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      outputRowType,
-      grouping,
-      aggCalls,
-      window,
-      namedProperties,
-      inputTimeFieldIndex,
-      emitStrategy)
-  }
-
-  override def translateToPlanInternal(planner: StreamPlanner): Transformation[RowData] = {
-    val config = planner.getTableConfig
-
-    val inputTransform = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-
-    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
-
-    val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
-    val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
-
+  override def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
     val isCountWindow = window match {
       case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) => true
       case SlidingGroupWindow(_, _, size, _) if hasRowIntervalType(size) => true
       case _ => false
     }
 
+    val config = planner.getTableConfig
     if (isCountWindow && grouping.length > 0 && config.getMinIdleStateRetentionTime < 0) {
       LOG.warn(
         "No state retention interval configured for a query which accumulates state. " +
@@ -111,45 +82,52 @@ class StreamExecPythonGroupWindowAggregate(
           "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val timeIdx = if (isRowtimeAttribute(window.timeAttribute)) {
-      if (inputTimeFieldIndex < 0) {
+    val inputNode = getInputNodes.get(0).asInstanceOf[ExecNode[RowData]]
+    val inputRowType = inputNode.getOutputType.asInstanceOf[RowType]
+
+    val inputTimeFieldIndex = if (isRowtimeAttribute(window.timeAttribute)) {
+      val timeIndex = timeFieldIndex(
+        FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType),
+        planner.getRelBuilder,
+        window.timeAttribute)
+      if (timeIndex < 0) {
         throw new TableException(
           s"Group window PythonAggregate must defined on a time attribute, " +
             "but the time attribute can't be found.\n" +
-            "This should never happen. Please file an issue."
-          )
+            "This should never happen. Please file an issue.")
       }
-      inputTimeFieldIndex
+      timeIndex
     } else {
       -1
     }
 
+    val inputTransform = inputNode.translateToPlan(planner)
     val (windowAssigner, trigger) = generateWindowAssignerAndTrigger()
-    val ret = createPythonStreamWindowGroupOneInputTransformation(
+    val transform = createPythonStreamWindowGroupOneInputTransformation(
       inputTransform,
-      inputType,
+      inputNode.getOutputType.asInstanceOf[RowType],
       outputType,
-      timeIdx,
+      inputTimeFieldIndex,
       windowAssigner,
       trigger,
       emitStrategy.getAllowLateness,
       getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (inputsContainSingleton()) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+      transform.setParallelism(1)
+      transform.setMaxParallelism(1)
     }
-
-    val selector = KeySelectorUtil.getRowDataSelector(grouping, inputRowTypeInfo)
 
     // set KeyType and Selector for state
-    ret.setStateKeySelector(selector)
-    ret.setStateKeyType(selector.getProducedType)
+    val inputRowTypeInfo = inputTransform.getOutputType.asInstanceOf[InternalTypeInfo[RowData]]
+    val selector = KeySelectorUtil.getRowDataSelector(grouping, inputRowTypeInfo)
+    transform.setStateKeySelector(selector)
+    transform.setStateKeyType(selector.getProducedType)
 
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
-      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
+      transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
-    ret
+    transform
   }
 
   private[this] def generateWindowAssignerAndTrigger(): (WindowAssigner[_], Trigger[_]) = {
@@ -210,7 +188,7 @@ class StreamExecPythonGroupWindowAggregate(
       allowance: Long,
       config: Configuration): OneInputTransformation[RowData, RowData] = {
 
-    val namePropertyTypeArray = namedProperties
+    val namePropertyTypeArray = namedWindowProperties
       .map {
         case PlannerNamedWindowProperty(_, p) => p match {
           case PlannerWindowStart(_) => 0

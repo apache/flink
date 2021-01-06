@@ -473,7 +473,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
            _: StreamExecOverAggregate | _: StreamExecIntervalJoin |
-           _: StreamExecPythonGroupWindowAggregate | _: StreamExecPythonOverAggregate =>
+           _: StreamPhysicalPythonGroupWindowAggregate | _: StreamExecPythonOverAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
         // and IntervalJoin require nothing about UpdateKind.
         val children = visitChildren(rel, UpdateKindTrait.NONE)

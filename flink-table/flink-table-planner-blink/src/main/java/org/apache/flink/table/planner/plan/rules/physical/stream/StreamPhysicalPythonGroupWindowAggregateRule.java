@@ -20,18 +20,17 @@ package org.apache.flink.table.planner.plan.rules.physical.stream;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonGroupWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonGroupWindowAggregate;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
-import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
@@ -44,23 +43,21 @@ import org.apache.calcite.rel.core.AggregateCall;
 
 import java.util.List;
 
-import scala.collection.JavaConverters;
-
 /**
  * The physical rule is responsible for converting {@link FlinkLogicalWindowAggregate} to {@link
- * StreamExecPythonGroupWindowAggregate}.
+ * StreamPhysicalPythonGroupWindowAggregate}.
  */
-public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
+public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule {
 
-    public static final StreamExecPythonGroupWindowAggregateRule INSTANCE =
-            new StreamExecPythonGroupWindowAggregateRule();
+    public static final StreamPhysicalPythonGroupWindowAggregateRule INSTANCE =
+            new StreamPhysicalPythonGroupWindowAggregateRule();
 
-    private StreamExecPythonGroupWindowAggregateRule() {
+    private StreamPhysicalPythonGroupWindowAggregateRule() {
         super(
                 FlinkLogicalWindowAggregate.class,
                 FlinkConventions.LOGICAL(),
                 FlinkConventions.STREAM_PHYSICAL(),
-                "StreamExecPythonGroupWindowAggregateRule");
+                "StreamPhysicalPythonGroupWindowAggregateRule");
     }
 
     @Override
@@ -124,29 +121,15 @@ public class StreamExecPythonGroupWindowAggregateRule extends ConverterRule {
                 cluster.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
         WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
 
-        FieldReferenceExpression timeField = agg.getWindow().timeAttribute();
-
-        int inputTimestampIndex;
-        if (AggregateUtil.isRowtimeAttribute(timeField)) {
-            inputTimestampIndex =
-                    AggregateUtil.timeFieldIndex(
-                            input.getRowType(), relBuilderFactory.create(cluster, null), timeField);
-        } else {
-            inputTimestampIndex = -1;
-        }
-
-        return new StreamExecPythonGroupWindowAggregate(
+        return new StreamPhysicalPythonGroupWindowAggregate(
                 cluster,
                 providedTraitSet,
                 newInput,
                 rel.getRowType(),
                 agg.getGroupSet().toArray(),
-                JavaConverters.asScalaIteratorConverter(agg.getAggCallList().iterator())
-                        .asScala()
-                        .toSeq(),
+                JavaScalaConversionUtil.toScala(agg.getAggCallList()),
                 agg.getWindow(),
                 agg.getNamedProperties(),
-                inputTimestampIndex,
                 emitStrategy);
     }
 }
