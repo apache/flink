@@ -31,7 +31,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.util.TestLogger;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -66,7 +66,7 @@ public class KubernetesTestBase extends TestLogger {
 
     protected final Configuration flinkConfig = new Configuration();
 
-    protected KubernetesClient kubeClient;
+    protected NamespacedKubernetesClient kubeClient;
 
     protected FlinkKubeClient flinkKubeClient;
 
