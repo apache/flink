@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecOverAggregate
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -32,16 +32,16 @@ import org.apache.calcite.rel.convert.ConverterRule
 import scala.collection.JavaConverters._
 
 /**
-  * Rule that converts [[FlinkLogicalOverAggregate]] to [[StreamExecOverAggregate]].
-  * NOTES: StreamExecOverAggregate only supports one [[org.apache.calcite.rel.core.Window.Group]],
-  * else throw exception now
-  */
-class StreamExecOverAggregateRule
+ * Rule that converts [[FlinkLogicalOverAggregate]] to [[StreamPhysicalOverAggregate]].
+ * NOTES: StreamExecOverAggregate only supports one [[org.apache.calcite.rel.core.Window.Group]],
+ * else throw exception now
+ */
+class StreamPhysicalOverAggregateRule
   extends ConverterRule(
     classOf[FlinkLogicalOverAggregate],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecOverAggregateRule") {
+    "StreamPhysicalOverAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val logicWindow: FlinkLogicalOverAggregate =
@@ -73,17 +73,15 @@ class StreamExecOverAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput = RelOptRule.convert(logicWindow.getInput, requiredTraitSet)
 
-    new StreamExecOverAggregate(
+    new StreamPhysicalOverAggregate(
       rel.getCluster,
       providedTraitSet,
       newInput,
       rel.getRowType,
-      newInput.getRowType,
       logicWindow)
   }
 }
 
-object StreamExecOverAggregateRule {
-  val INSTANCE: RelOptRule = new StreamExecOverAggregateRule
+object StreamPhysicalOverAggregateRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalOverAggregateRule
 }
-

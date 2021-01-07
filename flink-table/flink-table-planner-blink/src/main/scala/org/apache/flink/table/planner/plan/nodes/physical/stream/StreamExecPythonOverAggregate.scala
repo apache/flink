@@ -27,6 +27,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonOverAggregate
 .{ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME,
@@ -56,16 +57,15 @@ class StreamExecPythonOverAggregate(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     logicWindow: Window)
-  extends StreamExecOverAggregateBase(
+  extends StreamPhysicalOverAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    inputRowType,
     logicWindow)
-  with CommonPythonAggregate {
+  with CommonPythonAggregate
+  with LegacyStreamExecNode[RowData] {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new StreamExecPythonOverAggregate(
@@ -73,9 +73,7 @@ class StreamExecPythonOverAggregate(
       traitSet,
       inputs.get(0),
       outputRowType,
-      inputRowType,
-      logicWindow
-      )
+      logicWindow)
   }
 
   override protected def translateToPlanInternal(

@@ -17,10 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.CalcitePair
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -36,16 +34,14 @@ import scala.collection.JavaConverters._
 /**
   * Base Stream physical RelNode for time-based over [[Window]].
   */
-abstract class StreamExecOverAggregateBase(
+abstract class StreamPhysicalOverAggregateBase(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    inputRowType: RelDataType,
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = {
     if (logicWindow.groups.size() != 1
@@ -77,6 +73,7 @@ abstract class StreamExecOverAggregateBase(
     val partitionKeys: Array[Int] = overWindow.keys.toArray
     val namedAggregates: Seq[CalcitePair[AggregateCall, String]] = generateNamedAggregates
 
+    val inputRowType = getInput.getRowType
     super.explainTerms(pw)
       .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
               partitionKeys.nonEmpty)

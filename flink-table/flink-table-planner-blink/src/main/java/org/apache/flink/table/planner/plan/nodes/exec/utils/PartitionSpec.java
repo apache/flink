@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
-/** PartitionSpec describes how data is partitioned in Rank. */
+import java.util.Arrays;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/** {@link PartitionSpec} describes how data is partitioned in Rank. */
 public class PartitionSpec {
 
     /** PartitionSpec makes all data in one partition. */
@@ -28,11 +32,33 @@ public class PartitionSpec {
     private final int[] fields;
 
     public PartitionSpec(int[] fields) {
-        this.fields = fields;
+        this.fields = checkNotNull(fields);
     }
 
     /** Gets field index of all fields in input. */
     public int[] getFieldIndices() {
         return fields;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        PartitionSpec that = (PartitionSpec) o;
+        return Arrays.equals(fields, that.fields);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(fields);
+    }
+
+    @Override
+    public String toString() {
+        return "Partition{" + "fields=" + Arrays.toString(fields) + '}';
     }
 }
