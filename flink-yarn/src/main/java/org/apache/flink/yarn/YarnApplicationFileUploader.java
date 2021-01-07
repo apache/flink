@@ -200,22 +200,26 @@ class YarnApplicationFileUploader implements AutoCloseable {
     }
 
     Tuple2<Path, Long> uploadLocalFileToRemote(
-            final Path localSrcPath, final String relativeDstPath, final boolean isLocal) throws IOException {
+            final Path localSrcPath, final String relativeDstPath, final boolean isLocal)
+            throws IOException {
 
         final Long lastModified;
         if (isLocal) {
             final File localFile = new File(localSrcPath.toUri().getPath());
             checkArgument(
-                !localFile.isDirectory(), "File to copy cannot be a directory: " + localSrcPath);
+                    !localFile.isDirectory(),
+                    "File to copy cannot be a directory: " + localSrcPath);
             lastModified = localFile.lastModified();
         } else {
             final FileSystem srcFs = localSrcPath.getFileSystem(fileSystem.getConf());
             checkArgument(
-                !srcFs.isDirectory(localSrcPath), "File to copy cannot be a directory: " + localSrcPath);
+                    !srcFs.isDirectory(localSrcPath),
+                    "File to copy cannot be a directory: " + localSrcPath);
             lastModified = srcFs.getFileStatus(localSrcPath).getModificationTime();
         }
 
-        final Path dst = copyToRemoteApplicationDir(localSrcPath, relativeDstPath, isLocal, fileReplication);
+        final Path dst =
+                copyToRemoteApplicationDir(localSrcPath, relativeDstPath, isLocal, fileReplication);
 
         // Note: If we directly used registerLocalResource(FileSystem, Path) here, we would access
         // the remote
@@ -401,7 +405,10 @@ class YarnApplicationFileUploader implements AutoCloseable {
     }
 
     private Path copyToRemoteApplicationDir(
-            final Path localSrcPath, final String relativeDstPath, final boolean isLocal, final int replicationFactor)
+            final Path localSrcPath,
+            final String relativeDstPath,
+            final boolean isLocal,
+            final int replicationFactor)
             throws IOException {
 
         final Path applicationDir = getApplicationDirPath(homeDir, applicationId);
