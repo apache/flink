@@ -75,7 +75,7 @@ echo numpy==1.16.5 > requirements.txt
 pip download -d cached_dir -r requirements.txt --no-binary :all:
 
 # python 代码
-table_env.set_python_requirements("requirements.txt", "cached_dir")
+table_env.set_python_requirements("/path/to/requirements.txt", "cached_dir")
 {% endhighlight %}
         <p>请确保这些依赖安装包和集群运行环境所使用的 Python 版本相匹配。此外，这些依赖将通过 Pip 安装， 请确保 Pip 的版本（version >= 7.1.0） 和 Setuptools 的版本（version >= 37.0.0）符合要求。</p>
       </td>
@@ -90,9 +90,9 @@ table_env.set_python_requirements("requirements.txt", "cached_dir")
 zip -r py_env.zip py_env
 
 # python 代码
-table_env.add_python_archive("py_env.zip")
+table_env.add_python_archive("/path/to/py_env.zip")
 # 或者
-table_env.add_python_archive("py_env.zip", "myenv")
+table_env.add_python_archive("/path/to/py_env.zip", "myenv")
 
 # 归档文件中的文件可以被 Python 函数读取
 def my_udf():
@@ -107,9 +107,10 @@ def my_udf():
       <td>
         <p>配置用于执行 Python Worker 的 Python 解释器路径，如 "/usr/local/bin/python3"。</p>
 {% highlight python %}
-table_env.add_python_archive("py_env.zip")
+table_env.add_python_archive("/path/to/py_env.zip")
 table_env.get_config().set_python_executable("py_env.zip/py_env/bin/python")
 {% endhighlight %}
+        <p>如果 Python 解释器的路径指向上传的 Python 归档文件，那么通过 set_python_executable 设置的 Python 解释器的路径必须是相对路径。</p>
         <p>请确保配置的 Python 环境和集群运行环境匹配。</p>
       </td>
     </tr>
