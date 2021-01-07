@@ -182,8 +182,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // table agg support all changes in input
         val children = visitChildren(tagg, ModifyKindSetTrait.ALL_CHANGES)
         // table aggregate will produce all changes, including deletions
-        createNewNode(
-          tagg, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
+        createNewNode(tagg, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
 
       case agg: StreamPhysicalPythonGroupAggregate =>
         // agg support all changes in input
@@ -223,30 +222,26 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case _: StreamPhysicalRank | _: StreamPhysicalSortLimit =>
         // Rank and SortLimit supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
-        createNewNode(
-          rel, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
+        createNewNode(rel, children, ModifyKindSetTrait.ALL_CHANGES, requiredTrait, requester)
 
       case sort: StreamPhysicalSort =>
         // Sort supports consuming all changes
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         // Sort will buffer all inputs, and produce insert-only messages when input is finished
-        createNewNode(
-          sort, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+        createNewNode(sort, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
       case cep: StreamExecMatch =>
         // CEP only supports consuming insert-only and producing insert-only changes
         // give a better requester name for exception message
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
-        createNewNode(
-          cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+        createNewNode(cep, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case _: StreamPhysicalTemporalSort | _: StreamExecOverAggregate | _: StreamExecIntervalJoin |
-           _: StreamExecPythonOverAggregate =>
+      case _: StreamPhysicalTemporalSort | _: StreamExecIntervalJoin |
+           _: StreamPhysicalOverAggregate | _: StreamExecPythonOverAggregate =>
         // TemporalSort, OverAggregate, IntervalJoin only support consuming insert-only
         // and producing insert-only changes
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
-        createNewNode(
-          rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+        createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
       case join: StreamExecJoin =>
         // join support all changes in input
@@ -304,8 +299,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       case _: StreamPhysicalDataStreamScan | _: StreamPhysicalLegacyTableSourceScan |
            _: StreamPhysicalValues =>
         // DataStream, TableSource and Values only support producing insert-only messages
-        createNewNode(
-          rel, List(), ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
+        createNewNode(rel, List(), ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
       case scan: StreamExecIntermediateTableScan =>
         val providedTrait = new ModifyKindSetTrait(scan.intermediateTable.modifyKindSet)
@@ -472,7 +466,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
 
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
            _: StreamExecDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
-           _: StreamExecOverAggregate | _: StreamExecIntervalJoin |
+           _: StreamPhysicalOverAggregate | _: StreamExecIntervalJoin |
            _: StreamPhysicalPythonGroupWindowAggregate | _: StreamExecPythonOverAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
         // and IntervalJoin require nothing about UpdateKind.
