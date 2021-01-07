@@ -125,7 +125,7 @@ class BatchPlanner(
     val transformations = translateToPlan(execNodes)
 
     val execEnv = getExecEnv
-    ExecutorUtils.setBatchProperties(execEnv, getTableConfig)
+    ExecutorUtils.setBatchProperties(execEnv)
     val streamGraph = ExecutorUtils.generateStreamGraph(execEnv, transformations)
     ExecutorUtils.setBatchProperties(streamGraph, getTableConfig)
 

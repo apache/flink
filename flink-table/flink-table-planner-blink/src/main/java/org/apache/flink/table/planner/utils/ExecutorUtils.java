@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -53,16 +52,12 @@ public class ExecutorUtils {
     }
 
     /** Sets batch properties for {@link StreamExecutionEnvironment}. */
-    public static void setBatchProperties(
-            StreamExecutionEnvironment execEnv, TableConfig tableConfig) {
+    public static void setBatchProperties(StreamExecutionEnvironment execEnv) {
         ExecutionConfig executionConfig = execEnv.getConfig();
         executionConfig.enableObjectReuse();
         executionConfig.setLatencyTrackingInterval(-1);
         execEnv.getConfig().setAutoWatermarkInterval(0);
         execEnv.setBufferTimeout(-1);
-        if (isShuffleModeAllBlocking(tableConfig)) {
-            executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
-        }
     }
 
     /** Sets batch properties for {@link StreamGraph}. */
@@ -78,10 +73,6 @@ public class ExecutorUtils {
             throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
         }
         streamGraph.setGlobalDataExchangeMode(getGlobalDataExchangeMode(tableConfig));
-    }
-
-    private static boolean isShuffleModeAllBlocking(TableConfig tableConfig) {
-        return getGlobalDataExchangeMode(tableConfig) == GlobalDataExchangeMode.ALL_EDGES_BLOCKING;
     }
 
     private static GlobalDataExchangeMode getGlobalDataExchangeMode(TableConfig tableConfig) {
