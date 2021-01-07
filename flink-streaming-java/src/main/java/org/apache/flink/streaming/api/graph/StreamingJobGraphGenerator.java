@@ -45,7 +45,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -1001,7 +1001,7 @@ public class StreamingJobGraphGenerator {
     }
 
     private void setCoLocation() {
-        final Map<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups =
+        final Map<String, Tuple2<SlotSharingGroup, CoLocationGroupImpl>> coLocationGroups =
                 new HashMap<>();
 
         for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
@@ -1018,10 +1018,10 @@ public class StreamingJobGraphGenerator {
                             "Cannot use a co-location constraint without a slot sharing group");
                 }
 
-                Tuple2<SlotSharingGroup, CoLocationGroup> constraint =
+                Tuple2<SlotSharingGroup, CoLocationGroupImpl> constraint =
                         coLocationGroups.computeIfAbsent(
                                 coLocationGroupKey,
-                                k -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
+                                k -> new Tuple2<>(sharingGroup, new CoLocationGroupImpl()));
 
                 if (constraint.f0 != sharingGroup) {
                     throw new IllegalStateException(

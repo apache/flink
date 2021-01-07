@@ -26,7 +26,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
@@ -331,15 +331,16 @@ public class JobGraph implements Serializable {
         return Collections.unmodifiableSet(slotSharingGroups);
     }
 
-    public Set<CoLocationGroupDesc> getCoLocationGroupDescriptors() {
-        // invoke distinct() on CoLocationGroup first to avoid creating
-        // multiple CoLocationGroupDec from one CoLocationGroup
-        final Set<CoLocationGroupDesc> coLocationGroups =
+    /**
+     * Returns all {@link CoLocationGroup} instances associated with this {@code JobGraph}.
+     *
+     * @return The associated {@code CoLocationGroup} instances.
+     */
+    public Set<CoLocationGroup> getCoLocationGroups() {
+        final Set<CoLocationGroup> coLocationGroups =
                 IterableUtils.toStream(getVertices())
                         .map(JobVertex::getCoLocationGroup)
                         .filter(Objects::nonNull)
-                        .distinct()
-                        .map(CoLocationGroupDesc::from)
                         .collect(Collectors.toSet());
         return Collections.unmodifiableSet(coLocationGroups);
     }

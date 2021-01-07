@@ -20,7 +20,8 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -29,8 +30,10 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -73,9 +76,9 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         topology.connect(ev11, ev22);
         topology.connect(ev12, ev21);
 
-        final CoLocationGroupDesc coLocationGroup =
-                CoLocationGroupDesc.from(JOB_VERTEX_ID_1, JOB_VERTEX_ID_2);
-        final Set<CoLocationGroupDesc> coLocationGroups = Collections.singleton(coLocationGroup);
+        final CoLocationGroup coLocationGroup =
+                new TestingCoLocationGroup(JOB_VERTEX_ID_1, JOB_VERTEX_ID_2);
+        final Set<CoLocationGroup> coLocationGroups = Collections.singleton(coLocationGroup);
 
         final SlotSharingStrategy strategy =
                 new LocalInputPreferredSlotSharingStrategy(
@@ -169,5 +172,19 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         assertThat(
                 strategy.getExecutionSlotSharingGroup(ev22.getId()).getExecutionVertexIds(),
                 containsInAnyOrder(ev22.getId()));
+    }
+
+    private class TestingCoLocationGroup extends CoLocationGroupImpl {
+
+        private final List<JobVertexID> vertexIDs;
+
+        private TestingCoLocationGroup(JobVertexID... vertexIDs) {
+            this.vertexIDs = Arrays.asList(vertexIDs);
+        }
+
+        @Override
+        public List<JobVertexID> getVertexIds() {
+            return vertexIDs;
+        }
     }
 }

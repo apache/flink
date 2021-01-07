@@ -20,8 +20,8 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraintDesc;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -53,7 +53,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
     LocalInputPreferredSlotSharingStrategy(
             final SchedulingTopology topology,
             final Set<SlotSharingGroup> logicalSlotSharingGroups,
-            final Set<CoLocationGroupDesc> coLocationGroups) {
+            final Set<CoLocationGroup> coLocationGroups) {
 
         this.executionSlotSharingGroupMap =
                 new ExecutionSlotSharingGroupBuilder(
@@ -77,7 +77,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
         public LocalInputPreferredSlotSharingStrategy create(
                 final SchedulingTopology topology,
                 final Set<SlotSharingGroup> logicalSlotSharingGroups,
-                final Set<CoLocationGroupDesc> coLocationGroups) {
+                final Set<CoLocationGroup> coLocationGroups) {
 
             return new LocalInputPreferredSlotSharingStrategy(
                     topology, logicalSlotSharingGroups, coLocationGroups);
@@ -89,12 +89,12 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
         private final Map<JobVertexID, SlotSharingGroupId> slotSharingGroupMap;
 
-        private final Map<JobVertexID, CoLocationGroupDesc> coLocationGroupMap;
+        private final Map<JobVertexID, CoLocationGroup> coLocationGroupMap;
 
         private final Map<ExecutionVertexID, ExecutionSlotSharingGroup>
                 executionSlotSharingGroupMap;
 
-        final Map<CoLocationConstraintDesc, ExecutionSlotSharingGroup>
+        final Map<CoLocationConstraint, ExecutionSlotSharingGroup>
                 constraintToExecutionSlotSharingGroupMap;
 
         final Map<SlotSharingGroupId, List<ExecutionSlotSharingGroup>> executionSlotSharingGroups;
@@ -104,7 +104,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
         private ExecutionSlotSharingGroupBuilder(
                 final SchedulingTopology topology,
                 final Set<SlotSharingGroup> logicalSlotSharingGroups,
-                final Set<CoLocationGroupDesc> coLocationGroups) {
+                final Set<CoLocationGroup> coLocationGroups) {
 
             this.topology = checkNotNull(topology);
 
@@ -116,8 +116,8 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
             }
 
             this.coLocationGroupMap = new HashMap<>();
-            for (CoLocationGroupDesc coLocationGroup : coLocationGroups) {
-                for (JobVertexID jobVertexId : coLocationGroup.getVertices()) {
+            for (CoLocationGroup coLocationGroup : coLocationGroups) {
+                for (JobVertexID jobVertexId : coLocationGroup.getVertexIds()) {
                     coLocationGroupMap.put(jobVertexId, coLocationGroup);
                 }
             }
@@ -197,10 +197,10 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
                 final SchedulingExecutionVertex executionVertex) {
 
             final ExecutionVertexID executionVertexId = executionVertex.getId();
-            final CoLocationGroupDesc coLocationGroup =
+            final CoLocationGroup coLocationGroup =
                     coLocationGroupMap.get(executionVertexId.getJobVertexId());
             if (coLocationGroup != null) {
-                final CoLocationConstraintDesc constraint =
+                final CoLocationConstraint constraint =
                         coLocationGroup.getLocationConstraint(executionVertexId.getSubtaskIndex());
 
                 return constraintToExecutionSlotSharingGroupMap.get(constraint);
@@ -300,10 +300,10 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
             for (SchedulingExecutionVertex executionVertex : executionVertices) {
                 final ExecutionVertexID executionVertexId = executionVertex.getId();
-                final CoLocationGroupDesc coLocationGroup =
+                final CoLocationGroup coLocationGroup =
                         coLocationGroupMap.get(executionVertexId.getJobVertexId());
                 if (coLocationGroup != null) {
-                    final CoLocationConstraintDesc constraint =
+                    final CoLocationConstraint constraint =
                             coLocationGroup.getLocationConstraint(
                                     executionVertexId.getSubtaskIndex());
 
