@@ -387,7 +387,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
                     final CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
                     if (cgroup != null && !colGroups.contains(cgroup)) {
-                        cgroup.resetConstraints();
                         colGroups.add(cgroup);
                     }
 

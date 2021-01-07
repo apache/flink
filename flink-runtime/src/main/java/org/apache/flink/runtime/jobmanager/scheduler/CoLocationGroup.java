@@ -43,9 +43,6 @@ public class CoLocationGroup implements java.io.Serializable {
     /** The vertices participating in the co-location group */
     private final List<JobVertex> vertices = new ArrayList<JobVertex>();
 
-    /** The constraints, which hold the shared slots for the co-located operators */
-    private transient ArrayList<CoLocationConstraint> constraints;
-
     // --------------------------------------------------------------------------------------------
 
     public CoLocationGroup() {}
@@ -81,43 +78,7 @@ public class CoLocationGroup implements java.io.Serializable {
 
     // --------------------------------------------------------------------------------------------
 
-    public CoLocationConstraint getLocationConstraint(int subtask) {
-        ensureConstraints(subtask + 1);
-        return constraints.get(subtask);
-    }
-
-    private void ensureConstraints(int num) {
-        if (constraints == null) {
-            constraints = new ArrayList<CoLocationConstraint>(num);
-        } else {
-            constraints.ensureCapacity(num);
-        }
-
-        if (num > constraints.size()) {
-            constraints.ensureCapacity(num);
-            for (int i = constraints.size(); i < num; i++) {
-                constraints.add(new CoLocationConstraint(this));
-            }
-        }
-    }
-
-    /**
-     * Gets the ID that identifies this co-location group.
-     *
-     * @return The ID that identifies this co-location group.
-     */
     public AbstractID getId() {
         return id;
-    }
-
-    /**
-     * Resets this co-location group, meaning that future calls to {@link
-     * #getLocationConstraint(int)} will give out new CoLocationConstraints.
-     *
-     * <p>This method can only be called when no tasks from any of the CoLocationConstraints are
-     * executed any more.
-     */
-    public void resetConstraints() {
-        this.constraints.clear();
     }
 }
