@@ -1326,7 +1326,8 @@ public class DataStream<T> {
         }
     }
 
-    ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName) throws Exception {
+    public ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName)
+            throws Exception {
         TypeSerializer<T> serializer =
                 getType().createSerializer(getExecutionEnvironment().getConfig());
         String accumulatorName = "dataStreamCollect_" + UUID.randomUUID().toString();
