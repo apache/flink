@@ -1227,7 +1227,7 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testProcessWithAvailableOutput() throws Exception {
-        try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, true})) {
+        try (final MockEnvironment environment = setupEnvironment(true, true)) {
             final int numberOfProcessCalls = 10;
             final AvailabilityTestInputProcessor inputProcessor =
                     new AvailabilityTestInputProcessor(numberOfProcessCalls);
@@ -1259,6 +1259,8 @@ public class StreamTaskTest extends TestLogger {
         private final long sleepTimeInsideMail;
         private final long sleepTimeOutsideMail;
 
+        @Nullable private Exception asyncException;
+
         public WaitingThread(
                 MailboxExecutor executor,
                 RunnableWithException resumeTask,
@@ -1275,15 +1277,14 @@ public class StreamTaskTest extends TestLogger {
             try {
                 Thread.sleep(sleepTimeOutsideMail);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                asyncException = e;
             }
             executor.submit(
                     () -> {
-                        try {
-                            Thread.sleep(sleepTimeInsideMail);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        if (asyncException != null) {
+                            throw asyncException;
                         }
+                        Thread.sleep(sleepTimeInsideMail);
                         resumeTask.run();
                     },
                     "This task will complete the future to resume process input action.");
@@ -1295,7 +1296,8 @@ public class StreamTaskTest extends TestLogger {
         final long sleepTimeOutsideMail = 42;
         final long sleepTimeInsideMail = 44;
 
-        try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, false})) {
+        @Nullable WaitingThread waitingThread = null;
+        try (final MockEnvironment environment = setupEnvironment(true, false)) {
             final int numberOfProcessCalls = 10;
             final AvailabilityTestInputProcessor inputProcessor =
                     new AvailabilityTestInputProcessor(numberOfProcessCalls);
@@ -1312,15 +1314,15 @@ public class StreamTaskTest extends TestLogger {
                         environment.getWriter(1).getAvailableFuture().complete(null);
                     };
 
+            waitingThread =
+                    new WaitingThread(
+                            executor,
+                            completeFutureTask,
+                            sleepTimeInsideMail,
+                            sleepTimeOutsideMail);
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
-                    () ->
-                            new WaitingThread(
-                                            executor,
-                                            completeFutureTask,
-                                            sleepTimeInsideMail,
-                                            sleepTimeOutsideMail)
-                                    .start(),
+                    waitingThread::start,
                     "This task will submit another task to execute after processing input once.");
 
             long startTs = System.currentTimeMillis();
@@ -1336,6 +1338,10 @@ public class StreamTaskTest extends TestLogger {
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
+        } finally {
+            if (waitingThread != null) {
+                waitingThread.join();
+            }
         }
     }
 
@@ -1343,7 +1349,9 @@ public class StreamTaskTest extends TestLogger {
     public void testProcessWithUnAvailableInput() throws Exception {
         final long sleepTimeOutsideMail = 42;
         final long sleepTimeInsideMail = 44;
-        try (final MockEnvironment environment = setupEnvironment(new boolean[] {true, true})) {
+
+        @Nullable WaitingThread waitingThread = null;
+        try (final MockEnvironment environment = setupEnvironment(true, true)) {
             final UnAvailableTestInputProcessor inputProcessor =
                     new UnAvailableTestInputProcessor();
             final StreamTask task =
@@ -1360,15 +1368,15 @@ public class StreamTaskTest extends TestLogger {
                                 .complete(null);
                     };
 
+            waitingThread =
+                    new WaitingThread(
+                            executor,
+                            completeFutureTask,
+                            sleepTimeInsideMail,
+                            sleepTimeOutsideMail);
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
-                    () ->
-                            new WaitingThread(
-                                            executor,
-                                            completeFutureTask,
-                                            sleepTimeInsideMail,
-                                            sleepTimeOutsideMail)
-                                    .start(),
+                    waitingThread::start,
                     "Start WaitingThread after Task starts processing input.");
 
             long startTs = System.currentTimeMillis();
@@ -1384,10 +1392,14 @@ public class StreamTaskTest extends TestLogger {
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
+        } finally {
+            if (waitingThread != null) {
+                waitingThread.join();
+            }
         }
     }
 
-    private MockEnvironment setupEnvironment(boolean[] outputAvailabilities) {
+    private MockEnvironment setupEnvironment(boolean... outputAvailabilities) {
         final Configuration configuration = new Configuration();
         new MockStreamConfig(configuration, outputAvailabilities.length);
 
