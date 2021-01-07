@@ -73,7 +73,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                 new HashMap<ManagedMemoryUseCase, Integer>() {
                     {
                         put(ManagedMemoryUseCase.STATE_BACKEND, DATA_PROC_WEIGHT);
-                        put(ManagedMemoryUseCase.BATCH_OP, DATA_PROC_WEIGHT);
+                        put(ManagedMemoryUseCase.OPERATOR, DATA_PROC_WEIGHT);
                         put(ManagedMemoryUseCase.PYTHON, PYTHON_WEIGHT);
                     }
                 };
@@ -117,7 +117,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 
     @Test
     public void testConvertToFractionOfSlot() {
-        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
         final double fractionOfSlot =
@@ -126,7 +126,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         fractionOfUseCase,
                         new HashSet<ManagedMemoryUseCase>() {
                             {
-                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.OPERATOR);
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
@@ -139,7 +139,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 
     @Test
     public void testConvertToFractionOfSlotWeightNotConfigured() {
-        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.BATCH_OP;
+        final ManagedMemoryUseCase useCase = ManagedMemoryUseCase.OPERATOR;
         final double fractionOfUseCase = 0.3;
 
         final Configuration config =
@@ -157,7 +157,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                         fractionOfUseCase,
                         new HashSet<ManagedMemoryUseCase>() {
                             {
-                                add(ManagedMemoryUseCase.BATCH_OP);
+                                add(ManagedMemoryUseCase.OPERATOR);
                                 add(ManagedMemoryUseCase.PYTHON);
                             }
                         },
