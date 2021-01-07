@@ -124,9 +124,8 @@ public class UnalignedCheckpointITCase extends UnalignedCheckpointTestBase {
             },
             new Object[] {"Parallel cogroup, p = 5", createCogroupSettings(5)},
             new Object[] {"Parallel cogroup, p = 10", createCogroupSettings(10)},
-            // todo: enable after completely  fixing FLINK-20654
-            //            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
-            //            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
+            new Object[] {"Parallel union, p = 5", createUnionSettings(5)},
+            new Object[] {"Parallel union, p = 10", createUnionSettings(10)},
         };
     }
 
