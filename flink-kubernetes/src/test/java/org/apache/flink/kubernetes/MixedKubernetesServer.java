@@ -25,23 +25,28 @@ import io.fabric8.mockwebserver.ServerRequest;
 import io.fabric8.mockwebserver.ServerResponse;
 import io.fabric8.mockwebserver.dsl.MockServerExpectation;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.rules.ExternalResource;
 
 import java.util.HashMap;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 
 /** The mock server that host MixedDispatcher. */
 public class MixedKubernetesServer extends ExternalResource {
 
     private KubernetesMockServer mock;
     private NamespacedKubernetesClient client;
-    private boolean https;
+    private final boolean https;
 
-    private boolean crudMode;
+    private final boolean crudMode;
+
+    private final MockWebServer mockWebServer;
 
     public MixedKubernetesServer(boolean https, boolean crudMode) {
         this.https = https;
         this.crudMode = crudMode;
+        mockWebServer = new MockWebServer();
     }
 
     public void before() {
@@ -50,11 +55,11 @@ public class MixedKubernetesServer extends ExternalResource {
                 crudMode
                         ? new KubernetesMockServer(
                                 new Context(),
-                                new MockWebServer(),
+                                mockWebServer,
                                 response,
                                 new MixedDispatcher(response),
                                 true)
-                        : new KubernetesMockServer(https);
+                        : new KubernetesMockServer(mockWebServer, response, https);
         mock.init();
         client = mock.createClient();
     }
@@ -66,6 +71,10 @@ public class MixedKubernetesServer extends ExternalResource {
 
     public NamespacedKubernetesClient getClient() {
         return client;
+    }
+
+    public RecordedRequest takeRequest(long timeout, TimeUnit unit) throws Exception {
+        return mockWebServer.takeRequest(timeout, unit);
     }
 
     public MockServerExpectation expect() {
