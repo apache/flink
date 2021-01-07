@@ -20,9 +20,11 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.event.TaskEvent;
+import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
@@ -40,6 +42,7 @@ import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -238,5 +241,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             exclusiveBuffersAssigned = true;
         }
         return bufferManager.requestBufferBlocking();
+    }
+
+    @Override
+    public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
+        throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
     }
 }

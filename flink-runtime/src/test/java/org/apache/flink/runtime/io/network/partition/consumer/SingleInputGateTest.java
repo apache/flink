@@ -95,6 +95,16 @@ import static org.junit.Assert.fail;
 public class SingleInputGateTest extends InputGateTestBase {
 
     @Test(expected = CheckpointException.class)
+    public void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
+        SingleInputGate gate =
+                createInputGate(createNettyShuffleEnvironment(), 1, ResultPartitionType.PIPELINED);
+        gate.setInputChannels(
+                new InputChannelBuilder().setChannelIndex(0).buildUnknownChannel(gate));
+        gate.checkpointStarted(
+                new CheckpointBarrier(1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+    }
+
+    @Test(expected = CheckpointException.class)
     public void testCheckpointsDeclinedUnlessStateConsumed() throws CheckpointException {
         SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
         checkState(!gate.getStateConsumedFuture().isDone());
