@@ -20,19 +20,20 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical._
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalTemporalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
+import org.apache.flink.util.Preconditions.checkState
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
-import org.apache.flink.util.Preconditions.checkState
 
 /**
- * Rule that matches a temporal join node and converts it to [[StreamExecTemporalJoin]],
- * the temporal join node is a [[FlinkLogicalJoin]] which contains [[TemporalJoinCondition]].
+ * Rule that matches a temporal join node and converts it to [[StreamPhysicalTemporalJoin]],
+ * the temporal join node is a [[FlinkLogicalJoin]] which contains [[TEMPORAL_JOIN_CONDITION]].
  */
-class StreamExecTemporalJoinRule
-  extends StreamExecJoinRuleBase("StreamExecJoinRuleBase") {
+class StreamPhysicalTemporalJoinRule
+  extends StreamPhysicalJoinRuleBase("StreamPhysicalTemporalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel[FlinkLogicalJoin](0)
@@ -68,7 +69,7 @@ class StreamExecTemporalJoinRule
         snapshot.getInput
       case rel: FlinkLogicalRel => rel
     }
-    new StreamExecTemporalJoin(
+    new StreamPhysicalTemporalJoin(
       join.getCluster,
       providedTraitSet,
       leftConversion(leftInput),
@@ -78,6 +79,6 @@ class StreamExecTemporalJoinRule
   }
 }
 
-object StreamExecTemporalJoinRule {
-  val INSTANCE: RelOptRule = new StreamExecTemporalJoinRule
+object StreamPhysicalTemporalJoinRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalTemporalJoinRule
 }
