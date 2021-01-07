@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.strategy;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -352,16 +351,8 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
         private int parallelism = 1;
 
-        private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
-
         public SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
             this.parallelism = parallelism;
-            return this;
-        }
-
-        public SchedulingExecutionVerticesBuilder withInputDependencyConstraint(
-                final InputDependencyConstraint inputDependencyConstraint) {
-            this.inputDependencyConstraint = inputDependencyConstraint;
             return this;
         }
 
@@ -380,7 +371,6 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 final int subtaskIndex) {
             return TestingSchedulingExecutionVertex.newBuilder()
                     .withExecutionVertexID(jobVertexId, subtaskIndex)
-                    .withInputDependencyConstraint(inputDependencyConstraint)
                     .build();
         }
     }

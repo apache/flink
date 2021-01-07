@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.jobgraph;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplitSource;
@@ -132,9 +131,6 @@ public class JobVertex implements java.io.Serializable {
      * JSON plan.
      */
     private String resultOptimizerProperties;
-
-    /** The input dependency constraint to schedule this vertex. */
-    private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
     // --------------------------------------------------------------------------------------------
 
@@ -575,14 +571,6 @@ public class JobVertex implements java.io.Serializable {
 
     public void setResultOptimizerProperties(String resultOptimizerProperties) {
         this.resultOptimizerProperties = resultOptimizerProperties;
-    }
-
-    public InputDependencyConstraint getInputDependencyConstraint() {
-        return inputDependencyConstraint;
-    }
-
-    public void setInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-        this.inputDependencyConstraint = inputDependencyConstraint;
     }
 
     // --------------------------------------------------------------------------------------------

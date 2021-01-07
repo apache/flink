@@ -194,10 +194,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
 
         DefaultExecutionVertex schedulingVertex =
                 new DefaultExecutionVertex(
-                        vertex.getID(),
-                        producedPartitions,
-                        vertex::getExecutionState,
-                        vertex.getInputDependencyConstraint());
+                        vertex.getID(), producedPartitions, vertex::getExecutionState);
 
         producedPartitions.forEach(partition -> partition.setProducer(schedulingVertex));
 

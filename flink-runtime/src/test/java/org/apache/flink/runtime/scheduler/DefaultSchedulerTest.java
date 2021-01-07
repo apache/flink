@@ -19,7 +19,6 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
@@ -28,7 +27,6 @@ import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -68,7 +66,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
@@ -91,7 +88,6 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -679,35 +675,6 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
-    public void testInputConstraintALLPerf() throws Exception {
-        final int parallelism = 1000;
-        final JobVertex v1 = createVertexWithAllInputConstraints("vertex1", parallelism);
-        final JobVertex v2 = createVertexWithAllInputConstraints("vertex2", parallelism);
-        final JobVertex v3 = createVertexWithAllInputConstraints("vertex3", parallelism);
-        v2.connectNewDataSetAsInput(
-                v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-        v2.connectNewDataSetAsInput(
-                v3, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-
-        final JobGraph jobGraph = new JobGraph(v1, v2, v3);
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
-        final AccessExecutionJobVertex ejv1 =
-                scheduler.requestJob().getAllVertices().get(v1.getID());
-
-        for (int i = 0; i < parallelism - 1; i++) {
-            finishSubtask(scheduler, ejv1, i);
-        }
-
-        final long startTime = System.nanoTime();
-        finishSubtask(scheduler, ejv1, parallelism - 1);
-
-        final Duration duration = Duration.ofNanos(System.nanoTime() - startTime);
-        final Duration timeout = Duration.ofSeconds(5);
-
-        assertThat(duration, lessThan(timeout));
-    }
-
-    @Test
     public void failJobWillIncrementVertexVersions() {
         final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
         final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
@@ -931,26 +898,11 @@ public class DefaultSchedulerTest extends TestLogger {
         assertThat(testExecutionSlotAllocator.getPendingRequests().keySet(), hasSize(0));
     }
 
-    private static JobVertex createVertexWithAllInputConstraints(String name, int parallelism) {
-        final JobVertex v = createVertex(name, parallelism);
-        v.setInputDependencyConstraint(InputDependencyConstraint.ALL);
-        return v;
-    }
-
     private static JobVertex createVertex(String name, int parallelism) {
         final JobVertex v = new JobVertex(name);
         v.setParallelism(parallelism);
         v.setInvokableClass(AbstractInvokable.class);
         return v;
-    }
-
-    private static void finishSubtask(
-            DefaultScheduler scheduler, AccessExecutionJobVertex vertex, int subtask) {
-        final ExecutionAttemptID attemptId =
-                vertex.getTaskVertices()[subtask].getCurrentExecutionAttempt().getAttemptId();
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
-                        scheduler.getJobGraph().getJobID(), attemptId, ExecutionState.FINISHED));
     }
 
     private void waitForTermination(final DefaultScheduler scheduler) throws Exception {

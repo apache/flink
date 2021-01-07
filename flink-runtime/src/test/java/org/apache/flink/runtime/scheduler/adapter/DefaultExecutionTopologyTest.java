@@ -47,8 +47,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
-import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
@@ -71,8 +69,6 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         jobVertices[0] = createNoOpVertex(parallelism);
         jobVertices[1] = createNoOpVertex(parallelism);
         jobVertices[1].connectNewDataSetAsInput(jobVertices[0], ALL_TO_ALL, PIPELINED);
-        jobVertices[0].setInputDependencyConstraint(ALL);
-        jobVertices[1].setInputDependencyConstraint(ANY);
         executionGraph = createSimpleTestGraph(jobVertices);
         adapter = DefaultExecutionTopology.fromExecutionGraph(executionGraph);
     }
@@ -182,7 +178,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
             ExecutionVertex originalVertex = originalVertices.next();
             DefaultExecutionVertex adaptedVertex = adaptedVertices.next();
 
-            assertVertexEquals(originalVertex, adaptedVertex);
+            assertEquals(originalVertex.getID(), adaptedVertex.getId());
 
             List<IntermediateResultPartition> originalConsumedPartitions =
                     IntStream.range(0, originalVertex.getNumberOfInputs())
@@ -262,15 +258,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         assertEquals(
                 originalPartition.getIntermediateResult().getId(), adaptedPartition.getResultId());
         assertEquals(originalPartition.getResultType(), adaptedPartition.getResultType());
-        assertVertexEquals(originalPartition.getProducer(), adaptedPartition.getProducer());
-    }
-
-    private static void assertVertexEquals(
-            ExecutionVertex originalVertex, DefaultExecutionVertex adaptedVertex) {
-
-        assertEquals(originalVertex.getID(), adaptedVertex.getId());
         assertEquals(
-                originalVertex.getInputDependencyConstraint(),
-                adaptedVertex.getInputDependencyConstraint());
+                originalPartition.getProducer().getID(), adaptedPartition.getProducer().getId());
     }
 }
