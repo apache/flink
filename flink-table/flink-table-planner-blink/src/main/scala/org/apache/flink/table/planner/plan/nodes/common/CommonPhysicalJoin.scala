@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
@@ -58,6 +59,8 @@ abstract class CommonPhysicalJoin(
       "e.g., ON T1.id = T2.id && pythonUdf(T1.a, T2.b)")
   }
 
+  lazy val joinSpec: JoinSpec = JoinUtil.createJoinSpec(this)
+
   def getJoinInfo: JoinInfo = joinInfo
 
   lazy val filterNulls: Array[Boolean] = {
@@ -87,7 +90,7 @@ abstract class CommonPhysicalJoin(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
-      .item("joinType", flinkJoinType.toString)
+      .item("joinType", joinSpec.getJoinType.toString)
       .item("where", getExpressionString(
         getCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))

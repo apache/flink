@@ -434,7 +434,7 @@ object FlinkStreamRuleSets {
     // join
     StreamExecJoinRule.INSTANCE,
     StreamExecIntervalJoinRule.INSTANCE,
-    StreamExecTemporalJoinRule.INSTANCE,
+    StreamPhysicalTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // CEP

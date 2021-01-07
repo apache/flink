@@ -34,7 +34,7 @@ import scala.collection.JavaConversions._
   * to [[StreamExecJoin]].
   */
 class StreamExecJoinRule
-  extends StreamExecJoinRuleBase("StreamExecJoinRule") {
+  extends StreamPhysicalJoinRuleBase("StreamExecJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
