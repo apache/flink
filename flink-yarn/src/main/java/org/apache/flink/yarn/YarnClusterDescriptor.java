@@ -1767,11 +1767,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     private void setClusterEntrypointInfoToConfig(final ApplicationReport report) {
         checkNotNull(report);
 
-        final ApplicationId clusterId = report.getApplicationId();
+        final ApplicationId appId = report.getApplicationId();
         final String host = report.getHost();
         final int port = report.getRpcPort();
 
-        LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, clusterId);
+        LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, appId);
 
         flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
         flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
@@ -1779,8 +1779,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         flinkConfiguration.setString(RestOptions.ADDRESS, host);
         flinkConfiguration.setInteger(RestOptions.PORT, port);
 
-        flinkConfiguration.set(
-                YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
+        flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(appId));
+
+        // set cluster-id to app id if not specified
+        if (!flinkConfiguration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
+            flinkConfiguration.set(
+                    HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(appId));
+        }
     }
 
     public static void logDetachedClusterInformation(
