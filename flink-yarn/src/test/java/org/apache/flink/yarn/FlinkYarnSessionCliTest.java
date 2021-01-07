@@ -49,6 +49,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.Rule;
 import org.junit.Test;
@@ -559,7 +560,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
         YarnClusterDescriptor flinkYarnDescriptor =
                 (YarnClusterDescriptor) clientFactory.createClusterDescriptor(executorConfig);
 
-        assertEquals(Lists.newArrayList(tmpFile), flinkYarnDescriptor.getShipFiles());
+        assertEquals(
+                Lists.newArrayList(new Path(tmpFile.toString())),
+                flinkYarnDescriptor.getShipFiles());
     }
 
     @Test
