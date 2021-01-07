@@ -61,17 +61,17 @@ class BatchPhysicalSortLimitRule
 
   override def convert(rel: RelNode): RelNode = {
     val sort = rel.asInstanceOf[FlinkLogicalSort]
-    // create local BatchExecSortLimit
+    // create local BatchPhysicalSortLimit
     val localRequiredTrait = sort.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val localInput = RelOptRule.convert(sort.getInput, localRequiredTrait)
 
-    // if fetch is null, there is no need to create local BatchExecSortLimit
+    // if fetch is null, there is no need to create local BatchPhysicalSortLimit
     val inputOfExchange = if (sort.fetch != null) {
       val limit = SortUtil.getLimitEnd(sort.offset, sort.fetch)
       val rexBuilder = sort.getCluster.getRexBuilder
       val intType = rexBuilder.getTypeFactory.createSqlType(SqlTypeName.INTEGER)
       val providedLocalTraitSet = localRequiredTrait.replace(sort.getCollation)
-      // for local BatchExecSortLimit, offset is always 0, and fetch is `limit`
+      // for local BatchPhysicalSortLimit, offset is always 0, and fetch is `limit`
       new BatchPhysicalSortLimit(
         rel.getCluster,
         providedLocalTraitSet,
@@ -90,7 +90,7 @@ class BatchPhysicalSortLimitRule
       .replace(FlinkRelDistribution.SINGLETON)
     val newInput = RelOptRule.convert(inputOfExchange, requiredTrait)
 
-    // create global BatchExecSortLimit
+    // create global BatchPhysicalSortLimit
     val providedGlobalTraitSet = requiredTrait.replace(sort.getCollation)
     new BatchPhysicalSortLimit(
       rel.getCluster,

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.JDouble
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchPhysicalGroupAggregateBase, BatchPhysicalWindowAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortWindowAggregate, BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 
@@ -62,7 +62,7 @@ class AggCallSelectivityEstimator(agg: RelNode, mq: FlinkRelMetadataQuery)
         (rel.getGroupSet.toArray ++ auxGroupSet, otherAggCalls)
       case rel: BatchPhysicalGroupAggregateBase =>
         (rel.grouping ++ rel.auxGrouping, rel.getAggCallList)
-      case rel: BatchExecLocalHashWindowAggregate =>
+      case rel: BatchPhysicalLocalHashWindowAggregate =>
         val fullGrouping = rel.grouping ++ Array(rel.inputTimeFieldIndex) ++ rel.auxGrouping
         (fullGrouping, rel.getAggCallList)
       case rel: BatchExecLocalSortWindowAggregate =>

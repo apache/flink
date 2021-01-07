@@ -49,7 +49,7 @@ class RemoveRedundantLocalHashAggRule extends RelOptRule(
       localAgg.grouping,
       localAgg.auxGrouping,
       // Use the localAgg agg calls because the global agg call filters was removed,
-      // see BatchExecHashAggRule for details.
+      // see BatchPhysicalHashAggRule for details.
       localAgg.getAggCallToAggFunction,
       isMerge = false)
     call.transformTo(newGlobalAgg)

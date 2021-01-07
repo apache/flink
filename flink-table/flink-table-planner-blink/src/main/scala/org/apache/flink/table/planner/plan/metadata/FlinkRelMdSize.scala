@@ -213,7 +213,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     val mapInputToOutput: Map[Int, Int] = windowAgg match {
       case agg: WindowAggregate =>
         AggregateUtil.checkAndGetFullGroupSet(agg).zipWithIndex.toMap
-      case agg: BatchExecLocalHashWindowAggregate =>
+      case agg: BatchPhysicalLocalHashWindowAggregate =>
         // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
         agg.grouping.zipWithIndex.toMap ++
           agg.auxGrouping.zipWithIndex.map {
