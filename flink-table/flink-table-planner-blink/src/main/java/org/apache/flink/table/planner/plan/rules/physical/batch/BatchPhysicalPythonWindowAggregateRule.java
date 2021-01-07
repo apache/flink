@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonGroupWindowAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalPythonGroupWindowAggregate;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
@@ -56,17 +56,17 @@ import scala.collection.Seq;
 
 /**
  * The physical rule is responsible for convert {@link FlinkLogicalWindowAggregate} to {@link
- * BatchExecPythonGroupWindowAggregate}.
+ * BatchPhysicalPythonGroupWindowAggregate}.
  */
-public class BatchExecPythonWindowAggregateRule extends RelOptRule {
+public class BatchPhysicalPythonWindowAggregateRule extends RelOptRule {
 
-    public static final RelOptRule INSTANCE = new BatchExecPythonWindowAggregateRule();
+    public static final RelOptRule INSTANCE = new BatchPhysicalPythonWindowAggregateRule();
 
-    private BatchExecPythonWindowAggregateRule() {
+    private BatchPhysicalPythonWindowAggregateRule() {
         super(
                 operand(FlinkLogicalWindowAggregate.class, operand(RelNode.class, any())),
                 FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE(),
-                "BatchExecPythonWindowAggregateRule");
+                "BatchPhysicalPythonWindowAggregateRule");
     }
 
     @Override
@@ -146,8 +146,8 @@ public class BatchExecPythonWindowAggregateRule extends RelOptRule {
         requiredTraitSet = requiredTraitSet.replace(sortCollation);
 
         RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
-        BatchExecPythonGroupWindowAggregate windowAgg =
-                new BatchExecPythonGroupWindowAggregate(
+        BatchPhysicalPythonGroupWindowAggregate windowAgg =
+                new BatchPhysicalPythonGroupWindowAggregate(
                         agg.getCluster(),
                         traitSet,
                         newInput,
