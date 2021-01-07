@@ -18,20 +18,54 @@
 
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.JArrayList
+import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec.GroupSpec
+import org.apache.flink.table.planner.plan.nodes.exec.utils.{OverSpec, PartitionSpec}
 
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.core.Window
-import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
-import org.apache.calcite.rex.{RexInputRef, RexWindowBound}
+import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexWindowBound}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConversions._
 
 object OverAggregateUtil {
 
-  def calcOriginInputRows(logicWindow: Window): Int = {
+  /**
+   * Convert [[Window]] to [[OverSpec]].
+   */
+  def createOverSpec(logicalWindow: Window): OverSpec = {
+    val groups = logicalWindow.groups.asList()
+    val partition = new PartitionSpec(groups.head.keys.toArray)
+    groups.tail.foreach { g =>
+      if (!partition.equals(new PartitionSpec(g.keys.toArray))) {
+        throw new TableException("OverSpec requires all groups should have same partition key.")
+      }
+    }
+
+    new OverSpec(
+      partition,
+      groups.map(createGroupSpec(_, logicalWindow)),
+      logicalWindow.constants.asList(),
+      calcOriginalInputFields(logicalWindow)
+    )
+  }
+
+  /**
+   * Convert [[Window.Group]] to [[GroupSpec]].
+   */
+  def createGroupSpec(windowGroup: Window.Group, window: Window): GroupSpec = {
+    new GroupSpec(
+      SortUtil.getSortSpec(windowGroup.orderKeys.getFieldCollations),
+      windowGroup.isRows,
+      windowGroup.lowerBound,
+      windowGroup.upperBound,
+      windowGroup.getAggregateCalls(window))
+  }
+
+  def calcOriginalInputFields(logicWindow: Window): Int = {
     logicWindow.getRowType.getFieldCount - logicWindow.groups.flatMap(_.aggCalls).size
   }
 
@@ -49,13 +83,36 @@ object OverAggregateUtil {
     * NOTE: returns a signed value, considering whether it is preceding.
     */
   def getBoundary(logicWindow: Window, windowBound: RexWindowBound): Any = {
+    getBoundary(windowBound, logicWindow.getConstants, calcOriginalInputFields(logicWindow))
+  }
+
+  /**
+   * Calculate the bound value.
+   * The return type only is Long for the ROWS OVER WINDOW.
+   * The return type can be Long or BigDecimal for the RANGE OVER WINDOW.
+   * NOTE: returns a signed value, considering whether it is preceding.
+   */
+  def getBoundary(overSpec: OverSpec, windowBound: RexWindowBound): Any = {
+    getBoundary(windowBound, overSpec.getConstants, overSpec.getOriginalInputFields)
+  }
+
+  /**
+   * Calculate the bound value.
+   * The return type only is Long for the ROWS OVER WINDOW.
+   * The return type can be Long or BigDecimal for the RANGE OVER WINDOW.
+   * NOTE: returns a signed value, considering whether it is preceding.
+   */
+  private def getBoundary(
+      windowBound: RexWindowBound,
+      constants: Seq[RexLiteral],
+      originalInputFields: Int): Any = {
     if (windowBound.isCurrentRow) {
       0L
     } else {
       val ref = windowBound.getOffset.asInstanceOf[RexInputRef]
-      val boundIndex = ref.getIndex - calcOriginInputRows(logicWindow)
+      val boundIndex = ref.getIndex - originalInputFields
       val flag = if (windowBound.isPreceding) -1 else 1
-      val literal = logicWindow.constants.get(boundIndex)
+      val literal = constants.get(boundIndex)
       literal.getType.getSqlTypeName match {
         case _@SqlTypeName.DECIMAL =>
           literal.getValue3.asInstanceOf[java.math.BigDecimal].multiply(
@@ -65,9 +122,9 @@ object OverAggregateUtil {
     }
   }
 
-  def createCollation(group: Group): RelCollation = {
-    val groupSet: Array[Int] = group.keys.toArray
-    val collations = group.orderKeys.getFieldCollations
+  def createCollation(windowGroup: Window.Group): RelCollation = {
+    val groupSet: Array[Int] = windowGroup.keys.toArray
+    val collations = windowGroup.orderKeys.getFieldCollations
     val orderKeyIndexes = SortUtil.getSortSpec(collations).getFieldIndices
     if (groupSet.nonEmpty || orderKeyIndexes.nonEmpty) {
       val collectionIndexes = collations.map(_.getFieldIndex)
@@ -97,14 +154,16 @@ object OverAggregateUtil {
     }
   }
 
-  def needCollationTrait(overWindow: Window, group: Group): Boolean = {
-    if (group.lowerBound.isPreceding || group.upperBound.isFollowing || !group.isRows) {
+  def needCollationTrait(logicalWindow: Window, windowGroup: Window.Group): Boolean = {
+    if (windowGroup.lowerBound.isPreceding ||
+      windowGroup.upperBound.isFollowing || !windowGroup.isRows) {
       true
     } else {
       // rows over window
-      val offsetLower = getBoundary(overWindow, group.lowerBound).asInstanceOf[Long]
-      val offsetUpper = getBoundary(overWindow, group.upperBound).asInstanceOf[Long]
-      if (offsetLower == 0L && offsetUpper == 0L && group.orderKeys.getFieldCollations.isEmpty) {
+      val offsetLower = getBoundary(logicalWindow, windowGroup.lowerBound).asInstanceOf[Long]
+      val offsetUpper = getBoundary(logicalWindow, windowGroup.upperBound).asInstanceOf[Long]
+      if (offsetLower == 0L && offsetUpper == 0L &&
+        windowGroup.orderKeys.getFieldCollations.isEmpty) {
         false
       } else {
         true

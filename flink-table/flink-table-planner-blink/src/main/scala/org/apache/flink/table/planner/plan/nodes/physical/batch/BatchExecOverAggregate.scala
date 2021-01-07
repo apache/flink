@@ -216,7 +216,7 @@ class BatchExecOverAggregate(
               // The second arg mean the offset arg index for leag/lag function, default is 1.
               if (aggCall.getArgList.length >= 2) {
                 val constantIndex =
-                  aggCall.getArgList.get(1) - OverAggregateUtil.calcOriginInputRows(logicWindow)
+                  aggCall.getArgList.get(1) - OverAggregateUtil.calcOriginalInputFields(logicWindow)
                 if (constantIndex < 0) {
                   val rowIndex = aggCall.getArgList.get(1)
                   val func = inputType.getTypeAt(rowIndex).getTypeRoot match {
