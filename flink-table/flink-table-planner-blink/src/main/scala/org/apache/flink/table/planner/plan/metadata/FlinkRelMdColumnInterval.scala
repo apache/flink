@@ -542,7 +542,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: StreamPhysicalGroupWindowAggregate => agg.grouping
       case agg: BatchPhysicalGroupAggregateBase => agg.grouping ++ agg.auxGrouping
       case agg: Aggregate => AggregateUtil.checkAndGetFullGroupSet(agg)
-      case agg: BatchExecLocalSortWindowAggregate =>
+      case agg: BatchPhysicalLocalSortWindowAggregate =>
         // grouping + assignTs + auxGrouping
         agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping
       case agg: BatchPhysicalLocalHashWindowAggregate =>
