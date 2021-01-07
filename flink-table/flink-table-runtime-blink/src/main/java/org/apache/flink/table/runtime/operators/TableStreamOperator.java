@@ -54,7 +54,7 @@ public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
                 .computeMemorySize(
                         getOperatorConfig()
                                 .getManagedMemoryFractionOperatorUseCaseOfSlot(
-                                        ManagedMemoryUseCase.BATCH_OP,
+                                        ManagedMemoryUseCase.OPERATOR,
                                         environment.getTaskManagerInfo().getConfiguration(),
                                         environment.getUserCodeClassLoader().asClassLoader()));
     }

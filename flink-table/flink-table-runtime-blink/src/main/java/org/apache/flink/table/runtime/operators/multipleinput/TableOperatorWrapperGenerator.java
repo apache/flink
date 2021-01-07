@@ -175,14 +175,14 @@ public class TableOperatorWrapperGenerator {
             managedMemoryWeight =
                     transform
                             .getManagedMemoryOperatorScopeUseCaseWeights()
-                            .getOrDefault(ManagedMemoryUseCase.BATCH_OP, 0);
+                            .getOrDefault(ManagedMemoryUseCase.OPERATOR, 0);
         } else {
             minResources = minResources.merge(transform.getMinResources());
             preferredResources = preferredResources.merge(transform.getPreferredResources());
             managedMemoryWeight +=
                     transform
                             .getManagedMemoryOperatorScopeUseCaseWeights()
-                            .getOrDefault(ManagedMemoryUseCase.BATCH_OP, 0);
+                            .getOrDefault(ManagedMemoryUseCase.OPERATOR, 0);
         }
     }
 
@@ -310,7 +310,7 @@ public class TableOperatorWrapperGenerator {
                 fraction =
                         entry.getKey()
                                         .getManagedMemoryOperatorScopeUseCaseWeights()
-                                        .getOrDefault(ManagedMemoryUseCase.BATCH_OP, 0)
+                                        .getOrDefault(ManagedMemoryUseCase.OPERATOR, 0)
                                 * 1.0
                                 / this.managedMemoryWeight;
             }

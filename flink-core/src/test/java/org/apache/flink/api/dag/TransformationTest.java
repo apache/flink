@@ -45,12 +45,12 @@ public class TransformationTest extends TestLogger {
     @Test
     public void testDeclareManagedMemoryUseCase() {
         transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                ManagedMemoryUseCase.BATCH_OP, 123);
+                ManagedMemoryUseCase.OPERATOR, 123);
         transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.STATE_BACKEND);
         assertThat(
                 transformation
                         .getManagedMemoryOperatorScopeUseCaseWeights()
-                        .get(ManagedMemoryUseCase.BATCH_OP),
+                        .get(ManagedMemoryUseCase.OPERATOR),
                 is(123));
         assertThat(
                 transformation.getManagedMemorySlotScopeUseCases(),
@@ -64,18 +64,18 @@ public class TransformationTest extends TestLogger {
 
     @Test(expected = IllegalArgumentException.class)
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 0);
+        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 0);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
         transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                ManagedMemoryUseCase.BATCH_OP, -1);
+                ManagedMemoryUseCase.OPERATOR, -1);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
-        transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.BATCH_OP);
+        transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.OPERATOR);
     }
 
     /** A test implementation of {@link Transformation}. */

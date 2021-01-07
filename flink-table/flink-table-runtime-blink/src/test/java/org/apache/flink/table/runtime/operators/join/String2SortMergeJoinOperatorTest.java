@@ -167,7 +167,7 @@ public class String2SortMergeJoinOperatorTest {
         testHarness.getStreamConfig().setOperatorID(new OperatorID());
         testHarness
                 .getStreamConfig()
-                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.99);
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, 0.99);
 
         long initialTime = 0L;
 

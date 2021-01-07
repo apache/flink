@@ -60,7 +60,7 @@ public class ExecNodeUtil {
             int memoryKibiBytes = (int) Math.max(1, (memoryBytes >> 10));
             Optional<Integer> previousWeight =
                     transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                            ManagedMemoryUseCase.BATCH_OP, memoryKibiBytes);
+                            ManagedMemoryUseCase.OPERATOR, memoryKibiBytes);
             if (previousWeight.isPresent()) {
                 throw new TableException(
                         "Managed memory weight has been set, this should not happen.");

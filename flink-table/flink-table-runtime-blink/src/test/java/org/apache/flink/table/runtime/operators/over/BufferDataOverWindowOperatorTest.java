@@ -234,7 +234,7 @@ public class BufferDataOverWindowOperatorTest {
                         when(conf.<RowData>getTypeSerializerIn1(getUserCodeClassloader()))
                                 .thenReturn(inputSer);
                         when(conf.getManagedMemoryFractionOperatorUseCaseOfSlot(
-                                        eq(ManagedMemoryUseCase.BATCH_OP),
+                                        eq(ManagedMemoryUseCase.OPERATOR),
                                         any(Configuration.class),
                                         any(ClassLoader.class)))
                                 .thenReturn(0.99);

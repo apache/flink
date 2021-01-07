@@ -69,13 +69,13 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source1,
                         "agg1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
         OneInputTransformation<RowData, RowData> agg2 =
                 createOneInputTransform(
                         source2,
                         "agg2",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        agg2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 2);
+        agg2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 2);
         TwoInputTransformation<RowData, RowData, RowData> join =
                 createTwoInputTransform(
                         agg1,
@@ -85,7 +85,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                                 RowType.of(
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType())));
-        join.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 3);
+        join.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 3);
 
         TableOperatorWrapperGenerator generator =
                 new TableOperatorWrapperGenerator(
@@ -141,14 +141,14 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source1,
                         "agg1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
 
         OneInputTransformation<RowData, RowData> agg2 =
                 createOneInputTransform(
                         source2,
                         "agg2",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        agg2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 2);
+        agg2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 2);
 
         TwoInputTransformation<RowData, RowData, RowData> join1 =
                 createTwoInputTransform(
@@ -159,7 +159,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                                 RowType.of(
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType())));
-        join1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 3);
+        join1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 3);
 
         TwoInputTransformation<RowData, RowData, RowData> join2 =
                 createTwoInputTransform(
@@ -171,7 +171,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType())));
-        join2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 4);
+        join2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 4);
 
         TwoInputTransformation<RowData, RowData, RowData> join3 =
                 createTwoInputTransform(
@@ -182,7 +182,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                                 RowType.of(
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType())));
-        join3.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 5);
+        join3.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 5);
 
         TwoInputTransformation<RowData, RowData, RowData> join4 =
                 createTwoInputTransform(
@@ -196,7 +196,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType(),
                                         DataTypes.STRING().getLogicalType())));
-        join4.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 6);
+        join4.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 6);
 
         TableOperatorWrapperGenerator generator =
                 new TableOperatorWrapperGenerator(
@@ -269,7 +269,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source4,
                         "agg1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        agg1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
 
         TwoInputTransformation<RowData, RowData, RowData> join1 =
                 createTwoInputTransform(
@@ -277,7 +277,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         union2,
                         "join1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        join1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 2);
+        join1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 2);
 
         UnionTransformation<RowData> union3 = createUnionInputTransform("union3", source5, join1);
 
@@ -343,7 +343,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source1,
                         "calc1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        calc1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        calc1.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
         calc1.setParallelism(100);
 
         OneInputTransformation<RowData, RowData> calc2 =
@@ -351,7 +351,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source2,
                         "calc2",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        calc2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        calc2.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
         calc2.setParallelism(50);
 
         UnionTransformation<RowData> union = createUnionInputTransform("union1", calc1, calc2);
@@ -362,7 +362,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                         source3,
                         "join1",
                         InternalTypeInfo.of(RowType.of(DataTypes.STRING().getLogicalType())));
-        join.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, 1);
+        join.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 1);
         join.setParallelism(200);
 
         TableOperatorWrapperGenerator generator =

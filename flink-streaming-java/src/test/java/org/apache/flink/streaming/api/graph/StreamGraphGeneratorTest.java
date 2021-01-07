@@ -508,7 +508,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStream<Integer> source = env.fromElements(1, 2, 3).name("source");
         source.getTransformation()
-                .declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.BATCH_OP, weight);
+                .declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, weight);
         source.print().name("sink");
 
         final StreamGraph streamGraph = env.getStreamGraph();
@@ -517,7 +517,7 @@ public class StreamGraphGeneratorTest extends TestLogger {
                 assertThat(
                         streamNode
                                 .getManagedMemoryOperatorScopeUseCaseWeights()
-                                .get(ManagedMemoryUseCase.BATCH_OP),
+                                .get(ManagedMemoryUseCase.OPERATOR),
                         is(weight));
             } else {
                 assertThat(streamNode.getManagedMemoryOperatorScopeUseCaseWeights().size(), is(0));

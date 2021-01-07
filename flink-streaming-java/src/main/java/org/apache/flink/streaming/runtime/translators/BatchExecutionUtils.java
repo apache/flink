@@ -61,7 +61,7 @@ class BatchExecutionUtils {
                 node.addInputRequirement(i, inputRequirements[i]);
             }
             Map<ManagedMemoryUseCase, Integer> operatorScopeUseCaseWeights = new HashMap<>();
-            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.BATCH_OP, 1);
+            operatorScopeUseCaseWeights.put(ManagedMemoryUseCase.OPERATOR, 1);
             node.setManagedMemoryUseCaseWeights(
                     operatorScopeUseCaseWeights, Collections.emptySet());
         }
