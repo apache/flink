@@ -818,10 +818,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
             // others have no co-location group by default
             if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
                 iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertTrue(iterationSourceCoLocationGroup.getVertices().contains(jobVertex));
+                assertTrue(
+                        iterationSourceCoLocationGroup.getVertexIds().contains(jobVertex.getID()));
             } else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
                 iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertTrue(iterationSinkCoLocationGroup.getVertices().contains(jobVertex));
+                assertTrue(iterationSinkCoLocationGroup.getVertexIds().contains(jobVertex.getID()));
             } else {
                 assertNull(jobVertex.getCoLocationGroup());
             }

@@ -66,7 +66,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTrackerDeploymentListenerAdapter;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
@@ -374,19 +373,9 @@ public abstract class SchedulerBase implements SchedulerNG {
     }
 
     protected void resetForNewExecutions(final Collection<ExecutionVertexID> vertices) {
-        final Set<CoLocationGroup> colGroups = new HashSet<>();
-        vertices.forEach(
-                executionVertexId -> {
-                    final ExecutionVertex ev = getExecutionVertex(executionVertexId);
-
-                    final CoLocationGroup cgroup = ev.getJobVertex().getCoLocationGroup();
-                    if (cgroup != null && !colGroups.contains(cgroup)) {
-                        cgroup.resetConstraints();
-                        colGroups.add(cgroup);
-                    }
-
-                    ev.resetForNewExecution();
-                });
+        vertices.stream()
+                .map(this::getExecutionVertex)
+                .forEach(ExecutionVertex::resetForNewExecution);
     }
 
     protected void restoreState(

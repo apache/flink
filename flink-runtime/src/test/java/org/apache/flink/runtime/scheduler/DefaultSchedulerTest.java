@@ -30,7 +30,6 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartAllFailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartPipelinedRegionFailoverStrategy;
@@ -43,9 +42,7 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
-import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -89,7 +86,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -819,48 +815,6 @@ public class DefaultSchedulerTest extends TestLogger {
         final ErrorInfo failureInfo = scheduler.requestJob().getFailureInfo();
         assertThat(failureInfo, is(notNullValue()));
         assertThat(failureInfo.getExceptionAsString(), containsString(exceptionMessage));
-    }
-
-    @Test
-    public void coLocationConstraintIsResetOnTaskRecovery() {
-        final JobGraph jobGraph = nonParallelSourceSinkJobGraph();
-        final JobVertex source = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
-        final JobVertex sink = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-
-        final SlotSharingGroup ssg = new SlotSharingGroup();
-        source.setSlotSharingGroup(ssg);
-        sink.setSlotSharingGroup(ssg);
-        sink.setStrictlyCoLocatedWith(source);
-
-        final JobID jobId = jobGraph.getJobID();
-        final DefaultScheduler scheduler = createSchedulerAndStartScheduling(jobGraph);
-
-        final ExecutionVertex sourceVertex =
-                scheduler.getExecutionVertex(new ExecutionVertexID(source.getID(), 0));
-        final ExecutionAttemptID sourceAttemptId =
-                sourceVertex.getCurrentExecutionAttempt().getAttemptId();
-        final ExecutionVertex sinkVertex =
-                scheduler.getExecutionVertex(new ExecutionVertexID(sink.getID(), 0));
-        final ExecutionAttemptID sinkAttemptId =
-                sinkVertex.getCurrentExecutionAttempt().getAttemptId();
-
-        // init the location constraint manually because the testExecutionSlotAllocator does not do
-        // it
-        sourceVertex.getLocationConstraint().setSlotRequestId(new SlotRequestId());
-        assertThat(sourceVertex.getLocationConstraint().getSlotRequestId(), is(notNullValue()));
-
-        final String exceptionMessage = "expected exception";
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(
-                        jobId,
-                        sourceAttemptId,
-                        ExecutionState.FAILED,
-                        new RuntimeException(exceptionMessage)));
-        scheduler.updateTaskExecutionState(
-                new TaskExecutionState(jobId, sinkAttemptId, ExecutionState.CANCELED));
-        taskRestartExecutor.triggerScheduledTasks();
-
-        assertThat(sourceVertex.getLocationConstraint().getSlotRequestId(), is(nullValue()));
     }
 
     @Test

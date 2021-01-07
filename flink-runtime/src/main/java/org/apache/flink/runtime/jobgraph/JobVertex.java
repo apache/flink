@@ -26,6 +26,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.util.Preconditions;
@@ -109,7 +110,7 @@ public class JobVertex implements java.io.Serializable {
     @Nullable private SlotSharingGroup slotSharingGroup;
 
     /** The group inside which the vertex subtasks share slots. */
-    @Nullable private CoLocationGroup coLocationGroup;
+    @Nullable private CoLocationGroupImpl coLocationGroup;
 
     /**
      * Optional, the name of the operator, such as 'Flat Map' or 'Join', to be included in the JSON
@@ -425,12 +426,12 @@ public class JobVertex implements java.io.Serializable {
                     "Strict co-location requires that both vertices are in the same slot sharing group.");
         }
 
-        CoLocationGroup thisGroup = this.coLocationGroup;
-        CoLocationGroup otherGroup = strictlyCoLocatedWith.coLocationGroup;
+        CoLocationGroupImpl thisGroup = this.coLocationGroup;
+        CoLocationGroupImpl otherGroup = strictlyCoLocatedWith.coLocationGroup;
 
         if (otherGroup == null) {
             if (thisGroup == null) {
-                CoLocationGroup group = new CoLocationGroup(this, strictlyCoLocatedWith);
+                CoLocationGroupImpl group = new CoLocationGroupImpl(this, strictlyCoLocatedWith);
                 this.coLocationGroup = group;
                 strictlyCoLocatedWith.coLocationGroup = group;
             } else {
@@ -453,7 +454,7 @@ public class JobVertex implements java.io.Serializable {
         return coLocationGroup;
     }
 
-    public void updateCoLocationGroup(CoLocationGroup group) {
+    public void updateCoLocationGroup(CoLocationGroupImpl group) {
         this.coLocationGroup = group;
     }
 

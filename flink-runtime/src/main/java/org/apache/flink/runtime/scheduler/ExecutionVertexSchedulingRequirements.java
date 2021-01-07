@@ -22,7 +22,6 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import javax.annotation.Nullable;
@@ -43,21 +42,17 @@ public class ExecutionVertexSchedulingRequirements {
 
     private final SlotSharingGroupId slotSharingGroupId;
 
-    @Nullable private final CoLocationConstraint coLocationConstraint;
-
     private ExecutionVertexSchedulingRequirements(
             ExecutionVertexID executionVertexId,
             @Nullable AllocationID previousAllocationId,
             ResourceProfile taskResourceProfile,
             ResourceProfile physicalSlotResourceProfile,
-            SlotSharingGroupId slotSharingGroupId,
-            @Nullable CoLocationConstraint coLocationConstraint) {
+            SlotSharingGroupId slotSharingGroupId) {
         this.executionVertexId = checkNotNull(executionVertexId);
         this.previousAllocationId = previousAllocationId;
         this.taskResourceProfile = checkNotNull(taskResourceProfile);
         this.physicalSlotResourceProfile = checkNotNull(physicalSlotResourceProfile);
         this.slotSharingGroupId = checkNotNull(slotSharingGroupId);
-        this.coLocationConstraint = coLocationConstraint;
     }
 
     public ExecutionVertexID getExecutionVertexId() {
@@ -81,11 +76,6 @@ public class ExecutionVertexSchedulingRequirements {
         return slotSharingGroupId;
     }
 
-    @Nullable
-    public CoLocationConstraint getCoLocationConstraint() {
-        return coLocationConstraint;
-    }
-
     /** Builder for {@link ExecutionVertexSchedulingRequirements}. */
     public static class Builder {
 
@@ -98,8 +88,6 @@ public class ExecutionVertexSchedulingRequirements {
         private ResourceProfile physicalSlotResourceProfile = ResourceProfile.UNKNOWN;
 
         private SlotSharingGroupId slotSharingGroupId;
-
-        private CoLocationConstraint coLocationConstraint;
 
         public Builder withExecutionVertexId(final ExecutionVertexID executionVertexId) {
             this.executionVertexId = executionVertexId;
@@ -127,11 +115,6 @@ public class ExecutionVertexSchedulingRequirements {
             return this;
         }
 
-        public Builder withCoLocationConstraint(final CoLocationConstraint coLocationConstraint) {
-            this.coLocationConstraint = coLocationConstraint;
-            return this;
-        }
-
         public ExecutionVertexSchedulingRequirements build() {
             checkState(
                     physicalSlotResourceProfile.isMatching(taskResourceProfile),
@@ -142,8 +125,7 @@ public class ExecutionVertexSchedulingRequirements {
                     previousAllocationId,
                     taskResourceProfile,
                     physicalSlotResourceProfile,
-                    slotSharingGroupId,
-                    coLocationConstraint);
+                    slotSharingGroupId);
         }
     }
 }
