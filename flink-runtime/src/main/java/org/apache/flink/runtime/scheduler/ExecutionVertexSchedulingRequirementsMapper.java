@@ -46,7 +46,6 @@ public final class ExecutionVertexSchedulingRequirementsMapper {
                 .withTaskResourceProfile(executionVertex.getResourceProfile())
                 .withPhysicalSlotResourceProfile(getPhysicalSlotResourceProfile(executionVertex))
                 .withSlotSharingGroupId(slotSharingGroup.getSlotSharingGroupId())
-                .withCoLocationConstraint(executionVertex.getLocationConstraint())
                 .build();
     }
 
