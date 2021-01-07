@@ -52,9 +52,9 @@
         </tr>
         <tr>
             <td><h5>taskmanager.memory.managed.consumer-weights</h5></td>
-            <td style="word-wrap: break-word;">DATAPROC:70,PYTHON:30</td>
+            <td style="word-wrap: break-word;">OPERATOR:70,STATE_BACKEND:70,PYTHON:30</td>
             <td>Map</td>
-            <td>Managed memory weights for different kinds of consumers. A slot’s managed memory is shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless of the number of consumers from each kind. Currently supported kinds of consumers are DATAPROC (for RocksDB state backend in streaming and built-in algorithms in batch) and PYTHON (for Python processes).</td>
+            <td>Managed memory weights for different kinds of consumers. A slot’s managed memory is shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless of the number of consumers from each kind. Currently supported kinds of consumers are OPERATOR (for built-in algorithms), STATE_BACKEND (for RocksDB state backend) and PYTHON (for Python processes).</td>
         </tr>
         <tr>
             <td><h5>taskmanager.memory.managed.fraction</h5></td>
