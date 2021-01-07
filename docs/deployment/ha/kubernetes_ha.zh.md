@@ -52,7 +52,7 @@ In order to identify the Flink cluster, you have to specify a `kubernetes.cluste
 
   <pre>kubernetes.cluster-id: cluster1337</pre>
 
-- [kubernetes.namespace]({% link deployment/config.md %}#kubernetes-namespace) (required):
+- [kubernetes.namespace]({% link deployment/config.md %}#kubernetes-namespace):
 The namespace that will be used for running the jobmanager and taskmanager pods.
   <pre>kubernetes.namespace: cluster-namespace</pre>
 
