@@ -1244,7 +1244,7 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAgg = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
       batchPhysicalTraits,
       batchCalc,
@@ -1260,7 +1260,7 @@ class FlinkRelMdHandlerTestBase {
       enableAssignPane = false)
     val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash01), batchLocalWindowAgg, hash01)
-    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocal = new BatchPhysicalHashWindowAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange2,
@@ -1277,7 +1277,7 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocal = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
       batchPhysicalTraits,
       batchExchange1,
@@ -1383,7 +1383,7 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAgg = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAgg = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
       batchPhysicalTraits,
       batchCalc,
@@ -1399,7 +1399,7 @@ class FlinkRelMdHandlerTestBase {
       enableAssignPane = false)
     val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash1), batchLocalWindowAgg, hash1)
-    val batchWindowAggWithLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocal = new BatchPhysicalHashWindowAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange2,
@@ -1416,7 +1416,7 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocal = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocal = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
       batchPhysicalTraits,
       batchExchange1,
@@ -1527,7 +1527,7 @@ class FlinkRelMdHandlerTestBase {
         Array("count$0")).toList // agg calls
     val localWindowAggRowType = typeFactory.createStructType(
       localWindowAggTypes, localWindowAggNames)
-    val batchLocalWindowAggWithAuxGroup = new BatchExecLocalHashWindowAggregate(
+    val batchLocalWindowAggWithAuxGroup = new BatchPhysicalLocalHashWindowAggregate(
       batchCalc.getCluster,
       batchPhysicalTraits,
       batchCalc,
@@ -1543,7 +1543,7 @@ class FlinkRelMdHandlerTestBase {
       enableAssignPane = false)
     val batchExchange2 = new BatchPhysicalExchange(
       cluster, batchPhysicalTraits.replace(hash0), batchLocalWindowAggWithAuxGroup, hash0)
-    val batchWindowAggWithLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithLocalWithAuxGroup = new BatchPhysicalHashWindowAggregate(
       cluster,
       batchPhysicalTraits,
       batchExchange2,
@@ -1560,7 +1560,7 @@ class FlinkRelMdHandlerTestBase {
       isMerge = true
     )
 
-    val batchWindowAggWithoutLocalWithAuxGroup = new BatchExecHashWindowAggregate(
+    val batchWindowAggWithoutLocalWithAuxGroup = new BatchPhysicalHashWindowAggregate(
       batchExchange1.getCluster,
       batchPhysicalTraits,
       batchExchange1,

@@ -62,7 +62,7 @@ class SortWindowCodeGenerator(
     inputTimeIsDate: Boolean,
     namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
-    inputRowType: RelDataType,
+    inputRowType: RowType,
     inputType: RowType,
     outputType: RowType,
     buffLimitSize: Int,

@@ -48,7 +48,7 @@ abstract class RemoveRedundantLocalSortAggRule(
       localAgg.grouping,
       localAgg.auxGrouping,
       // Use the localAgg agg calls because the global agg call filters was removed,
-      // see BatchExecSortAggRule for details.
+      // see BatchPhysicalSortAggRule for details.
       localAgg.getAggCallToAggFunction,
       isMerge = false)
     call.transformTo(newGlobalAgg)
