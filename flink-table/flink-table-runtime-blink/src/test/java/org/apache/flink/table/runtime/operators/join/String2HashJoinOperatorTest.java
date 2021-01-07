@@ -101,7 +101,7 @@ public class String2HashJoinOperatorTest implements Serializable {
         testHarness.getStreamConfig().setOperatorID(new OperatorID());
         testHarness
                 .getStreamConfig()
-                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.BATCH_OP, 0.99);
+                .setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, 0.99);
 
         testHarness.invoke();
         testHarness.waitForTaskRunning();

@@ -121,7 +121,7 @@ public enum ManagedMemoryUtils {
                             switch (consumer) {
                                 case TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_DATAPROC:
                                     return Stream.of(
-                                            Tuple2.of(ManagedMemoryUseCase.BATCH_OP, weight),
+                                            Tuple2.of(ManagedMemoryUseCase.OPERATOR, weight),
                                             Tuple2.of(ManagedMemoryUseCase.STATE_BACKEND, weight));
                                 case TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_PYTHON:
                                     return Stream.of(
