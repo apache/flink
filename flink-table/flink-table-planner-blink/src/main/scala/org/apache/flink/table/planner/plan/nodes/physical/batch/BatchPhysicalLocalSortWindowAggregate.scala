@@ -20,8 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortWindowAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -30,47 +32,42 @@ import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
-import scala.collection.JavaConversions._
-
-class BatchExecSortWindowAggregate(
+/** Batch physical RelNode for local sort-based window aggregate. */
+class BatchPhysicalLocalSortWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    aggInputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     window: LogicalWindow,
-    inputTimeFieldIndex: Int,
+    val inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
     namedWindowProperties: Seq[PlannerNamedWindowProperty],
-    enableAssignPane: Boolean = false,
-    isMerge: Boolean)
-  extends BatchExecSortWindowAggregateBase(
+    enableAssignPane: Boolean = false)
+  extends BatchPhysicalSortWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
     window,
-    inputTimeFieldIndex,
-    inputTimeIsDate,
     namedWindowProperties,
     enableAssignPane,
-    isMerge,
-    isFinal = true) {
+    isMerge = false,
+    isFinal = false) {
 
-  override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchExecSortWindowAggregate(
+  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
+    new BatchPhysicalLocalSortWindowAggregate(
       cluster,
       traitSet,
       inputs.get(0),
-      getRowType,
-      aggInputRowType,
+      outputRowType,
+      inputRowType,
       grouping,
       auxGrouping,
       aggCallToAggFunction,
@@ -78,11 +75,25 @@ class BatchExecSortWindowAggregate(
       inputTimeFieldIndex,
       inputTimeIsDate,
       namedWindowProperties,
-      enableAssignPane,
-      isMerge)
+      enableAssignPane)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecSortWindowAggregate(
+      grouping,
+      auxGrouping,
+      getAggCallList.toArray,
+      window,
+      inputTimeFieldIndex,
+      inputTimeIsDate,
+      namedWindowProperties.toArray,
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      enableAssignPane,
+      false, // isMerge is always false
+      false, // isFinal is always false
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
+  }
 }
