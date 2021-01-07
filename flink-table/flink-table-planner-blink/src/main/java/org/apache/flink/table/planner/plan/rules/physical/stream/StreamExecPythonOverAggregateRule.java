@@ -110,11 +110,6 @@ public class StreamExecPythonOverAggregateRule extends ConverterRule {
         RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
 
         return new StreamExecPythonOverAggregate(
-                rel.getCluster(),
-                providedTraitSet,
-                newInput,
-                rel.getRowType(),
-                newInput.getRowType(),
-                logicWindow);
+                rel.getCluster(), providedTraitSet, newInput, rel.getRowType(), logicWindow);
     }
 }

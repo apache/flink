@@ -450,7 +450,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       ignoreNulls: Boolean): JBoolean = areColumnsUniqueOfOverAgg(rel, mq, columns, ignoreNulls)
 
   def areColumnsUnique(
-      rel: StreamExecOverAggregate,
+      rel: StreamPhysicalOverAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = areColumnsUniqueOfOverAgg(rel, mq, columns, ignoreNulls)

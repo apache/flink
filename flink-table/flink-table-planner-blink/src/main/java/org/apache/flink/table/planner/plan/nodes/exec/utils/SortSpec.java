@@ -25,10 +25,13 @@ import org.apache.flink.util.Preconditions;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-/** SortSpec describes how the data will be sorted. */
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/** {@link SortSpec} describes how the data will be sorted. */
 public class SortSpec {
 
     /** SortSpec does not require sort. */
@@ -37,7 +40,7 @@ public class SortSpec {
     private final SortFieldSpec[] fieldSpecs;
 
     public SortSpec(SortFieldSpec[] fieldSpecs) {
-        this.fieldSpecs = fieldSpecs;
+        this.fieldSpecs = checkNotNull(fieldSpecs);
     }
 
     /** Creates a sub SortSpec starting from startIndex sort field. */
@@ -107,7 +110,7 @@ public class SortSpec {
         }
 
         public SortSpec build() {
-            return new SortSpec(fieldSpecs.stream().toArray(SortFieldSpec[]::new));
+            return new SortSpec(fieldSpecs.toArray(new SortFieldSpec[0]));
         }
     }
 
@@ -137,5 +140,58 @@ public class SortSpec {
         public boolean getNullIsLast() {
             return nullIsLast;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SortFieldSpec that = (SortFieldSpec) o;
+            return fieldIndex == that.fieldIndex
+                    && isAscendingOrder == that.isAscendingOrder
+                    && nullIsLast == that.nullIsLast;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(fieldIndex, isAscendingOrder, nullIsLast);
+        }
+
+        @Override
+        public String toString() {
+            return "SortField{"
+                    + "fieldIndex="
+                    + fieldIndex
+                    + ", isAscendingOrder="
+                    + isAscendingOrder
+                    + ", nullIsLast="
+                    + nullIsLast
+                    + '}';
+        }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SortSpec sortSpec = (SortSpec) o;
+        return Arrays.equals(fieldSpecs, sortSpec.fieldSpecs);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(fieldSpecs);
+    }
+
+    @Override
+    public String toString() {
+        return "Sort{" + "fields=" + Arrays.toString(fieldSpecs) + '}';
     }
 }

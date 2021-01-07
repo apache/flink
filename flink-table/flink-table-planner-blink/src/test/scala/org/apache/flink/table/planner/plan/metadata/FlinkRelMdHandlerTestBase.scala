@@ -1826,12 +1826,11 @@ class FlinkRelMdHandlerTestBase {
     val hash4 = FlinkRelDistribution.hash(Array(4), requireStrict = true)
     val exchange = new StreamPhysicalExchange(cluster, calc.getTraitSet.replace(hash4), calc, hash4)
 
-    val windowAgg = new StreamExecOverAggregate(
+    val windowAgg = new StreamPhysicalOverAggregate(
       cluster,
       streamPhysicalTraits,
       exchange,
       rowTypeOfWindowAgg,
-      exchange.getRowType,
       flinkLogicalOverAgg
     )
 
