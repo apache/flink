@@ -18,13 +18,20 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.AbstractID;
 
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** A read-only and light weight version of {@link CoLocationConstraint}. */
+/**
+ * A {@code CoLocationConstraintDesc} stores the ID of {@link CoLocationGroupDesc} and a ID
+ * referring to the actual subtask (i.e. {@link ExecutionVertex}). In co-location groups, the
+ * different subtasks of different {@link JobVertex} instances need to be executed on the same slot.
+ * This is realized by creating a special shared slot that holds these tasks.
+ */
 public class CoLocationConstraintDesc {
 
     private final AbstractID coLocationGroupId;
