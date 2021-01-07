@@ -37,7 +37,14 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @ConfigGroups(groups = @ConfigGroup(name = "TaskManagerMemory", keyPrefix = "taskmanager.memory"))
 public class TaskManagerOptions {
 
-    public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
+    /**
+     * @deprecated use {@link #MANAGED_MEMORY_CONSUMER_NAME_OPERATOR} and {@link
+     *     #MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND} instead
+     */
+    @Deprecated public static final String MANAGED_MEMORY_CONSUMER_NAME_DATAPROC = "DATAPROC";
+
+    public static final String MANAGED_MEMORY_CONSUMER_NAME_OPERATOR = "OPERATOR";
+    public static final String MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND = "STATE_BACKEND";
     public static final String MANAGED_MEMORY_CONSUMER_NAME_PYTHON = "PYTHON";
 
     // ------------------------------------------------------------------------
@@ -433,17 +440,21 @@ public class TaskManagerOptions {
                     .defaultValue(
                             new HashMap<String, String>() {
                                 {
-                                    put(MANAGED_MEMORY_CONSUMER_NAME_DATAPROC, "70");
+                                    put(MANAGED_MEMORY_CONSUMER_NAME_OPERATOR, "70");
+                                    put(MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND, "70");
                                     put(MANAGED_MEMORY_CONSUMER_NAME_PYTHON, "30");
                                 }
                             })
                     .withDescription(
-                            "Managed memory weights for different kinds of consumers. A slot’s managed memory is"
-                                    + " shared by all kinds of consumers it contains, proportionally to the kinds’ weights and regardless"
-                                    + " of the number of consumers from each kind. Currently supported kinds of consumers are "
-                                    + MANAGED_MEMORY_CONSUMER_NAME_DATAPROC
-                                    + " (for RocksDB state backend in streaming and built-in"
-                                    + " algorithms in batch) and "
+                            "Managed memory weights for different kinds of consumers. A slot’s"
+                                    + " managed memory is shared by all kinds of consumers it"
+                                    + " contains, proportionally to the kinds’ weights and"
+                                    + " regardless of the number of consumers from each kind."
+                                    + " Currently supported kinds of consumers are "
+                                    + MANAGED_MEMORY_CONSUMER_NAME_OPERATOR
+                                    + " (for built-in algorithms), "
+                                    + MANAGED_MEMORY_CONSUMER_NAME_STATE_BACKEND
+                                    + " (for RocksDB state backend) and "
                                     + MANAGED_MEMORY_CONSUMER_NAME_PYTHON
                                     + " (for Python processes).");
 
