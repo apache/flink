@@ -23,8 +23,6 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY;
-
 /** An {@link InputGate} with a specific index. */
 public abstract class IndexedInputGate extends InputGate implements CheckpointableInput {
     /** Returns the index of this input gate. Only supported on */
@@ -32,9 +30,6 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
 
     @Override
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
-        if (!getStateConsumedFuture().isDone()) {
-            throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
-        }
         for (int index = 0, numChannels = getNumberOfInputChannels();
                 index < numChannels;
                 index++) {
