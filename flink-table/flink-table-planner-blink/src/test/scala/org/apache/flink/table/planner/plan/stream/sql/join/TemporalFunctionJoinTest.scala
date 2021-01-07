@@ -112,7 +112,7 @@ class TemporalFunctionJoinTest extends TableTestBase {
         "secondary_key as secondary_key " +
         "FROM Orders AS o, " +
         "LATERAL TABLE (Rates(o_rowtime)) AS r " +
-        "WHERE currency = o_currency OR secondary_key = o_secondary_key), " +
+        "WHERE currency = o_currency AND (rate > 120 OR secondary_key = o_secondary_key)), " +
         "Table3 " +
         "WHERE t3_secondary_key = secondary_key"
 

@@ -34,7 +34,7 @@ import java.util
  * Base implementation for rules match stream-stream join, including
  * regular stream join, interval join and temporal join.
  */
-abstract class StreamExecJoinRuleBase(description: String)
+abstract class StreamPhysicalJoinRuleBase(description: String)
   extends RelOptRule(
     operand(classOf[FlinkLogicalJoin],
       operand(classOf[FlinkLogicalRel], any()),
