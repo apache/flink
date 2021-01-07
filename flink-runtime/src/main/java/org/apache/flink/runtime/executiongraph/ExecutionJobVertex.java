@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.Archiveable;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
@@ -363,10 +362,6 @@ public class ExecutionJobVertex
 
     public List<IntermediateResult> getInputs() {
         return inputs;
-    }
-
-    public InputDependencyConstraint getInputDependencyConstraint() {
-        return getJobVertex().getInputDependencyConstraint();
     }
 
     public Collection<OperatorCoordinatorHolder> getOperatorCoordinators() {
