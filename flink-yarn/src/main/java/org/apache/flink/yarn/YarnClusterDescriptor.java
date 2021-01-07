@@ -147,8 +147,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
     private final String applicationType;
 
-    private String zookeeperNamespace;
-
     private YarnConfigOptions.UserJarInclusion userJarInclusion;
 
     public YarnClusterDescriptor(
@@ -174,10 +172,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         this.customName = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_NAME);
         this.applicationType = flinkConfiguration.getString(YarnConfigOptions.APPLICATION_TYPE);
         this.nodeLabel = flinkConfiguration.getString(YarnConfigOptions.NODE_LABEL);
-
-        // we want to ignore the default value at this point.
-        this.zookeeperNamespace =
-                flinkConfiguration.getString(HighAvailabilityOptions.HA_CLUSTER_ID, null);
     }
 
     private Optional<List<File>> decodeDirsToShipToCluster(final Configuration configuration) {
@@ -323,14 +317,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                             + "The Flink YARN Client needs one of these to be set to properly load the Hadoop "
                             + "configuration for accessing YARN.");
         }
-    }
-
-    public String getZookeeperNamespace() {
-        return zookeeperNamespace;
-    }
-
-    private void setZookeeperNamespace(String zookeeperNamespace) {
-        this.zookeeperNamespace = zookeeperNamespace;
     }
 
     public String getNodeLabel() {
@@ -782,17 +768,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         final ApplicationId appId = appContext.getApplicationId();
 
         // ------------------ Add Zookeeper namespace to local flinkConfiguraton ------
-        String zkNamespace = getZookeeperNamespace();
-        // no user specified cli argument for namespace?
-        if (zkNamespace == null || zkNamespace.isEmpty()) {
-            // namespace defined in config? else use applicationId as default.
-            zkNamespace =
-                    configuration.getString(
-                            HighAvailabilityOptions.HA_CLUSTER_ID, String.valueOf(appId));
-            setZookeeperNamespace(zkNamespace);
-        }
-
-        configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, zkNamespace);
+        setHAClusterIdIfNotSet(configuration, appId);
 
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
             // activate re-execution of failed applications
@@ -1049,7 +1025,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                 YarnConfigKeys.ENV_CLIENT_SHIP_FILES,
                 encodeYarnLocalResourceDescriptorListToString(
                         fileUploader.getEnvShipResourceList()));
-        appMasterEnv.put(YarnConfigKeys.ENV_ZOOKEEPER_NAMESPACE, getZookeeperNamespace());
         appMasterEnv.put(
                 YarnConfigKeys.FLINK_YARN_FILES,
                 fileUploader.getApplicationDir().toUri().toString());
@@ -1680,9 +1655,13 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         flinkConfiguration.set(YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(appId));
 
+        setHAClusterIdIfNotSet(flinkConfiguration, appId);
+    }
+
+    private void setHAClusterIdIfNotSet(Configuration configuration, ApplicationId appId) {
         // set cluster-id to app id if not specified
-        if (!flinkConfiguration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
-            flinkConfiguration.set(
+        if (!configuration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
+            configuration.set(
                     HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(appId));
         }
     }

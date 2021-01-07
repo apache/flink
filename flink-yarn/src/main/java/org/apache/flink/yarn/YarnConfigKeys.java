@@ -40,7 +40,6 @@ public class YarnConfigKeys {
     public static final String LOCAL_KEYTAB_PATH = "_LOCAL_KEYTAB_PATH";
     public static final String KEYTAB_PRINCIPAL = "_KEYTAB_PRINCIPAL";
     public static final String ENV_HADOOP_USER_NAME = "HADOOP_USER_NAME";
-    public static final String ENV_ZOOKEEPER_NAMESPACE = "_ZOOKEEPER_NAMESPACE";
 
     public static final String ENV_KRB5_PATH = "_KRB5_PATH";
     public static final String ENV_YARN_SITE_XML_PATH = "_YARN_SITE_XML_PATH";
