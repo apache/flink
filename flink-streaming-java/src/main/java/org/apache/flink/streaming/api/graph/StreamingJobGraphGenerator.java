@@ -597,10 +597,6 @@ public class StreamingJobGraphGenerator {
             LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
         }
 
-        // TODO: inherit InputDependencyConstraint from the head operator
-        jobVertex.setInputDependencyConstraint(
-                streamGraph.getExecutionConfig().getDefaultInputDependencyConstraint());
-
         jobVertices.put(streamNodeId, jobVertex);
         builtVertices.add(streamNodeId);
         jobGraph.addVertex(jobVertex);
