@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortWindowAggregate, BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalWindowAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalWindowAggregateBase}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES
@@ -330,14 +330,12 @@ object FlinkRelMdUtil {
       groupKey: ImmutableBitSet,
       agg: SingleRel): (ImmutableBitSet, Array[AggregateCall]) = {
     val (aggCalls, fullGroupSet) = agg match {
-      case agg: BatchExecLocalSortWindowAggregate =>
+      case agg: BatchPhysicalLocalSortWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        (agg.getAggCallList,
-          agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
+        (agg.getAggCallList, agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
       case agg: BatchPhysicalLocalHashWindowAggregate =>
         // grouping + assignTs + auxGrouping
-        (agg.getAggCallList,
-          agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
+        (agg.getAggCallList, agg.grouping ++ Array(agg.inputTimeFieldIndex) ++ agg.auxGrouping)
       case agg: BatchPhysicalWindowAggregateBase =>
         (agg.getAggCallList, agg.grouping ++ agg.auxGrouping)
       case agg: BatchPhysicalGroupAggregateBase =>

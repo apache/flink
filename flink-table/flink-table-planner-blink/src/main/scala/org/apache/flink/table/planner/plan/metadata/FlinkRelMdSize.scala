@@ -219,7 +219,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
           agg.auxGrouping.zipWithIndex.map {
             case (k, v) => k -> (agg.grouping.length + 1 + v)
           }.toMap
-      case agg: BatchExecLocalSortWindowAggregate =>
+      case agg: BatchPhysicalLocalSortWindowAggregate =>
         // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
         agg.grouping.zipWithIndex.toMap ++
           agg.auxGrouping.zipWithIndex.map {

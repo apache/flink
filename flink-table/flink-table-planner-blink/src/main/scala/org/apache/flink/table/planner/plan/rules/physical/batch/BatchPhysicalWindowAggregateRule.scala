@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
@@ -202,7 +202,7 @@ class BatchPhysicalWindowAggregateRule
         val newLocalInput = RelOptRule.convert(input, localRequiredTraitSet)
         val localProvidedTraitSet = localRequiredTraitSet
 
-        new BatchExecLocalSortWindowAggregate(
+        new BatchPhysicalLocalSortWindowAggregate(
           agg.getCluster,
           localProvidedTraitSet,
           newLocalInput,
@@ -257,7 +257,7 @@ class BatchPhysicalWindowAggregateRule
           .replace(createRelCollation(groupSet.indices.toArray :+ groupSet.length))
         val newGlobalAggInput = RelOptRule.convert(localAgg, globalRequiredTraitSet)
 
-        new BatchExecSortWindowAggregate(
+        new BatchPhysicalSortWindowAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newGlobalAggInput,
@@ -314,7 +314,7 @@ class BatchPhysicalWindowAggregateRule
           groupSet :+ inputTimeFieldIndex))
         val newInput = RelOptRule.convert(input, requiredTraitSet)
 
-        new BatchExecSortWindowAggregate(
+        new BatchPhysicalSortWindowAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newInput,
