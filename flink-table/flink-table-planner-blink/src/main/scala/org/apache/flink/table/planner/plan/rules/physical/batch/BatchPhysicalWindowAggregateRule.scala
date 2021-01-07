@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecHashWindowAggregate, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecLocalSortWindowAggregate, BatchExecSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
@@ -48,15 +48,15 @@ import scala.collection.JavaConversions._
 /**
  * Rule to convert a [[FlinkLogicalWindowAggregate]] into a
  * {{{
- *   BatchExecHash(or Sort)WindowAggregate (global)
+ *   BatchPhysicalHash(or Sort)WindowAggregate (global)
  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
- *      +- BatchExecLocalHash(or Sort)WindowAggregate (local)
+ *      +- BatchPhysicalLocalHash(or Sort)WindowAggregate (local)
  *         +- input of window agg
  * }}}
  * when all aggregate functions are mergeable
  * and [[OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
  * {{{
- *   BatchExecHash(or Sort)WindowAggregate
+ *   BatchPhysicalHash(or Sort)WindowAggregate
  *   +- BatchPhysicalExchange (hash by group keys if group keys is not empty, else singleton)
  *      +- input of window agg
  * }}}
@@ -67,12 +67,12 @@ import scala.collection.JavaConversions._
  * this rule will try to create two possibilities above, and chooses the best one based on cost.
  * if all aggregate function buffer are fix length, the rule will choose hash window agg.
  */
-class BatchExecWindowAggregateRule
+class BatchPhysicalWindowAggregateRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalWindowAggregate],
       operand(classOf[RelNode], any)),
     FlinkRelFactories.LOGICAL_BUILDER_WITHOUT_AGG_INPUT_PRUNE,
-    "BatchExecWindowAggregateRule")
+    "BatchPhysicalWindowAggregateRule")
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
@@ -163,7 +163,7 @@ class BatchExecWindowAggregateRule
       input.getRowType, call.builder(), window.timeAttribute)
     val inputTimeFieldType = agg.getInput.getRowType.getFieldList.get(inputTimeFieldIndex).getType
     val inputTimeIsDate = inputTimeFieldType.getSqlTypeName == SqlTypeName.DATE
-    // local-agg output order: groupset | assignTs | aucGroupSet | aggCalls
+    // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
     val config = input.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
@@ -180,7 +180,7 @@ class BatchExecWindowAggregateRule
         val newLocalInput = RelOptRule.convert(input, localRequiredTraitSet)
         val localProvidedTraitSet = localRequiredTraitSet
 
-        new BatchExecLocalHashWindowAggregate(
+        new BatchPhysicalLocalHashWindowAggregate(
           agg.getCluster,
           localProvidedTraitSet,
           newLocalInput,
@@ -234,7 +234,7 @@ class BatchExecWindowAggregateRule
         // hash
         val newGlobalAggInput = RelOptRule.convert(localAgg, globalRequiredTraitSet)
 
-        new BatchExecHashWindowAggregate(
+        new BatchPhysicalHashWindowAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newGlobalAggInput,
@@ -293,7 +293,7 @@ class BatchExecWindowAggregateRule
         // case 2: Sliding window without pane optimization
         val newInput = RelOptRule.convert(input, requiredTraitSet)
 
-        new BatchExecHashWindowAggregate(
+        new BatchPhysicalHashWindowAggregate(
           agg.getCluster,
           aggProvidedTraitSet,
           newInput,
@@ -430,6 +430,6 @@ class BatchExecWindowAggregateRule
   }
 }
 
-object BatchExecWindowAggregateRule {
-  val INSTANCE: RelOptRule = new BatchExecWindowAggregateRule
+object BatchPhysicalWindowAggregateRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalWindowAggregateRule
 }

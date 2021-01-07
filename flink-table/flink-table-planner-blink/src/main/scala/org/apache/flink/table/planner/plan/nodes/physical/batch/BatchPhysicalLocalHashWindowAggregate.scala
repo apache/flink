@@ -20,8 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashWindowAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -30,47 +32,44 @@ import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
-import scala.collection.JavaConversions._
-
-class BatchExecHashWindowAggregate(
+/**
+ * Batch physical RelNode for local hash-based window aggregate.
+ */
+class BatchPhysicalLocalHashWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
-    aggInputRowType: RelDataType,
+    inputRowType: RelDataType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     window: LogicalWindow,
-    inputTimeFieldIndex: Int,
+    val inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
     namedWindowProperties: Seq[PlannerNamedWindowProperty],
-    enableAssignPane: Boolean = false,
-    isMerge: Boolean)
-  extends BatchExecHashWindowAggregateBase(
+    enableAssignPane: Boolean = false)
+  extends BatchPhysicalHashWindowAggregateBase(
     cluster,
     traitSet,
     inputRel,
     outputRowType,
-    aggInputRowType,
     grouping,
     auxGrouping,
     aggCallToAggFunction,
     window,
-    inputTimeFieldIndex,
-    inputTimeIsDate,
     namedWindowProperties,
     enableAssignPane,
-    isMerge,
-    isFinal = true) {
+    isMerge = false,
+    isFinal = false) {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new BatchExecHashWindowAggregate(
+    new BatchPhysicalLocalHashWindowAggregate(
       cluster,
       traitSet,
       inputs.get(0),
       getRowType,
-      aggInputRowType,
+      inputRowType,
       grouping,
       auxGrouping,
       aggCallToAggFunction,
@@ -78,14 +77,25 @@ class BatchExecHashWindowAggregate(
       inputTimeFieldIndex,
       inputTimeIsDate,
       namedWindowProperties,
-      enableAssignPane,
-      isMerge)
+      enableAssignPane)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(
-    ExecEdge.builder()
-      .damBehavior(ExecEdge.DamBehavior.END_INPUT)
-      .build())
+  override def translateToExecNode(): ExecNode[_] = {
+    new BatchExecHashWindowAggregate(
+      grouping,
+      auxGrouping,
+      getAggCallList.toArray,
+      window,
+      inputTimeFieldIndex,
+      inputTimeIsDate,
+      namedWindowProperties.toArray,
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      enableAssignPane,
+      false, // isMerge is always false
+      false, // isFinal is always false
+      ExecEdge.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription
+    )
+  }
 }

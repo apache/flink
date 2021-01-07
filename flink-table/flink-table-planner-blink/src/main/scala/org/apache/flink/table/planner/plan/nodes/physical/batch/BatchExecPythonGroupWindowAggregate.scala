@@ -126,7 +126,7 @@ class BatchExecPythonGroupWindowAggregate(
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
-    val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
+    val windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window)
 
     val groupBufferLimitSize = planner.getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
@@ -137,8 +137,8 @@ class BatchExecPythonGroupWindowAggregate(
       outputType,
       inputTimeFieldIndex,
       groupBufferLimitSize,
-      windowSize,
-      slideSize,
+      windowSizeAndSlideSize.f0,
+      windowSizeAndSlideSize.f1,
       getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
