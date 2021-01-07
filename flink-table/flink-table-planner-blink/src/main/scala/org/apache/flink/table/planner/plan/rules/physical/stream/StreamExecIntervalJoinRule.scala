@@ -32,7 +32,7 @@ import scala.collection.JavaConversions._
   * to [[StreamExecIntervalJoin]].
   */
 class StreamExecIntervalJoinRule
-  extends StreamExecJoinRuleBase("StreamExecIntervalJoinRule") {
+  extends StreamPhysicalJoinRuleBase("StreamExecIntervalJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
