@@ -1781,6 +1781,12 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         flinkConfiguration.set(
                 YarnConfigOptions.APPLICATION_ID, ConverterUtils.toString(clusterId));
+
+        // set cluster-id to app id if not specified
+        if (!flinkConfiguration.contains(HighAvailabilityOptions.HA_CLUSTER_ID)) {
+            flinkConfiguration.set(
+                    HighAvailabilityOptions.HA_CLUSTER_ID, ConverterUtils.toString(clusterId));
+        }
     }
 
     public static void logDetachedClusterInformation(
