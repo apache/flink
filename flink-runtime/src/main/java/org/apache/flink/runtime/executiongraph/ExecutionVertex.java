@@ -33,8 +33,6 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -90,8 +88,6 @@ public class ExecutionVertex
 
     /** The name in the format "myTask (2/7)", cached to avoid frequent string concatenations. */
     private final String taskNameWithSubtask;
-
-    private CoLocationConstraint locationConstraint;
 
     /** The current or latest execution attempt of this vertex's task. */
     private Execution currentExecution; // this field must never be null
@@ -152,14 +148,6 @@ public class ExecutionVertex
                         initialGlobalModVersion,
                         createTimestamp,
                         timeout);
-
-        // create a co-location scheduling hint, if necessary
-        CoLocationGroup clg = jobVertex.getCoLocationGroup();
-        if (clg != null) {
-            this.locationConstraint = clg.getLocationConstraint(subTaskIndex);
-        } else {
-            this.locationConstraint = null;
-        }
 
         getExecutionGraph().registerExecution(currentExecution);
 
@@ -235,10 +223,6 @@ public class ExecutionVertex
 
     public ExecutionEdge[][] getAllInputEdges() {
         return inputEdges;
-    }
-
-    public CoLocationConstraint getLocationConstraint() {
-        return locationConstraint;
     }
 
     public InputSplit getNextInputSplit(String host) {
@@ -645,11 +629,6 @@ public class ExecutionVertex
                     assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
                     inputSplits.clear();
                 }
-            }
-
-            CoLocationGroup grp = jobVertex.getCoLocationGroup();
-            if (grp != null) {
-                locationConstraint = grp.getLocationConstraint(subTaskIndex);
             }
 
             // register this execution at the execution graph, to receive call backs
