@@ -233,8 +233,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
-        this.coordinatorMap = createCoordinatorMap();
-        initializeOperatorCoordinators(this.mainThreadExecutor);
+        this.coordinatorMap = createCoordinatorMap(this.mainThreadExecutor);
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -1222,12 +1221,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         }
     }
 
-    private void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
-        for (OperatorCoordinatorHolder coordinatorHolder : getAllCoordinators()) {
-            coordinatorHolder.lazyInitialize(this, mainThreadExecutor);
-        }
-    }
-
     private void startAllOperatorCoordinators() {
         final Collection<OperatorCoordinatorHolder> coordinators = getAllCoordinators();
         try {
@@ -1249,10 +1242,12 @@ public abstract class SchedulerBase implements SchedulerNG {
         return coordinatorMap.values();
     }
 
-    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap() {
+    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap(
+            ComponentMainThreadExecutor mainThreadExecutor) {
         Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
         for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
             for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
+                holder.lazyInitialize(this, mainThreadExecutor);
                 coordinatorMap.put(holder.operatorId(), holder);
             }
         }
