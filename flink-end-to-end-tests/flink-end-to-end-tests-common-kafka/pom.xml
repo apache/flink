@@ -48,10 +48,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 			<scope>compile</scope>
 		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
