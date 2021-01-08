@@ -82,6 +82,6 @@ public abstract class PagedTypeSerializer<T> extends TypeSerializer<T> {
      */
     public abstract T mapFromPages(T reuse, AbstractPagedInputView source) throws IOException;
 
-    /** Skip over bytes of one record from the input view, discarding the skipped bytes. */
-    public abstract void skipRecordToRead(AbstractPagedInputView source) throws IOException;
+    /** Skip over bytes of one record from the paged input view, discarding the skipped bytes. */
+    public abstract void skipRecordFromPages(AbstractPagedInputView source) throws IOException;
 }

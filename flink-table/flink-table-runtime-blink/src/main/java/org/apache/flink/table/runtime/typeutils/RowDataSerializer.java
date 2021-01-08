@@ -239,8 +239,8 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     }
 
     @Override
-    public void skipRecordToRead(AbstractPagedInputView source) throws IOException {
-        binarySerializer.skipRecordToRead(source);
+    public void skipRecordFromPages(AbstractPagedInputView source) throws IOException {
+        binarySerializer.skipRecordFromPages(source);
     }
 
     @Override

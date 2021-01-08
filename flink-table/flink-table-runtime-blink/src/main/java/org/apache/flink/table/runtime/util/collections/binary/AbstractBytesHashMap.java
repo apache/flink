@@ -309,7 +309,7 @@ public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData>
 
         /** @throws IOException when invalid memory address visited. */
         void skipKey() throws IOException {
-            keySerializer.skipRecordToRead(inView);
+            keySerializer.skipRecordFromPages(inView);
         }
 
         public BinaryRowData readValue(BinaryRowData reuse) throws IOException {
