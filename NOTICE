@@ -9,6 +9,10 @@ See bundled license files for details.
 
 - jQuery v3.5.1 | (c) JS Foundation and other contributors
 	-> in "docs/page/js/jquery.min.js"
+- Bootstrap v3.3.4 (http://getbootstrap.com) Copyright 2011-2015 Twitter, Inc.
+    -> css in "docs/page/css/bootstrap.min.css"
+    -> js in "docs/page/js/bootstrap.min.js"
+    -> fonts in "docs/page/fonts"
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
