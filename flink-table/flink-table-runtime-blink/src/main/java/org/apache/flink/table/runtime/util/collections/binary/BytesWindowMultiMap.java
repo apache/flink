@@ -46,10 +46,4 @@ public final class BytesWindowMultiMap extends BytesMultiMapBase<WindowKey> {
                 valueTypes);
         checkArgument(keyTypes.length > 0);
     }
-
-    @Override
-    public void validateKey(WindowKey key) {
-        // check the looking up key having only one memory segment
-        checkArgument(key.getKey().getSegments().length == 1);
-    }
 }

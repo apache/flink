@@ -46,12 +46,4 @@ public final class BytesMultiMap extends BytesMultiMapBase<BinaryRowData> {
                 valueTypes);
         checkArgument(keyTypes.length > 0);
     }
-
-    // ----------------------- Abstract Interface -----------------------
-
-    @Override
-    public void validateKey(BinaryRowData key) {
-        // check the looking up key having only one memory segment
-        checkArgument(key.getSegments().length == 1);
-    }
 }

@@ -46,12 +46,4 @@ public final class BytesWindowHashMap extends BytesHashMapBase<WindowKey> {
                 valueTypes);
         checkArgument(keyTypes.length > 0);
     }
-
-    // ----------------------- Abstract Interface -----------------------
-
-    @Override
-    public void validateKey(WindowKey key) {
-        // check the looking up key having only one memory segment
-        checkArgument(key.getKey().getSegments().length == 1);
-    }
 }

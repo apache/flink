@@ -106,9 +106,6 @@ public abstract class BytesMap<K, V> {
         this.reuseLookupInfo = new LookupInfo<>();
     }
 
-    /** Check the key is valid. */
-    public abstract void validateKey(K key);
-
     /** Returns the number of keys in this map. */
     public abstract long getNumKeys();
 
@@ -177,7 +174,6 @@ public abstract class BytesMap<K, V> {
      * @return {@link LookupInfo}
      */
     public LookupInfo<K, V> lookup(K key) {
-        validateKey(key);
         final int hashCode1 = key.hashCode();
         int newPos = hashCode1 & numBucketsMask;
         // which segment contains the bucket
