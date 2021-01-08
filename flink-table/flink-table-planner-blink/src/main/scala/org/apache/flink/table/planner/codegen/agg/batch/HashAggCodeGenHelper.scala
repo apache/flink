@@ -815,13 +815,10 @@ object HashAggCodeGenHelper {
       keyComputerTerm: String,
       recordComparatorTerm: String,
       aggMapKeyType: RowType) : String = {
-    val keyFieldTypes = aggMapKeyType.getChildren.toArray(Array[LogicalType]())
-    val keys = keyFieldTypes.indices.toArray
-    val orders = keys.map(_ => true)
-    val nullsIsLast = SortUtil.getNullDefaultOrders(orders)
-
     val sortCodeGenerator = new SortCodeGenerator(
-      ctx.tableConfig, keys, keyFieldTypes, orders, nullsIsLast)
+        ctx.tableConfig,
+        aggMapKeyType,
+        SortUtil.getAscendingSortSpec(Array.range(0, aggMapKeyType.getFieldCount)))
     val computer = sortCodeGenerator.generateNormalizedKeyComputer("AggMapKeyComputer")
     val comparator = sortCodeGenerator.generateRecordComparator("AggMapValueComparator")
 

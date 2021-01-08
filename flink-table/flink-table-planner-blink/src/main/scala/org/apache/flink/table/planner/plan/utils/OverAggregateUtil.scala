@@ -68,7 +68,7 @@ object OverAggregateUtil {
   def createCollation(group: Group): RelCollation = {
     val groupSet: Array[Int] = group.keys.toArray
     val collations = group.orderKeys.getFieldCollations
-    val (orderKeyIndexes, _, _) = SortUtil.getKeysAndOrders(collations)
+    val orderKeyIndexes = SortUtil.getSortSpec(collations).getFieldIndices
     if (groupSet.nonEmpty || orderKeyIndexes.nonEmpty) {
       val collectionIndexes = collations.map(_.getFieldIndex)
       val intersectIds = orderKeyIndexes.intersect(groupSet)

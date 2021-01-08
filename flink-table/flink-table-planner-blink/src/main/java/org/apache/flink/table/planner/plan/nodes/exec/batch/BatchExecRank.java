@@ -28,13 +28,12 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.operators.sort.RankOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import java.util.Collections;
-import java.util.stream.IntStream;
 
 /**
  * {@link BatchExecNode} for Rank.
@@ -73,12 +72,6 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
         Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
 
         RowType inputType = (RowType) inputNode.getOutputType();
-        LogicalType[] partitionTypes =
-                IntStream.of(partitionFields)
-                        .mapToObj(inputType::getTypeAt)
-                        .toArray(LogicalType[]::new);
-        LogicalType[] sortTypes =
-                IntStream.of(sortFields).mapToObj(inputType::getTypeAt).toArray(LogicalType[]::new);
 
         // operator needn't cache data
         // The collation for the partition-by and order-by fields is inessential here,
@@ -88,17 +81,13 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
                         ComparatorCodeGenerator.gen(
                                 planner.getTableConfig(),
                                 "PartitionByComparator",
-                                partitionFields,
-                                partitionTypes,
-                                new boolean[partitionFields.length],
-                                new boolean[partitionFields.length]),
+                                inputType,
+                                SortUtil.getAscendingSortSpec(partitionFields)),
                         ComparatorCodeGenerator.gen(
                                 planner.getTableConfig(),
                                 "OrderByComparator",
-                                sortFields,
-                                sortTypes,
-                                new boolean[sortFields.length],
-                                new boolean[sortFields.length]),
+                                inputType,
+                                SortUtil.getAscendingSortSpec(sortFields)),
                         rankStart,
                         rankEnd,
                         outputRankNumber);

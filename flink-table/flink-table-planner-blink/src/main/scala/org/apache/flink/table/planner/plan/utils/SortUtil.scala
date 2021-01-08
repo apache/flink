@@ -86,16 +86,6 @@ object SortUtil {
   }
 
   def getSortSpec(fieldCollations: Seq[RelFieldCollation]): SortSpec = {
-    val (keys, orders, nullsIslast) = getKeysAndOrders(fieldCollations)
-    val sortSpecBuilder = SortSpec.builder();
-    for (i <- keys.indices) {
-      sortSpecBuilder.addField(keys(i), orders(i), nullsIslast(i))
-    }
-    sortSpecBuilder.build()
-  }
-
-  def getKeysAndOrders(
-      fieldCollations: Seq[RelFieldCollation]): (Array[Int], Array[Boolean], Array[Boolean]) = {
     val fieldMappingDirections = fieldCollations.map(c =>
       (c.getFieldIndex, directionToOrder(c.getDirection)))
     val keys = fieldMappingDirections.map(_._1)
@@ -110,22 +100,24 @@ object SortUtil {
     deduplicateSortKeys(keys.toArray, orders.toArray, nullsIsLast)
   }
 
-  def deduplicateSortKeys(
+  def getAscendingSortSpec(fields: Array[Int]): SortSpec = {
+    val originalOrders = fields.map {_ => true}
+    val nullsIsLast = SortUtil.getNullDefaultOrders(originalOrders)
+    deduplicateSortKeys(fields, originalOrders, nullsIsLast)
+  }
+
+  private def deduplicateSortKeys(
       keys: Array[Int],
       orders: Array[Boolean],
-      nullsIsLast: Array[Boolean]): (Array[Int], Array[Boolean], Array[Boolean]) = {
+      nullsIsLast: Array[Boolean]): SortSpec = {
+    val builder = SortSpec.builder()
     val keySet = new mutable.HashSet[Int]
-    val keyBuffer = new mutable.ArrayBuffer[Int]
-    val orderBuffer = new mutable.ArrayBuffer[Boolean]
-    val nullsIsLastBuffer = new mutable.ArrayBuffer[Boolean]
     for (i <- keys.indices) {
       if (keySet.add(keys(i))) {
-        keyBuffer += keys(i)
-        orderBuffer += orders(i)
-        nullsIsLastBuffer += nullsIsLast(i)
+        builder.addField(keys(i), orders(i), nullsIsLast(i))
       }
     }
-    (keyBuffer.toArray, orderBuffer.toArray, nullsIsLastBuffer.toArray)
+    builder.build()
   }
 
   def directionToOrder(direction: Direction): Order = {

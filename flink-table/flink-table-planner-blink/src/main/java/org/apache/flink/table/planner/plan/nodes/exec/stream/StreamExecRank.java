@@ -121,16 +121,24 @@ public class StreamExecRank extends ExecNodeBase<RowData> implements StreamExecN
         int[] sortFields = sortSpec.getFieldIndices();
         RowDataKeySelector sortKeySelector =
                 KeySelectorUtil.getRowDataSelector(sortFields, inputRowTypeInfo);
+        // create a sort spec on sort keys.
         int[] sortKeyPositions = IntStream.range(0, sortFields.length).toArray();
+        SortSpec.SortSpecBuilder builder = SortSpec.builder();
+        IntStream.range(0, sortFields.length)
+                .forEach(
+                        idx ->
+                                builder.addField(
+                                        idx,
+                                        sortSpec.getFieldSpec(idx).getIsAscendingOrder(),
+                                        sortSpec.getFieldSpec(idx).getNullIsLast()));
+        SortSpec sortSpecInSortKey = builder.build();
         TableConfig tableConfig = planner.getTableConfig();
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
                         tableConfig,
                         "StreamExecSortComparator",
-                        sortKeyPositions,
-                        sortSpec.getFieldTypes(inputType),
-                        sortSpec.getAscendingOrders(),
-                        sortSpec.getNullsIsLast());
+                        RowType.of(sortSpec.getFieldTypes(inputType)),
+                        sortSpecInSortKey);
         long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_TOPN_CACHE_SIZE);
         long minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime();
         long maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime();

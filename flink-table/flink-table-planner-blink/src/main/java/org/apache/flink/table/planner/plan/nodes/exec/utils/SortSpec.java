@@ -69,6 +69,11 @@ public class SortSpec {
         return nullIsLasts;
     }
 
+    /** Gets all {@link SortFieldSpec} in the SortSpec. */
+    public SortFieldSpec[] getFieldSpecs() {
+        return fieldSpecs;
+    }
+
     /** Gets {@link SortFieldSpec} of field at given index. */
     public SortFieldSpec getFieldSpec(int index) {
         return fieldSpecs[index];

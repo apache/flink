@@ -23,7 +23,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
@@ -34,8 +34,8 @@ import static org.junit.Assert.assertEquals;
 public class DataFormatTestUtil {
 
     /** Stringify the given {@link RowData}. */
-    public static String rowDataToString(RowData row, LogicalType[] types) {
-        checkArgument(types.length == row.getArity());
+    public static String rowDataToString(RowData row, RowType type) {
+        checkArgument(type.getFieldCount() == row.getArity());
         StringBuilder build = new StringBuilder();
         build.append(row.getRowKind().shortString()).append("(");
         for (int i = 0; i < row.getArity(); i++) {
@@ -43,7 +43,7 @@ public class DataFormatTestUtil {
             if (row.isNullAt(i)) {
                 build.append("null");
             } else {
-                RowData.FieldGetter fieldGetter = RowData.createFieldGetter(types[i], i);
+                RowData.FieldGetter fieldGetter = RowData.createFieldGetter(type.getTypeAt(i), i);
                 build.append(fieldGetter.getFieldOrNull(row));
             }
         }

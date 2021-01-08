@@ -94,12 +94,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
 
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            tableConfig,
-                            "ProcTimeSortComparator",
-                            specExcludeTime.getFieldIndices(),
-                            specExcludeTime.getFieldTypes(inputType),
-                            specExcludeTime.getAscendingOrders(),
-                            specExcludeTime.getNullsIsLast());
+                            tableConfig, "ProcTimeSortComparator", inputType, specExcludeTime);
             ProcTimeSortOperator sortOperator =
                     new ProcTimeSortOperator(InternalTypeInfo.of(inputType), rowComparator);
 
@@ -136,12 +131,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
             SortSpec specExcludeTime = sortSpec.createSubSortSpec(1);
             rowComparator =
                     ComparatorCodeGenerator.gen(
-                            tableConfig,
-                            "RowTimeSortComparator",
-                            specExcludeTime.getFieldIndices(),
-                            specExcludeTime.getFieldTypes(inputType),
-                            specExcludeTime.getAscendingOrders(),
-                            specExcludeTime.getNullsIsLast());
+                            tableConfig, "RowTimeSortComparator", inputType, specExcludeTime);
         }
         RowTimeSortOperator sortOperator =
                 new RowTimeSortOperator(

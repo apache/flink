@@ -77,12 +77,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
-                        config,
-                        "StreamExecSortComparator",
-                        sortSpec.getFieldIndices(),
-                        sortSpec.getFieldTypes(inputType),
-                        sortSpec.getAscendingOrders(),
-                        sortSpec.getNullsIsLast());
+                        config, "StreamExecSortComparator", inputType, sortSpec);
         StreamSortOperator sortOperator =
                 new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator);
         Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
