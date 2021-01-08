@@ -86,8 +86,6 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
@@ -141,8 +139,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     protected final InputsLocationsRetriever inputsLocationsRetriever;
 
-    private final BackPressureStatsTracker backPressureStatsTracker;
-
     private final Executor ioExecutor;
 
     private final Configuration jobMasterConfiguration;
@@ -177,7 +173,6 @@ public abstract class SchedulerBase implements SchedulerNG {
     public SchedulerBase(
             final Logger log,
             final JobGraph jobGraph,
-            final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final ScheduledExecutorService futureExecutor,
@@ -195,7 +190,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         this.log = checkNotNull(log);
         this.jobGraph = checkNotNull(jobGraph);
-        this.backPressureStatsTracker = checkNotNull(backPressureStatsTracker);
         this.ioExecutor = checkNotNull(ioExecutor);
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.futureExecutor = checkNotNull(futureExecutor);
@@ -928,17 +922,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         mainThreadExecutor.assertRunningInMainThread();
 
         executionGraph.updateAccumulators(accumulatorSnapshot);
-    }
-
-    @Override
-    public Optional<OperatorBackPressureStats> requestOperatorBackPressureStats(
-            final JobVertexID jobVertexId) throws FlinkException {
-        final ExecutionJobVertex jobVertex = executionGraph.getJobVertex(jobVertexId);
-        if (jobVertex == null) {
-            throw new FlinkException("JobVertexID not found " + jobVertexId);
-        }
-
-        return backPressureStatsTracker.getOperatorBackPressureStats(jobVertex);
     }
 
     @Override

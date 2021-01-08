@@ -228,10 +228,7 @@ public class TaskExecutorExecutionDeploymentReconciliationTest extends TestLogge
                 null,
                 new BlobCacheService(configuration, new VoidBlobStore(), null),
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                new TestingTaskExecutorPartitionTracker(),
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration,
-                        RPC_SERVICE_RESOURCE.getTestingRpcService().getScheduledExecutor()));
+                new TestingTaskExecutorPartitionTracker());
     }
 
     private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(JobID jobId)

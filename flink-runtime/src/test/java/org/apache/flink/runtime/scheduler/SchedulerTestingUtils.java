@@ -59,8 +59,6 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.VoidBackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -386,8 +384,6 @@ public class SchedulerTestingUtils {
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         private Logger log = LOG;
-        private BackPressureStatsTracker backPressureStatsTracker =
-                VoidBackPressureStatsTracker.INSTANCE;
         private Executor ioExecutor = TestingUtils.defaultExecutor();
         private Configuration jobMasterConfiguration = new Configuration();
         private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
@@ -418,12 +414,6 @@ public class SchedulerTestingUtils {
 
         public DefaultSchedulerBuilder setLogger(final Logger log) {
             this.log = log;
-            return this;
-        }
-
-        public DefaultSchedulerBuilder setBackPressureStatsTracker(
-                final BackPressureStatsTracker backPressureStatsTracker) {
-            this.backPressureStatsTracker = backPressureStatsTracker;
             return this;
         }
 
@@ -527,7 +517,6 @@ public class SchedulerTestingUtils {
             return new DefaultScheduler(
                     log,
                     jobGraph,
-                    backPressureStatsTracker,
                     ioExecutor,
                     jobMasterConfiguration,
                     componentMainThreadExecutor -> {},

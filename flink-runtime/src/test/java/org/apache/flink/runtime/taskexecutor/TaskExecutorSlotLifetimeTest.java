@@ -218,9 +218,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                 null,
                 new BlobCacheService(configuration, new VoidBlobStore(), null),
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
-                new TestingTaskExecutorPartitionTracker(),
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration, rpcService.getScheduledExecutor()));
+                new TestingTaskExecutorPartitionTracker());
     }
 
     public static final class UserClassLoaderExtractingInvokable extends AbstractInvokable {
