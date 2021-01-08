@@ -444,6 +444,6 @@ public class JobGraphTest extends TestLogger {
         final CoLocationGroupDesc onlyCoLocationGroupDesc =
                 jobGraph.getCoLocationGroupDescriptors().iterator().next();
         assertThat(
-                onlyCoLocationGroupDesc.getVertices(), containsInAnyOrder(v1.getID(), v2.getID()));
+                onlyCoLocationGroupDesc.getVertexIDs(), containsInAnyOrder(v1.getID(), v2.getID()));
     }
 }

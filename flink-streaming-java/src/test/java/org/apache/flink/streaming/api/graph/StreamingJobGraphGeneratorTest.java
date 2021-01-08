@@ -819,10 +819,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
             if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SOURCE_NAME_PREFIX)) {
                 iterationSourceCoLocationGroup = jobVertex.getCoLocationGroup();
                 assertTrue(
-                        iterationSourceCoLocationGroup.getVertices().contains(jobVertex.getID()));
+                        iterationSourceCoLocationGroup.getVertexIDs().contains(jobVertex.getID()));
             } else if (jobVertex.getName().startsWith(StreamGraph.ITERATION_SINK_NAME_PREFIX)) {
                 iterationSinkCoLocationGroup = jobVertex.getCoLocationGroup();
-                assertTrue(iterationSinkCoLocationGroup.getVertices().contains(jobVertex.getID()));
+                assertTrue(iterationSinkCoLocationGroup.getVertexIDs().contains(jobVertex.getID()));
             } else {
                 assertNull(jobVertex.getCoLocationGroup());
             }

@@ -117,7 +117,7 @@ class LocalInputPreferredSlotSharingStrategy implements SlotSharingStrategy {
 
             this.coLocationGroupMap = new HashMap<>();
             for (CoLocationGroupDesc coLocationGroup : coLocationGroups) {
-                for (JobVertexID jobVertexId : coLocationGroup.getVertices()) {
+                for (JobVertexID jobVertexId : coLocationGroup.getVertexIDs()) {
                     coLocationGroupMap.put(jobVertexId, coLocationGroup);
                 }
             }
