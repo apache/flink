@@ -50,19 +50,23 @@ public class ImmutableValueStateTest {
                         valueStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws IOException {
-        long value = valueState.value();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    long value = valueState.value();
         assertEquals(42L, value);
 
         valueState.update(54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws IOException {
-        long value = valueState.value();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    long value = valueState.value();
         assertEquals(42L, value);
 
         valueState.clear();
+        });
     }
 }

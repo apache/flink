@@ -106,10 +106,12 @@ public class ShuffleModeUtilsTest extends TestLogger {
                 ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGetInvalidShuffleMode() {
-        final Configuration configuration = new Configuration();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Configuration configuration = new Configuration();
         configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
         ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
+        });
     }
 }

@@ -88,22 +88,26 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
         compareResultAsText(result, expected);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPOJOTypeWithoutFieldsOrder() throws Exception {
-        final String inputData = "";
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final String inputData = "";
         final String dataPath = createInputData(inputData);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         env.readCsvFile(dataPath).pojoType(POJOItem.class);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPOJOTypeWitNullFieldsOrder() throws Exception {
-        final String inputData = "";
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final String inputData = "";
         final String dataPath = createInputData(inputData);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
+        });
     }
 
     @Test

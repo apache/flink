@@ -277,9 +277,10 @@ class TableEnvironmentTest {
     assert(tableEnv.listTables().sameElements(Array.empty[String]))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testExecuteSqlWithDropTemporaryTableTwice(): Unit = {
-    val createTableStmt =
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val createTableStmt =
       """
         |CREATE TEMPORARY TABLE tbl1 (
         |  a bigint,
@@ -1079,6 +1080,7 @@ class TableEnvironmentTest {
     try {
       tableEnv.executeSql(explain)
       fail("This should not happen")
+        });
     } catch {
       case e: TableException =>
         assertTrue(e.getMessage.contains("Only default behavior is supported now"))

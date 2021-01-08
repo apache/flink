@@ -138,9 +138,10 @@ public class PartitionRequestClientFactoryTest {
     }
 
     // see https://issues.apache.org/jira/browse/FLINK-18821
-    @Test(expected = IOException.class)
+    @Test
     public void testFailureReportedToSubsequentRequests() throws Exception {
-        PartitionRequestClientFactory factory =
+        Assertions.assertThrows(IOException.class, () -> {
+                    PartitionRequestClientFactory factory =
                 new PartitionRequestClientFactory(new FailingNettyClient(), 2);
         try {
             factory.createPartitionRequestClient(
@@ -150,11 +151,13 @@ public class PartitionRequestClientFactoryTest {
         }
         factory.createPartitionRequestClient(
                 new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+        });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testNettyClientConnectRetryFailure() throws Exception {
-        NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
+        Assertions.assertThrows(IOException.class, () -> {
+                    NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
         UnstableNettyClient unstableNettyClient =
                 new UnstableNettyClient(serverAndClient.client(), 3);
 
@@ -168,6 +171,7 @@ public class PartitionRequestClientFactoryTest {
             serverAndClient.client().shutdown();
             serverAndClient.server().shutdown();
         }
+        });
     }
 
     @Test

@@ -75,10 +75,12 @@ public class PrestoS3RecoverableWriterTest {
 
     // ----------------------- Tests -----------------------
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void requestingRecoverableWriterShouldThroughException() throws Exception {
-        URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
         FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
         fileSystem.createRecoverableWriter();
+        });
     }
 }

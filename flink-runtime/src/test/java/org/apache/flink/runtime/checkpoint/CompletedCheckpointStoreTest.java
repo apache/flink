@@ -57,9 +57,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     // ---------------------------------------------------------------------------------------------
 
     /** Tests that at least one checkpoint needs to be retained. */
-    @Test(expected = Exception.class)
+    @Test
     public void testExceptionOnNoRetainedCheckpoints() throws Exception {
-        createCompletedCheckpoints(0);
+        Assertions.assertThrows(Exception.class, () -> {
+                    createCompletedCheckpoints(0);
+        });
     }
 
     /** Tests adding and getting a checkpoint. */

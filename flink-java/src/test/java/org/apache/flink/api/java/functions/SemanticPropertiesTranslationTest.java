@@ -250,26 +250,30 @@ public class SemanticPropertiesTranslationTest {
         assertTrue(read.contains(2));
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testUnaryForwardedOverwritingInLine1() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple3<Long, Long, Long>> input =
                 env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
         input.map(new WildcardForwardedMapper<Tuple3<Long, Long, Long>>())
                 .withForwardedFields("0->1; 2");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testUnaryForwardedOverwritingInLine2() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple3<Long, Long, Long>> input =
                 env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
         input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>())
                 .withForwardedFields("0->1; 2");
+        });
     }
 
     @Test
@@ -504,9 +508,10 @@ public class SemanticPropertiesTranslationTest {
         assertTrue(semantics.getReadFields(1).contains(0));
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine1() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
@@ -517,11 +522,13 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new ForwardedFirstAnnotationJoin<Long>())
                 .withForwardedFieldsFirst("0->1");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine2() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
@@ -532,11 +539,13 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new ForwardedSecondAnnotationJoin<Long>())
                 .withForwardedFieldsSecond("0->1");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine3() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
@@ -547,11 +556,13 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
                 .withForwardedFieldsFirst("0->1;");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine4() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
@@ -562,11 +573,13 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
                 .withForwardedFieldsSecond("0->1;");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine5() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple3<Long, Long, Long>> input1 =
@@ -579,11 +592,13 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new AllForwardedExceptJoin<Long>())
                 .withForwardedFieldsFirst("0->1;");
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testBinaryForwardedOverwritingInLine6() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         @SuppressWarnings("unchecked")
         DataSet<Tuple3<Long, Long, Long>> input1 =
@@ -596,6 +611,7 @@ public class SemanticPropertiesTranslationTest {
                 .equalTo(0)
                 .with(new AllForwardedExceptJoin<Long>())
                 .withForwardedFieldsSecond("0->1;");
+        });
     }
 
     // --------------------------------------------------------------------------------------------

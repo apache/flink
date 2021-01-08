@@ -41,8 +41,9 @@ class MinByOperatorTest {
     * This test validates that an index which is out of bounds throws an
     * IndexOutOfBoundsException.
     */
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testOutOfTupleBoundsDataset1() {
+        Assertions.assertThrows(classOf[IndexOutOfBoundsException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val collection = env.fromCollection(emptyTupleData)
@@ -103,6 +104,7 @@ class MinByOperatorTest {
     // should work
     try {
       groupDs.minBy(4, 0, 1, 2, 3)
+        });
     } catch {
       case e : Exception => Assert.fail()
     }
@@ -112,8 +114,9 @@ class MinByOperatorTest {
     * This test validates that an InvalidProgramException is thrown when minBy
     * is used on a custom data type.
     */
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCustomKeyFieldsGrouping() {
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val groupDs: GroupedDataSet[CustomType] = env.fromCollection(customTypeData).groupBy(0)
@@ -163,6 +166,7 @@ class MinByOperatorTest {
   class CustomType(var myInt: Int, var myLong: Long, var myString: String) {
     def this() {
       this(0, 0, "")
+        });
     }
 
     override def toString: String = {

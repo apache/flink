@@ -68,10 +68,12 @@ public class ClusterConfigurationParserFactoryTest extends TestLogger {
         assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        final String[] args = {};
+        Assertions.assertThrows(FlinkParseException.class, () -> {
+                    final String[] args = {};
 
         commandLineParser.parse(args);
+        });
     }
 }

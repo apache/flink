@@ -141,9 +141,10 @@ class JoinTest extends TableTestBase {
     util.verifyExecPlan(results)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFullJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -209,6 +210,7 @@ object JoinTest {
   object Merger extends ScalarFunction {
     def eval(f0: Int, f1: Int): Int = {
       f0 + f1
+        });
     }
   }
 }

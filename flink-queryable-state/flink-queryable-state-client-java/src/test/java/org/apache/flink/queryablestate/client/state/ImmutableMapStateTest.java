@@ -63,9 +63,10 @@ public class ImmutableMapStateTest {
         mapState = ImmutableMapState.createState(mapStateDesc, initSer);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testPut() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -74,11 +75,13 @@ public class ImmutableMapStateTest {
         assertEquals(5L, value);
 
         mapState.put(2L, 54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testPutAll() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -91,11 +94,13 @@ public class ImmutableMapStateTest {
         nMap.put(2L, 7L);
 
         mapState.putAll(nMap);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -104,11 +109,13 @@ public class ImmutableMapStateTest {
         assertEquals(5L, value);
 
         mapState.put(2L, 54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testIterator() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -120,11 +127,13 @@ public class ImmutableMapStateTest {
         while (iterator.hasNext()) {
             iterator.remove();
         }
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testIterable() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -138,11 +147,13 @@ public class ImmutableMapStateTest {
             assertEquals(5L, (long) iterator.next().getValue());
             iterator.remove();
         }
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testKeys() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -154,11 +165,13 @@ public class ImmutableMapStateTest {
         while (iterator.hasNext()) {
             iterator.remove();
         }
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testValues() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -170,11 +183,13 @@ public class ImmutableMapStateTest {
         while (iterator.hasNext()) {
             iterator.remove();
         }
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        assertTrue(mapState.contains(1L));
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    assertTrue(mapState.contains(1L));
         long value = mapState.get(1L);
         assertEquals(5L, value);
 
@@ -183,6 +198,7 @@ public class ImmutableMapStateTest {
         assertEquals(5L, value);
 
         mapState.clear();
+        });
     }
 
     @Test

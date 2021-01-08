@@ -249,14 +249,18 @@ public class HistoryServerTest extends TestLogger {
                 .collect(Collectors.toSet());
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfHistorySizeLimitIsZero() throws Exception {
-        startHistoryServerWithSizeLimit(0);
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    startHistoryServerWithSizeLimit(0);
+        });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfHistorySizeLimitIsLessThanMinusOne() throws Exception {
-        startHistoryServerWithSizeLimit(-2);
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    startHistoryServerWithSizeLimit(-2);
+        });
     }
 
     private void startHistoryServerWithSizeLimit(int maxHistorySize)

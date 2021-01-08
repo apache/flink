@@ -111,31 +111,39 @@ public class BlobClientSslTest extends BlobClientTest {
     }
 
     /** Verify ssl client to non-ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLClientFailure() throws Exception {
-        // SSL client connected to non-ssl server
+        Assertions.assertThrows(IOException.class, () -> {
+                    // SSL client connected to non-ssl server
         uploadJarFile(blobServer, sslClientConfig);
+        });
     }
 
     /** Verify ssl client to non-ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLClientFailure2() throws Exception {
-        // SSL client connected to non-ssl server
+        Assertions.assertThrows(IOException.class, () -> {
+                    // SSL client connected to non-ssl server
         uploadJarFile(blobNonSslServer, sslClientConfig);
+        });
     }
 
     /** Verify non-ssl client to ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLServerFailure() throws Exception {
-        // Non-SSL client connected to ssl server
+        Assertions.assertThrows(IOException.class, () -> {
+                    // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, clientConfig);
+        });
     }
 
     /** Verify non-ssl client to ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLServerFailure2() throws Exception {
-        // Non-SSL client connected to ssl server
+        Assertions.assertThrows(IOException.class, () -> {
+                    // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, nonSslClientConfig);
+        });
     }
 
     /** Verify non-ssl connection sanity. */

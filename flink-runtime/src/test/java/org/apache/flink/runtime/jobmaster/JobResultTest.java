@@ -135,12 +135,14 @@ public class JobResultTest extends TestLogger {
         }
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFailureResultRequiresFailureCause() {
-        JobResult.createFrom(
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    JobResult.createFrom(
                 new ArchivedExecutionGraphBuilder()
                         .setJobID(new JobID())
                         .setState(JobStatus.FAILED)
                         .build());
+        });
     }
 }

@@ -55,43 +55,49 @@ class DeltaIterationSanityCheckTest extends Serializable {
     iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) { (s, ws) =>
       val result = s.join(ws).where("_2").equalTo("_2") { (l, r) => l }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) { (s, ws) =>
       val result = ws.join(s).where("_2").equalTo("_2") { (l, r) => l }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])  
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectJoinWithSolution3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) { (s, ws) =>
       val result = ws.join(s).where("_1").equalTo("_1") { (l, r) => l }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])
@@ -125,43 +131,49 @@ class DeltaIterationSanityCheckTest extends Serializable {
     iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) { (s, ws) =>
       val result = s.coGroup(ws).where("_2").equalTo("_2") { (l, r) => l.min }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_1")) { (s, ws) =>
       val result = ws.coGroup(s).where("_2").equalTo("_2") { (l, r) => l.min }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])  
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testIncorrectCoGroupWithSolution3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
 
     val iteration = solutionInput.iterateDelta(worksetInput, 10, Array("_2")) { (s, ws) =>
       val result = ws.coGroup(s).where("_1").equalTo("_1") { (l, r) => l.min }
       (result, ws)
+        });
     }
 
     iteration.output(new DiscardingOutputFormat[(Int,String)])

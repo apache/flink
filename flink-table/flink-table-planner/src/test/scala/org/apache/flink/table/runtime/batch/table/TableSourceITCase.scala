@@ -47,9 +47,10 @@ class TableSourceITCase(
     configMode: TableConfigMode)
   extends TableProgramsCollectionTestBase(configMode) {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testInvalidDatastreamType(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[TableException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     val tableSource = new BatchTableSource[Row]() {
@@ -64,6 +65,7 @@ class TableSourceITCase(
       }
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
       override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+        });
     }
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
 

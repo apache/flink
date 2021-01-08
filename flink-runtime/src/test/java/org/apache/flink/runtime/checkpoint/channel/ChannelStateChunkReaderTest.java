@@ -41,9 +41,10 @@ import static org.junit.Assert.fail;
 /** {@link ChannelStateChunkReader} test. */
 public class ChannelStateChunkReaderTest {
 
-    @Test(expected = TestException.class)
+    @Test
     public void testBufferRecycledOnFailure() throws IOException, InterruptedException {
-        FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
+        Assertions.assertThrows(TestException.class, () -> {
+                    FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
         TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
 
         try (FSDataInputStream stream = getStream(serializer, 10)) {
@@ -56,6 +57,7 @@ public class ChannelStateChunkReaderTest {
                     handler.requestedBuffers.stream()
                             .allMatch(TestChannelStateByteBuffer::isRecycled));
         }
+        });
     }
 
     @Test

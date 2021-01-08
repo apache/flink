@@ -36,11 +36,13 @@ public class Tuple2Test {
         Assert.assertEquals(swapped.f1, toSwap.f0);
     }
 
-    @Test(expected = NullFieldException.class)
+    @Test
     public void testGetFieldNotNull() {
-        Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
+        Assertions.assertThrows(NullFieldException.class, () -> {
+                    Tuple2<String, Integer> tuple = new Tuple2<>("Test case", null);
 
         Assert.assertEquals("Test case", tuple.getFieldNotNull(0));
         tuple.getFieldNotNull(1);
+        });
     }
 }

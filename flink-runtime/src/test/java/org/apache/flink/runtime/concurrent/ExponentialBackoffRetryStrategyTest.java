@@ -69,9 +69,11 @@ public class ExponentialBackoffRetryStrategyTest extends TestLogger {
     }
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRetryFailure() throws Throwable {
-        new ExponentialBackoffRetryStrategy(0, Duration.ofMillis(20L), Duration.ofMillis(20L))
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    new ExponentialBackoffRetryStrategy(0, Duration.ofMillis(20L), Duration.ofMillis(20L))
                 .getNextRetryStrategy();
+        });
     }
 }

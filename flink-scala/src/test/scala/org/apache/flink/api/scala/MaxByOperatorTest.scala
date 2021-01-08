@@ -42,8 +42,9 @@ class MaxByOperatorTest {
     * This test validates that an index which is out of bounds throws an
     * IndexOutOfBoundsException.
     */
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testOutOfTupleBoundsDataset1() {
+        Assertions.assertThrows(classOf[IndexOutOfBoundsException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val collection = env.fromCollection(emptyTupleData)
@@ -90,6 +91,7 @@ class MaxByOperatorTest {
     // should work
     try {
       groupDs.maxBy(4, 0, 1, 2, 3)
+        });
     } catch {
       case e : Exception => Assert.fail();
     }
@@ -99,8 +101,9 @@ class MaxByOperatorTest {
     * This test validates that an InvalidProgramException is thrown when maxBy
     * is used on a custom data type.
     */
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCustomKeyFieldsDataset() {
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
 
@@ -160,6 +163,7 @@ class MaxByOperatorTest {
   class CustomType(var myInt: Int, var myLong: Long, var myString: String) {
     def this() {
       this(0, 0, "")
+        });
     }
 
     override def toString: String = {

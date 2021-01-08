@@ -132,19 +132,25 @@ public class TypeStringUtilsTest {
                         Types.LOCAL_DATE));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError1() {
-        TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError2() {
-        TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError3() {
-        TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
+        });
     }
 
     private void testReadAndWrite(String expected, TypeInformation<?> type) {

@@ -763,9 +763,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         };
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testConflictShuffleModeWithBufferTimeout() {
-        testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
+        });
     }
 
     @Test
@@ -933,9 +935,10 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         assertEquals(4, vertices.get(0).getOperatorIDs().size());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testNotSupportInputSelectableOperatorIfCheckpointing() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(60_000L);
 
         DataStreamSource<String> source1 = env.fromElements("1");
@@ -948,6 +951,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 .print();
 
         StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+        });
     }
 
     @Test

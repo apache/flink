@@ -94,9 +94,10 @@ public class RpcEndpointTest extends TestLogger {
      * Tests that we cannot accidentally obtain a wrong self gateway type which is not implemented
      * by the RpcEndpoint.
      */
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testWrongSelfGateway() throws Exception {
-        int expectedValue = 1337;
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    int expectedValue = 1337;
         BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
 
         try {
@@ -109,6 +110,7 @@ public class RpcEndpointTest extends TestLogger {
         } finally {
             RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
         }
+        });
     }
 
     /**

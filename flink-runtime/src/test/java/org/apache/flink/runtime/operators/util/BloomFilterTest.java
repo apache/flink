@@ -44,24 +44,32 @@ public class BloomFilterTest {
         bloomFilter.setBitsLocation(memorySegment, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments1() {
-        new BloomFilter(-1, 128);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new BloomFilter(-1, 128);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments2() {
-        new BloomFilter(0, 128);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new BloomFilter(0, 128);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments3() {
-        new BloomFilter(1024, -1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new BloomFilter(1024, -1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments4() {
-        new BloomFilter(1024, 0);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new BloomFilter(1024, 0);
+        });
     }
 
     @Test

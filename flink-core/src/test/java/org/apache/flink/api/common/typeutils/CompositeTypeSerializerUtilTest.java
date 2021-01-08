@@ -146,29 +146,35 @@ public class CompositeTypeSerializerUtilTest {
         assertTrue(intermediateCompatibilityResult.getFinalResult().isIncompatible());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetFinalResultOnUndefinedReconfigureIntermediateCompatibilityResultFails() {
-        IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.undefinedReconfigureResult(
                         new TypeSerializer[] {IntSerializer.INSTANCE});
 
         intermediateCompatibilityResult.getFinalResult();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void
             testGetNestedSerializersOnCompatibleAfterMigrationIntermediateCompatibilityResultFails() {
-        IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.definedCompatibleAfterMigrationResult();
 
         intermediateCompatibilityResult.getNestedSerializers();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetNestedSerializersOnIncompatibleIntermediateCompatibilityResultFails() {
-        IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    IntermediateCompatibilityResult<Integer> intermediateCompatibilityResult =
                 IntermediateCompatibilityResult.definedIncompatibleResult();
 
         intermediateCompatibilityResult.getNestedSerializers();
+        });
     }
 }

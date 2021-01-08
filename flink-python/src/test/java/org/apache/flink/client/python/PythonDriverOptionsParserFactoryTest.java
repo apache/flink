@@ -51,16 +51,20 @@ public class PythonDriverOptionsParserFactoryTest {
         verifyPythonDriverOptionsParsing(args);
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testMultipleEntrypointsSpecified() throws FlinkParseException {
-        final String[] args = {"--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"};
+        Assertions.assertThrows(FlinkParseException.class, () -> {
+                    final String[] args = {"--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"};
         commandLineParser.parse(args);
+        });
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testEntrypointNotSpecified() throws FlinkParseException {
-        final String[] args = {"--input", "in.txt"};
+        Assertions.assertThrows(FlinkParseException.class, () -> {
+                    final String[] args = {"--input", "in.txt"};
         commandLineParser.parse(args);
+        });
     }
 
     private void verifyPythonDriverOptionsParsing(final String[] args) throws FlinkParseException {

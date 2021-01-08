@@ -50,20 +50,24 @@ public class ImmutableReducingStateTest {
                         reducingStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        long value = reduceState.get();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    long value = reduceState.get();
         assertEquals(42L, value);
 
         reduceState.add(54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        long value = reduceState.get();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    long value = reduceState.get();
         assertEquals(42L, value);
 
         reduceState.clear();
+        });
     }
 
     /** Test {@link ReduceFunction} summing up its two arguments. */

@@ -77,15 +77,17 @@ public class FsCheckpointStateOutputStreamTest {
 
     @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongParameters() throws Exception {
-        // this should fail
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    // this should fail
         new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
                 Path.fromLocalFile(tempDir.newFolder()),
                 FileSystem.getLocalFileSystem(),
                 4000,
                 5000,
                 relativePaths);
+        });
     }
 
     @Test

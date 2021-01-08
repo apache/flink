@@ -56,12 +56,14 @@ public class ExpressionKeysTest {
         Assert.assertArrayEquals(new int[] {0}, ek.computeLogicalKeyPositions());
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testGenericNonKeyType() {
-        // Fail: GenericType cannot be used as key
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    // Fail: GenericType cannot be used as key
         TypeInformation<GenericNonKeyType> genericType =
                 new GenericTypeInfo<>(GenericNonKeyType.class);
         new ExpressionKeys<>("*", genericType);
+        });
     }
 
     @Test
@@ -163,9 +165,10 @@ public class ExpressionKeysTest {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testTupleNonKeyField() {
-        // selected field is not a key type
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    // selected field is not a key type
         TypeInformation<Tuple3<String, Long, GenericNonKeyType>> ti =
                 new TupleTypeInfo<>(
                         BasicTypeInfo.STRING_TYPE_INFO,
@@ -173,6 +176,7 @@ public class ExpressionKeysTest {
                         TypeExtractor.getForClass(GenericNonKeyType.class));
 
         new ExpressionKeys<>(2, ti);
+        });
     }
 
     @Test
@@ -394,12 +398,14 @@ public class ExpressionKeysTest {
                 ek.getOriginalKeyFieldTypes());
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testNonKeyPojoField() {
-        // selected field is not a key type
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    // selected field is not a key type
         TypeInformation<PojoWithNonKeyField> ti =
                 TypeExtractor.getForClass(PojoWithNonKeyField.class);
         new ExpressionKeys<>("b", ti);
+        });
     }
 
     @Test
@@ -493,9 +499,10 @@ public class ExpressionKeysTest {
         Assert.assertTrue(ek2.areCompatible(ek1));
     }
 
-    @Test(expected = Keys.IncompatibleKeysException.class)
+    @Test
     public void testAreCompatible6() throws Keys.IncompatibleKeysException {
-        TypeInformation<Pojo1> t1 = TypeExtractor.getForClass(Pojo1.class);
+        Assertions.assertThrows(Keys.IncompatibleKeysException.class, () -> {
+                    TypeInformation<Pojo1> t1 = TypeExtractor.getForClass(Pojo1.class);
         TypeInformation<Tuple2<String, Long>> t2 =
                 new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
@@ -503,11 +510,13 @@ public class ExpressionKeysTest {
         ExpressionKeys<Tuple2<String, Long>> ek2 = new ExpressionKeys<>(1, t2);
 
         ek1.areCompatible(ek2);
+        });
     }
 
-    @Test(expected = Keys.IncompatibleKeysException.class)
+    @Test
     public void testAreCompatible7() throws Keys.IncompatibleKeysException {
-        TypeInformation<Pojo1> t1 = TypeExtractor.getForClass(Pojo1.class);
+        Assertions.assertThrows(Keys.IncompatibleKeysException.class, () -> {
+                    TypeInformation<Pojo1> t1 = TypeExtractor.getForClass(Pojo1.class);
         TypeInformation<Tuple2<String, Long>> t2 =
                 new TupleTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO);
 
@@ -515,6 +524,7 @@ public class ExpressionKeysTest {
         ExpressionKeys<Tuple2<String, Long>> ek2 = new ExpressionKeys<>(0, t2);
 
         ek1.areCompatible(ek2);
+        });
     }
 
     @Test

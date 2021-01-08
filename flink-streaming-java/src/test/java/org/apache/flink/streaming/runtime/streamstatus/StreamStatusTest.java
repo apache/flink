@@ -28,9 +28,11 @@ import static org.junit.Assert.fail;
 /** Tests for {@link StreamStatus}. */
 public class StreamStatusTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testIllegalCreationThrowsException() {
-        new StreamStatus(32);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new StreamStatus(32);
+        });
     }
 
     @Test

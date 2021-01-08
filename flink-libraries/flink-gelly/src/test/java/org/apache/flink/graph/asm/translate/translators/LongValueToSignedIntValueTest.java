@@ -44,13 +44,17 @@ public class LongValueToSignedIntValueTest {
                 translator.translate(new LongValue((long) Integer.MAX_VALUE), reuse));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUpperOutOfRange() throws Exception {
-        translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testLowerOutOfRange() throws Exception {
-        translator.translate(new LongValue((long) Integer.MIN_VALUE - 1), reuse);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    translator.translate(new LongValue((long) Integer.MIN_VALUE - 1), reuse);
+        });
     }
 }

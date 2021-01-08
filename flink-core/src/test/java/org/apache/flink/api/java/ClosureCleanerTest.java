@@ -35,15 +35,17 @@ import java.io.Serializable;
 /** Tests for {@link ClosureCleaner}. */
 public class ClosureCleanerTest {
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testNonSerializable() throws Exception {
-        MapCreator creator = new NonSerializableMapCreator();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    MapCreator creator = new NonSerializableMapCreator();
         MapFunction<Integer, Integer> map = creator.getMap();
 
         ClosureCleaner.ensureSerializable(map);
 
         int result = map.map(3);
         Assert.assertEquals(result, 4);
+        });
     }
 
     @Test
@@ -81,9 +83,10 @@ public class ClosureCleanerTest {
         Assert.assertEquals(result, 4);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testNestedNonSerializable() throws Exception {
-        MapCreator creator = new NestedNonSerializableMapCreator(1);
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    MapCreator creator = new NestedNonSerializableMapCreator(1);
         MapFunction<Integer, Integer> map = creator.getMap();
 
         ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
@@ -92,6 +95,7 @@ public class ClosureCleanerTest {
 
         int result = map.map(3);
         Assert.assertEquals(result, 4);
+        });
     }
 
     @Test
@@ -234,9 +238,11 @@ public class ClosureCleanerTest {
      * Verify that ClosureCleaner works correctly on Object, which doesn't have any superclasses or
      * interfaces that it implements.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCleanObject() {
-        ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        });
     }
 }
 

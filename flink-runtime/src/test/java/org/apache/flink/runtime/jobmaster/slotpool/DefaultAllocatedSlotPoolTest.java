@@ -147,15 +147,17 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
         assertSlotPoolContainsSlots(slotPool, allSlots);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReserveNonFreeSlotFails() {
-        final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
         final AllocatedSlot slot = createAllocatedSlot(null);
 
         slotPool.addSlots(Collections.singleton(slot), 0);
 
         slotPool.reserveFreeSlot(slot.getAllocationId());
         slotPool.reserveFreeSlot(slot.getAllocationId());
+        });
     }
 
     @Test

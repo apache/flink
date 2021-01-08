@@ -30,9 +30,11 @@ public class JarIdPathParameterTest extends TestLogger {
 
     private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-    @Test(expected = ConversionException.class)
+    @Test
     public void testJarIdWithParentDir() throws Exception {
-        jarIdPathParameter.convertFromString("../../test.jar");
+        Assertions.assertThrows(ConversionException.class, () -> {
+                    jarIdPathParameter.convertFromString("../../test.jar");
+        });
     }
 
     @Test

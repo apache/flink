@@ -39,9 +39,10 @@ public class SavepointTest {
 
     private static final String UID = "uid";
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNewSavepointEnforceUniqueUIDs() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -56,11 +57,13 @@ public class SavepointTest {
         new NewSavepoint(metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .withOperator(UID, transformation);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -79,11 +82,13 @@ public class SavepointTest {
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .withOperator(UID, transformation);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -102,6 +107,7 @@ public class SavepointTest {
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .write("");
+        });
     }
 
     private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {

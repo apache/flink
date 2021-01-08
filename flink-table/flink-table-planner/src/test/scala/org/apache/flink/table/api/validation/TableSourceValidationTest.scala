@@ -41,9 +41,10 @@ class TableSourceValidationTest extends TableTestBase{
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnresolvedSchemaField(): Unit = {
-    val schema = new TableSchema(
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val schema = new TableSchema(
       Array("id", "name", "amount", "value"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.DOUBLE))
     val rowType = new RowTypeInfo(
@@ -202,6 +203,7 @@ class TableSourceValidationTest extends TableTestBase{
             new ExistingField("doesNotExist"),
             new AscendingTimestamps))
         }
+        });
     }
 
     // should fail because timestamp extractor argument field does not exist

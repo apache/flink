@@ -94,22 +94,26 @@ import static org.junit.Assert.fail;
 /** Tests for {@link SingleInputGate}. */
 public class SingleInputGateTest extends InputGateTestBase {
 
-    @Test(expected = CheckpointException.class)
+    @Test
     public void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
-        SingleInputGate gate =
+        Assertions.assertThrows(CheckpointException.class, () -> {
+                    SingleInputGate gate =
                 createInputGate(createNettyShuffleEnvironment(), 1, ResultPartitionType.PIPELINED);
         gate.setInputChannels(
                 new InputChannelBuilder().setChannelIndex(0).buildUnknownChannel(gate));
         gate.checkpointStarted(
                 new CheckpointBarrier(1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+        });
     }
 
-    @Test(expected = CheckpointException.class)
+    @Test
     public void testCheckpointsDeclinedUnlessStateConsumed() throws CheckpointException {
-        SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
+        Assertions.assertThrows(CheckpointException.class, () -> {
+                    SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
         checkState(!gate.getStateConsumedFuture().isDone());
         gate.checkpointStarted(
                 new CheckpointBarrier(1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+        });
     }
 
     /**

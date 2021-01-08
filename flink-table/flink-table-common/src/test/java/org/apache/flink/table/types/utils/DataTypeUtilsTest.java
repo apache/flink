@@ -261,9 +261,11 @@ public class DataTypeUtilsTest {
                                 .build()));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testExpandThrowExceptionOnAtomicType() {
-        DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    DataTypeUtils.expandCompositeTypeToSchema(DataTypes.TIMESTAMP());
+        });
     }
 
     @Test

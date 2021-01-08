@@ -132,9 +132,10 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that an existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testAddAlreadyExistingPath() throws Exception {
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        Assertions.assertThrows(Exception.class, () -> {
+                    final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
         ZooKeeperStateHandleStore<Long> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
@@ -148,6 +149,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         // the created state handle should have been cleaned up if the add operation failed
         assertEquals(1, stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
+        });
     }
 
     /** Tests that the created state handle is discarded if ZooKeeper create fails. */
@@ -223,14 +225,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that a non existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testReplaceNonExistingPath() throws Exception {
-        final RetrievableStateStorageHelper<Long> stateStorage = new TestingLongStateHandleHelper();
+        Assertions.assertThrows(Exception.class, () -> {
+                    final RetrievableStateStorageHelper<Long> stateStorage = new TestingLongStateHandleHelper();
 
         ZooKeeperStateHandleStore<Long> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateStorage);
 
         store.replace("/testReplaceNonExistingPath", IntegerResourceVersion.valueOf(0), 1L);
+        });
     }
 
     /** Tests that the replace state handle is discarded if ZooKeeper setData fails. */
@@ -303,14 +307,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that a non existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testGetNonExistingPath() throws Exception {
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        Assertions.assertThrows(Exception.class, () -> {
+                    final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
 
         ZooKeeperStateHandleStore<Long> store =
                 new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
 
         store.getAndLock("/testGetNonExistingPath");
+        });
     }
 
     /** Tests that all added state is returned. */

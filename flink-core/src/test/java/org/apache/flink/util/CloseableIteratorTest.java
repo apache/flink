@@ -57,9 +57,10 @@ public class CloseableIteratorTest {
         assertArrayEquals(ELEMENTS, iterated.toArray());
     }
 
-    @Test(expected = TestException.class)
+    @Test
     public void testFlattenErrorHandling() throws Exception {
-        List<String> closed = new ArrayList<>();
+        Assertions.assertThrows(TestException.class, () -> {
+                    List<String> closed = new ArrayList<>();
         CloseableIterator<String> iterator =
                 CloseableIterator.flatten(
                         CloseableIterator.ofElement(
@@ -74,6 +75,7 @@ public class CloseableIteratorTest {
         } finally {
             assertArrayEquals(ELEMENTS, closed.toArray());
         }
+        });
     }
 
     private static class TestException extends RuntimeException {}

@@ -107,9 +107,10 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
         }
     }
 
-    @Test(expected = Exception.class)
+    @Test
     public void testPubSubSinkThrowsExceptionOnFailure() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(Exception.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         env.setParallelism(1);
         env.setRestartStrategy(RestartStrategies.noRestart());
@@ -132,6 +133,7 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 
         // Run
         env.execute();
+        });
     }
 
     private static class SingleInputSourceFunction implements SourceFunction<String> {

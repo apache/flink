@@ -34,6 +34,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory
@@ -95,19 +96,27 @@ public class GlobalConfigurationTest extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFailIfNull() {
-        GlobalConfiguration.loadConfiguration((String) null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    GlobalConfiguration.loadConfiguration((String) null);
+                });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfNotLoaded() {
-        GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+        });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testInvalidConfiguration() throws IOException {
-        GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+        });
     }
 
     @Test

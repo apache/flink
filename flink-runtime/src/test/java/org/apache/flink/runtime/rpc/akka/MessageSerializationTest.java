@@ -98,9 +98,10 @@ public class MessageSerializationTest extends TestLogger {
      * IOException} (or an {@link java.lang.reflect.UndeclaredThrowableException} if the the method
      * declaration does not include the {@link IOException} as throwable).
      */
-    @Test(expected = IOException.class)
+    @Test
     public void testNonSerializableRemoteMessageTransfer() throws Exception {
-        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+        Assertions.assertThrows(IOException.class, () -> {
+                    LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
         TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
         testEndpoint.start();
@@ -115,6 +116,7 @@ public class MessageSerializationTest extends TestLogger {
         remoteGateway.foobar(new Object());
 
         fail("Should have failed because Object is not serializable.");
+        });
     }
 
     /** Tests that a remote rpc call with a serializable argument can be successfully executed. */
@@ -143,9 +145,10 @@ public class MessageSerializationTest extends TestLogger {
      * Tests that a message which exceeds the maximum frame size is detected and a corresponding
      * exception is thrown.
      */
-    @Test(expected = IOException.class)
+    @Test
     public void testMaximumFramesizeRemoteMessageTransfer() throws Exception {
-        LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
+        Assertions.assertThrows(IOException.class, () -> {
+                    LinkedBlockingQueue<Object> linkedBlockingQueue = new LinkedBlockingQueue<>();
 
         TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService1, linkedBlockingQueue);
         testEndpoint.start();
@@ -163,6 +166,7 @@ public class MessageSerializationTest extends TestLogger {
         remoteGateway.foobar(buffer);
 
         fail("Should have failed due to exceeding the maximum framesize.");
+        });
     }
 
     private interface TestGateway extends RpcGateway {

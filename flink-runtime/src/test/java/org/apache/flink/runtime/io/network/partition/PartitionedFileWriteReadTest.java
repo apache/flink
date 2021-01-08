@@ -161,9 +161,10 @@ public class PartitionedFileWriteReadTest {
         return new NetworkBuffer(MemorySegmentFactory.wrap(data), (buf) -> {}, dataType, dataSize);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
         try {
             MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 
@@ -178,30 +179,37 @@ public class PartitionedFileWriteReadTest {
         } finally {
             partitionedFileWriter.finish();
         }
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testWriteFinishedPartitionedFile() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
 
         MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
         NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
 
         partitionedFileWriter.writeBuffer(buffer, 0);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testFinishPartitionedFileWriterTwice() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
         partitionedFileWriter.finish();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadClosedPartitionedFile() throws Exception {
-        PartitionedFileReader partitionedFileReader = createAndClosePartitionedFiledReader();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    PartitionedFileReader partitionedFileReader = createAndClosePartitionedFiledReader();
 
         MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
         partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE);
+        });
     }
 
     @Test

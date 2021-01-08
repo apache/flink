@@ -86,9 +86,10 @@ import static org.mockito.Mockito.when;
 /** Tests for the {@link KinesisDataFetcher}. */
 public class KinesisDataFetcherTest extends TestLogger {
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
-        List<String> fakeStreams = new LinkedList<>();
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    List<String> fakeStreams = new LinkedList<>();
         fakeStreams.add("fakeStream1");
         fakeStreams.add("fakeStream2");
 
@@ -110,6 +111,7 @@ public class KinesisDataFetcherTest extends TestLogger {
                         FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
 
         fetcher.runFetcher(); // this should throw RuntimeException
+        });
     }
 
     @Test

@@ -224,15 +224,17 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         testOuterJoin(leftInput, rightInput, expected);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
-        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
         final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
 
         baseOperator.setOuterJoinType(null);
         ExecutionConfig executionConfig = new ExecutionConfig();
         executionConfig.disableObjectReuse();
         baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
+        });
     }
 
     private void testOuterJoin(

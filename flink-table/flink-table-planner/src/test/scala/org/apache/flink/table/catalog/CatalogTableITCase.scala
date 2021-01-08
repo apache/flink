@@ -504,9 +504,10 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().isEmpty)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTableWithInvalidPath(): Unit = {
-    val ddl1 =
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val ddl1 =
       """
         |create table t1(
         |  a bigint,
@@ -675,6 +676,7 @@ class CatalogTableITCase(isStreaming: Boolean) extends AbstractTestBase {
     try {
       tableEnv.sqlUpdate("create database db1 ")
       fail("ValidationException expected")
+        });
     } catch {
       case _: ValidationException => //ignore
     }

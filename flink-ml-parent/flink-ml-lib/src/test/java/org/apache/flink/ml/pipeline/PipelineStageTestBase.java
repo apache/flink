@@ -34,9 +34,10 @@ import org.junit.jupiter.api.Test;
  */
 abstract class PipelineStageTestBase {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMismatchTableEnvironment() {
-        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
         DataSet<Integer> input = env.getExecutionEnvironment().fromElements(1, 2, 3);
         Table t = env.getBatchTableEnvironment().fromDataSet(input);
@@ -50,11 +51,13 @@ abstract class PipelineStageTestBase {
             ((Transformer) pipelineStageBase)
                     .transform(MLEnvironmentFactory.getDefault().getBatchTableEnvironment(), t);
         }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNullInputTable() {
-        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
 
         PipelineStageBase<?> pipelineStageBase = createPipelineStage();
@@ -64,6 +67,7 @@ abstract class PipelineStageTestBase {
         } else {
             ((Transformer) pipelineStageBase).transform(env.getBatchTableEnvironment(), null);
         }
+        });
     }
 
     protected abstract PipelineStageBase createPipelineStage();

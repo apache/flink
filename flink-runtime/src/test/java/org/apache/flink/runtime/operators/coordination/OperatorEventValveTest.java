@@ -49,21 +49,25 @@ public class OperatorEventValveTest {
         assertTrue(future.isDone());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void errorShuttingUnmarkedValve() throws Exception {
-        final TestEventSender sender = new TestEventSender();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final TestEventSender sender = new TestEventSender();
         final OperatorEventValve valve = new OperatorEventValve(sender);
 
         valve.shutValve(123L);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void errorShuttingValveForOtherMark() throws Exception {
-        final TestEventSender sender = new TestEventSender();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final TestEventSender sender = new TestEventSender();
         final OperatorEventValve valve = new OperatorEventValve(sender);
 
         valve.markForCheckpoint(100L);
         valve.shutValve(123L);
+        });
     }
 
     @Test

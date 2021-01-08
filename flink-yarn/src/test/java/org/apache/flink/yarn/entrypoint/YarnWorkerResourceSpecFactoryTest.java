@@ -76,11 +76,13 @@ public class YarnWorkerResourceSpecFactoryTest extends TestLogger {
                 is(new CPUResource(1.0)));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testGetCpuExceedMaxInt() {
-        final Configuration configuration = new Configuration();
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final Configuration configuration = new Configuration();
         configuration.setDouble(TaskManagerOptions.CPU_CORES, Double.MAX_VALUE);
 
         YarnWorkerResourceSpecFactory.getDefaultCpus(configuration);
+        });
     }
 }

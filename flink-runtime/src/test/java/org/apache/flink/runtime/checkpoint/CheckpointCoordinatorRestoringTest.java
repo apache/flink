@@ -614,9 +614,10 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
      *
      * @throws Exception
      */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRestoreLatestCheckpointFailureWhenMaxParallelismChanges() throws Exception {
-        final JobID jid = new JobID();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final JobID jid = new JobID();
 
         final JobVertexID jobVertexID1 = new JobVertexID();
         final JobVertexID jobVertexID2 = new JobVertexID();
@@ -723,6 +724,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
         assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
 
         fail("The restoration should have failed because the max parallelism changed.");
+        });
     }
 
     @Test

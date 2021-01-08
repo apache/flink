@@ -181,32 +181,38 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         stopWithSavepointLatch.await();
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        // test unrecognized option
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    // test unrecognized option
         String[] parameters = {"-v", "-l"};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.stop(parameters);
+        });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testMissingJobId() throws Exception {
-        // test missing job id
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    // test missing job id
         String[] parameters = {};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.stop(parameters);
+        });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testWrongSavepointDirOrder() throws Exception {
-        JobID jid = new JobID();
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    JobID jid = new JobID();
         String[] parameters = {"-s", "-d", "test-target-dir", jid.toString()};
         MockedCliFrontend testFrontend = new MockedCliFrontend(new TestingClusterClient());
         testFrontend.stop(parameters);
+        });
     }
 
     @Test

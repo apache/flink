@@ -40,9 +40,11 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.1, v2);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testConstructorInvalidValue() {
-        new TestResource(-0.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new TestResource(-0.1);
+        });
     }
 
     @Test
@@ -68,11 +70,13 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.3, v1.merge(v2));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMergeErrorOnDifferentTypes() {
-        final Resource v1 = new TestResource(0.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource v1 = new TestResource(0.1);
         final Resource v2 = new GPUResource(0.1);
         v1.merge(v2);
+        });
     }
 
     @Test
@@ -82,18 +86,22 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.1, v1.subtract(v2));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSubtractLargerValue() {
-        final Resource v1 = new TestResource(0.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource v1 = new TestResource(0.1);
         final Resource v2 = new TestResource(0.2);
         v1.subtract(v2);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSubtractErrorOnDifferentTypes() {
-        final Resource v1 = new TestResource(0.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource v1 = new TestResource(0.1);
         final Resource v2 = new GPUResource(0.1);
         v1.subtract(v2);
+        });
     }
 
     @Test
@@ -103,11 +111,13 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.4, resource.divide(by));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideNegative() {
-        final Resource resource = new TestResource(1.2);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource resource = new TestResource(1.2);
         final BigDecimal by = BigDecimal.valueOf(-0.5);
         resource.divide(by);
+        });
     }
 
     @Test
@@ -117,11 +127,13 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.03, resource.divide(by));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideNegativeInteger() {
-        final Resource resource = new TestResource(1.2);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource resource = new TestResource(1.2);
         final int by = -5;
         resource.divide(by);
+        });
     }
 
     @Test
@@ -131,11 +143,13 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.06, resource.multiply(by));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMutiplyNegative() {
-        final Resource resource = new TestResource(0.3);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource resource = new TestResource(0.3);
         final BigDecimal by = BigDecimal.valueOf(-0.2);
         resource.multiply(by);
+        });
     }
 
     @Test
@@ -145,11 +159,13 @@ public class ResourceTest extends TestLogger {
         assertTestResourceValueEquals(0.6, resource.multiply(by));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMutiplyNegativeInteger() {
-        final Resource resource = new TestResource(0.3);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Resource resource = new TestResource(0.3);
         final int by = -2;
         resource.multiply(by);
+        });
     }
 
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {

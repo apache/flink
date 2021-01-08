@@ -267,9 +267,10 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateJobGraphYouDidNotGetOrAdd() throws Exception {
-        JobGraphStore jobGraphs =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    JobGraphStore jobGraphs =
                 createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
         JobGraphStore otherJobGraphs =
@@ -283,6 +284,7 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
         jobGraphs.putJobGraph(jobGraph);
 
         otherJobGraphs.putJobGraph(jobGraph);
+        });
     }
 
     /**

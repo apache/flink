@@ -284,26 +284,32 @@ public class RocksDBStateBackendConfigTest {
     }
 
     /** Validates that empty arguments for the local DB path are invalid. */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetEmptyPaths() throws Exception {
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    String checkpointPath = tempFolder.newFolder().toURI().toString();
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
         rocksDbBackend.setDbStoragePaths();
+        });
     }
 
     /** Validates that schemes other than 'file:/' are not allowed. */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNonFileSchemePath() throws Exception {
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    String checkpointPath = tempFolder.newFolder().toURI().toString();
         RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
         rocksDbBackend.setDbStoragePath("hdfs:///some/path/to/perdition");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDbPathRelativePaths() throws Exception {
-        RocksDBStateBackend rocksDbBackend =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    RocksDBStateBackend rocksDbBackend =
                 new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
         rocksDbBackend.setDbStoragePath("relative/path");
+        });
     }
 
     // ------------------------------------------------------------------------

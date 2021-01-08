@@ -2319,10 +2319,12 @@ public class TypeExtractorTest {
         Assert.assertEquals(expected, ti);
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testEitherFromObjectException() {
-        Either<String, Tuple1<Integer>> either = Either.Left("test");
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    Either<String, Tuple1<Integer>> either = Either.Left("test");
         TypeExtractor.getForObject(either);
+        });
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -2349,9 +2351,10 @@ public class TypeExtractorTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testGenericTypeWithSuperclassInput() {
-        TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    TypeInformation<?> inputType = TypeExtractor.createTypeInfo(Map.class);
 
         MapFunction<?, ?> function =
                 new MapFunction<HashMap<String, Object>, Map<String, Object>>() {
@@ -2364,6 +2367,7 @@ public class TypeExtractorTest {
                 };
 
         TypeExtractor.getMapReturnTypes(function, (TypeInformation) inputType);
+        });
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

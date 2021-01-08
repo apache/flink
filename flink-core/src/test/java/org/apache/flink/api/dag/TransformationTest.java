@@ -57,25 +57,33 @@ public class TransformationTest extends TestLogger {
                 contains(ManagedMemoryUseCase.STATE_BACKEND));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailWrongScope() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.PYTHON, 123);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.PYTHON, 123);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 0);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(
                 ManagedMemoryUseCase.OPERATOR, -1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
-        transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.OPERATOR);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.OPERATOR);
+        });
     }
 
     /** A test implementation of {@link Transformation}. */

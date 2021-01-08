@@ -221,11 +221,13 @@ public class LocalBufferPoolTest extends TestLogger {
         assertEquals(numBuffers / 2, localBufferPool.getNumberOfAvailableMemorySegments());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetLessThanRequiredNumBuffers() {
-        localBufferPool.setNumBuffers(1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    localBufferPool.setNumBuffers(1);
 
         localBufferPool.setNumBuffers(0);
+        });
     }
 
     // ------------------------------------------------------------------------

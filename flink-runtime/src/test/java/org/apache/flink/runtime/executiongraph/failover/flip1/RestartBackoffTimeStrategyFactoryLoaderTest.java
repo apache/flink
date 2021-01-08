@@ -170,13 +170,15 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
                                 .FailureRateRestartBackoffTimeStrategyFactory.class));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidStrategySpecifiedInClusterConfig() {
-        final Configuration conf = new Configuration();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
 
         RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
                 DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
+        });
     }
 
     @Test

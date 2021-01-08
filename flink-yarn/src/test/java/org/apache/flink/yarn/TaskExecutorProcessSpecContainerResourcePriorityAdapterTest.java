@@ -152,26 +152,32 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
         assertThat(resultExternalResources.get(SUPPORTED_EXTERNAL_RESOURCE_NAME), is(amount));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailExceedMax() {
-        assumeTrue(isExternalResourceSupported());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    assumeTrue(isExternalResourceSupported());
 
         getAdapterWithExternalResources(
                 SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX + 1);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailResourceTypeNotSupported() {
-        assumeTrue(isExternalResourceSupported());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    assumeTrue(isExternalResourceSupported());
 
         getAdapterWithExternalResources("testing-unsupported-resource", 1);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailHadoopVersionNotSupported() {
-        assumeFalse(isExternalResourceSupported());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    assumeFalse(isExternalResourceSupported());
 
         getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, 100);
+        });
     }
 
     private static TaskExecutorProcessSpecContainerResourcePriorityAdapter getAdapter() {

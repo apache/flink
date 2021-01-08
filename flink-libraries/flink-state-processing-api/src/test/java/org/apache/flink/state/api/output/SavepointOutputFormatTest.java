@@ -39,12 +39,14 @@ public class SavepointOutputFormatTest {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testSavepointOutputFormatOnlyWorksWithParallelismOne() throws Exception {
-        Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
         SavepointOutputFormat format = createSavepointOutputFormat(path);
 
         format.open(0, 2);
+        });
     }
 
     @Test

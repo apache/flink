@@ -98,40 +98,48 @@ public class DescriptorPropertiesTest {
                 Collections.singletonList(12), properties.getArray(ARRAY_KEY, properties::getInt));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testArrayInvalidValues() {
-        DescriptorProperties properties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    DescriptorProperties properties = new DescriptorProperties();
         properties.putString(ARRAY_KEY + ".0", "12");
         properties.putString(ARRAY_KEY + ".1", "66");
         properties.putString(ARRAY_KEY + ".2", "INVALID");
 
         testArrayValidation(properties, 1, Integer.MAX_VALUE);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testArrayInvalidSingleValue() {
-        DescriptorProperties properties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    DescriptorProperties properties = new DescriptorProperties();
         properties.putString(ARRAY_KEY, "INVALID");
 
         testArrayValidation(properties, 1, Integer.MAX_VALUE);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidMissingArray() {
-        DescriptorProperties properties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    DescriptorProperties properties = new DescriptorProperties();
 
         testArrayValidation(properties, 1, Integer.MAX_VALUE);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidFixedIndexedProperties() {
-        DescriptorProperties property = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    DescriptorProperties property = new DescriptorProperties();
         List<List<String>> list = new ArrayList<>();
         list.add(Arrays.asList("1", "string"));
         list.add(Arrays.asList("INVALID", "string"));
         property.putIndexedFixedProperties(
                 FIXED_INDEXED_PROPERTY_KEY, Arrays.asList(PROPERTY_1_KEY, PROPERTY_2_KEY), list);
         testFixedIndexedPropertiesValidation(property);
+        });
     }
 
     @Test

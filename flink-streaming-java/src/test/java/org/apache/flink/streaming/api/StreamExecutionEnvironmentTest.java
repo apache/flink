@@ -61,10 +61,12 @@ public class StreamExecutionEnvironmentTest {
         env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void fromElementsWithBaseTypeTest2() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+        });
     }
 
     @Test

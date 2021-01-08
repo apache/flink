@@ -69,9 +69,10 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         assertEquals(checkpointId, zooKeeperCheckpointStoreUtil.nameToCheckpointID(path));
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testRecoverFailsIfDownloadFails() throws Exception {
-        testDownloadInternal(
+        Assertions.assertThrows(ExpectedTestException.class, () -> {
+                    testDownloadInternal(
                 (store, checkpointsInZk, sharedStateRegistry) -> {
                     try {
                         checkpointsInZk.add(
@@ -87,6 +88,7 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                         rethrow(exception);
                     }
                 });
+        });
     }
 
     @Test

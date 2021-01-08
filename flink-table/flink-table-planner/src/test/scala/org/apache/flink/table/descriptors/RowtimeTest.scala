@@ -36,9 +36,10 @@ import scala.collection.JavaConverters._
 
 class RowtimeTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWatermarkType(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -118,6 +119,7 @@ object RowtimeTest {
   class CustomExtractor(val field: String) extends TimestampExtractor {
     def this() = {
       this("ts")
+        });
     }
 
     override def getArgumentFields: Array[String] = Array(field)

@@ -495,20 +495,23 @@ public class IntervalJoinOperatorTest {
         }
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testFailsWithNoTimestampsLeft() throws Exception {
-        TestHarness newTestHarness = createTestHarness(0L, true, 0L, true);
+        Assertions.assertThrows(FlinkException.class, () -> {
+                    TestHarness newTestHarness = createTestHarness(0L, true, 0L, true);
 
         newTestHarness.setup();
         newTestHarness.open();
 
         // note that the StreamRecord has no timestamp in constructor
         newTestHarness.processElement1(new StreamRecord<>(new TestElem(0, "lhs")));
+        });
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testFailsWithNoTimestampsRight() throws Exception {
-        try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
+        Assertions.assertThrows(FlinkException.class, () -> {
+                    try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
 
             newTestHarness.setup();
             newTestHarness.open();
@@ -516,6 +519,7 @@ public class IntervalJoinOperatorTest {
             // note that the StreamRecord has no timestamp in constructor
             newTestHarness.processElement2(new StreamRecord<>(new TestElem(0, "rhs")));
         }
+        });
     }
 
     @Test

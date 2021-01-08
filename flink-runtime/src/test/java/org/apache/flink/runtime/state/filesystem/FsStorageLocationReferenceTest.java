@@ -50,21 +50,27 @@ public class FsStorageLocationReferenceTest extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecodingTooShortReference() {
-        decodePathFromReference(new CheckpointStorageLocationReference(new byte[2]));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    decodePathFromReference(new CheckpointStorageLocationReference(new byte[2]));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecodingGarbage() {
-        final byte[] bytes =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final byte[] bytes =
                 new byte[] {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C};
         decodePathFromReference(new CheckpointStorageLocationReference(bytes));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecodingDefaultReference() {
-        decodePathFromReference(CheckpointStorageLocationReference.getDefault());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    decodePathFromReference(CheckpointStorageLocationReference.getDefault());
+        });
     }
 
     // ------------------------------------------------------------------------

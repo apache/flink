@@ -85,9 +85,10 @@ public class AllWindowTranslationTest {
      * .reduce() does not support RichReduceFunction, since the reduce function is used internally
      * in a {@code ReducingState}.
      */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testReduceWithRichReducerFails() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
@@ -108,15 +109,17 @@ public class AllWindowTranslationTest {
                         });
 
         fail("exception was not thrown");
+        });
     }
 
     /**
      * .aggregate() does not support RichAggregateFunction, since the AggregateFunction is used
      * internally in an {@code AggregatingState}.
      */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testAggregateWithRichFunctionFails() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<String, Integer>> source =
                 env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
@@ -127,6 +130,7 @@ public class AllWindowTranslationTest {
                 .aggregate(new DummyRichAggregationFunction<Tuple2<String, Integer>>());
 
         fail("exception was not thrown");
+        });
     }
 
     // ------------------------------------------------------------------------

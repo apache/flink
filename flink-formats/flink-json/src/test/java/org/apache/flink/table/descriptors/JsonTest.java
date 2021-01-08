@@ -52,20 +52,26 @@ public class JsonTest extends DescriptorTestBase {
                     + "    'required': ['firstName', 'lastName']"
                     + "}";
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidMissingField() {
-        addPropertyAndVerify(descriptors().get(0), "format.fail-on-missing-field", "DDD");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(0), "format.fail-on-missing-field", "DDD");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testDuplicateSchema() {
-        // we add an additional non-json schema
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    // we add an additional non-json schema
         addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidIgnoreParseErrors() {
-        addPropertyAndVerify(descriptors().get(0), "format.ignore-parse-errors", "DDD");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(0), "format.ignore-parse-errors", "DDD");
+        });
     }
 
     // --------------------------------------------------------------------------------------------

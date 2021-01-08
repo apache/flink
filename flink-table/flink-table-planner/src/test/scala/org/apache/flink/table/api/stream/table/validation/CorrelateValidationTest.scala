@@ -106,9 +106,10 @@ class CorrelateValidationTest extends TableTestBase {
     util.verifyTable(result, "")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidMapFunctionTypeAggregation(): Unit = {
-    val util = streamTestUtil()
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val util = streamTestUtil()
     util.addTable[(Int)](
       "MyTable", 'int)
       .flatMap('int.sum) // do not support AggregateFunction as input
@@ -162,6 +163,7 @@ class CorrelateValidationTest extends TableTestBase {
     try {
       function
       fail(s"Expected a $clazz, but no exception is thrown.")
+        });
     } catch {
       case e if e.getClass == clazz =>
         if (keywords != null) {

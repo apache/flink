@@ -74,12 +74,14 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
         assertFalse(pipelinedRegionExecutionView.isFinished());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void finishingUnknownVertexThrowsException() {
-        final PipelinedRegionExecutionView pipelinedRegionExecutionView =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final PipelinedRegionExecutionView pipelinedRegionExecutionView =
                 new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
         final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
         pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
+        });
     }
 }

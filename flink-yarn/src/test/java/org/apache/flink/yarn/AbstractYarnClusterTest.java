@@ -47,9 +47,10 @@ public class AbstractYarnClusterTest extends TestLogger {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /** Tests that the cluster retrieval of a finished YARN application fails. */
-    @Test(expected = ClusterRetrieveException.class)
+    @Test
     public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
-        final ApplicationId applicationId =
+        Assertions.assertThrows(ClusterRetrieveException.class, () -> {
+                    final ApplicationId applicationId =
                 ApplicationId.newInstance(System.currentTimeMillis(), 42);
         final ApplicationReport applicationReport =
                 createApplicationReport(
@@ -76,6 +77,7 @@ public class AbstractYarnClusterTest extends TestLogger {
         } finally {
             clusterDescriptor.close();
         }
+        });
     }
 
     private ApplicationReport createApplicationReport(

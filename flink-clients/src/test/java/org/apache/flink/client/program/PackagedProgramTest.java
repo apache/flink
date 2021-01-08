@@ -68,9 +68,11 @@ public class PackagedProgramTest {
                 .setEntryPointClassName(TEST_JAR_MAIN_CLASS);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuilderThrowExceptionIfjarFileAndEntryPointClassNameAreBothNull()
             throws ProgramInvocationException {
-        PackagedProgram.newBuilder().build();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    PackagedProgram.newBuilder().build();
+        });
     }
 }

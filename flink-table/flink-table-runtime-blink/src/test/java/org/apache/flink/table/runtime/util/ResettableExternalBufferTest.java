@@ -520,26 +520,34 @@ public class ResettableExternalBufferTest {
         buffer.close();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateIteratorFixedLengthLess() throws Exception {
-        testUpdateIteratorLess(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testUpdateIteratorLess(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateIteratorFixedLengthSpill() throws Exception {
-        testUpdateIteratorSpill(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testUpdateIteratorSpill(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateIteratorVariableLengthLess() throws Exception {
-        testUpdateIteratorLess(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testUpdateIteratorLess(
                 multiColumnVariableLengthSerializer, VariableLengthRowData.class, false);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUpdateIteratorVariableLengthSpill() throws Exception {
-        testUpdateIteratorSpill(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testUpdateIteratorSpill(
                 multiColumnVariableLengthSerializer, VariableLengthRowData.class, false);
+        });
     }
 
     private <T extends RowData> void testMultiColumnRandomAccessLess(

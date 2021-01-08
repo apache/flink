@@ -303,9 +303,10 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
     // TESTS FOR EXCEPTIONS
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
-        final Path testDir = getBasePathForTest();
+        Assertions.assertThrows(IOException.class, () -> {
+                    final Path testDir = getBasePathForTest();
 
         final RecoverableWriter writer = getNewFileSystemWriter();
         final Path path = new Path(testDir, "part-0");
@@ -321,11 +322,13 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         } finally {
             IOUtils.closeQuietly(stream);
         }
+        });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testResumeAfterCommit() throws Exception {
-        final Path testDir = getBasePathForTest();
+        Assertions.assertThrows(IOException.class, () -> {
+                    final Path testDir = getBasePathForTest();
 
         final RecoverableWriter writer = getNewFileSystemWriter();
         final Path path = new Path(testDir, "part-0");
@@ -347,6 +350,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
         // this should throw an exception as the file is already committed
         writer.recover(recoverable);
         fail();
+        });
     }
 
     @Test

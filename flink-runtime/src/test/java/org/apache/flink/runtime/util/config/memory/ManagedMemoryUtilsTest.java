@@ -135,9 +135,10 @@ public class ManagedMemoryUtilsTest extends TestLogger {
         assertThat(configuredWeights, is(expectedWeights));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testGetWeightsFromConfigFailNegativeWeight() {
-        final Configuration config =
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final Configuration config =
                 new Configuration() {
                     {
                         set(
@@ -149,6 +150,7 @@ public class ManagedMemoryUtilsTest extends TestLogger {
                 };
 
         ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+        });
     }
 
     @Test

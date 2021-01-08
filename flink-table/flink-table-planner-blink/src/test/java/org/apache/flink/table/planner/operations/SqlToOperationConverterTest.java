@@ -195,10 +195,12 @@ public class SqlToOperationConverterTest {
         assertEquals("db1", ((UseDatabaseOperation) operation2).getDatabaseName());
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testUseDatabaseWithException() {
-        final String sql = "USE cat1.db1.tbl1";
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    final String sql = "USE cat1.db1.tbl1";
         Operation operation = parse(sql, SqlDialect.DEFAULT);
+        });
     }
 
     @Test

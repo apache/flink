@@ -59,13 +59,15 @@ public class ShuffleServiceLoaderTest extends TestLogger {
                 instanceOf(CustomShuffleServiceFactory.class));
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testLoadShuffleServiceFactoryFailure() throws FlinkException {
-        Configuration configuration = new Configuration();
+        Assertions.assertThrows(FlinkException.class, () -> {
+                    Configuration configuration = new Configuration();
         configuration.setString(
                 SHUFFLE_SERVICE_FACTORY_CLASS,
                 "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
         ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        });
     }
 
     /**

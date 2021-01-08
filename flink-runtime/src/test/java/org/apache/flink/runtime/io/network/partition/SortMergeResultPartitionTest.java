@@ -221,9 +221,10 @@ public class SortMergeResultPartitionTest {
         partition.close();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReleaseWhileWriting() throws Exception {
-        int numBuffers = 10;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int numBuffers = 10;
         BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
         SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
 
@@ -244,6 +245,7 @@ public class SortMergeResultPartitionTest {
         }
 
         fail("Should throw ClosedChannelException.");
+        });
     }
 
     @Test
@@ -290,20 +292,23 @@ public class SortMergeResultPartitionTest {
         assertEquals(totalBuffers, globalPool.getNumberOfAvailableMemorySegments());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadUnfinishedPartition() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    BufferPool bufferPool = globalPool.createBufferPool(10, 10);
         try {
             SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
             partition.createSubpartitionView(0, listener);
         } finally {
             bufferPool.lazyDestroy();
         }
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadReleasedPartition() throws Exception {
-        BufferPool bufferPool = globalPool.createBufferPool(10, 10);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    BufferPool bufferPool = globalPool.createBufferPool(10, 10);
         try {
             SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
             partition.finish();
@@ -312,6 +317,7 @@ public class SortMergeResultPartitionTest {
         } finally {
             bufferPool.lazyDestroy();
         }
+        });
     }
 
     private SortMergeResultPartition createSortMergedPartition(

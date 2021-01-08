@@ -33,9 +33,10 @@ import static org.junit.Assert.assertFalse;
 /** Tests for {@link FunctionService}. */
 public class FunctionServiceTest {
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testWrongArgsFunctionCreation() {
-        FunctionDescriptor descriptor =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    FunctionDescriptor descriptor =
                 new FunctionDescriptor()
                         .fromClass(
                                 new ClassInstance()
@@ -43,29 +44,35 @@ public class FunctionServiceTest {
                                         .parameterString("12"));
 
         FunctionService.createFunction(descriptor);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testPrivateFunctionCreation() {
-        FunctionDescriptor descriptor =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    FunctionDescriptor descriptor =
                 new FunctionDescriptor()
                         .fromClass(new ClassInstance().of(PrivateClass.class.getName()));
 
         FunctionService.createFunction(descriptor);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidClassFunctionCreation() {
-        FunctionDescriptor descriptor =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    FunctionDescriptor descriptor =
                 new FunctionDescriptor()
                         .fromClass(new ClassInstance().of("this.class.does.not.exist"));
 
         FunctionService.createFunction(descriptor);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testNotFunctionClassFunctionCreation() {
-        FunctionDescriptor descriptor =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    FunctionDescriptor descriptor =
                 new FunctionDescriptor()
                         .fromClass(
                                 new ClassInstance()
@@ -73,11 +80,13 @@ public class FunctionServiceTest {
                                         .parameterString("hello"));
 
         FunctionService.createFunction(descriptor);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testErrorConstructorClass() {
-        FunctionDescriptor descriptor =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    FunctionDescriptor descriptor =
                 new FunctionDescriptor()
                         .fromClass(
                                 new ClassInstance()
@@ -85,6 +94,7 @@ public class FunctionServiceTest {
                                         .parameterString("arg"));
 
         FunctionService.createFunction(descriptor);
+        });
     }
 
     @Test

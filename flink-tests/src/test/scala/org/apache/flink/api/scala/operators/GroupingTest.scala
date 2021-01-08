@@ -48,9 +48,10 @@ class GroupingTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyIndices2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
     // should not work, grouping on basic type
@@ -92,15 +93,17 @@ class GroupingTest {
     // should work
     try {
       tupleDs.groupBy("_1")
+        });
     }
     catch {
       case e: Exception => Assert.fail()
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyFields2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
     // should not work, grouping on basic type
@@ -142,15 +145,17 @@ class GroupingTest {
     // should work
     try {
       ds.groupBy("myInt")
+        });
     }
     catch {
       case e: Exception => Assert.fail()
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyExpressions2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
 
     // should not work: groups on basic type
     val longDs = env.fromCollection(emptyLongData)
@@ -181,6 +186,7 @@ class GroupingTest {
     try {
       val customDs = env.fromCollection(customTypeData)
       customDs.groupBy { _.myLong }
+        });
     }
     catch {
       case e: Exception => Assert.fail()
@@ -199,9 +205,10 @@ class GroupingTest {
     }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testGroupSortKeyFields2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[IndexOutOfBoundsException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
     // should not work, field position out of range
@@ -221,6 +228,7 @@ class GroupingTest {
     val tupleDs = env.fromCollection(emptyTupleData)
     try {
       tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING).sortGroup(2, Order.DESCENDING)
+        });
     }
     catch {
       case e: Exception => Assert.fail()

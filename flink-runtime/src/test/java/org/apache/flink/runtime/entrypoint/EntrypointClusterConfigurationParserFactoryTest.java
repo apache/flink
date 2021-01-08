@@ -81,10 +81,12 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
         assertThat(clusterConfiguration.getRestPort(), is(equalTo(-1)));
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        final String[] args = {};
+        Assertions.assertThrows(FlinkParseException.class, () -> {
+                    final String[] args = {};
 
         commandLineParser.parse(args);
+        });
     }
 }

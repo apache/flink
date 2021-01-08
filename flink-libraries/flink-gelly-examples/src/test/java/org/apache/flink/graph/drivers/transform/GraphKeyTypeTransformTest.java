@@ -87,15 +87,19 @@ public class GraphKeyTypeTransformTest {
                         byteValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedByteValue()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedByteValue()
                 .translate(new LongValue(LongValueToUnsignedByteValue.MAX_VERTEX_COUNT), byteValue);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedByteValue().translate(new LongValue(-1), byteValue);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedByteValue().translate(new LongValue(-1), byteValue);
+        });
     }
 
     @Test
@@ -134,15 +138,19 @@ public class GraphKeyTypeTransformTest {
                         new LongValue(LongValueToUnsignedByte.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedByte()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedByte()
                 .translate(new LongValue(LongValueToUnsignedByte.MAX_VERTEX_COUNT), null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedByte().translate(new LongValue(-1), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedByte().translate(new LongValue(-1), null);
+        });
     }
 
     @Test
@@ -183,16 +191,20 @@ public class GraphKeyTypeTransformTest {
                         shortValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedShortValue()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedShortValue()
                 .translate(
                         new LongValue(LongValueToUnsignedShortValue.MAX_VERTEX_COUNT), shortValue);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedShortValue().translate(new LongValue(-1), shortValue);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedShortValue().translate(new LongValue(-1), shortValue);
+        });
     }
 
     @Test
@@ -232,15 +244,19 @@ public class GraphKeyTypeTransformTest {
                         new LongValue(LongValueToUnsignedShort.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedShort()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedShort()
                 .translate(new LongValue(LongValueToUnsignedShort.MAX_VERTEX_COUNT), null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedShort().translate(new LongValue(-1), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedShort().translate(new LongValue(-1), null);
+        });
     }
 
     @Test
@@ -276,15 +292,19 @@ public class GraphKeyTypeTransformTest {
                         new LongValue(LongValueToCharValue.MAX_VERTEX_COUNT - 1), charValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharValueUpperOutOfRange() throws Exception {
-        new LongValueToCharValue()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToCharValue()
                 .translate(new LongValue(LongValueToCharValue.MAX_VERTEX_COUNT), charValue);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharValueLowerOutOfRange() throws Exception {
-        new LongValueToCharValue().translate(new LongValue(-1), charValue);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToCharValue().translate(new LongValue(-1), charValue);
+        });
     }
 
     // Character
@@ -301,14 +321,18 @@ public class GraphKeyTypeTransformTest {
                 translator.translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharacterUpperOutOfRange() throws Exception {
-        new LongValueToChar().translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToChar().translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT), null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharacterLowerOutOfRange() throws Exception {
-        new LongValueToChar().translate(new LongValue(-1), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToChar().translate(new LongValue(-1), null);
+        });
     }
 
     // Integer
@@ -329,15 +353,19 @@ public class GraphKeyTypeTransformTest {
                         new LongValue(LongValueToUnsignedInt.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToIntUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedInt()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedInt()
                 .translate(new LongValue(LongValueToUnsignedInt.MAX_VERTEX_COUNT), null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToIntLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedInt().translate(new LongValue(-1), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedInt().translate(new LongValue(-1), null);
+        });
     }
 
     @Test
@@ -416,16 +444,20 @@ public class GraphKeyTypeTransformTest {
                         floatValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedFloatValue()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedFloatValue()
                 .translate(
                         new LongValue(LongValueToUnsignedFloatValue.MAX_VERTEX_COUNT), floatValue);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedFloatValue().translate(new LongValue(-1), floatValue);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedFloatValue().translate(new LongValue(-1), floatValue);
+        });
     }
 
     @Test
@@ -470,15 +502,19 @@ public class GraphKeyTypeTransformTest {
                         new LongValue(LongValueToUnsignedFloat.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedFloat()
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedFloat()
                 .translate(new LongValue(LongValueToUnsignedFloat.MAX_VERTEX_COUNT), null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedFloat().translate(new LongValue(-1), null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new LongValueToUnsignedFloat().translate(new LongValue(-1), null);
+        });
     }
 
     @Test

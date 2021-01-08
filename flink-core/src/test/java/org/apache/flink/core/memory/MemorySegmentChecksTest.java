@@ -27,44 +27,60 @@ import java.nio.ByteBuffer;
 /** Tests for the sanity checks of the memory segments. */
 public class MemorySegmentChecksTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testHeapNullBuffer1() {
-        new HeapMemorySegment(null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new HeapMemorySegment(null);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testHeapNullBuffer2() {
-        new HeapMemorySegment(null, new Object());
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new HeapMemorySegment(null, new Object());
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testHybridHeapNullBuffer2() {
-        new HybridMemorySegment((byte[]) null, new Object());
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new HybridMemorySegment((byte[]) null, new Object());
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testHybridOffHeapNullBuffer2() {
-        new HybridMemorySegment((ByteBuffer) null, new Object());
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new HybridMemorySegment((ByteBuffer) null, new Object());
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testHybridNonDirectBuffer() {
-        new HybridMemorySegment(ByteBuffer.allocate(1024), new Object());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new HybridMemorySegment(ByteBuffer.allocate(1024), new Object());
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testZeroAddress() {
-        new MockSegment(0L, 4 * 1024, null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new MockSegment(0L, 4 * 1024, null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNegativeAddress() {
-        new MockSegment(-1L, 4 * 1024, null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new MockSegment(-1L, 4 * 1024, null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testTooLargeAddress() {
-        new MockSegment(Long.MAX_VALUE - 8 * 1024, 4 * 1024, null);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new MockSegment(Long.MAX_VALUE - 8 * 1024, 4 * 1024, null);
+        });
     }
 
     // ------------------------------------------------------------------------

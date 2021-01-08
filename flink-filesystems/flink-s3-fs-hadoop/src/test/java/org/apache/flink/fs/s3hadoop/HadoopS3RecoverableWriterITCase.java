@@ -215,9 +215,10 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         Assert.assertEquals(testData1 + testData2, getContentsOfFile(path));
     }
 
-    @Test(expected = FileNotFoundException.class)
+    @Test
     public void testCleanupRecoverableState() throws Exception {
-        final RecoverableWriter writer = getRecoverableWriter();
+        Assertions.assertThrows(FileNotFoundException.class, () -> {
+                    final RecoverableWriter writer = getRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
         final RecoverableFsDataOutputStream stream = writer.open(path);
@@ -245,6 +246,7 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
             retryTimes--;
             Thread.sleep(delayMs);
         }
+        });
     }
 
     @Test

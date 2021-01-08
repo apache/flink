@@ -288,8 +288,9 @@ public class CrossOperatorTest {
         }
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection8() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -299,10 +300,12 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectFirst(5);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection28() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -312,10 +315,12 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectFirst(5);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection9() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -325,10 +330,12 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectSecond(5);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection29() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -338,6 +345,7 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectSecond(5);
+        });
     }
 
     public void testCrossProjection10() {
@@ -352,8 +360,9 @@ public class CrossOperatorTest {
         ds1.cross(ds2).projectFirst(2);
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection30() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -363,6 +372,7 @@ public class CrossOperatorTest {
 
         // should not work, type does not match
         ds1.cross(ds2).projectFirst(-1);
+        });
     }
 
     public void testCrossProjection11() {
@@ -377,8 +387,9 @@ public class CrossOperatorTest {
         ds1.cross(ds2).projectSecond(2);
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection31() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -388,6 +399,7 @@ public class CrossOperatorTest {
 
         // should not work, type does not match
         ds1.cross(ds2).projectSecond(-1);
+        });
     }
 
     public void testCrossProjection12() {
@@ -402,8 +414,9 @@ public class CrossOperatorTest {
         ds1.cross(ds2).projectSecond(2).projectFirst(1);
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection32() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -413,10 +426,12 @@ public class CrossOperatorTest {
 
         // should not work, number of types and fields does not match
         ds1.cross(ds2).projectSecond(2).projectFirst(-1);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection13() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -426,10 +441,12 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectSecond(0).projectFirst(5);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCrossProjection14() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
@@ -439,6 +456,7 @@ public class CrossOperatorTest {
 
         // should not work, index out of range
         ds1.cross(ds2).projectFirst(0).projectSecond(5);
+        });
     }
 
     /*

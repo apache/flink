@@ -184,9 +184,10 @@ public class InputOrderCalculatorTest {
         Assert.assertEquals(0, result.get(nodes[7]).intValue());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testCalculateInputOrderWithLoop() {
-        TestingBatchExecNode a = new TestingBatchExecNode();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    TestingBatchExecNode a = new TestingBatchExecNode();
         TestingBatchExecNode b = new TestingBatchExecNode();
         for (int i = 0; i < 2; i++) {
             b.addInput(a, ExecEdge.builder().priority(i).build());
@@ -195,5 +196,6 @@ public class InputOrderCalculatorTest {
         InputOrderCalculator calculator =
                 new InputOrderCalculator(b, Collections.emptySet(), ExecEdge.DamBehavior.BLOCKING);
         calculator.calculate();
+        });
     }
 }

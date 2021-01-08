@@ -61,9 +61,11 @@ public class CsvTest extends DescriptorTestBase {
     private static final Descriptor MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA =
             new Csv().deriveSchema();
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidAllowComments() {
-        addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
+        });
     }
 
     // --------------------------------------------------------------------------------------------

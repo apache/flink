@@ -42,13 +42,17 @@ public class LongValueToUnsignedIntValueTest {
         assertEquals(new IntValue(-1), translator.translate(new LongValue((1L << 32) - 1), reuse));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUpperOutOfRange() throws Exception {
-        translator.translate(new LongValue(1L << 32), reuse);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    translator.translate(new LongValue(1L << 32), reuse);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testLowerOutOfRange() throws Exception {
-        translator.translate(new LongValue(-1), reuse);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    translator.translate(new LongValue(-1), reuse);
+        });
     }
 }

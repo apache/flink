@@ -293,25 +293,29 @@ public class MemoryManagerTest {
         memoryManager.releaseAllMemory(owner2);
     }
 
-    @Test(expected = MemoryAllocationException.class)
+    @Test
     public void testAllocationFailsIfSegmentsNotGced() throws MemoryAllocationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        Assertions.assertThrows(MemoryAllocationException.class, () -> {
+                    List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
         // this allocation should fail
         memoryManager.allocatePages(new Object(), 1);
         // this should not be reached but keeps the reference to the allocated memory and prevents
         // its GC
         byteBuffers.get(0).put(0, (byte) 1);
+        });
     }
 
-    @Test(expected = MemoryReservationException.class)
+    @Test
     public void testReservationFailsIfSegmentsNotGced()
             throws MemoryAllocationException, MemoryReservationException {
-        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        Assertions.assertThrows(MemoryReservationException.class, () -> {
+                    List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
         // this allocation should fail
         memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
         // this should not be reached but keeps the reference to the allocated memory and prevents
         // its GC
         byteBuffers.get(0).put(0, (byte) 1);
+        });
     }
 
     @Test
@@ -357,19 +361,25 @@ public class MemoryManagerTest {
                 memoryManager.computeMemorySize(fraction));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testComputeMemorySizeFailForZeroFraction() {
-        memoryManager.computeMemorySize(0.0);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    memoryManager.computeMemorySize(0.0);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testComputeMemorySizeFailForTooLargeFraction() {
-        memoryManager.computeMemorySize(1.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    memoryManager.computeMemorySize(1.1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testComputeMemorySizeFailForNegativeFraction() {
-        memoryManager.computeMemorySize(-0.1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    memoryManager.computeMemorySize(-0.1);
+        });
     }
 
     @Test

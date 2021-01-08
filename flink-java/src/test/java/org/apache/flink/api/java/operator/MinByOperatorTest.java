@@ -75,9 +75,10 @@ public class MinByOperatorTest {
      * This test validates that an InvalidProgramException is thrown when minBy is used on a custom
      * data type.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCustomKeyFieldsDataset() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         this.customTypeData.add(new CustomType());
@@ -85,48 +86,55 @@ public class MinByOperatorTest {
         DataSet<CustomType> customDs = env.fromCollection(customTypeData);
         // should not work: groups on custom type
         customDs.minBy(0);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset1() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should not work, key out of tuple bounds
         tupleDs.minBy(5);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset2() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should not work, key out of tuple bounds
         tupleDs.minBy(-1);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset3() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
 
         // should not work, key out of tuple bounds
         tupleDs.minBy(1, 2, 3, 4, -1);
+        });
     }
 
     // ---------------------------- GROUPING TESTS BELOW --------------------------------------
@@ -151,9 +159,10 @@ public class MinByOperatorTest {
      * This test validates that an InvalidProgramException is thrown when minBy is used on a custom
      * data type.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCustomKeyFieldsGrouping() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         this.customTypeData.add(new CustomType());
@@ -161,54 +170,62 @@ public class MinByOperatorTest {
         UnsortedGrouping<CustomType> groupDs = env.fromCollection(customTypeData).groupBy(0);
         // should not work: groups on custom type
         groupDs.minBy(0);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping1() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo).groupBy(0);
 
         // should not work, key out of tuple bounds
         groupDs.minBy(5);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping2() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo).groupBy(0);
 
         // should not work, key out of tuple bounds
         groupDs.minBy(-1);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping3() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
                 env.fromCollection(emptyTupleData, tupleTypeInfo).groupBy(0);
 
         // should not work, key out of tuple bounds
         groupDs.minBy(1, 2, 3, 4, -1);
+        });
     }
 
     /** Validates that no ClassCastException happens should not fail e.g. like in FLINK-8255. */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testMinByRowTypeInfoKeyFieldsDataset() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
 
@@ -217,12 +234,14 @@ public class MinByOperatorTest {
         DataSet tupleDs = env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo);
 
         tupleDs.minBy(0);
+        });
     }
 
     /** Validates that no ClassCastException happens should not fail e.g. like in FLINK-8255. */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testMinByRowTypeInfoKeyFieldsForUnsortedGrouping() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
 
@@ -233,6 +252,7 @@ public class MinByOperatorTest {
                 env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo).groupBy(0);
 
         groupDs.minBy(1);
+        });
     }
 
     /** Custom data type, for testing purposes. */

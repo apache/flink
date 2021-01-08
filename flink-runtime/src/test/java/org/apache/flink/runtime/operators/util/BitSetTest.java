@@ -48,29 +48,39 @@ public class BitSetTest {
         bitSet.clear();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void verifyBitSetSize1() {
-        bitSet.setMemorySegment(memorySegment, 1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    bitSet.setMemorySegment(memorySegment, 1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void verifyBitSetSize2() {
-        bitSet.setMemorySegment(null, 1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    bitSet.setMemorySegment(null, 1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void verifyBitSetSize3() {
-        bitSet.setMemorySegment(memorySegment, -1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    bitSet.setMemorySegment(memorySegment, -1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void verifyInputIndex1() {
-        bitSet.set(8 * byteSize + 1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    bitSet.set(8 * byteSize + 1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void verifyInputIndex2() {
-        bitSet.set(-1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    bitSet.set(-1);
+        });
     }
 
     @Test

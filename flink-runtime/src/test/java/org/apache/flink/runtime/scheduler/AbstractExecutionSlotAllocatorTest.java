@@ -66,15 +66,17 @@ public class AbstractExecutionSlotAllocatorTest extends TestLogger {
         assertThat(assignments.get(0).getLogicalSlotFuture().isCancelled(), is(true));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testValidateSchedulingRequirements() {
-        final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
 
         final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
                 createSchedulingRequirements(executionVertexId);
         executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
         executionSlotAllocator.validateSchedulingRequirements(schedulingRequirements);
+        });
     }
 
     @Test

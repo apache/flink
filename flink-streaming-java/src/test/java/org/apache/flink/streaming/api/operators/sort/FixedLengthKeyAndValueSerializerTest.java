@@ -56,14 +56,18 @@ public class FixedLengthKeyAndValueSerializerTest
     }
 
     @Override
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testConfigSnapshotInstantiation() {
-        super.testConfigSnapshotInstantiation();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    super.testConfigSnapshotInstantiation();
+        });
     }
 
     @Override
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSnapshotConfigurationAndReconfigure() throws Exception {
-        super.testSnapshotConfigurationAndReconfigure();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    super.testSnapshotConfigurationAndReconfigure();
+        });
     }
 }

@@ -72,34 +72,44 @@ public class FileInputFormatTest {
                 format.toString());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetPathsNull() {
-        final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
         format.setFilePaths((String) null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetPathNullString() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final DummyFileInputFormat format = new DummyFileInputFormat();
         format.setFilePath((String) null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetPathNullPath() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final DummyFileInputFormat format = new DummyFileInputFormat();
         format.setFilePath((Path) null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetPathsOnePathNull() {
-        final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
         format.setFilePaths("/an/imaginary/path", null);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetPathsEmptyArray() {
-        final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
         format.setFilePaths(new String[0]);
+        });
     }
 
     @Test
@@ -151,32 +161,38 @@ public class FileInputFormatTest {
         Assert.assertEquals(myPath2, filePaths[1].toUri().toString());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testMultiPathSetOnSinglePathIF() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    final DummyFileInputFormat format = new DummyFileInputFormat();
         final String myPath = "/an/imaginary/path";
         final String myPath2 = "/an/imaginary/path2";
 
         format.setFilePaths(myPath, myPath2);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testMultiPathSetOnSinglePathIF2() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    final DummyFileInputFormat format = new DummyFileInputFormat();
         final String myPath = "/an/imaginary/path";
         final String myPath2 = "/an/imaginary/path2";
 
         format.setFilePaths(new Path(myPath), new Path(myPath2));
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSinglePathGetOnMultiPathIF() {
-        final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    final MultiDummyFileInputFormat format = new MultiDummyFileInputFormat();
         final String myPath = "/an/imaginary/path";
         final String myPath2 = "/an/imaginary/path2";
 
         format.setFilePaths(myPath, myPath2);
         format.getFilePath();
+        });
     }
 
     @Test
@@ -190,13 +206,15 @@ public class FileInputFormatTest {
         Assert.assertEquals("Paths should be equal.", new Path(filePath), format.getFilePath());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testSetFileViaConfigurationEmptyPath() {
-        final DummyFileInputFormat format = new DummyFileInputFormat();
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    final DummyFileInputFormat format = new DummyFileInputFormat();
         final String filePath = null;
         Configuration conf = new Configuration();
         conf.setString("input.file.path", filePath);
         format.configure(conf);
+        });
     }
 
     // ------------------------------------------------------------------------

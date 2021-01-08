@@ -351,26 +351,32 @@ public class LambdaExtractionTest {
         void secondMethod();
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void getSingleAbstractMethodMultipleMethods() {
-        TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
+        });
     }
 
     private interface InterfaceWithoutAbstractMethod {
         default void defaultMethod() {}
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testSingleAbstractMethodNoAbstractMethods() {
-        TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
+        });
     }
 
     private abstract class AbstractClassWithSingleAbstractMethod {
         public abstract void defaultMethod();
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testSingleAbstractMethodNotAnInterface() {
-        TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
+        });
     }
 }

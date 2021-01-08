@@ -75,22 +75,26 @@ public class ClusterClientServiceLoaderTest {
         assertThat(id, allOf(is(notNullValue()), equalTo(VALID_ID)));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testMoreThanOneCompatibleFactoriesException() {
-        final Configuration config = new Configuration();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final Configuration config = new Configuration();
         config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
 
         serviceLoaderUnderTest.getClusterClientFactory(config);
         fail();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNoFactoriesFound() {
-        final Configuration config = new Configuration();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final Configuration config = new Configuration();
         config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
 
         final ClusterClientFactory<Integer> factory =
                 serviceLoaderUnderTest.getClusterClientFactory(config);
+        });
     }
 
     /** Test {@link ClusterClientFactory} that is successfully discovered. */

@@ -45,9 +45,10 @@ public class ChannelStateWriterImplTest {
     private static final long CHECKPOINT_ID = 42L;
     private static final String TASK_NAME = "test";
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAddEventBuffer() throws Exception {
-
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            
         NetworkBuffer dataBuf = getBuffer();
         NetworkBuffer eventBuf = getBuffer();
         eventBuf.setDataType(Buffer.DataType.EVENT_BUFFER);
@@ -64,6 +65,7 @@ public class ChannelStateWriterImplTest {
         } finally {
             assertTrue(dataBuf.isRecycled());
         }
+        });
     }
 
     @Test
@@ -94,15 +96,17 @@ public class ChannelStateWriterImplTest {
                 });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAbortClearsResults() throws Exception {
-        NetworkBuffer buffer = getBuffer();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    NetworkBuffer buffer = getBuffer();
         runWithSyncWorker(
                 (writer, worker) -> {
                     callStart(writer);
                     writer.abort(CHECKPOINT_ID, new TestException(), true);
                     writer.getAndRemoveWriteResult(CHECKPOINT_ID);
                 });
+        });
     }
 
     @Test
@@ -121,9 +125,10 @@ public class ChannelStateWriterImplTest {
         runWithSyncWorker(this::callAbort);
     }
 
-    @Test(expected = TestException.class)
+    @Test
     public void testBuffersRecycledOnError() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(TestException.class, () -> {
+                    unwrappingError(
                 TestException.class,
                 () -> {
                     NetworkBuffer buffer = getBuffer();
@@ -136,6 +141,7 @@ public class ChannelStateWriterImplTest {
                         assertTrue(buffer.isRecycled());
                     }
                 });
+        });
     }
 
     @Test
@@ -150,9 +156,10 @@ public class ChannelStateWriterImplTest {
         assertTrue(buffer.isRecycled());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNoAddDataAfterFinished() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    unwrappingError(
                 IllegalArgumentException.class,
                 () ->
                         runWithSyncWorker(
@@ -161,23 +168,29 @@ public class ChannelStateWriterImplTest {
                                     callFinish(writer);
                                     callAddInputData(writer);
                                 }));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAddDataNotStarted() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    unwrappingError(
                 IllegalArgumentException.class,
                 () -> runWithSyncWorker(writer -> callAddInputData(writer)));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFinishNotStarted() throws Exception {
-        unwrappingError(IllegalArgumentException.class, () -> runWithSyncWorker(this::callFinish));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    unwrappingError(IllegalArgumentException.class, () -> runWithSyncWorker(this::callFinish));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testRethrowOnClose() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    unwrappingError(
                 IllegalArgumentException.class,
                 () ->
                         runWithSyncWorker(
@@ -188,21 +201,25 @@ public class ChannelStateWriterImplTest {
                                         // ignore here - should rethrow in close
                                     }
                                 }));
+        });
     }
 
-    @Test(expected = TestException.class)
+    @Test
     public void testRethrowOnNextCall() throws Exception {
-        SyncChannelStateWriteRequestExecutor worker = new SyncChannelStateWriteRequestExecutor();
+        Assertions.assertThrows(TestException.class, () -> {
+                    SyncChannelStateWriteRequestExecutor worker = new SyncChannelStateWriteRequestExecutor();
         ChannelStateWriterImpl writer =
                 new ChannelStateWriterImpl(TASK_NAME, new ConcurrentHashMap<>(), worker, 5);
         writer.open();
         worker.setThrown(new TestException());
         unwrappingError(TestException.class, () -> callStart(writer));
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testLimit() throws IOException {
-        int maxCheckpoints = 3;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int maxCheckpoints = 3;
         try (ChannelStateWriterImpl writer =
                 new ChannelStateWriterImpl(
                         TASK_NAME, 0, getStreamFactoryFactory(), maxCheckpoints)) {
@@ -212,11 +229,13 @@ public class ChannelStateWriterImplTest {
             }
             writer.start(maxCheckpoints, CheckpointOptions.forCheckpointWithDefaultLocation());
         }
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testStartNotOpened() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    unwrappingError(
                 IllegalStateException.class,
                 () -> {
                     try (ChannelStateWriterImpl writer =
@@ -224,22 +243,26 @@ public class ChannelStateWriterImplTest {
                         callStart(writer);
                     }
                 });
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNoStartAfterClose() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    unwrappingError(
                 IllegalStateException.class,
                 () -> {
                     ChannelStateWriterImpl writer = openWriter();
                     writer.close();
                     writer.start(42, CheckpointOptions.forCheckpointWithDefaultLocation());
                 });
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNoAddDataAfterClose() throws Exception {
-        unwrappingError(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    unwrappingError(
                 IllegalStateException.class,
                 () -> {
                     ChannelStateWriterImpl writer = openWriter();
@@ -247,6 +270,7 @@ public class ChannelStateWriterImplTest {
                     writer.close();
                     callAddInputData(writer);
                 });
+        });
     }
 
     private static <T extends Throwable> void unwrappingError(

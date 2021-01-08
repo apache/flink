@@ -61,10 +61,12 @@ public class FailoverStrategyFactoryLoaderTest extends TestLogger {
                 instanceOf(RestartPipelinedRegionFailoverStrategy.Factory.class));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testLoadFromInvalidConfiguration() {
-        final Configuration config = new Configuration();
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final Configuration config = new Configuration();
         config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
         FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config);
+        });
     }
 }

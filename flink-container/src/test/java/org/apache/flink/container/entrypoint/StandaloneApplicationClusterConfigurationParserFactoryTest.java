@@ -194,11 +194,13 @@ public class StandaloneApplicationClusterConfigurationParserFactoryTest extends 
         assertThat(clusterConfiguration.getJobClassName(), is(nullValue()));
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        final String[] args = {};
+        Assertions.assertThrows(FlinkParseException.class, () -> {
+                    final String[] args = {};
 
         commandLineParser.parse(args);
+        });
     }
 
     @Test

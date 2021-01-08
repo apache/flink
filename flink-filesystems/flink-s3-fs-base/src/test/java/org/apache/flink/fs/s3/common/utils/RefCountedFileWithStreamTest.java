@@ -54,19 +54,23 @@ public class RefCountedFileWithStreamTest {
         verifyTheFileIsStillThere();
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void writeAfterCloseShouldThrowException() throws IOException {
-        final RefCountedFileWithStream fileUnderTest =
+        Assertions.assertThrows(IOException.class, () -> {
+                    final RefCountedFileWithStream fileUnderTest =
                 getClosedRefCountedFileWithContent("hello world");
         byte[] content = bytesOf("Hello Again");
         fileUnderTest.write(content, 0, content.length);
+        });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void flushAfterCloseShouldThrowException() throws IOException {
-        final RefCountedFileWithStream fileUnderTest =
+        Assertions.assertThrows(IOException.class, () -> {
+                    final RefCountedFileWithStream fileUnderTest =
                 getClosedRefCountedFileWithContent("hello world");
         fileUnderTest.flush();
+        });
     }
 
     // ------------------------------------- Utilities -------------------------------------

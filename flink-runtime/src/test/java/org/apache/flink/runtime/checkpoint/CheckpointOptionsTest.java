@@ -63,10 +63,12 @@ public class CheckpointOptionsTest {
         assertArrayEquals(locationBytes, copy.getTargetLocation().getReferenceBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSavepointNeedsAlignment() {
-        new CheckpointOptions(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new CheckpointOptions(
                 SAVEPOINT, CheckpointStorageLocationReference.getDefault(), true, true, 0);
+        });
     }
 
     @Test

@@ -54,9 +54,10 @@ public class PartitionerITCase extends AbstractTestBase {
 
     private static final List<String> INPUT = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testForwardFailsLowToHighParallelism() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Integer> src = env.fromElements(1, 2, 3);
 
@@ -64,11 +65,13 @@ public class PartitionerITCase extends AbstractTestBase {
         src.forward().map(new NoOpIntMap());
 
         env.execute();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testForwardFailsHightToLowParallelism() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         // this does a rebalance that works
         DataStream<Integer> src = env.fromElements(1, 2, 3).map(new NoOpIntMap());
@@ -77,6 +80,7 @@ public class PartitionerITCase extends AbstractTestBase {
         src.forward().map(new NoOpIntMap()).setParallelism(1);
 
         env.execute();
+        });
     }
 
     @Test

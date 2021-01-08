@@ -197,9 +197,10 @@ public class PartitionSortedBufferTest {
         assertEquals(expectedBuffer, bufferWithChannel.getBuffer().getNioBufferReadable());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWriteEmptyData() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
 
@@ -207,26 +208,31 @@ public class PartitionSortedBufferTest {
         record.position(1);
 
         sortBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testWriteFinishedSortBuffer() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
         sortBuffer.finish();
 
         sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testWriteReleasedSortBuffer() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
         sortBuffer.release();
 
         sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+        });
     }
 
     @Test
@@ -272,20 +278,23 @@ public class PartitionSortedBufferTest {
         assertEquals(hasRemaining, sortBuffer.hasRemaining());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadUnfinishedSortBuffer() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
         sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
 
         assertTrue(sortBuffer.hasRemaining());
         sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadReleasedSortBuffer() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
         sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
@@ -296,17 +305,20 @@ public class PartitionSortedBufferTest {
         assertFalse(sortBuffer.hasRemaining());
 
         sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadEmptySortBuffer() throws Exception {
-        int bufferSize = 1024;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int bufferSize = 1024;
 
         SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
         sortBuffer.finish();
 
         assertFalse(sortBuffer.hasRemaining());
         sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+        });
     }
 
     @Test

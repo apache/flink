@@ -196,9 +196,11 @@ public class CliFrontendPackageProgramTest extends TestLogger {
         Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testNoJarNoArgumentsAtAll() throws Exception {
-        frontend.run(new String[0]);
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    frontend.run(new String[0]);
+        });
     }
 
     @Test

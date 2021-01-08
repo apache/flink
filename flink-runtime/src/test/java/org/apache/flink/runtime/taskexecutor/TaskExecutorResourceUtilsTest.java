@@ -51,12 +51,14 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         assertThat(resourceSpec.getManagedMemorySize(), is(MANAGED));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testResourceSpecFromConfigFailsIfNetworkSizeIsNotFixed() {
-        Configuration configuration = createValidConfig();
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    Configuration configuration = createValidConfig();
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
         TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+        });
     }
 
     @Test

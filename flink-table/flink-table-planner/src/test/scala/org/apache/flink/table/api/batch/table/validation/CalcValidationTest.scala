@@ -39,9 +39,10 @@ class CalcValidationTest extends TableTestBase {
       .select('a, 'foo)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSelectAmbiguousRenaming(): Unit = {
-    val util = batchTestUtil()
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo
       .select('a + 1 as 'foo, 'b + 2 as 'foo).toDataSet[Row].print()
@@ -98,6 +99,7 @@ class CalcValidationTest extends TableTestBase {
     try {
       util.addTable[(Int, Long, String)]("Table1", '*, 'b, 'c)
       fail("TableException expected")
+        });
     } catch {
       case _: ValidationException => //ignore
     }

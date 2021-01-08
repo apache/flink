@@ -25,9 +25,11 @@ import org.junit.jupiter.api.Test;
 /** Unit tests for the {@link FileSourceSplit}. */
 public class FileSourceSplitTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void noNullHostsAllowed() {
-        new FileSourceSplit(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new FileSourceSplit(
                 "id", new Path("file:/some/random/path"), 0, 10, "host1", null, "host2");
+        });
     }
 }

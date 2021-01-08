@@ -74,8 +74,9 @@ public class IterateITCase extends AbstractTestBase {
 
     private int parallelism = miniClusterResource.getNumberSlots();
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testIncorrectParallelism() throws Exception {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -84,6 +85,7 @@ public class IterateITCase extends AbstractTestBase {
         IterativeStream<Integer> iter1 = source.iterate();
         SingleOutputStreamOperator<Integer> map1 = iter1.map(noOpIntMap);
         iter1.closeWith(map1).print();
+        });
     }
 
     @Test
@@ -100,8 +102,9 @@ public class IterateITCase extends AbstractTestBase {
         iter1.closeWith(iter1.map(noOpIntMap));
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testDifferingParallelism() throws Exception {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -111,10 +114,12 @@ public class IterateITCase extends AbstractTestBase {
         IterativeStream<Integer> iter1 = source.iterate();
 
         iter1.closeWith(iter1.map(noOpIntMap).setParallelism(parallelism / 2));
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testCoDifferingParallelism() throws Exception {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -125,10 +130,12 @@ public class IterateITCase extends AbstractTestBase {
                 source.iterate().withFeedbackType(Integer.class);
 
         coIter.closeWith(coIter.map(noOpIntCoMap).setParallelism(parallelism / 2));
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClosingFromOutOfLoop() throws Exception {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
 
         // this test verifies that we cannot close an iteration with a DataStream that does not
         // have the iteration in its predecessors
@@ -142,10 +149,12 @@ public class IterateITCase extends AbstractTestBase {
         IterativeStream<Integer> iter2 = source.iterate();
 
         iter2.closeWith(iter1.map(noOpIntMap));
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testCoIterClosingFromOutOfLoop() throws Exception {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
 
         // this test verifies that we cannot close an iteration with a DataStream that does not
         // have the iteration in its predecessors
@@ -160,10 +169,12 @@ public class IterateITCase extends AbstractTestBase {
                 source.iterate().withFeedbackType(Integer.class);
 
         coIter.closeWith(iter1.map(noOpIntMap));
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExecutionWithEmptyIteration() throws Exception {
+        Assertions.assertThrows(IllegalStateException.class, () -> {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -174,6 +185,7 @@ public class IterateITCase extends AbstractTestBase {
         iter1.map(noOpIntMap).print();
 
         env.execute();
+        });
     }
 
     @Test

@@ -447,8 +447,9 @@ public class GlobalPropertiesFilteringTest {
         Assert.assertNull(result.getUniqueFieldCombination());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidInputIndex() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
@@ -458,5 +459,6 @@ public class GlobalPropertiesFilteringTest {
         gprops.setHashPartitioned(new FieldList(0, 1));
 
         gprops.filterBySemanticProperties(sprops, 1);
+        });
     }
 }

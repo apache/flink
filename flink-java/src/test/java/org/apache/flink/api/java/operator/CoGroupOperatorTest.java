@@ -82,9 +82,10 @@ public class CoGroupOperatorTest {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyFields2() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -93,11 +94,13 @@ public class CoGroupOperatorTest {
 
         // should not work, incompatible cogroup key types
         ds1.coGroup(ds2).where(0).equalTo(2);
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyFields3() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -106,11 +109,13 @@ public class CoGroupOperatorTest {
 
         // should not work, incompatible number of cogroup keys
         ds1.coGroup(ds2).where(0, 1).equalTo(2);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCoGroupKeyFields4() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -119,11 +124,13 @@ public class CoGroupOperatorTest {
 
         // should not work, cogroup key out of range
         ds1.coGroup(ds2).where(5).equalTo(0);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testCoGroupKeyFields5() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -132,11 +139,13 @@ public class CoGroupOperatorTest {
 
         // should not work, negative key field position
         ds1.coGroup(ds2).where(-1).equalTo(-1);
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyFields6() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -144,6 +153,7 @@ public class CoGroupOperatorTest {
 
         // should not work, cogroup key fields on custom type
         ds1.coGroup(ds2).where(4).equalTo(0);
+        });
     }
 
     @Test
@@ -161,37 +171,43 @@ public class CoGroupOperatorTest {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyExpressions2() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, incompatible cogroup key types
         ds1.coGroup(ds2).where("myInt").equalTo("myString");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyExpressions3() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, incompatible number of cogroup keys
         ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCoGroupKeyExpressions4() {
-
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, cogroup key non-existent
         ds1.coGroup(ds2).where("myNonExistent").equalTo("myInt");
+        });
     }
 
     @Test
@@ -212,58 +228,70 @@ public class CoGroupOperatorTest {
         ds1.coGroup(ds2).where("*").equalTo("myInt");
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression1() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         ds1.coGroup(ds2).where("*", "invalidKey");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression2() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Integer> ds1 = env.fromElements(0, 0, 1);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         ds1.coGroup(ds2).where("invalidKey");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression3() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
 
         ds1.coGroup(ds2).where("myInt").equalTo("invalidKey");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression4() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<Integer> ds2 = env.fromElements(0, 0, 1);
 
         ds1.coGroup(ds2).where("myInt").equalTo("*", "invalidKey");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression5() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<ArrayList<Integer>> ds1 = env.fromElements(new ArrayList<Integer>());
         DataSet<Integer> ds2 = env.fromElements(0, 0, 0);
 
         ds1.coGroup(ds2).where("*");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyAtomicInvalidExpression6() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Integer> ds1 = env.fromElements(0, 0, 0);
         DataSet<ArrayList<Integer>> ds2 = env.fromElements(new ArrayList<Integer>());
 
         ds1.coGroup(ds2).where("*").equalTo("*");
+        });
     }
 
     @Test
@@ -282,37 +310,43 @@ public class CoGroupOperatorTest {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyExpressions2Nested() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, incompatible cogroup key types
         ds1.coGroup(ds2).where("nested.myInt").equalTo("nested.myString");
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyExpressions3Nested() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, incompatible number of cogroup keys
         ds1.coGroup(ds2).where("nested.myInt", "nested.myString").equalTo("nested.myString");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCoGroupKeyExpressions4Nested() {
-
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<CustomType> ds1 = env.fromCollection(customTypeData);
         DataSet<CustomType> ds2 = env.fromCollection(customTypeData);
 
         // should not work, cogroup key non-existent
         ds1.coGroup(ds2).where("nested.myNonExistent").equalTo("nested.myInt");
+        });
     }
 
     @Test
@@ -396,9 +430,10 @@ public class CoGroupOperatorTest {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyMixing3() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -415,11 +450,13 @@ public class CoGroupOperatorTest {
                                 return value.myLong;
                             }
                         });
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCoGroupKeyMixing4() {
-
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+            
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -436,6 +473,7 @@ public class CoGroupOperatorTest {
                                 return value.myLong;
                             }
                         });
+        });
     }
 
     @Test

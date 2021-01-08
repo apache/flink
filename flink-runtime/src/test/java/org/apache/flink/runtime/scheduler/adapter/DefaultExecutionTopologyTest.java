@@ -153,9 +153,10 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
-        int parallelism = 3;
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    int parallelism = 3;
         final JobVertex v1 = createNoOpVertex(parallelism);
         final JobVertex v2 = createNoOpVertex(parallelism);
 
@@ -166,6 +167,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
         final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
         DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+        });
     }
 
     private void assertRegionContainsAllVertices(

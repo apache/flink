@@ -319,18 +319,22 @@ public class CSVReaderTest {
         Assert.assertEquals(Tuple8.class, info.getTypeClass());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWithInvalidValueType1() throws Exception {
-        CsvReader reader = getCsvReader();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    CsvReader reader = getCsvReader();
         // CsvReader doesn't support CharValue
         reader.types(CharValue.class);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWithInvalidValueType2() throws Exception {
-        CsvReader reader = getCsvReader();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    CsvReader reader = getCsvReader();
         // CsvReader doesn't support custom Value type
         reader.types(ValueItem.class);
+        });
     }
 
     private static CsvReader getCsvReader() {

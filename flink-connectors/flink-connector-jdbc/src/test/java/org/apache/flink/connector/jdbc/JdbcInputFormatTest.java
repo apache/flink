@@ -74,9 +74,10 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
         jdbcInputFormat.openInputFormat();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidDriver() throws IOException {
-        jdbcInputFormat =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    jdbcInputFormat =
                 JdbcInputFormat.buildJdbcInputFormat()
                         .setDrivername("org.apache.derby.jdbc.idontexist")
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
@@ -84,11 +85,13 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setRowTypeInfo(ROW_TYPE_INFO)
                         .finish();
         jdbcInputFormat.openInputFormat();
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidURL() throws IOException {
-        jdbcInputFormat =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    jdbcInputFormat =
                 JdbcInputFormat.buildJdbcInputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
@@ -96,11 +99,13 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setRowTypeInfo(ROW_TYPE_INFO)
                         .finish();
         jdbcInputFormat.openInputFormat();
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidQuery() throws IOException {
-        jdbcInputFormat =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    jdbcInputFormat =
                 JdbcInputFormat.buildJdbcInputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
@@ -108,6 +113,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setRowTypeInfo(ROW_TYPE_INFO)
                         .finish();
         jdbcInputFormat.openInputFormat();
+        });
     }
 
     @Test
@@ -134,9 +140,10 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .finish();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidFetchSize() {
-        jdbcInputFormat =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    jdbcInputFormat =
                 JdbcInputFormat.buildJdbcInputFormat()
                         .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
@@ -144,6 +151,7 @@ public class JdbcInputFormatTest extends JdbcDataTestBase {
                         .setRowTypeInfo(ROW_TYPE_INFO)
                         .setFetchSize(-7)
                         .finish();
+        });
     }
 
     @Test

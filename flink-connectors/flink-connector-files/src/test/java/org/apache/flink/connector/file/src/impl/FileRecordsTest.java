@@ -77,22 +77,26 @@ public class FileRecordsTest {
         assertEquals(99, recAndPos.getRecordSkipCount());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRecordsInitiallyIllegal() {
-        final FileRecords<Object> records =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final FileRecords<Object> records =
                 FileRecords.forRecords("splitId", new SingletonResultIterator<>());
 
         records.nextRecordFromSplit();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRecordsOnSecondSplitIllegal() {
-        final FileRecords<Object> records =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final FileRecords<Object> records =
                 FileRecords.forRecords("splitId", new SingletonResultIterator<>());
         records.nextSplit();
         records.nextSplit();
 
         records.nextRecordFromSplit();
+        });
     }
 
     @Test

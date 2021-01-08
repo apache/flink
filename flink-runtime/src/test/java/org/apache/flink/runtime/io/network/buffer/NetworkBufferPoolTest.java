@@ -291,13 +291,15 @@ public class NetworkBufferPoolTest extends TestLogger {
      * Tests {@link NetworkBufferPool#requestMemorySegments(int)} with the invalid argument to cause
      * exception.
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testRequestMemorySegmentsWithInvalidArgument() throws IOException {
-        NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
         // the number of requested buffers should be larger than zero
         globalPool.requestMemorySegments(0);
         globalPool.destroy();
         fail("Should throw an IllegalArgumentException");
+        });
     }
 
     /**

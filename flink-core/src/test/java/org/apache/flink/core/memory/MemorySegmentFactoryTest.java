@@ -49,13 +49,17 @@ public class MemorySegmentFactoryTest {
         MemorySegmentFactory.wrapCopy(new byte[0], 0, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongStart() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongEnd() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+        });
     }
 }

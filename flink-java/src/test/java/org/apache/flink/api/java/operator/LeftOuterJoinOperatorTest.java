@@ -127,9 +127,10 @@ public class LeftOuterJoinOperatorTest {
         ds1.leftOuterJoin(ds2).where("f0").equalTo(4).with(new DummyJoin());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testLeftOuter7() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -137,11 +138,13 @@ public class LeftOuterJoinOperatorTest {
 
         // invalid key position
         ds1.leftOuterJoin(ds2).where(5).equalTo(0).with(new DummyJoin());
+        });
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    @Test
     public void testLeftOuter8() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -149,11 +152,13 @@ public class LeftOuterJoinOperatorTest {
 
         // invalid key reference
         ds1.leftOuterJoin(ds2).where(1).equalTo("f5").with(new DummyJoin());
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testLeftOuter9() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -161,11 +166,13 @@ public class LeftOuterJoinOperatorTest {
 
         // key types do not match
         ds1.leftOuterJoin(ds2).where(0).equalTo(1).with(new DummyJoin());
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testLeftOuter10() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -176,6 +183,7 @@ public class LeftOuterJoinOperatorTest {
                 .where(new IntKeySelector())
                 .equalTo(new LongKeySelector())
                 .with(new DummyJoin());
+        });
     }
 
     @Test
@@ -203,9 +211,11 @@ public class LeftOuterJoinOperatorTest {
         this.testLeftOuterStrategies(JoinHint.REPARTITION_HASH_FIRST);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testLeftOuterStrategy6() {
-        this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
+        });
     }
 
     private void testLeftOuterStrategies(JoinHint hint) {

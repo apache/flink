@@ -54,9 +54,10 @@ class TableSourceITCase extends AbstractTestBase {
     StreamITCase.clear
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testInvalidDatastreamType(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[TableException], () -> {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -72,6 +73,7 @@ class TableSourceITCase extends AbstractTestBase {
       }
       override def getReturnType: TypeInformation[Row] = new RowTypeInfo(fieldTypes, fieldNames)
       override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+        });
     }
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal("T", tableSource)
 

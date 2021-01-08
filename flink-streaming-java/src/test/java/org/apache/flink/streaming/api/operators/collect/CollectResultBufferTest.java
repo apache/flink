@@ -98,9 +98,10 @@ public class CollectResultBufferTest {
         }
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testUncheckpointedNotFaultTolerance() throws Exception {
-        String version = "version";
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    String version = "version";
         AbstractCollectResultBuffer<Integer> buffer =
                 new UncheckpointedCollectResultBuffer<>(serializer, false);
 
@@ -120,6 +121,7 @@ public class CollectResultBufferTest {
         version = "another";
         response = new CollectCoordinationResponse(version, 0, Collections.emptyList());
         buffer.dealWithResponse(response, 0);
+        });
     }
 
     @Test

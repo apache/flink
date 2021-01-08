@@ -218,9 +218,10 @@ public class ClientTest extends TestLogger {
         }
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
-        try {
+        Assertions.assertThrows(FlinkRuntimeException.class, () -> {
+                    try {
             launchMultiExecuteJob(true);
         } catch (Exception e) {
             if (e instanceof ProgramInvocationException) {
@@ -228,6 +229,7 @@ public class ClientTest extends TestLogger {
             }
         }
         fail("Test should have failed due to multiple execute() calls.");
+        });
     }
 
     @Test

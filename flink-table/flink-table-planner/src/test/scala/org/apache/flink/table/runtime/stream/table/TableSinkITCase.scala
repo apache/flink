@@ -532,9 +532,10 @@ class TableSinkITCase extends AbstractTestBase {
     assertEquals(expected, StreamITCase.testResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToAppendStreamMultiRowtime(): Unit = {
-    val t = StreamTestData.get3TupleDataStream(env)
+        Assertions.assertThrows(classOf[TableException], () -> {
+                val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
 
@@ -629,6 +630,7 @@ private[flink] class TestUpsertSink(
       if (!expectedKeys.sorted.mkString(",").equals(keys.sorted.mkString(","))) {
         throw new AssertionError("Provided key fields do not match expected keys")
       }
+        });
     } else {
       if (expectedKeys != null) {
         throw new AssertionError("Provided key fields should not be null.")

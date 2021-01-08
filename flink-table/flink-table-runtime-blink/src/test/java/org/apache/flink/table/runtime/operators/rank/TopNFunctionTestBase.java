@@ -128,27 +128,35 @@ abstract class TopNFunctionTestBase {
             new BinaryRowDataKeySelector(new int[] {rowKeyIdx}, inputRowType.toRowFieldTypes());
 
     /** RankEnd column must be long, int or short type, but could not be string type yet. */
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testInvalidVariableRankRangeWithIntType() throws Exception {
-        AbstractTopNFunction func =
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
         testHarness.open();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testNotSupportRank() throws Exception {
-        createFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    createFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testNotSupportDenseRank() throws Exception {
-        createFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    createFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testNotSupportWithoutRankEnd() throws Exception {
-        createFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    createFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
+        });
     }
 
     @Test

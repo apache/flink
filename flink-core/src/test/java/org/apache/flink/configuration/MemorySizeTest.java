@@ -72,9 +72,11 @@ public class MemorySizeTest {
         assertEquals(2, teras.getTebiBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalid() {
-        new MemorySize(-1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new MemorySize(-1);
+        });
     }
 
     @Test
@@ -203,14 +205,18 @@ public class MemorySizeTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseNumberOverflow() {
-        MemorySize.parseBytes("100000000000000000000000000000000 bytes");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MemorySize.parseBytes("100000000000000000000000000000000 bytes");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseNumberTimeUnitOverflow() {
-        MemorySize.parseBytes("100000000000000 tb");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MemorySize.parseBytes("100000000000000 tb");
+        });
     }
 
     @Test
@@ -233,10 +239,12 @@ public class MemorySizeTest {
         assertThat(memory.divide(23), is(new MemorySize(4L)));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideByNegativeLong() {
-        final MemorySize memory = new MemorySize(100L);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final MemorySize memory = new MemorySize(100L);
         memory.divide(-23L);
+        });
     }
 
     @Test

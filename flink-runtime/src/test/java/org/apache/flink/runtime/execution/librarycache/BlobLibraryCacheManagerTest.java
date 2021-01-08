@@ -432,9 +432,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         }
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void getOrResolveClassLoader_missingBlobKey_shouldFail() throws IOException {
-        final PermanentBlobKey missingKey = new PermanentBlobKey();
+        Assertions.assertThrows(IOException.class, () -> {
+                    final PermanentBlobKey missingKey = new PermanentBlobKey();
 
         final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
@@ -443,11 +444,13 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
         classLoaderLease.getOrResolveClassLoader(
                 Collections.singletonList(missingKey), Collections.emptyList());
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void getOrResolveClassLoader_closedLease_shouldFail() throws IOException {
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 libraryCacheManager.registerClassLoaderLease(new JobID());
@@ -455,6 +458,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         classLoaderLease.release();
 
         classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+        });
     }
 
     @Test
@@ -502,9 +506,10 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         assertThat(classLoader1, sameInstance(classLoader2));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void closingLibraryCacheManager_invalidatesAllOpenLeases() throws IOException {
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
 
         final LibraryCacheManager.ClassLoaderLease classLoaderLease =
                 libraryCacheManager.registerClassLoaderLease(new JobID());
@@ -512,6 +517,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         libraryCacheManager.shutdown();
 
         classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+        });
     }
 
     @Test

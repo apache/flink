@@ -1843,14 +1843,18 @@ public abstract class MemorySegmentTestBase {
         assertArrayEquals(bytes, result);
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testHeapByteBufferGetReadOnly() {
-        testByteBufferGetReadOnly(false);
+        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+                    testByteBufferGetReadOnly(false);
+        });
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testOffHeapByteBufferGetReadOnly() {
-        testByteBufferGetReadOnly(true);
+        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+                    testByteBufferGetReadOnly(true);
+        });
     }
 
     /**

@@ -261,16 +261,20 @@ public class CsvRowDataSerDeSchemaTest {
                 serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidNesting() throws Exception {
-        testNullableField(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    testNullableField(
                 ROW(FIELD("f0", ROW(FIELD("f0", STRING())))), "FAIL", Row.of(Row.of("FAIL")));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidType() throws Exception {
-        testNullableField(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    testNullableField(
                 RAW(TypeExtractor.getForClass(java.util.Date.class)), "FAIL", new java.util.Date());
+        });
     }
 
     @Test

@@ -37,9 +37,10 @@ class CalcValidationTest extends TableTestBase {
       .select('a, 'foo)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFilterInvalidFieldName(): Unit = {
-    val util = batchTestUtil()
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
 
     // must fail. Field 'foo does not exist
@@ -80,6 +81,7 @@ class CalcValidationTest extends TableTestBase {
     try {
       util.addTableSource[(Int, Long, String)]("Table1", '*, 'b, 'c)
       fail("TableException expected")
+        });
     } catch {
       case _: ValidationException => //ignore
     }

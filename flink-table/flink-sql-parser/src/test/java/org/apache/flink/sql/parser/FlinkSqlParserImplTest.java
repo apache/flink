@@ -921,13 +921,15 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("insert into emps(z boolean)(x,y) partition (z='ab') select * from emps").ok(expected);
     }
 
-    @Test(expected = SqlParseException.class)
+    @Test
     public void testInsertExtendedColumnAsStaticPartition2() {
-        sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
+        Assertions.assertThrows(SqlParseException.class, () -> {
+                    sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
                 .node(
                         new ValidationMatcher()
                                 .fails(
                                         "Extended columns not allowed under the current SQL conformance level"));
+        });
     }
 
     @Test

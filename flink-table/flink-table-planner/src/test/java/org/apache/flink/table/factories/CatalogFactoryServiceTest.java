@@ -45,11 +45,13 @@ public class CatalogFactoryServiceTest {
                 TestCatalogFactory.class);
     }
 
-    @Test(expected = NoMatchingTableFactoryException.class)
+    @Test
     public void testInvalidContext() {
-        Map<String, String> props = properties();
+        Assertions.assertThrows(NoMatchingTableFactoryException.class, () -> {
+                    Map<String, String> props = properties();
         props.put(CATALOG_TYPE, "unknown-catalog-type");
         TableFactoryService.find(CatalogFactory.class, props);
+        });
     }
 
     @Test
@@ -63,11 +65,13 @@ public class CatalogFactoryServiceTest {
                 TestCatalogFactory.class);
     }
 
-    @Test(expected = NoMatchingTableFactoryException.class)
+    @Test
     public void testUnsupportedProperty() {
-        Map<String, String> props = properties();
+        Assertions.assertThrows(NoMatchingTableFactoryException.class, () -> {
+                    Map<String, String> props = properties();
         props.put("unknown-property", "/new/path");
         TableFactoryService.find(CatalogFactory.class, props);
+        });
     }
 
     private Map<String, String> properties() {

@@ -266,13 +266,15 @@ public class RemoteInputChannelTest {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRetriggerWithoutPartitionRequest() throws Exception {
-        SingleInputGate inputGate = createSingleInputGate(1);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    SingleInputGate inputGate = createSingleInputGate(1);
 
         RemoteInputChannel ch = createRemoteInputChannel(inputGate, 500, 3000);
 
         ch.retriggerSubpartitionRequest(0);
+        });
     }
 
     @Test
@@ -375,8 +377,9 @@ public class RemoteInputChannelTest {
         assertTrue(provider.isInvoked());
     }
 
-    @Test(expected = CancelTaskException.class)
+    @Test
     public void testProducerFailedException() throws Exception {
+        Assertions.assertThrows(CancelTaskException.class, () -> {
 
         ConnectionManager connManager = mock(ConnectionManager.class);
         when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
@@ -392,11 +395,13 @@ public class RemoteInputChannelTest {
 
         // Should throw an instance of CancelTaskException.
         ch.getNextBuffer();
+        });
     }
 
-    @Test(expected = PartitionConnectionException.class)
+    @Test
     public void testPartitionConnectionException() throws IOException {
-        final ConnectionManager connManager = new TestingExceptionConnectionManager();
+        Assertions.assertThrows(PartitionConnectionException.class, () -> {
+                    final ConnectionManager connManager = new TestingExceptionConnectionManager();
         final SingleInputGate gate = createSingleInputGate(1);
         final RemoteInputChannel ch =
                 InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
@@ -405,6 +410,7 @@ public class RemoteInputChannelTest {
         gate.requestPartitions();
 
         ch.getNextBuffer();
+        });
     }
 
     /**
@@ -1334,13 +1340,15 @@ public class RemoteInputChannelTest {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUnblockReleasedChannel() throws Exception {
-        SingleInputGate inputGate = createSingleInputGate(1);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    SingleInputGate inputGate = createSingleInputGate(1);
         RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
 
         remoteChannel.releaseAllResources();
         remoteChannel.resumeConsumption();
+        });
     }
 
     @Test

@@ -56,9 +56,10 @@ class WindowTranslationTest {
     * .reduce() does not support [[RichReduceFunction]], since the reduce function is used
     * internally in a [[org.apache.flink.api.common.state.ReducingState]].
     */
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testReduceWithRichReducerFails() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[UnsupportedOperationException], () -> {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
     source
@@ -123,6 +124,7 @@ class WindowTranslationTest {
         // expected
         // use a catch to ensure that the exception is thrown by the fold
         return
+        });
     }
 
     fail("The trigger call should fail.")

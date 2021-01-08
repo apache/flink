@@ -56,9 +56,11 @@ public class InputSelectionTest {
         assertFalse(InputSelection.SECOND.areAllInputsSelected());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInputSelectionNormalizationOverflow() {
-        new Builder().select(3).build(2);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new Builder().select(3).build(2);
+        });
     }
 
     @Test
@@ -131,9 +133,11 @@ public class InputSelectionTest {
                 InputSelection.NONE_AVAILABLE, new Builder().build().fairSelectNextIndex(-1, 5));
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUnsupportedFairSelectNextIndexOutOf2() {
-        InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
+        });
     }
 
     /** Tests for {@link Builder}. */
@@ -148,14 +152,16 @@ public class InputSelectionTest {
             assertEquals(0xffff_ffff_ffff_ffffL, new Builder().select(-1).build().getInputMask());
         }
 
-        @Test(expected = IllegalArgumentException.class)
+        @Test
         public void testIllegalInputId1() {
-            new Builder().select(-2);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                        new Builder().select(-2);
         }
 
         @Test(expected = IllegalArgumentException.class)
         public void testIllegalInputId2() {
             new Builder().select(65);
         }
+        });
     }
 }

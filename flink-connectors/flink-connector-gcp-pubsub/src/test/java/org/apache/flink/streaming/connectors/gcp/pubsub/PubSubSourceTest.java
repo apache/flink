@@ -85,10 +85,12 @@ public class PubSubSourceTest {
         pubSubSource.setRuntimeContext(streamingRuntimeContext);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testOpenWithoutCheckpointing() throws Exception {
-        when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
         pubSubSource.open(null);
+        });
     }
 
     @Test

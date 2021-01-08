@@ -169,9 +169,11 @@ public class TimeUtilsTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseDurationNumberOverflow() {
-        TimeUtils.parseDuration("100000000000000000000000000000000 ms");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    TimeUtils.parseDuration("100000000000000000000000000000000 ms");
+        });
     }
 
     @Test

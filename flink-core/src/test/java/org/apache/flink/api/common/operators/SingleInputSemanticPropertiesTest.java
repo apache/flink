@@ -114,39 +114,47 @@ public class SingleInputSemanticPropertiesTest {
         assertTrue(sp.getReadFields(0).contains(3));
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testAddForwardedFieldsTargetTwice() {
+        Assertions.assertThrows(InvalidSemanticAnnotationException.class, () -> {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         sp.addForwardedField(0, 2);
         sp.addForwardedField(1, 2);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testGetTargetFieldInvalidIndex() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         sp.addForwardedField(0, 0);
 
         sp.getForwardingTargetFields(1, 0);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testGetSourceFieldInvalidIndex() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         sp.addForwardedField(0, 0);
 
         sp.getForwardingSourceField(1, 0);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testGetReadFieldsInvalidIndex() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
         sp.addReadFields(new FieldSet(0, 1));
 
         sp.getReadFields(1);
+        });
     }
 
     @Test
@@ -167,19 +175,23 @@ public class SingleInputSemanticPropertiesTest {
         assertEquals(123, sp.getForwardingSourceField(0, 123));
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testAllForwardedSingleInputSemPropsInvalidIndex1() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sp =
                 new SingleInputSemanticProperties.AllFieldsForwardedProperties();
         sp.getForwardingSourceField(1, 0);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testAllForwardedSingleInputSemPropsInvalidIndex2() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         SingleInputSemanticProperties sp =
                 new SingleInputSemanticProperties.AllFieldsForwardedProperties();
         sp.getForwardingTargetFields(1, 0);
+        });
     }
 }

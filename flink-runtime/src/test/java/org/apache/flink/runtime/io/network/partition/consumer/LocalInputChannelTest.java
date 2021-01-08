@@ -288,9 +288,10 @@ public class LocalInputChannelTest {
         }
     }
 
-    @Test(expected = CancelTaskException.class)
+    @Test
     public void testProducerFailedException() throws Exception {
-        ResultSubpartitionView view = mock(ResultSubpartitionView.class);
+        Assertions.assertThrows(CancelTaskException.class, () -> {
+                    ResultSubpartitionView view = mock(ResultSubpartitionView.class);
         when(view.isReleased()).thenReturn(true);
         when(view.getFailureCause()).thenReturn(new Exception("Expected test exception"));
 
@@ -311,6 +312,7 @@ public class LocalInputChannelTest {
 
         // Should throw an instance of CancelTaskException.
         ch.getNextBuffer();
+        });
     }
 
     /**
@@ -507,14 +509,16 @@ public class LocalInputChannelTest {
         assertFalse(bufferAndAvailability.get().buffer().isCompressed());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUnblockReleasedChannel() throws Exception {
-        SingleInputGate inputGate = createSingleInputGate(1);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    SingleInputGate inputGate = createSingleInputGate(1);
         LocalInputChannel localChannel =
                 createLocalInputChannel(inputGate, new ResultPartitionManager());
 
         localChannel.releaseAllResources();
         localChannel.resumeConsumption();
+        });
     }
 
     @Test

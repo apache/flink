@@ -25,15 +25,19 @@ import org.junit.jupiter.api.Test;
 /** Unit test for {@link DataStreamSink}. */
 public class DataStreamSinkTest {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWhenGettingTransformationWithNewSinkAPI() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void throwExceptionWhenSetUidWithNewSinkAPI() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).setUidHash("Test");
+        });
     }
 }

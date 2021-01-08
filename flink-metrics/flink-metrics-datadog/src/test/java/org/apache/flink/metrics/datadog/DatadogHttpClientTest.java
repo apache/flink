@@ -59,14 +59,18 @@ public class DatadogHttpClientTest {
 
     private static final long MOCKED_SYSTEM_MILLIS = 123L;
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testClientWithEmptyKey() {
-        new DatadogHttpClient("", null, 123, DataCenter.US, false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new DatadogHttpClient("", null, 123, DataCenter.US, false);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testClientWithNullKey() {
-        new DatadogHttpClient(null, null, 123, DataCenter.US, false);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new DatadogHttpClient(null, null, 123, DataCenter.US, false);
+        });
     }
 
     @Test

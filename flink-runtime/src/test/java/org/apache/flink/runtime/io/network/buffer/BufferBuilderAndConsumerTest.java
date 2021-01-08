@@ -117,11 +117,13 @@ public class BufferBuilderAndConsumerTest {
         assertContent(bufferConsumer, 42);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void creatingBufferConsumerTwice() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    BufferBuilder bufferBuilder = createBufferBuilder();
         bufferBuilder.createBufferConsumer();
         bufferBuilder.createBufferConsumer();
+        });
     }
 
     @Test

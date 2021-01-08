@@ -134,10 +134,12 @@ public class OffsetsInitializerTest {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testSpecifiedOffsetsInitializerWithoutOffsetResetStrategy() {
-        OffsetsInitializer initializer =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    OffsetsInitializer initializer =
                 OffsetsInitializer.offsets(Collections.emptyMap(), OffsetResetStrategy.NONE);
         initializer.getPartitionOffsets(KafkaSourceTestEnv.getPartitionsForTopic(TOPIC), retriever);
+        });
     }
 }

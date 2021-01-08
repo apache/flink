@@ -372,9 +372,10 @@ public class ResourceProfileTest extends TestLogger {
                 ResourceProfile.UNKNOWN, ResourceProfile.UNKNOWN.subtract(ResourceProfile.UNKNOWN));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSubtractWithInfValues() {
-        // Does not equals to ANY since it has extended resources.
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    // Does not equals to ANY since it has extended resources.
         final ResourceProfile rp1 =
                 ResourceProfile.newBuilder()
                         .setCpuCores(Double.MAX_VALUE)
@@ -394,6 +395,7 @@ public class ResourceProfileTest extends TestLogger {
                         .build();
 
         rp2.subtract(rp1);
+        });
     }
 
     @Test
@@ -417,9 +419,10 @@ public class ResourceProfileTest extends TestLogger {
         assertEquals(rp2, rp1.multiply(by));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMultiplyNegative() {
-        final ResourceProfile rp =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final ResourceProfile rp =
                 ResourceProfile.newBuilder()
                         .setCpuCores(1.0)
                         .setTaskHeapMemoryMB(100)
@@ -429,6 +432,7 @@ public class ResourceProfileTest extends TestLogger {
                         .addExtendedResource("gpu", new GPUResource(1.0))
                         .build();
         rp.multiply(-2);
+        });
     }
 
     @Test

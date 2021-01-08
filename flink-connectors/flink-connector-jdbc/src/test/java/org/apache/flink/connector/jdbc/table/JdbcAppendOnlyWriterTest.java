@@ -54,9 +54,10 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
         fieldNames = new String[] {"id", "title", "author", "price", "qty"};
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testMaxRetry() throws Exception {
-        format =
+        Assertions.assertThrows(IOException.class, () -> {
+                    format =
                 JdbcBatchingOutputFormat.builder()
                         .setOptions(
                                 JdbcOptions.builder()
@@ -81,6 +82,7 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
 
         // after retry default times, throws a BatchUpdateException.
         format.flush();
+        });
     }
 
     private void alterTable() throws Exception {

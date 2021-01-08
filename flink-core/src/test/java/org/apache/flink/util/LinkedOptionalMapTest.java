@@ -127,22 +127,26 @@ public class LinkedOptionalMapTest {
         assertThat(first.keyNames(), contains("a", "b", "c", "d"));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingValueThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("a", String.class, null);
 
         map.unwrapOptionals();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingKeyThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
         map.put("a", null, "blabla");
 
         map.unwrapOptionals();
+        });
     }
 
     @Test

@@ -88,9 +88,10 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
         assertSame(clientHAServices, actualClientHAServices);
     }
 
-    @Test(expected = Exception.class)
+    @Test
     public void testCustomHAServicesFactoryNotDefined() throws Exception {
-        Configuration config = new Configuration();
+        Assertions.assertThrows(Exception.class, () -> {
+                    Configuration config = new Configuration();
 
         Executor executor = Executors.directExecutor();
 
@@ -100,6 +101,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
         // expect
         HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
+        });
     }
 
     @Test

@@ -125,12 +125,14 @@ public class DefaultJobTableTest extends TestLogger {
                 new NoOpPartitionProducerStateChecker());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void connectJob_Connected_Fails() {
-        final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         connectJob(job, ResourceID.generate());
         connectJob(job, ResourceID.generate());
+        });
     }
 
     @Test
@@ -146,33 +148,39 @@ public class DefaultJobTableTest extends TestLogger {
         assertFalse(jobTable.getConnection(resourceId).isPresent());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void access_AfterBeingClosed_WillFail() {
-        final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         job.close();
 
         job.asConnection();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void connectJob_AfterBeingClosed_WillFail() {
-        final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         job.close();
 
         connectJob(job, ResourceID.generate());
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void accessJobManagerGateway_AfterBeingDisconnected_WillFail() {
-        final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
         final JobTable.Connection connection = connectJob(job, ResourceID.generate());
 
         connection.disconnect();
 
         connection.getJobManagerGateway();
+        });
     }
 
     @Test

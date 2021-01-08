@@ -155,18 +155,24 @@ public class MathUtilTest {
         assertThat(MathUtils.divideRoundUp(2, 3), is(1));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDividend() {
-        MathUtils.divideRoundUp(-1, 1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MathUtils.divideRoundUp(-1, 1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDivisor() {
-        MathUtils.divideRoundUp(1, -1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MathUtils.divideRoundUp(1, -1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpZeroDivisor() {
-        MathUtils.divideRoundUp(1, 0);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MathUtils.divideRoundUp(1, 0);
+        });
     }
 }

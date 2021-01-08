@@ -317,11 +317,13 @@ public class HeapWindowsGroupingTest {
         verify(5000, ts, 19L, 3L, expected, expectedWindows);
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testOOM() throws IOException {
-        Long[] ts = new Long[] {33L, 33L, 33L, 33L, 33L, 33L};
+        Assertions.assertThrows(IOException.class, () -> {
+                    Long[] ts = new Long[] {33L, 33L, 33L, 33L, 33L, 33L};
         // sliding(4, 2)
         verify(5, ts, 4L, 2L, new ArrayList<>(), new ArrayList<>());
+        });
     }
 
     @Test
@@ -345,9 +347,10 @@ public class HeapWindowsGroupingTest {
         assertEquals(expected, actual);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testInvalidWindowTrigger() throws IOException {
-        Long[] ts = new Long[] {8L};
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    Long[] ts = new Long[] {8L};
         RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
         HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
         grouping.addInputToBuffer(iterator.getRow());
@@ -364,6 +367,7 @@ public class HeapWindowsGroupingTest {
 
         System.out.println("try invalid window trigger");
         grouping.buildTriggerWindowElementsIterator();
+        });
     }
 
     private void verify(

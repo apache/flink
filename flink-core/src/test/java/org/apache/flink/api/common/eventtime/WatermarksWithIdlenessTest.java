@@ -32,14 +32,18 @@ import static org.junit.Assert.assertTrue;
 /** Test for the {@link WatermarksWithIdleness} class. */
 public class WatermarksWithIdlenessTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testZeroTimeout() {
-        new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ZERO);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ZERO);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNegativeTimeout() {
-        new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
+        });
     }
 
     @Test

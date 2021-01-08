@@ -151,31 +151,37 @@ public class OrcRowInputFormatTest {
                     + "map2:map<int,string>"
                     + ">";
 
-    @Test(expected = FileNotFoundException.class)
+    @Test
     public void testInvalidPath() throws IOException {
-        rowOrcInputFormat =
+        Assertions.assertThrows(FileNotFoundException.class, () -> {
+                    rowOrcInputFormat =
                 new OrcRowInputFormat("/does/not/exist", TEST_SCHEMA_FLAT, new Configuration());
         rowOrcInputFormat.openInputFormat();
         FileInputSplit[] inputSplits = rowOrcInputFormat.createInputSplits(1);
         rowOrcInputFormat.open(inputSplits[0]);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidProjection1() throws IOException {
-        rowOrcInputFormat =
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+                    rowOrcInputFormat =
                 new OrcRowInputFormat(
                         getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
         int[] projectionMask = {1, 2, 3, -1};
         rowOrcInputFormat.selectFields(projectionMask);
+        });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidProjection2() throws IOException {
-        rowOrcInputFormat =
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+                    rowOrcInputFormat =
                 new OrcRowInputFormat(
                         getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
         int[] projectionMask = {1, 2, 3, 9};
         rowOrcInputFormat.selectFields(projectionMask);
+        });
     }
 
     @Test
@@ -552,14 +558,16 @@ public class OrcRowInputFormatTest {
         assertEquals("(EQUALS _col0 -1000.5)", leaves.get(0).toString());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPredicateWithInvalidColumn() throws Exception {
-        rowOrcInputFormat =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    rowOrcInputFormat =
                 new OrcRowInputFormat(
                         getPath(TEST_FILE_NESTED), TEST_SCHEMA_NESTED, new Configuration());
 
         rowOrcInputFormat.addPredicate(
                 new OrcFilters.Equals("unknown", PredicateLeaf.Type.LONG, 42));
+        });
     }
 
     @Test

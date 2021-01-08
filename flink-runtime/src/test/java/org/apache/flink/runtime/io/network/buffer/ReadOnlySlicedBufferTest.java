@@ -66,14 +66,18 @@ public class ReadOnlySlicedBufferTest {
         assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice(1, 2).isBuffer());
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testSetDataTypeThrows1() {
-        buffer.readOnlySlice().setDataType(Buffer.DataType.EVENT_BUFFER);
+        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+                    buffer.readOnlySlice().setDataType(Buffer.DataType.EVENT_BUFFER);
+        });
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testSetDataTypeThrows2() {
-        buffer.readOnlySlice(1, 2).setDataType(Buffer.DataType.EVENT_BUFFER);
+        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+                    buffer.readOnlySlice(1, 2).setDataType(Buffer.DataType.EVENT_BUFFER);
+        });
     }
 
     @Test

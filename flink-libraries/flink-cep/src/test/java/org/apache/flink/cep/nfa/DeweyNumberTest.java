@@ -54,8 +54,10 @@ public class DeweyNumberTest extends TestLogger {
         assertFalse(startAddStageIncreased.isCompatibleWith(startAddStageIncreasedAddStage));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testZeroSplitsDeweyNumber() {
-        DeweyNumber.fromString(".");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    DeweyNumber.fromString(".");
+        });
     }
 }

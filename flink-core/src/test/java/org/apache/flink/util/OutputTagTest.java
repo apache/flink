@@ -25,23 +25,31 @@ import org.junit.jupiter.api.Test;
 /** Tests for the {@link OutputTag}. */
 public class OutputTagTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullRejected() {
-        new OutputTag<Integer>(null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new OutputTag<Integer>(null);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullRejectedWithTypeInfo() {
-        new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyStringRejected() {
-        new OutputTag<Integer>("");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new OutputTag<Integer>("");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyStringRejectedWithTypeInfo() {
-        new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
+        });
     }
 }

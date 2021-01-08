@@ -91,14 +91,18 @@ public class RandomSamplerTest {
         }
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testBernoulliSamplerWithUnexpectedFraction1() {
-        verifySamplerFraction(-1, false);
+        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+                    verifySamplerFraction(-1, false);
+        });
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testBernoulliSamplerWithUnexpectedFraction2() {
-        verifySamplerFraction(2, false);
+        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+                    verifySamplerFraction(2, false);
+        });
     }
 
     @Test
@@ -121,9 +125,11 @@ public class RandomSamplerTest {
         verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.5));
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testPoissonSamplerWithUnexpectedFraction1() {
-        verifySamplerFraction(-1, true);
+        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+                    verifySamplerFraction(-1, true);
+        });
     }
 
     @Test
@@ -138,14 +144,18 @@ public class RandomSamplerTest {
         verifySamplerFraction(1.5, true);
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testReservoirSamplerUnexpectedSize1() {
-        verifySamplerFixedSampleSize(-1, true);
+        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+                    verifySamplerFixedSampleSize(-1, true);
+        });
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testReservoirSamplerUnexpectedSize2() {
-        verifySamplerFixedSampleSize(-1, false);
+        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+                    verifySamplerFixedSampleSize(-1, false);
+        });
     }
 
     @Test

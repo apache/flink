@@ -220,14 +220,18 @@ public class CsvRowDeSerializationSchemaTest {
                 serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidNesting() throws Exception {
-        testNullableField(Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    testNullableField(Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidType() throws Exception {
-        testNullableField(Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    testNullableField(Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
+        });
     }
 
     @Test

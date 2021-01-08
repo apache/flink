@@ -61,13 +61,15 @@ import static org.mockito.Mockito.when;
 public class FlinkKafkaProducerBaseTest {
 
     /** Tests that the constructor eagerly checks bootstrap servers are set in config. */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInstantiationFailsWhenBootstrapServersMissing() throws Exception {
-        // no bootstrap servers set in props
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    // no bootstrap servers set in props
         Properties props = new Properties();
         // should throw IllegalArgumentException
         new DummyFlinkKafkaProducer<>(
                 props, new KeyedSerializationSchemaWrapper<>(new SimpleStringSchema()), null);
+        });
     }
 
     /**

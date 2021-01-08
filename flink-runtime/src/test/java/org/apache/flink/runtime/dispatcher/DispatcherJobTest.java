@@ -250,11 +250,13 @@ public class DispatcherJobTest extends TestLogger {
                 "has not been finished", ExecutionException.class, resultFuture::get);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUnavailableJobMasterGateway() {
-        TestContext testContext = createTestContext();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    TestContext testContext = createTestContext();
         DispatcherJob dispatcherJob = testContext.getDispatcherJob();
         dispatcherJob.getJobMasterGateway();
+        });
     }
 
     private TestContext createTestContext() {

@@ -251,8 +251,9 @@ public class FlinkYarnSessionCliTest extends TestLogger {
      * Tests that we fail when reading an invalid yarn properties file when retrieving the cluster
      * id.
      */
-    @Test(expected = FlinkException.class)
+    @Test
     public void testInvalidYarnPropertiesFile() throws Exception {
+        Assertions.assertThrows(FlinkException.class, () -> {
 
         File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
@@ -261,6 +262,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
                 YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
 
         createFlinkYarnSessionCli(configuration);
+        });
     }
 
     @Test

@@ -31,11 +31,13 @@ public class FromElementsTest {
                 ParentType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void fromElementsWithBaseTypeTest2() {
-        ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment executionEnvironment = ExecutionEnvironment.getExecutionEnvironment();
         executionEnvironment.fromElements(
                 SubType.class, new SubType(1, "Java"), new ParentType(1, "hello"));
+        });
     }
 
     private static class ParentType {

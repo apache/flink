@@ -149,9 +149,10 @@ public class KeyedStateInputFormatTest {
                 "Incorrect data read from input split", Arrays.asList(1, 1, 2, 2, 3, 3), data);
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testInvalidProcessReaderFunctionFails() throws Exception {
-        OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+        Assertions.assertThrows(IOException.class, () -> {
+                    OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
 
         OperatorSubtaskState state =
                 createOperatorSubtaskState(new StreamFlatMap<>(new StatefulFunction()));
@@ -171,6 +172,7 @@ public class KeyedStateInputFormatTest {
         readInputSplit(split, userFunction);
 
         Assert.fail("KeyedStateReaderFunction did not fail on invalid RuntimeContext use");
+        });
     }
 
     @Test

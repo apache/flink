@@ -43,14 +43,18 @@ public class CatalogDescriptorTest extends DescriptorTestBase {
     private static final String CATALOG_FOO = "foo";
     private static final String CATALOG_FOO_VALUE = "foo-1";
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingCatalogType() {
-        removePropertyAndVerify(descriptors().get(0), CATALOG_TYPE);
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), CATALOG_TYPE);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingFoo() {
-        removePropertyAndVerify(descriptors().get(0), CATALOG_FOO);
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), CATALOG_FOO);
+        });
     }
 
     @Override

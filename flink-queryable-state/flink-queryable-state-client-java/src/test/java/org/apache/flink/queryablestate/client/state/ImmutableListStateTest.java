@@ -56,26 +56,30 @@ public class ImmutableListStateTest {
         listState = ImmutableListState.createState(listStateDesc, serInit);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        List<Long> list = getStateContents();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    List<Long> list = getStateContents();
         assertEquals(1L, list.size());
 
         long element = list.get(0);
         assertEquals(42L, element);
 
         listState.add(54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        List<Long> list = getStateContents();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    List<Long> list = getStateContents();
         assertEquals(1L, list.size());
 
         long element = list.get(0);
         assertEquals(42L, element);
 
         listState.clear();
+        });
     }
 
     /** Copied from HeapListState.getSerializedValue(Object, Object). */

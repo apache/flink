@@ -92,13 +92,15 @@ public class CliFrontendListTest extends CliFrontendTestBase {
         }
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        String[] parameters = {"-v", "-k"};
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    String[] parameters = {"-v", "-k"};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.list(parameters);
+        });
     }
 
     @Test

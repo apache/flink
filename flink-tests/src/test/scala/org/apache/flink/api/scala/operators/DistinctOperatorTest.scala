@@ -44,9 +44,10 @@ class DistinctOperatorTest {
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testDistinctByKeyIndices2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
     // should not work: distinct on basic type
@@ -88,6 +89,7 @@ class DistinctOperatorTest {
     // should work
     try {
       longDs.distinct()
+        });
     } catch {
       case e: Exception => Assert.fail()
     }
@@ -107,9 +109,10 @@ class DistinctOperatorTest {
     }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testDistinctByKeyFields2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[RuntimeException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
     // should not work: distinct on basic type
@@ -151,6 +154,7 @@ class DistinctOperatorTest {
     // should work
     try {
       longDs.distinct("_")
+        });
     } catch {
       case e: Exception => Assert.fail()
     }

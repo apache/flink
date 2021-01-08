@@ -54,9 +54,10 @@ public class RefCountedBufferingFileStreamTest {
         stream.release();
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionWhenWritingToClosedFile() throws IOException {
-        RefCountedBufferingFileStream stream = getStreamToTest();
+        Assertions.assertThrows(IOException.class, () -> {
+                    RefCountedBufferingFileStream stream = getStreamToTest();
 
         final byte[] contentToWrite = bytesOf("hello");
         stream.write(contentToWrite);
@@ -67,6 +68,7 @@ public class RefCountedBufferingFileStreamTest {
         stream.close();
 
         stream.write(contentToWrite);
+        });
     }
 
     @Test

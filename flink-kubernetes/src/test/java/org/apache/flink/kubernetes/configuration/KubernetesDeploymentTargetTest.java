@@ -37,15 +37,19 @@ public class KubernetesDeploymentTargetTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidInstantiationFromConfiguration() {
-        final Configuration configuration = getConfigurationWithTarget("invalid-target");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Configuration configuration = getConfigurationWithTarget("invalid-target");
         KubernetesDeploymentTarget.fromConfig(configuration);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNullInstantiationFromConfiguration() {
-        KubernetesDeploymentTarget.fromConfig(new Configuration());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    KubernetesDeploymentTarget.fromConfig(new Configuration());
+        });
     }
 
     @Test

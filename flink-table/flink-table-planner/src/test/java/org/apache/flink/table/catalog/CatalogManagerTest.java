@@ -138,13 +138,15 @@ public class CatalogManagerTest extends TestLogger {
         manager.dropTable(identifier, false);
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testDropTemporaryNonExistingTable() throws Exception {
-        CatalogManager manager =
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    CatalogManager manager =
                 root().builtin(database(BUILTIN_DEFAULT_DATABASE_NAME, table("test"))).build();
 
         manager.dropTemporaryTable(
                 manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
+        });
     }
 
     @Test

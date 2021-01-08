@@ -78,9 +78,11 @@ public class DataTypeTest {
         assertThat(BIGINT().nullable().bridgedTo(long.class), hasConversionClass(long.class));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidAtomicConversion() {
-        TIMESTAMP(0).bridgedTo(DataTypesTest.class);
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    TIMESTAMP(0).bridgedTo(DataTypesTest.class);
+        });
     }
 
     @Test
@@ -100,9 +102,11 @@ public class DataTypeTest {
                 hasConversionClass(int[][].class));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidArrayConversion() {
-        ARRAY(ARRAY(INT())).bridgedTo(int[][][].class);
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    ARRAY(ARRAY(INT())).bridgedTo(int[][][].class);
+        });
     }
 
     @Test
@@ -119,9 +123,11 @@ public class DataTypeTest {
         assertEquals(fields, rowDataType.getChildren());
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidOrderInterval() {
-        INTERVAL(MONTH(), YEAR(2));
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    INTERVAL(MONTH(), YEAR(2));
+        });
     }
 
     @Test

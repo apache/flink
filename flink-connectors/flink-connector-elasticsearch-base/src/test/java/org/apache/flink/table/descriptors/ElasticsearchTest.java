@@ -33,40 +33,52 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 /** Tests for the {@link Elasticsearch} descriptor. */
 public class ElasticsearchTest extends DescriptorTestBase {
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingIndex() {
-        removePropertyAndVerify(descriptors().get(0), "connector.index");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), "connector.index");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidFailureHandler() {
-        addPropertyAndVerify(descriptors().get(0), "connector.failure-handler", "invalid handler");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(0), "connector.failure-handler", "invalid handler");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidMemorySize() {
-        addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidProtocolInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "localhost:90");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidHostNameInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "http://:90");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidHostPortInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "http://localhost");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
     @Override

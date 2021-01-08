@@ -87,10 +87,12 @@ public class SharedStateRegistryTest {
     }
 
     /** Validate that unregister a nonexistent key will throw exception */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testUnregisterWithUnexistedKey() {
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
         sharedStateRegistry.unregisterReference(new SharedStateRegistryKey("non-existent"));
+        });
     }
 
     private static class TestSharedState implements StreamStateHandle {

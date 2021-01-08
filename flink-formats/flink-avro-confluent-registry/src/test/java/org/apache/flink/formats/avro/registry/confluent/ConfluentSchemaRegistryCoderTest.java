@@ -55,9 +55,10 @@ public class ConfluentSchemaRegistryCoderTest {
         assertEquals(0, byteInStream.available());
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testMagicByteVerification() throws Exception {
-        MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+        Assertions.assertThrows(IOException.class, () -> {
+                    MockSchemaRegistryClient client = new MockSchemaRegistryClient();
         int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
 
         ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
@@ -71,5 +72,6 @@ public class ConfluentSchemaRegistryCoderTest {
         coder.readSchema(byteInStream);
 
         // exception is thrown
+        });
     }
 }

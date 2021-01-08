@@ -76,11 +76,13 @@ public class BackPressureSampleServiceTest extends TestLogger {
         assertEquals(1.0, backPressureRatio, 0.0);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-        backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
 
         fail("Exception expected.");
+        });
     }
 
     /** Task that is always running. */

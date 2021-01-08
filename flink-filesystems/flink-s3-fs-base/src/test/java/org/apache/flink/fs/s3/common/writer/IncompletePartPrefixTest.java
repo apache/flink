@@ -27,9 +27,11 @@ import org.junit.jupiter.api.Test;
  */
 public class IncompletePartPrefixTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void nullObjectNameShouldThroughException() {
-        RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(null);
+        });
     }
 
     @Test

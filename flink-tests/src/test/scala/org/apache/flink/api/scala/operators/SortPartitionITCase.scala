@@ -201,9 +201,10 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     TestBaseUtils.compareResultAsText(result.asJava, expected)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testSortPartitionWithKeySelector3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
     val ds = CollectionDataSets.get3TupleDataSet(env)
 
@@ -264,6 +265,7 @@ class OrderCheckMapper[T](checker: OrderChecker[T])
     val it = values.iterator()
     if (!it.hasNext) {
       out.collect(new Tuple1(true))
+        });
     }
     else {
       var last: T = it.next()

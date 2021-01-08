@@ -65,10 +65,12 @@ public class PendingWorkerCounterTest extends TestLogger {
         assertThat(counter.getNum(spec2), is(0));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testPendingWorkerCounterDecreaseOnZero() {
-        final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
         final PendingWorkerCounter counter = new PendingWorkerCounter();
         counter.decreaseAndGet(spec);
+        });
     }
 }

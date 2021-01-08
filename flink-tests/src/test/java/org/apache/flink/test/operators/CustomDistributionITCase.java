@@ -267,14 +267,16 @@ public class CustomDistributionITCase extends TestLogger {
     /*
      * Test the number of partition keys larger than the number of distribution fields
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPartitionMoreThanDistribution() throws Exception {
-        final TestDataDist2 dist = new TestDataDist2();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final TestDataDist2 dist = new TestDataDist2();
 
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
         DataSetUtils.partitionByRange(input, dist, 0, 1, 2);
+        });
     }
 
     /** The class is used to do the tests of range partition with one key. */

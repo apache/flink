@@ -32,10 +32,11 @@ import static org.junit.Assert.assertTrue;
 /** Tests for the {@link RMQConnectionConfig}. */
 public class RMQConnectionConfigTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldThrowNullPointExceptionIfHostIsNull()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    RMQConnectionConfig connectionConfig =
                 new RMQConnectionConfig.Builder()
                         .setPort(1000)
                         .setUserName("guest")
@@ -43,12 +44,14 @@ public class RMQConnectionConfigTest {
                         .setVirtualHost("/")
                         .build();
         connectionConfig.getConnectionFactory();
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldThrowNullPointExceptionIfPortIsNull()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    RMQConnectionConfig connectionConfig =
                 new RMQConnectionConfig.Builder()
                         .setHost("localhost")
                         .setUserName("guest")
@@ -56,12 +59,14 @@ public class RMQConnectionConfigTest {
                         .setVirtualHost("/")
                         .build();
         connectionConfig.getConnectionFactory();
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldSetDefaultValueIfConnectionTimeoutNotGiven()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    RMQConnectionConfig connectionConfig =
                 new RMQConnectionConfig.Builder()
                         .setHost("localhost")
                         .setUserName("guest")
@@ -70,6 +75,7 @@ public class RMQConnectionConfigTest {
                         .build();
         ConnectionFactory factory = connectionConfig.getConnectionFactory();
         assertEquals(ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT, factory.getConnectionTimeout());
+        });
     }
 
     @Test

@@ -637,9 +637,10 @@ public class AfterMatchSkipITCase extends TestLogger {
                         Lists.newArrayList(a3, b4)));
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToFirstElementOfMatch() throws Exception {
-        List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+        Assertions.assertThrows(FlinkRuntimeException.class, () -> {
+                    List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
         Event a1 = new Event(1, "a1", 0.0);
 
@@ -665,13 +666,16 @@ public class AfterMatchSkipITCase extends TestLogger {
         // would result in infinite loop. In CEP by default(with exceptions disabled), we use no
         // skip
         // strategy in this case.
+        });
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToFirstNonExistentPosition() throws Exception {
-        MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
+        Assertions.assertThrows(FlinkRuntimeException.class, () -> {
+                    MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
 
         // exception should be thrown
+        });
     }
 
     @Test
@@ -684,11 +688,13 @@ public class AfterMatchSkipITCase extends TestLogger {
                 Collections.singletonList(Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)));
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToLastNonExistentPosition() throws Exception {
-        MissedSkipTo.compute(AfterMatchSkipStrategy.skipToLast("b").throwExceptionOnMiss());
+        Assertions.assertThrows(FlinkRuntimeException.class, () -> {
+                    MissedSkipTo.compute(AfterMatchSkipStrategy.skipToLast("b").throwExceptionOnMiss());
 
         // exception should be thrown
+        });
     }
 
     @Test

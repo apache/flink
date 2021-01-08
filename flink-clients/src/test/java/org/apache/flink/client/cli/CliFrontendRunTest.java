@@ -130,34 +130,40 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         }
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        // test unrecognized option
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    // test unrecognized option
         String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
+        });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testInvalidParallelismOption() throws Exception {
-        // test configure parallelism with non integer value
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    // test configure parallelism with non integer value
         String[] parameters = {"-v", "-p", "text", getTestJarPath()};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
+        });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testParallelismWithOverflow() throws Exception {
-        // test configure parallelism with overflow integer value
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    // test configure parallelism with overflow integer value
         String[] parameters = {"-v", "-p", "475871387138", getTestJarPath()};
         Configuration configuration = new Configuration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.run(parameters);
+        });
     }
 
     // --------------------------------------------------------------------------------------------

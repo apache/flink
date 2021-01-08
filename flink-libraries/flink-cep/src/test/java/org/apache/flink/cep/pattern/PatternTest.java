@@ -243,121 +243,153 @@ public class PatternTest extends TestLogger {
         assertTrue(pattern.getPrevious().getCondition() instanceof RichAndCondition);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPatternTimesNegativeTimes() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(-1);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPatternTimesNegativeFrom() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).oneOrMore().optional().times(1);
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+                    Pattern.begin("start")
                 .where(dummyCondition())
                 .notNext("not")
                 .where(dummyCondition())
                 .oneOrMore();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeTimes() throws Exception {
-        Pattern.begin("start")
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+                    Pattern.begin("start")
                 .where(dummyCondition())
                 .notNext("not")
                 .where(dummyCondition())
                 .times(3);
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeOptional() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start")
                 .where(dummyCondition())
                 .notNext("not")
                 .where(dummyCondition())
                 .optional();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+                    Pattern.begin("start")
                 .where(dummyCondition())
                 .notFollowedBy("not")
                 .where(dummyCondition())
                 .oneOrMore();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeTimes() throws Exception {
-        Pattern.begin("start")
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+                    Pattern.begin("start")
                 .where(dummyCondition())
                 .notFollowedBy("not")
                 .where(dummyCondition())
                 .times(3);
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeOptional() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start")
                 .where(dummyCondition())
                 .notFollowedBy("not")
                 .where(dummyCondition())
                 .optional();
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedToTimes() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).times(1).until(dummyCondition());
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedToSingleton() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
+        });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedTwice() throws Exception {
-
+        Assertions.assertThrows(MalformedPatternException.class, () -> {
+            
         Pattern.begin("start")
                 .where(dummyCondition())
                 .until(dummyCondition())
                 .until(dummyCondition());
+        });
     }
 
     private SimpleCondition<Object> dummyCondition() {

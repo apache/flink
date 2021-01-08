@@ -54,9 +54,10 @@ public class BlobServerRangeTest extends TestLogger {
     }
 
     /** Try allocating on an unavailable port. */
-    @Test(expected = IOException.class)
+    @Test
     public void testPortUnavailable() throws IOException {
-        // allocate on an ephemeral port
+        Assertions.assertThrows(IOException.class, () -> {
+                    // allocate on an ephemeral port
         ServerSocket socket = null;
         try {
             socket = new ServerSocket(0);
@@ -77,6 +78,7 @@ public class BlobServerRangeTest extends TestLogger {
         } finally {
             socket.close();
         }
+        });
     }
 
     /** Give the BlobServer a choice of three ports, where two of them are allocated. */

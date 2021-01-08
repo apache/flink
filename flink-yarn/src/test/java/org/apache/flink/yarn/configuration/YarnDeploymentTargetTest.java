@@ -37,15 +37,19 @@ public class YarnDeploymentTargetTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidInstantiationFromConfiguration() {
-        final Configuration configuration = getConfigurationWithTarget("invalid-target");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final Configuration configuration = getConfigurationWithTarget("invalid-target");
         YarnDeploymentTarget.fromConfig(configuration);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNullInstantiationFromConfiguration() {
-        YarnDeploymentTarget.fromConfig(new Configuration());
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    YarnDeploymentTarget.fromConfig(new Configuration());
+        });
     }
 
     @Test

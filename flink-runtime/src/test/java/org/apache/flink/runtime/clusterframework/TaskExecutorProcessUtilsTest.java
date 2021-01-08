@@ -256,29 +256,34 @@ public class TaskExecutorProcessUtilsTest
         TaskExecutorProcessUtils.processSpecFromConfig(configuration);
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryLessThanMinFails() {
-        final Configuration configuration =
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final Configuration configuration =
                 setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("900m"));
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("1000m"));
         // internal validation should fail
         TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+        });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryGreaterThanMaxFails() {
-        final Configuration configuration =
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final Configuration configuration =
                 setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
         configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("150m"));
         // internal validation should fail
         TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+        });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryDoesNotMatchLegacyConfigFails() {
-        final int numberOfNetworkBuffers = 10;
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    final int numberOfNetworkBuffers = 10;
         final int pageSizeMb = 16;
         // derive network memory which is bigger than the number of legacy network buffers
         final int networkMemorySizeMbToDerive = pageSizeMb * (numberOfNetworkBuffers + 1);
@@ -290,6 +295,7 @@ public class TaskExecutorProcessUtilsTest
                 NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
         // internal validation should fail
         TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+        });
     }
 
     private static Configuration setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(

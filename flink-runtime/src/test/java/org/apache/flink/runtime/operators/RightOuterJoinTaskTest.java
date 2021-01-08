@@ -163,9 +163,10 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         this.outList.clear();
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testFailingHashRightOuterJoinTask() throws Exception {
-        int keyCnt1 = 20;
+        Assertions.assertThrows(ExpectedTestException.class, () -> {
+                    int keyCnt1 = 20;
         int valCnt1 = 20;
 
         int keyCnt2 = 20;
@@ -189,6 +190,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
         testDriver(testTask, MockFailingJoinStub.class);
+        });
     }
 
     @Test

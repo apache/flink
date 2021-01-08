@@ -31,9 +31,10 @@ import scala.collection.JavaConversions._
 
 class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testGetUniqueGroupsOnTableScanWithNullColumns(): Unit = {
-    mq.getUniqueGroups(studentLogicalScan, null)
+        Assertions.assertThrows(classOf[IllegalArgumentException], () -> {
+                mq.getUniqueGroups(studentLogicalScan, null)
   }
 
   @Test
@@ -44,6 +45,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
       (0 until scan.getRowType.getFieldCount).foreach { idx =>
         assertEquals(ImmutableBitSet.of(idx), mq.getUniqueGroups(scan, ImmutableBitSet.of(idx)))
       }
+        });
     }
 
     Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)

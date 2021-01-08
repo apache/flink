@@ -96,10 +96,12 @@ public class SimpleVersionedSerializationTest {
         assertEquals(testString, deserializedFromBytes);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUnderflow() throws Exception {
-        SimpleVersionedSerialization.readVersionAndDeSerialize(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    SimpleVersionedSerialization.readVersionAndDeSerialize(
                 new TestStringSerializer(), new byte[7]);
+        });
     }
 
     // ------------------------------------------------------------------------

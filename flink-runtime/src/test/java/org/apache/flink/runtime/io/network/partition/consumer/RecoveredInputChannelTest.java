@@ -33,19 +33,25 @@ import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.
 /** Tests for {@link RecoveredInputChannel}. */
 public class RecoveredInputChannelTest {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testConversionOnlyPossibleAfterConsumed() throws IOException {
-        buildChannel().toInputChannel();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    buildChannel().toInputChannel();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testRequestPartitionsImpossible() {
-        buildChannel().requestSubpartition(0);
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    buildChannel().requestSubpartition(0);
+        });
     }
 
-    @Test(expected = CheckpointException.class)
+    @Test
     public void testCheckpointStartImpossible() throws CheckpointException {
-        buildChannel().checkpointStarted(new CheckpointBarrier(0L, 0L, unaligned(getDefault())));
+        Assertions.assertThrows(CheckpointException.class, () -> {
+                    buildChannel().checkpointStarted(new CheckpointBarrier(0L, 0L, unaligned(getDefault())));
+        });
     }
 
     private RecoveredInputChannel buildChannel() {

@@ -47,25 +47,30 @@ import static org.hamcrest.Matchers.is;
  */
 public class StreamingCommitterOperatorTest extends TestLogger {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWithoutSerializer() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.DefaultCommitter(), null);
         testHarness.initializeEmptyState();
         testHarness.open();
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWithoutCommitter() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
         testHarness.initializeEmptyState();
         testHarness.open();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void doNotSupportRetry() throws Exception {
-        final List<String> input = Arrays.asList("lazy", "leaf");
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    final List<String> input = Arrays.asList("lazy", "leaf");
         final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryCommitter());
 
@@ -77,6 +82,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
         testHarness.notifyOfCompletedCheckpoint(1L);
 
         testHarness.close();
+        });
     }
 
     @Test

@@ -93,9 +93,10 @@ public class FutureUtilsTest extends TestLogger {
     }
 
     /** Tests that a retry future is failed after all retries have been consumed. */
-    @Test(expected = FutureUtils.RetryException.class)
+    @Test
     public void testRetryFailureFixedRetries() throws Throwable {
-        final int retries = 3;
+        Assertions.assertThrows(FutureUtils.RetryException.class, () -> {
+                    final int retries = 3;
 
         CompletableFuture<?> retryFuture =
                 FutureUtils.retry(
@@ -110,6 +111,7 @@ public class FutureUtilsTest extends TestLogger {
         } catch (ExecutionException ee) {
             throw ExceptionUtils.stripExecutionException(ee);
         }
+        });
     }
 
     /** Tests that we can cancel a retry future. */
@@ -201,9 +203,10 @@ public class FutureUtilsTest extends TestLogger {
     }
 
     /** Tests that retry with delay fails after having exceeded all retries. */
-    @Test(expected = FutureUtils.RetryException.class)
+    @Test
     public void testRetryWithDelayFixedArgsFailure() throws Throwable {
-        CompletableFuture<?> retryFuture =
+        Assertions.assertThrows(FutureUtils.RetryException.class, () -> {
+                    CompletableFuture<?> retryFuture =
                 FutureUtils.retryWithDelay(
                         () ->
                                 FutureUtils.completedExceptionally(
@@ -217,12 +220,14 @@ public class FutureUtilsTest extends TestLogger {
         } catch (ExecutionException ee) {
             throw ExceptionUtils.stripExecutionException(ee);
         }
+        });
     }
 
     /** Tests that retry with delay fails after having exceeded all retries. */
-    @Test(expected = FutureUtils.RetryException.class)
+    @Test
     public void testRetryWithDelayRetryStrategyFailure() throws Throwable {
-        CompletableFuture<?> retryFuture =
+        Assertions.assertThrows(FutureUtils.RetryException.class, () -> {
+                    CompletableFuture<?> retryFuture =
                 FutureUtils.retryWithDelay(
                         () ->
                                 FutureUtils.completedExceptionally(
@@ -235,6 +240,7 @@ public class FutureUtilsTest extends TestLogger {
         } catch (ExecutionException ee) {
             throw ExceptionUtils.stripExecutionException(ee);
         }
+        });
     }
 
     /**

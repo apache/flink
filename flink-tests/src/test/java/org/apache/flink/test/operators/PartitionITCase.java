@@ -480,8 +480,9 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRangePartitionInIteration() throws Exception {
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
 
         // does not apply for collection execution
         if (super.mode == TestExecutionMode.COLLECTION) {
@@ -514,6 +515,7 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
 
         result.collect(); // should fail
+        });
     }
 
     @Test

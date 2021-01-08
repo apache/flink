@@ -105,20 +105,26 @@ public class JsonRowSchemaConverterTest {
         assertEquals(Types.BIG_DEC, result);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMissingType() {
-        JsonRowSchemaConverter.convert("{ }");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    JsonRowSchemaConverter.convert("{ }");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongType() {
-        JsonRowSchemaConverter.convert("{ type: 'whatever' }");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    JsonRowSchemaConverter.convert("{ type: 'whatever' }");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testArrayWithAdditionalItems() {
-        JsonRowSchemaConverter.convert(
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    JsonRowSchemaConverter.convert(
                 "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+        });
     }
 
     @Test

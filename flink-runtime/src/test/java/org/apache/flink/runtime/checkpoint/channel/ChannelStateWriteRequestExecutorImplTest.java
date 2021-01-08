@@ -39,14 +39,18 @@ public class ChannelStateWriteRequestExecutorImplTest {
 
     private static final String TASK_NAME = "test task";
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testCloseAfterSubmit() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testCloseAfterSubmitPriority() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submitPriority);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submitPriority);
+        });
     }
 
     @Test

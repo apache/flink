@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -55,16 +56,24 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
         };
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongNumberOfFieldNames() {
-        new RowTypeInfo(typeList, new String[] {"int", "string"});
-        // number of field names should be equal to number of types, go fail
+        Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new RowTypeInfo(typeList, new String[] {"int", "string"});
+                    // number of field names should be equal to number of types, go fail
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDuplicateCustomFieldNames() {
-        new RowTypeInfo(typeList, new String[] {"int", "string", "string"});
-        // field names should not be the same, go fail
+        Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new RowTypeInfo(typeList, new String[] {"int", "string", "string"});
+                    // field names should not be the same, go fail
+                });
     }
 
     @Test

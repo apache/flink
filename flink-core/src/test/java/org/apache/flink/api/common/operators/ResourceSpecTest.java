@@ -58,16 +58,20 @@ public class ResourceSpecTest extends TestLogger {
         assertTrue(ResourceSpec.UNKNOWN.lessThanOrEqual(ResourceSpec.UNKNOWN));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testLessThanOrEqualWhenUnknownWithSpecified() {
-        final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
         assertTrue(ResourceSpec.UNKNOWN.lessThanOrEqual(rs1));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testLessThanOrEqualWhenSpecifiedWithUnknown() {
-        final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
         assertTrue(rs1.lessThanOrEqual(ResourceSpec.UNKNOWN));
+        });
     }
 
     @Test
@@ -180,12 +184,14 @@ public class ResourceSpecTest extends TestLogger {
         assertEquals(new GPUResource(0.6), subtracted.getGPUResource());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSubtractOtherHasLargerResources() {
-        final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
         final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 200).build();
 
         rs1.subtract(rs2);
+        });
     }
 
     @Test

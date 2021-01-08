@@ -112,9 +112,11 @@ public class MessageSerializerTest {
      * Tests that we don't try to be smart about <code>null</code> key and namespace. They should be
      * treated explicitly.
      */
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullPointerExceptionOnNullSerializedKeyAndNamepsace() throws Exception {
-        new KvStateInternalRequest(new KvStateID(), null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new KvStateInternalRequest(new KvStateID(), null);
+        });
     }
 
     /** Tests response serialization. */
@@ -168,9 +170,11 @@ public class MessageSerializerTest {
      * Tests that we don't try to be smart about <code>null</code> results. They should be treated
      * explicitly.
      */
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullPointerExceptionOnNullSerializedResult() throws Exception {
-        new KvStateResponse((byte[]) null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new KvStateResponse((byte[]) null);
+        });
     }
 
     /** Tests request failure serialization. */

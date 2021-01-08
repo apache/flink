@@ -31,14 +31,18 @@ import java.util.Map;
 /** Tests for the {@link Avro} descriptor. */
 public class AvroTest extends DescriptorTestBase {
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingRecordClass() {
-        removePropertyAndVerify(descriptors().get(0), "format.record-class");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), "format.record-class");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testRecordClassAndAvroSchema() {
-        addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
+        Assertions.assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(0), "format.avro-schema", "{...}");
+        });
     }
 
     // --------------------------------------------------------------------------------------------

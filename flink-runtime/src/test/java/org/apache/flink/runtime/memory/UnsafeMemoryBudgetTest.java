@@ -56,10 +56,12 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
         assertThat(budget.getAvailableMemorySize(), is(50L));
     }
 
-    @Test(expected = MemoryReservationException.class)
+    @Test
     public void testReserveMemoryOverLimitFails() throws MemoryReservationException {
-        UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
+        Assertions.assertThrows(MemoryReservationException.class, () -> {
+                    UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
         budget.reserveMemory(120L);
+        });
     }
 
     @Test
@@ -70,22 +72,26 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
         assertThat(budget.getAvailableMemorySize(), is(80L));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReleaseMemoryMoreThanReservedFails() throws MemoryReservationException {
-        UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
         budget.reserveMemory(50L);
         budget.releaseMemory(70L);
+        });
     }
 
-    @Test(expected = MemoryReservationException.class)
+    @Test
     public void testReservationFailsIfOwnerNotGced() throws MemoryReservationException {
-        UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
+        Assertions.assertThrows(MemoryReservationException.class, () -> {
+                    UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
         Object memoryOwner = new Object();
         budget.reserveMemory(50L);
         JavaGcCleanerWrapper.createCleaner(memoryOwner, () -> budget.releaseMemory(50L));
         budget.reserveMemory(60L);
         // this should not be reached but keeps the reference to the memoryOwner and prevents its GC
         log.info(memoryOwner.toString());
+        });
     }
 
     @Test

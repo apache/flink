@@ -140,13 +140,15 @@ public class RecoverableMultiPartUploadImplTest {
                 not(equalTo(recoverableOne.incompleteObjectName())));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void uploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
-        final byte[] incompletePart = bytesOf("!!!");
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final byte[] incompletePart = bytesOf("!!!");
 
         final RefCountedBufferingFileStream incompletePartFile = writeContent(incompletePart);
 
         multiPartUploadUnderTest.uploadPart(incompletePartFile);
+        });
     }
 
     // --------------------------------- Matchers ---------------------------------

@@ -389,8 +389,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
     /**
      * Tests compiler fail for join program with replicated data source and changing parallelism.
      */
-    @Test(expected = CompilerException.class)
+    @Test
     public void checkJoinWithReplicatedSourceInputChangingparallelism() {
+        Assertions.assertThrows(CompilerException.class, () -> {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -416,14 +417,16 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
         // submit the plan to the compiler
         OptimizedPlan oPlan = compileNoStats(plan);
+        });
     }
 
     /**
      * Tests compiler fail for join program with replicated data source behind map and changing
      * parallelism.
      */
-    @Test(expected = CompilerException.class)
+    @Test
     public void checkJoinWithReplicatedSourceInputBehindMapChangingparallelism() {
+        Assertions.assertThrows(CompilerException.class, () -> {
 
         ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
@@ -450,12 +453,14 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
         // submit the plan to the compiler
         OptimizedPlan oPlan = compileNoStats(plan);
+        });
     }
 
     /** Tests compiler fail for join program with replicated data source behind reduce. */
-    @Test(expected = CompilerException.class)
+    @Test
     public void checkJoinWithReplicatedSourceInputBehindReduce() {
-        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        Assertions.assertThrows(CompilerException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
 
         TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
@@ -479,12 +484,14 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
         // submit the plan to the compiler
         OptimizedPlan oPlan = compileNoStats(plan);
+        });
     }
 
     /** Tests compiler fail for join program with replicated data source behind rebalance. */
-    @Test(expected = CompilerException.class)
+    @Test
     public void checkJoinWithReplicatedSourceInputBehindRebalance() {
-        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+        Assertions.assertThrows(CompilerException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
         env.setParallelism(DEFAULT_PARALLELISM);
 
         TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
@@ -508,6 +515,7 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
 
         // submit the plan to the compiler
         OptimizedPlan oPlan = compileNoStats(plan);
+        });
     }
 
     public static class IdMap<T> implements MapFunction<T, T> {

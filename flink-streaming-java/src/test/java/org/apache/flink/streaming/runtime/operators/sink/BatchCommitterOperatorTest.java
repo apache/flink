@@ -37,16 +37,19 @@ import static org.hamcrest.Matchers.is;
 /** Tests for {@link BatchCommitterOperator}. */
 public class BatchCommitterOperatorTest extends TestLogger {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWithoutCommitter() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(null);
         testHarness.initializeEmptyState();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void doNotSupportRetry() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryCommitter());
 
         testHarness.initializeEmptyState();
@@ -54,6 +57,7 @@ public class BatchCommitterOperatorTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>("those"));
         testHarness.endInput();
         testHarness.close();
+        });
     }
 
     @Test

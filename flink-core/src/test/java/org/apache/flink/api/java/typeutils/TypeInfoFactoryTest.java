@@ -129,16 +129,20 @@ public class TypeInfoFactoryTest {
         assertEquals(BOOLEAN_TYPE_INFO, mtti.getField1());
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testMissingTypeInfo() {
-        MapFunction f = new MyFaultyMapper();
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    MapFunction f = new MyFaultyMapper();
         TypeExtractor.getMapReturnTypes(f, INT_TYPE_INFO);
+        });
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testMissingTypeInference() {
-        MapFunction f = new MyFaultyMapper2();
+        Assertions.assertThrows(InvalidTypesException.class, () -> {
+                    MapFunction f = new MyFaultyMapper2();
         TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
+        });
     }
 
     // --------------------------------------------------------------------------------------------

@@ -67,14 +67,18 @@ public class MesosTaskManagerParametersTest extends TestLogger {
         assertEquals(0, MesosTaskManagerParameters.buildVolumes(Option.<String>apply("")).size());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuildVolumesBadMode() throws Exception {
-        MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:RF"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:RF"));
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBuildVolumesMalformed() throws Exception {
-        MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:ro:extra"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:ro:extra"));
+        });
     }
 
     @Test
@@ -123,12 +127,14 @@ public class MesosTaskManagerParametersTest extends TestLogger {
         assertEquals(params.dockerParameters().get(3).getValue(), "\"key4=value4\"");
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testContainerDockerParametersMalformed() throws Exception {
-        Configuration config = getConfiguration();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Configuration config = getConfiguration();
         config.setString(
                 MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "badParam");
         MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+        });
     }
 
     @Test
@@ -251,9 +257,11 @@ public class MesosTaskManagerParametersTest extends TestLogger {
         assertThat(mesosTaskManagerParameters.constraints().size(), is(0));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testNegativeNumberOfGPUs() throws Exception {
-        MesosTaskManagerParameters.create(withGPUConfiguration(-1));
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    MesosTaskManagerParameters.create(withGPUConfiguration(-1));
+        });
     }
 
     @Test

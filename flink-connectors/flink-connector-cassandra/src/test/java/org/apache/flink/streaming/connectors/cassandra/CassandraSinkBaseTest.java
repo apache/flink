@@ -54,9 +54,10 @@ public class CassandraSinkBaseTest {
 
     private static final long DEFAULT_TEST_TIMEOUT = 5000;
 
-    @Test(expected = NoHostAvailableException.class)
+    @Test
     public void testHostNotFoundErrorHandling() throws Exception {
-        CassandraSinkBase base =
+        Assertions.assertThrows(NoHostAvailableException.class, () -> {
+                    CassandraSinkBase base =
                 new CassandraSinkBase(
                         new ClusterBuilder() {
                             @Override
@@ -76,6 +77,7 @@ public class CassandraSinkBaseTest {
                 };
 
         base.open(new Configuration());
+        });
     }
 
     @Test(timeout = DEFAULT_TEST_TIMEOUT)

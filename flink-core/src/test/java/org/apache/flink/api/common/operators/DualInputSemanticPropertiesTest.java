@@ -235,19 +235,23 @@ public class DualInputSemanticPropertiesTest {
         assertTrue(sp.getReadFields(1).contains(3));
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testAddForwardedFieldsTargetTwice1() {
-
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+            
         DualInputSemanticProperties sp = new DualInputSemanticProperties();
         sp.addForwardedField(0, 0, 2);
         sp.addForwardedField(0, 1, 2);
+        });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testAddForwardedFieldsTargetTwice2() {
-
+        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+            
         DualInputSemanticProperties sp = new DualInputSemanticProperties();
         sp.addForwardedField(1, 0, 2);
         sp.addForwardedField(1, 1, 2);
+        });
     }
 }

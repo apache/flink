@@ -60,13 +60,15 @@ public class RequestedGlobalPropertiesFilteringTest {
                             BasicTypeInfo.INT_TYPE_INFO,
                             BasicTypeInfo.INT_TYPE_INFO);
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullProps() {
+        Assertions.assertThrows(NullPointerException.class, () -> {
 
         RequestedGlobalProperties rgProps = new RequestedGlobalProperties();
         rgProps.setAnyPartitioning(new FieldSet(0, 1, 2));
 
         rgProps.filterBySemanticProperties(null, 0);
+        });
     }
 
     @Test
@@ -456,9 +458,10 @@ public class RequestedGlobalPropertiesFilteringTest {
         assertNull(filtered2.getDataDistribution());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidInputIndex() {
-        SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+                    SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
 
@@ -466,5 +469,6 @@ public class RequestedGlobalPropertiesFilteringTest {
         gprops.setHashPartitioned(new FieldSet(0, 1));
 
         gprops.filterBySemanticProperties(sprops, 1);
+        });
     }
 }

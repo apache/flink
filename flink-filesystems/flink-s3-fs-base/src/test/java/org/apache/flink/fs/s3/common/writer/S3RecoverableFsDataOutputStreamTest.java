@@ -248,10 +248,12 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.closeForCommit().commit();
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void closeForCommitOnClosedStreamShouldFail() throws IOException {
+        Assertions.assertThrows(IOException.class, () -> {
+                    streamUnderTest.closeForCommit().commit();
         streamUnderTest.closeForCommit().commit();
-        streamUnderTest.closeForCommit().commit();
+        });
     }
 
     // ------------------------------------------------------------------------------------------------------------

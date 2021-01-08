@@ -36,9 +36,10 @@ import static org.junit.Assert.fail;
 /** {@link ContinuousFileReaderOperator} test. */
 public class ContinuousFileReaderOperatorTest {
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testExceptionRethrownFromClose() throws Exception {
-        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+        Assertions.assertThrows(ExpectedTestException.class, () -> {
+                    OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
         harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
@@ -46,11 +47,13 @@ public class ContinuousFileReaderOperatorTest {
                 harness) {
             tester.open();
         }
+        });
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testExceptionRethrownFromProcessElement() throws Exception {
-        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+        Assertions.assertThrows(ExpectedTestException.class, () -> {
+                    OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
                 createHarness(failingFormat());
         harness.getExecutionConfig().setAutoWatermarkInterval(10);
         harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
@@ -66,6 +69,7 @@ public class ContinuousFileReaderOperatorTest {
             }
             fail("should throw from processElement");
         }
+        });
     }
 
     private FileInputFormat<String> failingFormat() {

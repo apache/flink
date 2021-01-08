@@ -29,9 +29,10 @@ import org.junit.jupiter.api.Test
 class AggregateValidationTest extends TableTestBase {
   private val util = scalaStreamTestUtil()
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val ds = table
       // must fail. '_foo is not a valid field
@@ -148,6 +149,7 @@ class AggregateValidationTest extends TableTestBase {
     try {
       util.tableEnv.toAppendStream[Row](util.tableEnv.sqlQuery(sql))
       fail(s"Expected a $clazz, but no exception is thrown.")
+        });
     } catch {
       case e if e.getClass == clazz =>
         if (keywords != null) {

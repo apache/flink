@@ -151,8 +151,9 @@ public class PrimitiveInputFormatTest {
         }
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testFailingInput() throws IOException {
+        Assertions.assertThrows(IOException.class, () -> {
 
         final String fileContent = "111|222|asdf|17";
         final FileInputSplit split = createInputSplit(fileContent);
@@ -171,6 +172,7 @@ public class PrimitiveInputFormatTest {
         assertEquals(Integer.valueOf(222), result);
 
         result = format.nextRecord(result);
+        });
     }
 
     private FileInputSplit createInputSplit(String content) throws IOException {

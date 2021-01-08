@@ -402,9 +402,10 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
         assertEquals(ResourceSpec.UNKNOWN, generator.getPreferredResources());
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testUnsupportedTransformation() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         Transformation<RowData> source1 = createSource(env, "source1");
         Transformation<RowData> source2 = createSource(env, "source2");
 
@@ -424,6 +425,7 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
                 new TableOperatorWrapperGenerator(
                         Arrays.asList(source1, source2), join, new int[] {0, 0});
         generator.generate();
+        });
     }
 
     @SafeVarargs

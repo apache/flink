@@ -34,15 +34,19 @@ import static org.junit.Assert.assertFalse;
 /** Tests for the {@link FallbackYarnSessionCliTest}. */
 public class FallbackYarnSessionCliTest {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExceptionWhenActiveWithYarnApplicationId() throws ParseException {
-        checkIfYarnFallbackCLIisActiveWithCLIArgs(
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    checkIfYarnFallbackCLIisActiveWithCLIArgs(
                 "run", "-yid", ApplicationId.newInstance(0L, 0).toString());
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExceptionWhenActiveWithExplicitClusterType() throws ParseException {
-        checkIfYarnFallbackCLIisActiveWithCLIArgs("run", "-m", FallbackYarnSessionCli.ID);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    checkIfYarnFallbackCLIisActiveWithCLIArgs("run", "-m", FallbackYarnSessionCli.ID);
+        });
     }
 
     @Test

@@ -59,13 +59,15 @@ public class RequestedLocalPropertiesFilteringTest {
                             BasicTypeInfo.INT_TYPE_INFO,
                             BasicTypeInfo.INT_TYPE_INFO);
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullProps() {
-
+        Assertions.assertThrows(NullPointerException.class, () -> {
+            
         RequestedLocalProperties rlProp = new RequestedLocalProperties();
         rlProp.setGroupedFields(new FieldSet(0, 2, 3));
 
         rlProp.filterBySemanticProperties(null, 0);
+        });
     }
 
     @Test
@@ -263,9 +265,10 @@ public class RequestedLocalPropertiesFilteringTest {
         assertNull(filtered2.getOrdering());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidInputIndex() {
-
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+            
         SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
         SemanticPropUtil.getSemanticPropsSingleFromString(
                 sProps, new String[] {"1; 4"}, null, null, tupleInfo, tupleInfo);
@@ -274,5 +277,6 @@ public class RequestedLocalPropertiesFilteringTest {
         rlProp.setGroupedFields(new FieldSet(1, 4));
 
         rlProp.filterBySemanticProperties(sProps, 1);
+        });
     }
 }

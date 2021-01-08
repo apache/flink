@@ -136,14 +136,16 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
      * Tests that the TaskManagerRunner startup fails synchronously when the memory configuration is
      * wrong.
      */
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testMemoryConfigWrong() throws Exception {
-        Configuration cfg = createFlinkConfiguration();
+        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+                    Configuration cfg = createFlinkConfiguration();
 
         // something invalid
         cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
         cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
         startTaskManager(cfg, rpcService, highAvailabilityServices);
+        });
     }
 
     /**

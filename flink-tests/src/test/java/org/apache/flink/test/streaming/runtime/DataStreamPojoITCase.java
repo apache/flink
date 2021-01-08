@@ -194,12 +194,14 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.execute();
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    @Test
     public void testFailOnNestedPojoFieldAccessor() throws Exception {
-        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+                    StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Data> dataStream = see.fromCollection(elements);
         dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
+        });
     }
 
     /** POJO. */

@@ -412,9 +412,10 @@ public class ParquetRowInputFormatTest extends TestUtil {
         assertEquals(nested.f2.getField(5), row.getField(1));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidProjectionOfNestedRecord() throws Exception {
-        Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested =
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested =
                 getNestedRecordTestData();
         Path path =
                 createTempParquetFile(
@@ -428,6 +429,7 @@ public class ParquetRowInputFormatTest extends TestUtil {
         inputFormat.setRuntimeContext(getMockRuntimeContext());
 
         inputFormat.selectFields(new String[] {"bar", "celona"});
+        });
     }
 
     @Test

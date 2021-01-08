@@ -317,18 +317,22 @@ public class FileUtilsTest extends TestLogger {
         assertThat(transformedPath, is(relativePath));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
-        final String fileName = "_does_not_exists_file";
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final String fileName = "_does_not_exists_file";
         FileUtils.listFilesInDirectory(
                 tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
-        final String fileName = "a.jar";
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+                    final String fileName = "a.jar";
         final File file = tmp.newFile(fileName);
         FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
+        });
     }
 
     // ------------------------------------------------------------------------

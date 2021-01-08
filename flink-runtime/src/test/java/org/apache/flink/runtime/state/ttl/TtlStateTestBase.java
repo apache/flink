@@ -455,9 +455,10 @@ public abstract class TtlStateTestBase {
         assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
     }
 
-    @Test(expected = StateMigrationException.class)
+    @Test
     public void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
-        assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
+        Assertions.assertThrows(StateMigrationException.class, () -> {
+                    assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
 
         initTest();
 
@@ -469,6 +470,7 @@ public abstract class TtlStateTestBase {
 
         sbetc.setCurrentKey("defaultKey");
         sbetc.createState(ctx().createStateDescriptor(), "");
+        });
     }
 
     @Test

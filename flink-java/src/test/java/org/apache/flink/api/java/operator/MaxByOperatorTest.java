@@ -75,8 +75,9 @@ public class MaxByOperatorTest {
      * This test validates that an InvalidProgramException is thrown when maxBy is used on a custom
      * data type.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCustomKeyFieldsDataset() {
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -85,13 +86,15 @@ public class MaxByOperatorTest {
         DataSet<CustomType> customDs = env.fromCollection(customTypeData);
         // should not work: groups on custom type
         customDs.maxBy(0);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset1() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -99,13 +102,15 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         tupleDs.maxBy(5);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset2() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -113,13 +118,15 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         tupleDs.maxBy(-1);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsDataset3() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
@@ -127,6 +134,7 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         tupleDs.maxBy(1, 2, 3, 4, -1);
+        });
     }
 
     // ---------------------------- GROUPING TESTS BELOW --------------------------------------
@@ -151,8 +159,9 @@ public class MaxByOperatorTest {
      * This test validates that an InvalidProgramException is thrown when maxBy is used on a custom
      * data type.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCustomKeyFieldsGrouping() {
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
@@ -161,13 +170,15 @@ public class MaxByOperatorTest {
         UnsortedGrouping<CustomType> groupDs = env.fromCollection(customTypeData).groupBy(0);
         // should not work: groups on custom type
         groupDs.maxBy(0);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping1() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
@@ -175,13 +186,15 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         groupDs.maxBy(5);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping2() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
@@ -189,13 +202,15 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         groupDs.maxBy(-1);
+        });
     }
 
     /**
      * This test validates that an index which is out of bounds throws an IndexOutOfBoundsException.
      */
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testOutOfTupleBoundsGrouping3() {
+        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         UnsortedGrouping<Tuple5<Integer, Long, String, Long, Integer>> groupDs =
@@ -203,11 +218,13 @@ public class MaxByOperatorTest {
 
         // should not work, key out of tuple bounds
         groupDs.maxBy(1, 2, 3, 4, -1);
+        });
     }
 
     /** Validates that no ClassCastException happens should not fail e.g. like in FLINK-8255. */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testMaxByRowTypeInfoKeyFieldsDataset() {
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
 
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
@@ -217,12 +234,14 @@ public class MaxByOperatorTest {
         DataSet tupleDs = env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo);
 
         tupleDs.maxBy(0);
+        });
     }
 
     /** Validates that no ClassCastException happens should not fail e.g. like in FLINK-8255. */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testMaxByRowTypeInfoKeyFieldsForUnsortedGrouping() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         TypeInformation[] types = new TypeInformation[] {Types.INT, Types.INT};
 
@@ -233,6 +252,7 @@ public class MaxByOperatorTest {
                 env.fromCollection(Collections.singleton(new Row(2)), rowTypeInfo).groupBy(0);
 
         groupDs.maxBy(1);
+        });
     }
 
     /** Custom data type, for testing purposes. */

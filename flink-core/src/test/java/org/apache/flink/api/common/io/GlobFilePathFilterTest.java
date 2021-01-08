@@ -151,14 +151,18 @@ public class GlobFilePathFilterTest {
         assertFalse(matcher.filterPath(new Path("a/b/c")));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testIncluePatternIsNull() {
-        new GlobFilePathFilter(null, Collections.<String>emptyList());
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new GlobFilePathFilter(null, Collections.<String>emptyList());
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testExcludePatternIsNull() {
-        new GlobFilePathFilter(Collections.singletonList("**"), null);
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    new GlobFilePathFilter(Collections.singletonList("**"), null);
+        });
     }
 
     @Test

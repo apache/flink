@@ -128,9 +128,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     testUdf("")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUdfWithWrongCatalog(): Unit = {
-    testUdf("wrong_catalog.default_database.")
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                testUdf("wrong_catalog.default_database.")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -653,6 +654,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   def testInsertWithAggregateSource(): Unit = {
     if (isStreamingMode) {
       return
+        });
     }
     val sourceData = List(
       toRow(1, 1000, 2),
@@ -839,9 +841,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     assert(tableEnv.listTables().isEmpty)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDropTableWithInvalidPath(): Unit = {
-    val ddl1 =
+        Assertions.assertThrows(classOf[ValidationException], () -> {
+                val ddl1 =
       """
         |create table t1(
         |  a bigint,
@@ -1025,6 +1028,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
     try {
       tableEnv.executeSql("create database db1 ")
       fail("ValidationException expected")
+        });
     } catch {
       case _: ValidationException => //ignore
     }

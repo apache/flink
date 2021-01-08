@@ -244,9 +244,10 @@ public class IntervalJoinITCase {
                 "(key,9):(key,9)");
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFailsWithoutUpperBound() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -256,11 +257,13 @@ public class IntervalJoinITCase {
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
                 .between(Time.milliseconds(0), null);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFailsWithoutLowerBound() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(NullPointerException.class, () -> {
+                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -270,6 +273,7 @@ public class IntervalJoinITCase {
                 .keyBy(new Tuple2KeyExtractor())
                 .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
                 .between(null, Time.milliseconds(1));
+        });
     }
 
     @Test
@@ -361,9 +365,10 @@ public class IntervalJoinITCase {
                 "(key,2):(key,2)");
     }
 
-    @Test(expected = UnsupportedTimeCharacteristicException.class)
+    @Test
     public void testExecutionFailsInProcessingTime() throws Exception {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        Assertions.assertThrows(UnsupportedTimeCharacteristicException.class, () -> {
+                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
         DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
@@ -387,6 +392,7 @@ public class IntervalJoinITCase {
                                 out.collect(left + ":" + right);
                             }
                         });
+        });
     }
 
     private static void expectInAnyOrder(String... expected) {

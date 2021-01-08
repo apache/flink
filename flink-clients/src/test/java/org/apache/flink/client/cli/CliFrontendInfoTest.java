@@ -36,22 +36,26 @@ public class CliFrontendInfoTest extends CliFrontendTestBase {
     private static PrintStream capture;
     private static ByteArrayOutputStream buffer;
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testMissingOption() throws Exception {
-        String[] parameters = {};
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    String[] parameters = {};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
+        });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        String[] parameters = {"-v", "-l"};
+        Assertions.assertThrows(CliArgsException.class, () -> {
+                    String[] parameters = {"-v", "-l"};
         Configuration configuration = getConfiguration();
         CliFrontend testFrontend =
                 new CliFrontend(configuration, Collections.singletonList(getCli()));
         testFrontend.cancel(parameters);
+        });
     }
 
     @Test

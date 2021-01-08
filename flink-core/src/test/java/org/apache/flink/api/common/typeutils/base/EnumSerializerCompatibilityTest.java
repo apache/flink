@@ -60,9 +60,11 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
     }
 
     /** Check that removing enum fields makes the snapshot incompatible */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void removingFieldShouldBeIncompatible() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+        });
     }
 
     /** Check that changing the enum field order don't require migration */

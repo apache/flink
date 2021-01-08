@@ -533,9 +533,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
      *
      * @throws UnknownKeyOrNamespaceException thrown due querying a non-existent key
      */
-    @Test(expected = UnknownKeyOrNamespaceException.class)
+    @Test
     public void testValueStateDefault() throws Throwable {
-        final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
+        Assertions.assertThrows(UnknownKeyOrNamespaceException.class, () -> {
+                    final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
         final long numElements = 1024L;
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -596,6 +597,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 throw e.getCause();
             }
         }
+        });
     }
 
     /**

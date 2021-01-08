@@ -53,20 +53,24 @@ public class ImmutableAggregatingStateTest {
         aggrState = ImmutableAggregatingState.createState(aggrStateDesc, out.toByteArray());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        String value = aggrState.get();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    String value = aggrState.get();
         assertEquals("42", value);
 
         aggrState.add(54L);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        String value = aggrState.get();
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+                    String value = aggrState.get();
         assertEquals("42", value);
 
         aggrState.clear();
+        });
     }
 
     /**

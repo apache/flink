@@ -180,12 +180,14 @@ public class RMQSinkTest {
         verify(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void exceptionDuringPublishingIsNotIgnored() throws Exception {
-        RMQSink<String> rmqSink = createRMQSink();
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    RMQSink<String> rmqSink = createRMQSink();
 
         doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
         rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+        });
     }
 
     @Test
@@ -223,18 +225,22 @@ public class RMQSinkTest {
                         MESSAGE);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void invokePublishBytesToQueueWithOptionsMandatory() throws Exception {
-        RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
 
         rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void invokePublishBytesToQueueWithOptionsImmediate() throws Exception {
-        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+                    RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
 
         rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+        });
     }
 
     @Test
@@ -269,9 +275,10 @@ public class RMQSinkTest {
                         MESSAGE);
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void exceptionDuringWithOptionsPublishingIsNotIgnored() throws Exception {
-        RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
+        Assertions.assertThrows(RuntimeException.class, () -> {
+                    RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
         doThrow(IOException.class)
                 .when(channel)
@@ -283,6 +290,7 @@ public class RMQSinkTest {
                         publishOptions.computeProperties(""),
                         MESSAGE);
         rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+        });
     }
 
     @Test
