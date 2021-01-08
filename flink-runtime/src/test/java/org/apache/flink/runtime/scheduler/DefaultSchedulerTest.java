@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -170,7 +171,11 @@ public class DefaultSchedulerTest extends TestLogger {
         testExecutionSlotAllocator.disableAutoCompletePendingRequests();
         final TestSchedulingStrategy.Factory schedulingStrategyFactory =
                 new TestSchedulingStrategy.Factory();
-        final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        schedulingStrategyFactory);
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
         startScheduling(scheduler);
@@ -207,7 +212,10 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final TestSchedulingStrategy.Factory schedulingStrategyFactory =
                 new TestSchedulingStrategy.Factory();
-        createScheduler(jobGraph, schedulingStrategyFactory);
+        createScheduler(
+                jobGraph,
+                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                schedulingStrategyFactory);
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
 
@@ -357,6 +365,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler =
                 createScheduler(
                         jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                         schedulingStrategyFactory,
                         new RestartPipelinedRegionFailoverStrategy.Factory());
         final TestSchedulingStrategy schedulingStrategy =
@@ -448,7 +457,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final TestSchedulingStrategy.Factory schedulingStrategyFactory =
                 new TestSchedulingStrategy.Factory();
-        final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        schedulingStrategyFactory);
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
         final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
@@ -478,7 +491,11 @@ public class DefaultSchedulerTest extends TestLogger {
 
         final TestSchedulingStrategy.Factory schedulingStrategyFactory =
                 new TestSchedulingStrategy.Factory();
-        final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+        final DefaultScheduler scheduler =
+                createScheduler(
+                        jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                        schedulingStrategyFactory);
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
         final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
@@ -826,6 +843,7 @@ public class DefaultSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler =
                 createScheduler(
                         jobGraph,
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                         new PipelinedRegionSchedulingStrategy.Factory(),
                         new RestartAllFailoverStrategy.Factory());
         startScheduling(scheduler);
@@ -904,7 +922,11 @@ public class DefaultSchedulerTest extends TestLogger {
                 new PipelinedRegionSchedulingStrategy.Factory();
 
         try {
-            final DefaultScheduler scheduler = createScheduler(jobGraph, schedulingStrategyFactory);
+            final DefaultScheduler scheduler =
+                    createScheduler(
+                            jobGraph,
+                            ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                            schedulingStrategyFactory);
             startScheduling(scheduler);
             return scheduler;
         } catch (Exception e) {
@@ -913,20 +935,24 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     private DefaultScheduler createScheduler(
-            final JobGraph jobGraph, final SchedulingStrategyFactory schedulingStrategyFactory)
+            final JobGraph jobGraph,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final SchedulingStrategyFactory schedulingStrategyFactory)
             throws Exception {
         return createScheduler(
                 jobGraph,
+                mainThreadExecutor,
                 schedulingStrategyFactory,
                 new RestartPipelinedRegionFailoverStrategy.Factory());
     }
 
     private DefaultScheduler createScheduler(
             final JobGraph jobGraph,
+            final ComponentMainThreadExecutor mainThreadExecutor,
             final SchedulingStrategyFactory schedulingStrategyFactory,
             final FailoverStrategy.Factory failoverStrategyFactory)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setLogger(log)
                 .setIoExecutor(executor)
                 .setJobMasterConfiguration(configuration)

@@ -276,7 +276,8 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
         final JobGraph jobGraph =
                 new JobGraph(new JobID(), "test job", producerVertex, consumerVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
