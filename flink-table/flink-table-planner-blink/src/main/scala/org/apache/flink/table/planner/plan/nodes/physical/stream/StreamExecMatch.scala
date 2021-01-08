@@ -249,15 +249,13 @@ class StreamExecMatch(
 
     val eventComparator = if (orderKeys.getFieldCollations.size() > 1) {
       val inputType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
-      val (keys, orders, nullsIsLast) = SortUtil.getKeysAndOrders(orderKeys.getFieldCollations)
-      val keyTypes = keys.map(inputType.getTypeAt)
+      val sortSpec = SortUtil.getSortSpec(orderKeys.getFieldCollations)
+      val keyTypes = sortSpec.getFieldTypes(inputType)
       val rowComparator = ComparatorCodeGenerator.gen(
         config,
         "RowDataComparator",
-        keys,
-        keyTypes,
-        orders,
-        nullsIsLast)
+        inputType,
+        sortSpec)
       new RowDataEventComparator(rowComparator)
     } else {
       null

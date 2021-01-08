@@ -77,12 +77,7 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData> implements BatchEx
         // generate comparator
         GeneratedRecordComparator genComparator =
                 ComparatorCodeGenerator.gen(
-                        planner.getTableConfig(),
-                        "SortLimitComparator",
-                        sortSpec.getFieldIndices(),
-                        sortSpec.getFieldTypes(inputType),
-                        sortSpec.getAscendingOrders(),
-                        sortSpec.getNullsIsLast());
+                        planner.getTableConfig(), "SortLimitComparator", inputType, sortSpec);
 
         // TODO If input is ordered, there is no need to use the heap.
         SortLimitOperator operator =

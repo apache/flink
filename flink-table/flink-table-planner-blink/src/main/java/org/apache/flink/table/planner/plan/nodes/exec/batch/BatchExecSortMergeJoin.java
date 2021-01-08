@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -45,11 +46,8 @@ import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
-
-import scala.Tuple3;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -169,15 +167,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
 
     private SortCodeGenerator newSortGen(
             TableConfig config, int[] originalKeys, RowType inputType) {
-        boolean[] originalOrders = new boolean[originalKeys.length];
-        Arrays.fill(originalOrders, true);
-        boolean[] nullsIsLast = SortUtil.getNullDefaultOrders(originalOrders);
-
-        // deduplicated sort field infos: <fieldIndices, ascendingOrders, nullsIslast>
-        Tuple3<int[], boolean[], boolean[]> ret =
-                SortUtil.deduplicateSortKeys(originalKeys, originalOrders, nullsIsLast);
-        LogicalType[] types =
-                IntStream.of(ret._1()).mapToObj(inputType::getTypeAt).toArray(LogicalType[]::new);
-        return new SortCodeGenerator(config, ret._1(), types, ret._2(), ret._3());
+        SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
+        return new SortCodeGenerator(config, inputType, sortSpec);
     }
 }
