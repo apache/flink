@@ -146,8 +146,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final ClassLoader userCodeLoader;
 
-    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
     private final CompletedCheckpointStore completedCheckpointStore;
 
     private final CheckpointsCleaner checkpointsCleaner;
@@ -191,7 +189,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.futureExecutor = checkNotNull(futureExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
-        this.checkpointRecoveryFactory = checkNotNull(checkpointRecoveryFactory);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.blobWriter = checkNotNull(blobWriter);
