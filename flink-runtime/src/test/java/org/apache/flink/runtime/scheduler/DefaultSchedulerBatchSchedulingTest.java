@@ -126,7 +126,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
             final GloballyTerminalJobStatusListener jobStatusListener =
                     new GloballyTerminalJobStatusListener();
             scheduler.registerJobStatusListener(jobStatusListener);
-            startScheduling(scheduler, mainThreadExecutor);
+            CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
 
             // wait until the batch slot timeout has been reached
             Thread.sleep(batchSlotTimeout.toMilliseconds());
@@ -171,12 +171,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                         },
                         mainThreadExecutor)
                 .join();
-    }
-
-    private void startScheduling(
-            SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
-        scheduler.initialize(mainThreadExecutor);
-        CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
     }
 
     private SlotPoolImpl createSlotPool(

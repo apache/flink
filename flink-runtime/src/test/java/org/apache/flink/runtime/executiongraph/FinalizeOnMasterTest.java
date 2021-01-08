@@ -55,7 +55,6 @@ public class FinalizeOnMasterTest extends TestLogger {
                 createScheduler(
                         new JobGraph("Test Job", vertex1, vertex2),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -84,7 +83,6 @@ public class FinalizeOnMasterTest extends TestLogger {
                 createScheduler(
                         new JobGraph("Test Job", vertex),
                         ComponentMainThreadExecutorServiceAdapter.forMainThread());
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();

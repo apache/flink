@@ -47,7 +47,6 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
                                 new JobGraph(),
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .build();
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();

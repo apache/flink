@@ -357,7 +357,6 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         initializationTimestamp,
                         getMainThreadExecutor());
 
-        scheduler.initialize(getMainThreadExecutor());
         scheduler.registerJobStatusListener(jobStatusListener);
 
         return scheduler;
