@@ -26,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** A {@link CoLocationGroupDesc} implementation. */
@@ -39,12 +40,8 @@ public class CoLocationGroup implements CoLocationGroupDesc, java.io.Serializabl
 
     // --------------------------------------------------------------------------------------------
 
-    public CoLocationGroup() {}
-
     public CoLocationGroup(JobVertex... vertices) {
-        for (JobVertex v : vertices) {
-            this.vertices.add(v);
-        }
+        Collections.addAll(this.vertices, vertices);
     }
 
     // --------------------------------------------------------------------------------------------
