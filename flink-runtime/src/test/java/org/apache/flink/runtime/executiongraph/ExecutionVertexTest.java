@@ -59,7 +59,8 @@ public class ExecutionVertexTest extends TestLogger {
 
         final JobGraph jobGraph = new JobGraph(producerJobVertex, consumerJobVertex);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setPartitionTracker(partitionTracker)
                         .build();
 

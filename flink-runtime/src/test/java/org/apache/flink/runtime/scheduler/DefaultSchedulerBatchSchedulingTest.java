@@ -120,7 +120,8 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
             final PhysicalSlotProvider slotProvider =
                     new PhysicalSlotProviderImpl(
                             LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-            final SchedulerNG scheduler = createScheduler(jobGraph, slotProvider, batchSlotTimeout);
+            final SchedulerNG scheduler =
+                    createScheduler(jobGraph, mainThreadExecutor, slotProvider, batchSlotTimeout);
 
             final GloballyTerminalJobStatusListener jobStatusListener =
                     new GloballyTerminalJobStatusListener();
@@ -212,9 +213,12 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     }
 
     private SchedulerNG createScheduler(
-            JobGraph jobGraph, PhysicalSlotProvider physicalSlotProvider, Time slotRequestTimeout)
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            PhysicalSlotProvider physicalSlotProvider,
+            Time slotRequestTimeout)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider, slotRequestTimeout))

@@ -110,7 +110,9 @@ public class ArchivedExecutionGraphTest extends TestLogger {
                         null);
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
-        SchedulerBase scheduler = SchedulerTestingUtils.createScheduler(jobGraph);
+        SchedulerBase scheduler =
+                SchedulerTestingUtils.createScheduler(
+                        jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         runtimeGraph = scheduler.getExecutionGraph();
