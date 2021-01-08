@@ -130,11 +130,6 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     }
 
     @Override
-    public WindowKey mapFromPages(AbstractPagedInputView source) throws IOException {
-        return mapFromPages(createInstance(), source);
-    }
-
-    @Override
     public WindowKey mapFromPages(WindowKey reuse, AbstractPagedInputView source)
             throws IOException {
         checkSkipReadForWindowPart(source);

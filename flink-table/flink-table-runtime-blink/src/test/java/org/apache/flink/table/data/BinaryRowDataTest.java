@@ -224,8 +224,10 @@ public class BinaryRowDataTest {
             BinaryRowDataSerializer serializer = new BinaryRowDataSerializer(1);
             serializer.serializeToPages(row, out);
 
-            BinaryRowData mapRow =
-                    serializer.mapFromPages(new RandomAccessInputView(memorySegmentList, 64));
+            BinaryRowData mapRow = serializer.createInstance();
+            mapRow =
+                    serializer.mapFromPages(
+                            mapRow, new RandomAccessInputView(memorySegmentList, 64));
             writer.reset();
             writer.writeString(0, mapRow.getString(0));
             writer.complete();
@@ -257,7 +259,8 @@ public class BinaryRowDataTest {
 
             RandomAccessInputView in = new RandomAccessInputView(memorySegmentList, 64);
             in.skipBytesToRead(40);
-            BinaryRowData mapRow = serializer.mapFromPages(in);
+            BinaryRowData mapRow = serializer.createInstance();
+            mapRow = serializer.mapFromPages(mapRow, in);
             writer.reset();
             writer.writeString(0, mapRow.getString(0));
             writer.writeString(1, mapRow.getString(1));
@@ -678,8 +681,8 @@ public class BinaryRowDataTest {
         RandomAccessOutputView out = new RandomAccessOutputView(memorySegments, 64);
         serializer.serializeToPages(row, out);
 
-        BinaryRowData mapRow =
-                serializer.mapFromPages(new RandomAccessInputView(memorySegmentList, 64));
+        BinaryRowData mapRow = serializer.createInstance();
+        mapRow = serializer.mapFromPages(mapRow, new RandomAccessInputView(memorySegmentList, 64));
         assertTestGenericObjectRow(mapRow, genericSerializer);
     }
 
@@ -817,7 +820,8 @@ public class BinaryRowDataTest {
                 new ArrayList<>(Arrays.asList(memorySegments).subList(0, segNumber));
         RandomAccessInputView input = new RandomAccessInputView(segments, 64, lastSegSize);
         input.skipBytesToRead(position);
-        BinaryRowData mapRow = serializer.mapFromPages(input);
+        BinaryRowData mapRow = serializer.createInstance();
+        mapRow = serializer.mapFromPages(mapRow, input);
 
         assertEquals(row, mapRow);
     }
@@ -909,7 +913,8 @@ public class BinaryRowDataTest {
         ArrayList<MemorySegment> segmentList = new ArrayList<>(Arrays.asList(segments));
         RandomAccessInputView input = new RandomAccessInputView(segmentList, 64, 64);
 
-        BinaryRowData mapRow = serializer.mapFromPages(input);
+        BinaryRowData mapRow = serializer.createInstance();
+        mapRow = serializer.mapFromPages(mapRow, input);
         assertEquals(row, mapRow);
         assertEquals(row.getString(0), mapRow.getString(0));
         assertEquals(row.getString(1), mapRow.getString(1));

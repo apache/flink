@@ -184,11 +184,6 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
     }
 
     @Override
-    public BinaryRowData mapFromPages(AbstractPagedInputView headerLessView) throws IOException {
-        return mapFromPages(createInstance(), headerLessView);
-    }
-
-    @Override
     public BinaryRowData mapFromPages(BinaryRowData reuse, AbstractPagedInputView headerLessView)
             throws IOException {
         checkArgument(headerLessView.getHeaderLength() == 0);

@@ -230,12 +230,6 @@ public class RowDataSerializer extends AbstractRowDataSerializer<RowData> {
     }
 
     @Override
-    public RowData mapFromPages(AbstractPagedInputView source) throws IOException {
-        //noinspection unchecked
-        return binarySerializer.mapFromPages(source);
-    }
-
-    @Override
     public RowData mapFromPages(RowData reuse, AbstractPagedInputView source) throws IOException {
         if (reuse instanceof BinaryRowData) {
             return binarySerializer.mapFromPages((BinaryRowData) reuse, source);

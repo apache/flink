@@ -51,7 +51,7 @@ public abstract class PagedTypeSerializer<T> extends TypeSerializer<T> {
      * format, some implementations may need to skip some bytes of source before de-serializing,
      * .e.g {@link BinaryRowData}. Typically, the content read from source should be copied out when
      * de-serializing, and we are not expecting the underlying data from source is reused. If you
-     * have such requirement, see {@link #mapFromPages(AbstractPagedInputView)}.
+     * have such requirement, see {@link #mapFromPages(T, AbstractPagedInputView)}.
      *
      * @param source The input view from which to read the data.
      * @return The de-serialized element.
@@ -66,22 +66,20 @@ public abstract class PagedTypeSerializer<T> extends TypeSerializer<T> {
             throws IOException;
 
     /**
-     * Map a record from the given source paged input view. This method provides a possibility to
-     * achieve zero copy when de-serializing. You can either choose copy or not copy the content
-     * read from source, but we encourage to make it zero copy.
+     * Map a reused record from the given source paged input view. This method provides a
+     * possibility to achieve zero copy when de-serializing. You can either choose copy or not copy
+     * the content read from source, but we encourage to make it zero copy.
      *
      * <p>If you choose the zero copy way, you have to deal with the lifecycle of the pages
      * properly.
      *
+     * @param reuse the reused record to be mapped
      * @param source The input view from which to read the data.
-     * @return The mapped element.
+     * @return The mapped record.
      * @throws IOException Thrown, if the de-serialization encountered an I/O related error.
      *     Typically raised by the input view, which may have an underlying I/O channel from which
      *     it reads.
      */
-    public abstract T mapFromPages(AbstractPagedInputView source) throws IOException;
-
-    /** Reuse version of {@link #mapFromPages(AbstractPagedInputView)}. */
     public abstract T mapFromPages(T reuse, AbstractPagedInputView source) throws IOException;
 
     /** Skip over bytes of one record from the input view, discarding the skipped bytes. */
