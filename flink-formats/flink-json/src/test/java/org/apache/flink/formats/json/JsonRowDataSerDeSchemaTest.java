@@ -700,7 +700,10 @@ public class JsonRowDataSerDeSchemaTest {
                                     "Failed to deserialize JSON '{\"id\":\"2019-11-12T18:00:12+0800\"}'."),
                     TestSpec.json("{\"id\":1,\"factor\":799.929496989092949698}")
                             .rowType(ROW(FIELD("id", INT()), FIELD("factor", DECIMAL(38, 18))))
-                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))));
+                            .expect(Row.of(1, new BigDecimal("799.929496989092949698"))),
+                    TestSpec.json("{\"id\":\"\tstring field\"}") // test to parse control chars
+                            .rowType(ROW(FIELD("id", STRING())))
+                            .expect(Row.of("\tstring field")));
 
     private static Map<String, Integer> createHashMap(
             String k1, Integer v1, String k2, Integer v2) {
