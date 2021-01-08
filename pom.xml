@@ -1408,9 +1408,11 @@ under the License.
 						<!-- External web libraries. -->
 						<exclude>docs/**/jquery*</exclude>
 						<exclude>docs/**/bootstrap*</exclude>
+						<exclude>docs/**/anchor*</exclude>
 						<exclude>docs/Gemfile.lock</exclude>
 						<exclude>docs/ruby2/Gemfile.lock</exclude>
 						<exclude>docs/img/*.svg</exclude>
+						<exclude>**/docs/page/fonts/**</exclude>
 						<exclude>**/docs/page/font-awesome/**</exclude>
 						<exclude>**/resources/**/font-awesome/**</exclude>
 						<exclude>**/resources/**/jquery*</exclude>
