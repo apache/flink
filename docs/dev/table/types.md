@@ -22,39 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<div class="codetabs" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-Due to historical reasons, before Flink 1.9, Flink's Table & SQL API data types were
-tightly coupled to Flink's `TypeInformation`. `TypeInformation` is used in the DataStream
-and DataSet API and is sufficient to describe all information needed to serialize and
-deserialize JVM-based objects in a distributed setting.
-
-However, `TypeInformation` was not designed to represent logical types independent of
-an actual JVM class. In the past, it was difficult to map SQL standard types to this
-abstraction. Furthermore, some types were not SQL-compliant and introduced without a
-bigger picture in mind.
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
-Starting with Flink 1.9, the Table & SQL API will receive a new type system that serves as a long-term
-solution for API stability and standard compliance.
-
-Reworking the type system is a major effort that touches almost all user-facing interfaces. Therefore, its
-introduction spans multiple releases, and the community aims to finish this effort by Flink 1.12.
-
-Due to the simultaneous addition of a new planner for table programs (see [FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)),
-not every combination of planner and data type is supported. Furthermore, planners might not support every
-data type with the desired precision or parameter.
-
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-<span class="label label-danger">Attention</span> Please see the planner compatibility table and limitations
-section before using a data type.
-</div>
-<div data-lang="Python" markdown="1">
-</div>
-</div>
+Flink SQL has a rich set of native data types available to users.
 
 * This will be replaced by the TOC
 {:toc}
@@ -62,8 +30,8 @@ section before using a data type.
 Data Type
 ---------
 
-A *data type* describes the logical type of a value in the table ecosystem. It can be used to declare input and/or
-output types of operations.
+A *data type* describes the logical type of a value in the table ecosystem.
+It can be used to declare input and/or output types of operations.
 
 Flink's data types are similar to the SQL standard's *data type* terminology but also contain information
 about the nullability of a value for efficient handling of scalar expressions.
@@ -103,7 +71,6 @@ For Python language, those types are available in `pyflink.table.types.DataTypes
 </div>
 
 <div class="codetabs" markdown="1">
-
 <div data-lang="Java" markdown="1">
 It is recommended to add a star import to your table programs for having a fluent API:
 
@@ -123,7 +90,6 @@ import org.apache.flink.table.api.DataTypes._
 val t: DataType = INTERVAL(DAY(), SECOND(3));
 {% endhighlight %}
 </div>
-
 <div data-lang="Python" markdown="1">
 
 {% highlight python %}
@@ -186,76 +152,9 @@ a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are
 </div>
 </div>
 
-Planner Compatibility
----------------------
-
 <div class="codetabs" data-hide-tabs="1" markdown="1">
 <div data-lang="Java/Scala" markdown="1">
-As mentioned in the introduction, reworking the type system will span multiple releases, and the support of each data
-type depends on the used planner. This section aims to summarize the most significant differences.
-</div>
-<div data-lang="Python" markdown="1">
-This part is for Java/Scala users.
-There are no known similiar planner compatibility issues on the data types of Python Table API currently. 
-</div>
-</div>
-
-### Old Planner
-
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-Flink's old planner, introduced before Flink 1.9, primarily supports type information. It has only limited
-support for data types. It is possible to declare data types that can be translated into type information such that the
-old planner understands them.
-
-The following table summarizes the difference between data type and type information. Most simple types, as well as the
-row type remain the same. Time types, array types, and the decimal type need special attention. Other hints as the ones
-mentioned are not allowed.
-
-For the *Type Information* column the table omits the prefix `org.apache.flink.table.api.Types`.
-
-For the *Data Type Representation* column the table omits the prefix `org.apache.flink.table.api.DataTypes`.
-
-| Type Information | Java Expression String | Data Type Representation | Remarks for Data Type |
-|:-----------------|:-----------------------|:-------------------------|:----------------------|
-| `STRING()` | `STRING` | `STRING()` | |
-| `BOOLEAN()` | `BOOLEAN` | `BOOLEAN()` | |
-| `BYTE()` | `BYTE` | `TINYINT()` | |
-| `SHORT()` | `SHORT` | `SMALLINT()` | |
-| `INT()` | `INT` | `INT()` | |
-| `LONG()` | `LONG` | `BIGINT()` | |
-| `FLOAT()` | `FLOAT` | `FLOAT()` | |
-| `DOUBLE()` | `DOUBLE` | `DOUBLE()` | |
-| `ROW(...)` | `ROW<...>` | `ROW(...)` | |
-| `BIG_DEC()` | `DECIMAL` | [`DECIMAL()`] | Not a 1:1 mapping as precision and scale are ignored and Java's variable precision and scale are used. |
-| `SQL_DATE()` | `SQL_DATE` | `DATE()`<br>`.bridgedTo(java.sql.Date.class)` | |
-| `SQL_TIME()` | `SQL_TIME` | `TIME(0)`<br>`.bridgedTo(java.sql.Time.class)` | |
-| `SQL_TIMESTAMP()` | `SQL_TIMESTAMP` | `TIMESTAMP(3)`<br>`.bridgedTo(java.sql.Timestamp.class)` | |
-| `INTERVAL_MONTHS()` | `INTERVAL_MONTHS` | `INTERVAL(MONTH())`<br>`.bridgedTo(Integer.class)` | |
-| `INTERVAL_MILLIS()` | `INTERVAL_MILLIS` | `INTERVAL(DataTypes.SECOND(3))`<br>`.bridgedTo(Long.class)` | |
-| `PRIMITIVE_ARRAY(...)` | `PRIMITIVE_ARRAY<...>` | `ARRAY(DATATYPE.notNull()`<br>`.bridgedTo(PRIMITIVE.class))` | Applies to all JVM primitive types except for `byte`. |
-| `PRIMITIVE_ARRAY(BYTE())` | `PRIMITIVE_ARRAY<BYTE>` | `BYTES()` | |
-| `OBJECT_ARRAY(...)` | `OBJECT_ARRAY<...>` | `ARRAY(`<br>`DATATYPE.bridgedTo(OBJECT.class))` | |
-| `MULTISET(...)` | | `MULTISET(...)` | |
-| `MAP(..., ...)` | `MAP<...,...>` | `MAP(...)` | |
-| other generic types | | `RAW(...)` | |
-
-<span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
-can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
-</div>
-<div data-lang="Python" markdown="1">
-N/A
-</div>
-</div>
-
-### New Blink Planner
-
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-The new Blink planner supports all of types of the old planner. This includes in particular
-the listed Java expression strings and type information.
-
-The following data types are supported:
+The default planner supports the following set of SQL types:
 
 | Data Type | Remarks for Data Type |
 |:----------|:----------------------|
@@ -286,23 +185,6 @@ The following data types are supported:
 </div>
 <div data-lang="Python" markdown="1">
 N/A
-</div>
-</div>
-
-Limitations
------------
-
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
-**Java Expression String**: Java expression strings in the Table API such as `table.select("field.cast(STRING)")`
-have not been updated to the new type system yet. Use the string representations declared in
-the [old planner section](#old-planner).
-
-**User-defined Functions**: User-defined aggregate functions cannot declare a data type yet. Scalar and table functions fully support data types.
-</div>
-<div data-lang="Python" markdown="1">
-This part is for Java/Scala users.
-There are no known similiar limitations on the data types of Python Table API currently.
 </div>
 </div>
 
