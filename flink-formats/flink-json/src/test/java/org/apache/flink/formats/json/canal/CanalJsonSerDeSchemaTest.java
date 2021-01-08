@@ -82,6 +82,18 @@ public class CanalJsonSerDeSchemaTest {
     }
 
     @Test
+    public void testDeserializeNullRow() throws Exception {
+        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        final CanalJsonDeserializationSchema deserializationSchema =
+                createCanalJsonDeserializationSchema(null, null, requestedMetadata);
+        final SimpleCollector collector = new SimpleCollector();
+
+        deserializationSchema.deserialize(null, collector);
+        deserializationSchema.deserialize(new byte[0], collector);
+        assertEquals(0, collector.list.size());
+    }
+
+    @Test
     public void testDeserializationWithMetadata() throws Exception {
         testDeserializationWithMetadata(
                 "canal-data.txt",
@@ -251,26 +263,32 @@ public class CanalJsonSerDeSchemaTest {
         // we only read the first line for keeping the test simple
         final String firstLine = readLines(resourceFile).get(0);
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+        final CanalJsonDeserializationSchema deserializationSchema =
+                createCanalJsonDeserializationSchema(database, table, requestedMetadata);
+        final SimpleCollector collector = new SimpleCollector();
+
+        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
+        assertEquals(9, collector.list.size());
+        testConsumer.accept(collector.list.get(0));
+    }
+
+    private CanalJsonDeserializationSchema createCanalJsonDeserializationSchema(
+            String database, String table, List<ReadableMetadata> requestedMetadata) {
         final DataType producedDataType =
                 DataTypeUtils.appendRowFields(
                         PHYSICAL_DATA_TYPE,
                         requestedMetadata.stream()
                                 .map(m -> DataTypes.FIELD(m.key, m.dataType))
                                 .collect(Collectors.toList()));
-        final CanalJsonDeserializationSchema deserializationSchema =
-                CanalJsonDeserializationSchema.builder(
-                                PHYSICAL_DATA_TYPE,
-                                requestedMetadata,
-                                InternalTypeInfo.of(producedDataType.getLogicalType()))
-                        .setDatabase(database)
-                        .setTable(table)
-                        .setIgnoreParseErrors(false)
-                        .setTimestampFormat(TimestampFormat.ISO_8601)
-                        .build();
-        final SimpleCollector collector = new SimpleCollector();
-        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-        assertEquals(9, collector.list.size());
-        testConsumer.accept(collector.list.get(0));
+        return CanalJsonDeserializationSchema.builder(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata,
+                        InternalTypeInfo.of(producedDataType.getLogicalType()))
+                .setDatabase(database)
+                .setTable(table)
+                .setIgnoreParseErrors(false)
+                .setTimestampFormat(TimestampFormat.ISO_8601)
+                .build();
     }
 
     // --------------------------------------------------------------------------------------------
