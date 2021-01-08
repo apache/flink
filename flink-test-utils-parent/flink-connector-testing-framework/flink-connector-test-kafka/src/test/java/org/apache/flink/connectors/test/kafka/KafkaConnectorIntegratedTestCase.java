@@ -33,33 +33,33 @@ import org.junit.Test;
 
 import java.util.Properties;
 
-/**
- * IT for Kafka connector.
- */
+/** IT for Kafka connector. */
 public class KafkaConnectorIntegratedTestCase {
 
-	@Rule
-	public KafkaContainerizedExternalSystem kafka = new KafkaContainerizedExternalSystem();
+    @Rule public KafkaContainerizedExternalSystem kafka = new KafkaContainerizedExternalSystem();
 
-	@Test
-	public void testBasicFunctionality() throws Exception {
+    @Test
+    public void testBasicFunctionality() throws Exception {
 
-		// Configure Kafka test context
-		Properties kafkaProperties = new Properties();
-		kafkaProperties.setProperty("bootstrap.servers", kafka.getBootstrapServer().split("://")[1]);
-		ExternalContext<String> externalContext = new KafkaExternalContext(kafkaProperties);
+        // Configure Kafka test context
+        Properties kafkaProperties = new Properties();
+        kafkaProperties.setProperty(
+                "bootstrap.servers", kafka.getBootstrapServer().split("://")[1]);
+        ExternalContext<String> externalContext = new KafkaExternalContext(kafkaProperties);
 
-		// Configure Flink test environment
-		TestEnvironment miniClusterTestEnvironment = new MiniClusterTestEnvironment();
-		Configuration config = miniClusterTestEnvironment.getConfiguration();
-		config.set(TestEnvironmentConfigs.RMI_HOST, "localhost");
-		config.set(TestEnvironmentConfigs.RMI_POTENTIAL_PORTS, String.valueOf(ControllableSource.RMI_PORT));
-		config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
-		config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
-		config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
-		config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
+        // Configure Flink test environment
+        TestEnvironment miniClusterTestEnvironment = new MiniClusterTestEnvironment();
+        Configuration config = miniClusterTestEnvironment.getConfiguration();
+        config.set(TestEnvironmentConfigs.RMI_HOST, "localhost");
+        config.set(
+                TestEnvironmentConfigs.RMI_POTENTIAL_PORTS,
+                String.valueOf(ControllableSource.RMI_PORT));
+        config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
+        config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
+        config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
+        config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
 
-		// Run test case in test suite
-		BasicTestSuite.testBasicFunctionality(externalContext, miniClusterTestEnvironment);
-	}
+        // Run test case in test suite
+        BasicTestSuite.testBasicFunctionality(externalContext, miniClusterTestEnvironment);
+    }
 }

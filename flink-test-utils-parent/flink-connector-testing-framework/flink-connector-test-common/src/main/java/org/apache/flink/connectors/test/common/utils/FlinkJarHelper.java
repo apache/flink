@@ -25,39 +25,39 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Objects;
 
-/**
- * Utilities for searching Flink JAR files and main class of Flink jobs.
- */
+/** Utilities for searching Flink JAR files and main class of Flink jobs. */
 public class FlinkJarHelper {
 
-	private static File searchedJarFile = null;
+    private static File searchedJarFile = null;
 
-	private static final Logger LOG = LoggerFactory.getLogger(FlinkJarHelper.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FlinkJarHelper.class);
 
-	/**
-	 * Search JAR file in target folder.
-	 * @return JAR file
-	 * @throws FileNotFoundException if JAR file is not found in target folder
-	 */
-	public static File searchJar() throws FileNotFoundException{
-		if (searchedJarFile == null) {
-			// Search JAR file in target directory
-			String moduleName = new File(System.getProperty("user.dir")).getName();
-			File targetDir = new File(System.getProperty("user.dir"), "target");
-			File jobJar = null;
-			LOG.debug("Searching JAR in {} with module name {}", targetDir, moduleName);
-			for (File file : Objects.requireNonNull(targetDir.listFiles())) {
-				String filename = file.getName();
-				if (filename.startsWith(moduleName) && filename.endsWith(".jar")) {
-					jobJar = file;
-				}
-			}
-			if (jobJar == null) {
-				throw new FileNotFoundException("Cannot find relative JAR file in the target directory. Make sure the maven project is built correctly.");
-			}
-			searchedJarFile = jobJar;
-		}
-		LOG.info("Found JAR file {}", searchedJarFile.getName());
-		return searchedJarFile;
-	}
+    /**
+     * Search JAR file in target folder.
+     *
+     * @return JAR file
+     * @throws FileNotFoundException if JAR file is not found in target folder
+     */
+    public static File searchJar() throws FileNotFoundException {
+        if (searchedJarFile == null) {
+            // Search JAR file in target directory
+            String moduleName = new File(System.getProperty("user.dir")).getName();
+            File targetDir = new File(System.getProperty("user.dir"), "target");
+            File jobJar = null;
+            LOG.debug("Searching JAR in {} with module name {}", targetDir, moduleName);
+            for (File file : Objects.requireNonNull(targetDir.listFiles())) {
+                String filename = file.getName();
+                if (filename.startsWith(moduleName) && !filename.endsWith("-tests.jar") && filename.endsWith(".jar")) {
+                    jobJar = file;
+                }
+            }
+            if (jobJar == null) {
+                throw new FileNotFoundException(
+                        "Cannot find relative JAR file in the target directory. Make sure the maven project is built correctly.");
+            }
+            searchedJarFile = jobJar;
+        }
+        LOG.info("Found JAR file {}", searchedJarFile.getName());
+        return searchedJarFile;
+    }
 }

@@ -20,9 +20,7 @@ package org.apache.flink.connectors.test.common.jobs;
 
 import java.io.Serializable;
 
-/**
- * Base class for Flink jobs used by testing framework.
- */
+/** Base class for Flink jobs used by testing framework. */
 public class FlinkJob implements Serializable {
-	public static final String END_MARK = "END";
+    public static final String END_MARK = "END";
 }

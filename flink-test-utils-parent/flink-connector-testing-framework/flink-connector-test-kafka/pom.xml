@@ -25,7 +25,7 @@
     <parent>
         <artifactId>flink-connector-testing-framework</artifactId>
         <groupId>org.apache.flink</groupId>
-        <version>1.12-SNAPSHOT</version>
+        <version>1.13-SNAPSHOT</version>
     </parent>
 
     <artifactId>flink-connector-test-kafka</artifactId>
@@ -57,7 +57,7 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
-            <version>1.14.3</version>
+            <version>${testcontainers.version}</version>
         </dependency>
 
     </dependencies>

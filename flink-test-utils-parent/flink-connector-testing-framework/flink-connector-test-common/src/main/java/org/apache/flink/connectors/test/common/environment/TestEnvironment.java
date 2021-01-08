@@ -21,22 +21,21 @@ package org.apache.flink.connectors.test.common.environment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-/**
- * Test environment for running Flink jobs.
- */
+/** Test environment for running Flink jobs. */
 public interface TestEnvironment {
 
-	/**
-	 * Create a new {@link StreamExecutionEnvironment} for configuring and executing the Flink job.
-	 * @return An instance of execution environment
-	 */
-	StreamExecutionEnvironment createExecutionEnvironment();
+    /**
+     * Create a new {@link StreamExecutionEnvironment} for configuring and executing the Flink job.
+     *
+     * @return An instance of execution environment
+     */
+    StreamExecutionEnvironment createExecutionEnvironment();
 
-	/**
-	 * Get configurations for the test.
-	 * This is usually for providing extra information required by a test case.
-	 * @return Configuration of the test
-	 */
-	Configuration getConfiguration();
-
+    /**
+     * Get configurations for the test. This is usually for providing extra information required by
+     * a test case.
+     *
+     * @return Configuration of the test
+     */
+    Configuration getConfiguration();
 }

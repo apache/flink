@@ -26,35 +26,41 @@ import java.io.Serializable;
 /**
  * Context of the test interacting with external system.
  *
- * <p>User need to provide some instances and information of the test to testing framework, including name of Flink
- * jobs, instance of tested source/sink and job termination pattern.</p>
+ * <p>User need to provide some instances and information of the test to testing framework,
+ * including name of Flink jobs, instance of tested source/sink and job termination pattern.
  *
  * @param <T> Type of elements after deserialization by source and before serialization by sink
  */
 public interface ExternalContext<T> extends Serializable {
 
-	/**
-	 * Get the name of the Flink job used for testing.
-	 * @return Name of the Flink job
-	 */
-	String jobName();
+    /**
+     * Get the name of the Flink job used for testing.
+     *
+     * @return Name of the Flink job
+     */
+    String jobName();
 
-	/**
-	 * Create a new instance of the source. This will be invoked when the main function of the Flink job is invoked.
-	 * @return A new instance of the source
-	 */
-	SourceFunction<T> createSource();
+    /**
+     * Create a new instance of the source. This will be invoked when the main function of the Flink
+     * job is invoked.
+     *
+     * @return A new instance of the source
+     */
+    SourceFunction<T> createSource();
 
-	/**
-	 * Create a new instance of the sink. This will be invoked when the main function of the Flink job is invoked.
-	 * @return A new instance of the sink
-	 */
-	SinkFunction<T> createSink();
+    /**
+     * Create a new instance of the sink. This will be invoked when the main function of the Flink
+     * job is invoked.
+     *
+     * @return A new instance of the sink
+     */
+    SinkFunction<T> createSink();
 
-	/**
-	 * Get the termination pattern of the job. Check {@link SourceJobTerminationPattern}
-	 * for more descriptions.
-	 * @return Termination pattern of the Flink job
-	 */
-	SourceJobTerminationPattern sourceJobTerminationPattern();
+    /**
+     * Get the termination pattern of the job. Check {@link SourceJobTerminationPattern} for more
+     * descriptions.
+     *
+     * @return Termination pattern of the Flink job
+     */
+    SourceJobTerminationPattern sourceJobTerminationPattern();
 }

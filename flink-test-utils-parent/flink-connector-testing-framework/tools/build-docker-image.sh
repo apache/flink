@@ -20,7 +20,7 @@ basedir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 docker_context_root=`mktemp -d 2>/dev/null || mktemp -d -t 'docker-context'`
 docker_context_flink="${docker_context_root}/flink"
-flink_version=1.12-SNAPSHOT
+flink_version=1.13-SNAPSHOT
 build_target=../../flink-dist/target/flink-${flink_version}-bin/flink-${flink_version}
 
 if [ ! -d ${build_target} ]

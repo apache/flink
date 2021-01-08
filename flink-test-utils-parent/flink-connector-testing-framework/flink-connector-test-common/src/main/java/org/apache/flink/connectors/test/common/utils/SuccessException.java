@@ -18,11 +18,9 @@
 
 package org.apache.flink.connectors.test.common.utils;
 
-/**
- * Exception for successfully received the end mark in order to terminate the running job.
- */
+/** Exception for successfully received the end mark in order to terminate the running job. */
 public class SuccessException extends RuntimeException {
-	public SuccessException(String message) {
-		super(message);
-	}
+    public SuccessException(String message) {
+        super(message);
+    }
 }

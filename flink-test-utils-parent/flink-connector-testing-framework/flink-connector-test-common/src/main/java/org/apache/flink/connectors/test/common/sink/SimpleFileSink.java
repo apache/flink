@@ -28,40 +28,38 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 
-/**
- * A simple file sink for writing records into a file locally.
- */
+/** A simple file sink for writing records into a file locally. */
 public class SimpleFileSink extends RichSinkFunction<String> {
-	private static final Logger LOG = LoggerFactory.getLogger(SimpleFileSink.class);
-	String filePath;
-	File sinkFile;
-	BufferedWriter sinkBufferedWriter;
-	boolean flushPerRecord;
+    private static final Logger LOG = LoggerFactory.getLogger(SimpleFileSink.class);
+    String filePath;
+    File sinkFile;
+    BufferedWriter sinkBufferedWriter;
+    boolean flushPerRecord;
 
-	public SimpleFileSink(String filePath, boolean flushPerRecord) {
-		this.filePath = filePath;
-		this.flushPerRecord = flushPerRecord;
-	}
+    public SimpleFileSink(String filePath, boolean flushPerRecord) {
+        this.filePath = filePath;
+        this.flushPerRecord = flushPerRecord;
+    }
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		this.sinkFile = new File(filePath);
-		this.sinkBufferedWriter = new BufferedWriter(new FileWriter(sinkFile));
-	}
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        this.sinkFile = new File(filePath);
+        this.sinkBufferedWriter = new BufferedWriter(new FileWriter(sinkFile));
+    }
 
-	@Override
-	public void close() throws Exception {
-		LOG.debug("Closing SimpleFlinkSink...");
-		sinkBufferedWriter.flush();
-		sinkBufferedWriter.close();
-	}
+    @Override
+    public void close() throws Exception {
+        LOG.debug("Closing SimpleFlinkSink...");
+        sinkBufferedWriter.flush();
+        sinkBufferedWriter.close();
+    }
 
-	@Override
-	public void invoke(String value, Context context) throws Exception {
-		LOG.trace("Invoked with value: {}", value);
-		sinkBufferedWriter.append(value).append("\n");
-		if (flushPerRecord) {
-			sinkBufferedWriter.flush();
-		}
-	}
+    @Override
+    public void invoke(String value, Context context) throws Exception {
+        LOG.trace("Invoked with value: {}", value);
+        sinkBufferedWriter.append(value).append("\n");
+        if (flushPerRecord) {
+            sinkBufferedWriter.flush();
+        }
+    }
 }

@@ -26,7 +26,7 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-test-utils-parent</artifactId>
-		<version>1.12-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -40,7 +40,7 @@
     </modules>
 
     <properties>
-        <testcontainers.version>1.15.0-rc2</testcontainers.version>
+        <testcontainers.version>1.15.1</testcontainers.version>
 		<flink.version>${project.version}</flink.version>
     </properties>
 
@@ -56,7 +56,7 @@
 		<profile>
             <!--
                 This profile is for running test cases in the testing framework.
-                Docker environment should be installed for using this profile because some test
+                Docker environment should be installed before using this profile because some test
                 cases use Testcontainers as the test environment.
                 To trigger this profile, use "-Prun-connector-test" option when running maven.
             -->

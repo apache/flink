@@ -42,170 +42,162 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * A Flink source that can be controlled by Java RMI.
  *
- * <p>This source is used for generating random records to downstream and recording records into a given local file.
- * In order to control records to generate and lifecycle of the Flink job using this source, it integrates with
- * an Java RMI server so that it could be controlled remotely through RPC (basically controlled by testing framework).
- * </p>
+ * <p>This source is used for generating random records to downstream and recording records into a
+ * given local file. In order to control records to generate and lifecycle of the Flink job using
+ * this source, it integrates with an Java RMI server so that it could be controlled remotely
+ * through RPC (basically controlled by testing framework).
  */
-public class ControllableSource
-		extends AbstractRichFunction
-		implements SourceFunction<String>, CheckpointedFunction, SourceControlRpc {
+public class ControllableSource extends AbstractRichFunction
+        implements SourceFunction<String>, CheckpointedFunction, SourceControlRpc {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ControllableSource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ControllableSource.class);
 
-	/*---------------- Java RMI configurations ---------------*/
-	public static final String RMI_PROP_REGISTRY_FILTER = "sun.rmi.registry.registryFilter";
-	public static final String RMI_PROP_SERVER_HOSTNAME = "java.rmi.server.hostname";
-	public static final String RMI_REGISTRY_NAME = "SourceControl";
-	public static final String RMI_HOSTNAME = "127.0.0.1";
-	public static final int RMI_PORT = 15213;
-	private Registry rmiRegistry;
+    /*---------------- Java RMI configurations ---------------*/
+    public static final String RMI_PROP_REGISTRY_FILTER = "sun.rmi.registry.registryFilter";
+    public static final String RMI_PROP_SERVER_HOSTNAME = "java.rmi.server.hostname";
+    public static final String RMI_REGISTRY_NAME = "SourceControl";
+    public static final String RMI_HOSTNAME = "127.0.0.1";
+    public static final int RMI_PORT = 15213;
+    private Registry rmiRegistry;
 
-	private volatile boolean isRunning = true;
-	private volatile boolean isStepping = true;
+    private volatile boolean isRunning = true;
+    private volatile boolean isStepping = true;
 
-	private final File recordingFile;
-	private BufferedWriter bw;
+    private final File recordingFile;
+    private BufferedWriter bw;
 
-	private AtomicInteger numElementsToEmit;
+    private AtomicInteger numElementsToEmit;
 
-	private final SyncLock syncLock = new SyncLock();
+    private final SyncLock syncLock = new SyncLock();
 
-	private final String endMark;
+    private final String endMark;
 
-	public ControllableSource(String recordingFilePath, String endMark) {
-		recordingFile = new File(recordingFilePath);
-		this.endMark = endMark;
-	}
+    public ControllableSource(String recordingFilePath, String endMark) {
+        recordingFile = new File(recordingFilePath);
+        this.endMark = endMark;
+    }
 
-	/*------------------- Checkpoint related---------------------*/
-	@Override
-	public void snapshotState(FunctionSnapshotContext context) {
+    /*------------------- Checkpoint related---------------------*/
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) {}
 
-	}
+    @Override
+    public void initializeState(FunctionInitializationContext context) {}
 
-	@Override
-	public void initializeState(FunctionInitializationContext context) {
+    /*-------------------- Rich function related -----------------*/
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        // Setup Java RMI
+        java.lang.System.setProperty(RMI_PROP_REGISTRY_FILTER, "java.**;org.apache.flink.**");
+        java.lang.System.setProperty(RMI_PROP_SERVER_HOSTNAME, RMI_HOSTNAME);
+        UnicastRemoteObject.exportObject(this, RMI_PORT);
+        rmiRegistry = LocateRegistry.createRegistry(RMI_PORT);
+        rmiRegistry.bind(RMI_REGISTRY_NAME, this);
 
-	}
+        // Setup recording file
+        bw = new BufferedWriter(new FileWriter(recordingFile));
 
+        // Setup record counter
+        numElementsToEmit = new AtomicInteger(0);
+    }
 
-	/*-------------------- Rich function related -----------------*/
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		// Setup Java RMI
-		java.lang.System.setProperty(RMI_PROP_REGISTRY_FILTER, "java.**;org.apache.flink.**");
-		java.lang.System.setProperty(RMI_PROP_SERVER_HOSTNAME, RMI_HOSTNAME);
-		UnicastRemoteObject.exportObject(this, RMI_PORT);
-		rmiRegistry = LocateRegistry.createRegistry(RMI_PORT);
-		rmiRegistry.bind(RMI_REGISTRY_NAME, this);
+    @Override
+    public void run(SourceContext<String> ctx) {
 
-		// Setup recording file
-		bw = new BufferedWriter(new FileWriter(recordingFile));
+        // Main loop
+        while (isRunning) {
+            synchronized (syncLock) {
+                if (numElementsToEmit.get() > 0) {
+                    emitAndRecordElement(ctx, generateRandomString(10));
+                    if (isStepping) {
+                        numElementsToEmit.decrementAndGet();
+                    }
+                }
+            }
+        }
 
-		// Setup record counter
-		numElementsToEmit = new AtomicInteger(0);
-	}
+        // Ready to finish the job
+        // Finish leftover
+        synchronized (syncLock) {
+            while (numElementsToEmit.get() > 0) {
+                emitAndRecordElement(ctx, generateRandomString(10));
+                numElementsToEmit.decrementAndGet();
+            }
 
-	@Override
-	public void run(SourceContext<String> ctx) {
+            // Emit end mark before exit
+            ctx.collect(endMark);
+        }
+    }
 
-		// Main loop
-		while (isRunning) {
-			synchronized (syncLock) {
-				if (numElementsToEmit.get() > 0) {
-					emitAndRecordElement(ctx, generateRandomString(10));
-					if (isStepping) {
-						numElementsToEmit.decrementAndGet();
-					}
-				}
-			}
-		}
+    @Override
+    public void cancel() {
+        isRunning = false;
+    }
 
-		// Ready to finish the job
-		// Finish leftover
-		synchronized (syncLock) {
-			while (numElementsToEmit.get() > 0) {
-				emitAndRecordElement(ctx, generateRandomString(10));
-				numElementsToEmit.decrementAndGet();
-			}
+    @Override
+    public void close() throws Exception {
+        if (bw != null) {
+            bw.close();
+        }
+        UnicastRemoteObject.unexportObject(rmiRegistry, true);
+    }
 
-			// Emit end mark before exit
-			ctx.collect(endMark);
-		}
-	}
+    /*------------------------- Java RMI related ----------------------*/
+    @Override
+    public void pause() {
+        LOG.trace("Received command PAUSE");
+        synchronized (syncLock) {
+            isStepping = true;
+        }
+    }
 
-	@Override
-	public void cancel() {
-		isRunning = false;
-	}
+    @Override
+    public void next() {
+        LOG.trace("Received command NEXT");
+        // if main thread is running, just ignore the request
+        synchronized (syncLock) {
+            if (!isStepping) {
+                return;
+            }
+            numElementsToEmit.incrementAndGet();
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		if (bw != null) {
-			bw.close();
-		}
-		UnicastRemoteObject.unexportObject(rmiRegistry, true);
-	}
+    @Override
+    public void go() {
+        LOG.trace("Received command GO");
+        synchronized (syncLock) {
+            isStepping = false;
+            numElementsToEmit.incrementAndGet();
+        }
+    }
 
-	/*------------------------- Java RMI related ----------------------*/
-	@Override
-	public void pause() {
-		LOG.trace("Received command PAUSE");
-		synchronized (syncLock) {
-			isStepping = true;
-		}
-	}
+    @Override
+    public void finish() {
+        LOG.trace("Received command FINISH");
+        isRunning = false;
+    }
 
-	@Override
-	public void next() {
-		LOG.trace("Received command NEXT");
-		// if main thread is running, just ignore the request
-		synchronized (syncLock) {
-			if (!isStepping) {
-				return;
-			}
-			numElementsToEmit.incrementAndGet();
-		}
-	}
+    static class SyncLock implements Serializable {}
 
-	@Override
-	public void go() {
-		LOG.trace("Received command GO");
-		synchronized (syncLock) {
-			isStepping = false;
-			numElementsToEmit.incrementAndGet();
-		}
-	}
+    private String generateRandomString(int length) {
+        String alphaNumericString =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "abcdefghijklmnopqrstuvwxyz" + "0123456789";
+        StringBuilder sb = new StringBuilder();
+        Random random = new Random();
+        for (int i = 0; i < length; ++i) {
+            sb.append(alphaNumericString.charAt(random.nextInt(alphaNumericString.length())));
+        }
+        return sb.toString();
+    }
 
-	@Override
-	public void finish() {
-		LOG.trace("Received command FINISH");
-		isRunning = false;
-	}
-
-	static class SyncLock implements Serializable {
-	}
-
-	private String generateRandomString(int length) {
-		String alphaNumericString = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-				"abcdefghijklmnopqrstuvwxyz" +
-				"0123456789";
-		StringBuilder sb = new StringBuilder();
-		Random random = new Random();
-		for (int i = 0; i < length; ++i) {
-			sb.append(alphaNumericString.charAt(random.nextInt(alphaNumericString.length())));
-		}
-		return sb.toString();
-	}
-
-	private void emitAndRecordElement(SourceContext<String> ctx, String element) {
-		LOG.trace("Emitting element: {}", element);
-		ctx.collect(element);
-		try {
-			bw.append(element).append('\n');
-		} catch (IOException e) {
-			throw new RuntimeException("Failed to appending BufferedWriter", e);
-		}
-	}
+    private void emitAndRecordElement(SourceContext<String> ctx, String element) {
+        LOG.trace("Emitting element: {}", element);
+        ctx.collect(element);
+        try {
+            bw.append(element).append('\n');
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to appending BufferedWriter", e);
+        }
+    }
 }

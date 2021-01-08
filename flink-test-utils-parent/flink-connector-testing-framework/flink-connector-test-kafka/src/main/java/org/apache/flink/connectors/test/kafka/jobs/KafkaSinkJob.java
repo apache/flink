@@ -24,15 +24,13 @@ import org.apache.flink.connectors.test.kafka.external.KafkaExternalContext;
 
 import java.util.Properties;
 
-/**
- * Flink job for testing Kafka sink connector.
- */
+/** Flink job for testing Kafka sink connector. */
 public class KafkaSinkJob extends AbstractSinkJob {
 
-	public static void main(String[] args) throws Exception {
-		Properties kafkaProperties = new Properties();
-		kafkaProperties.setProperty("bootstrap.servers", "kafka:9092");
-		kafkaProperties.setProperty("topic", KafkaContainerizedExternalSystem.TOPIC);
-		(new KafkaSinkJob()).run(new KafkaExternalContext(kafkaProperties));
-	}
+    public static void main(String[] args) throws Exception {
+        Properties kafkaProperties = new Properties();
+        kafkaProperties.setProperty("bootstrap.servers", "kafka:9092");
+        kafkaProperties.setProperty("topic", KafkaContainerizedExternalSystem.TOPIC);
+        (new KafkaSinkJob()).run(new KafkaExternalContext(kafkaProperties));
+    }
 }

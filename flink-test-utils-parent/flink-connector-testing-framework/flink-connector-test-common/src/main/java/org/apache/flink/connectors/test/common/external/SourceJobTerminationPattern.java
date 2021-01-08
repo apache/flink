@@ -23,31 +23,27 @@ import org.apache.flink.connectors.test.common.utils.SuccessException;
 /**
  * Patterns for how source job is terminated.
  *
- * <p>Since we cannot assume whether the tested source is bounded or not (whether the source job would finish itself),
- * framework user has to provide a pattern of terminating the job.</p>
+ * <p>Since we cannot assume whether the tested source is bounded or not (whether the source job
+ * would finish itself), framework user has to provide a pattern of terminating the job.
  */
 public enum SourceJobTerminationPattern {
 
-	/* Using new source API introduced in FLIP-27 and the source itself is bounded. */
-	BOUNDED_SOURCE,
+    /* Using new source API introduced in FLIP-27 and the source itself is bounded. */
+    BOUNDED_SOURCE,
 
-	/**
-	 * Using {@link org.apache.flink.api.common.serialization.DeserializationSchema#isEndOfStream}
-	 * to stop the source.
-	 */
-	DESERIALIZATION_SCHEMA,
+    /**
+     * Using {@link org.apache.flink.api.common.serialization.DeserializationSchema#isEndOfStream}
+     * to stop the source.
+     */
+    DESERIALIZATION_SCHEMA,
 
-	/**
-	 * Using a record provided by testing framework to mark the end of stream. If this pattern is chosen, a map
-	 * operator will be added between source and sink as a filter, and
-	 * {@link SuccessException} will be thrown, which will lead to failure
-	 * of the job.
-	 */
-	END_MARK_FILTERING,
+    /**
+     * Using a record provided by testing framework to mark the end of stream. If this pattern is
+     * chosen, a map operator will be added between source and sink as a filter, and {@link
+     * SuccessException} will be thrown, which will lead to failure of the job.
+     */
+    END_MARK_FILTERING,
 
-	/**
-	 * The framework has to forcibly kill the job when some conditions are fulfilled.
-	 */
-	FORCE_STOP
-
+    /** The framework has to forcibly kill the job when some conditions are fulfilled. */
+    FORCE_STOP
 }

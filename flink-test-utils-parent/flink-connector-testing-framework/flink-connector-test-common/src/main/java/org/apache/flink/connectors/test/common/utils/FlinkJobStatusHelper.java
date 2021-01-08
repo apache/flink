@@ -21,35 +21,38 @@ package org.apache.flink.connectors.test.common.utils;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
 
-/**
- * Helper components for checking Flink job status.
- */
+/** Helper components for checking Flink job status. */
 public class FlinkJobStatusHelper {
 
-	/**
-	 * Wait until the job enters expected status.
-	 * @param client Client of the job
-	 * @param expectedStatus Expected job status
-	 */
-	public static void waitForJobStatus(JobClient client, JobStatus expectedStatus) {
-		JobStatus status = null;
-		try {
-			while (status == null || !status.equals(expectedStatus)) {
-				status = client.getJobStatus().get();
-				if (status.isTerminalState()) {
-					break;
-				}
-			}
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to get status of the job", e);
-		}
+    /**
+     * Wait until the job enters expected status.
+     *
+     * @param client Client of the job
+     * @param expectedStatus Expected job status
+     */
+    public static void waitForJobStatus(JobClient client, JobStatus expectedStatus) {
+        JobStatus status = null;
+        try {
+            while (status == null || !status.equals(expectedStatus)) {
+                status = client.getJobStatus().get();
+                if (status.isTerminalState()) {
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to get status of the job", e);
+        }
 
-		// If the job is entering an unexpected terminal status
-		if (status.isTerminalState() && !status.equals(expectedStatus)) {
-			if (status.equals(JobStatus.FAILED)) {
-				throw new IllegalStateException("Job has entered " + status + " state, "
-						+ "but expecting " + expectedStatus);
-			}
-		}
-	}
+        // If the job is entering an unexpected terminal status
+        if (status.isTerminalState() && !status.equals(expectedStatus)) {
+            if (status.equals(JobStatus.FAILED)) {
+                throw new IllegalStateException(
+                        "Job has entered "
+                                + status
+                                + " state, "
+                                + "but expecting "
+                                + expectedStatus);
+            }
+        }
+    }
 }

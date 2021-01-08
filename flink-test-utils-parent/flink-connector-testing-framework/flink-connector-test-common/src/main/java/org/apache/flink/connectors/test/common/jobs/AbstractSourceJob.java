@@ -33,53 +33,61 @@ import java.io.File;
 /**
  * Abstract Flink job for testing source connector.
  *
- * <p>The topology of this job is: </p>
+ * <p>The topology of this job is:
  *
- * <p>Tested source --> map(optional) -> SimpleFileSink</p>
+ * <p>Tested source --> map(optional) -> SimpleFileSink
  *
- * <p>The source will consume records from external system and send them to downstream via an optional map operator,
- * and records will be written into a file named "output.txt" in the workspace managed by testing framework.</p>
+ * <p>The source will consume records from external system and send them to downstream via an
+ * optional map operator, and records will be written into a file named "output.txt" in the
+ * workspace managed by testing framework.
  *
- * <p>If the job termination pattern is {@link SourceJobTerminationPattern#END_MARK_FILTERING}, which means
- * the tested source is unbounded, a map operator will be inserted between source and sink for filtering the end mark,
- * and a {@link SuccessException} will be thrown for terminating the job if the end mark is received by the map
- * operator. </p>
+ * <p>If the job termination pattern is {@link SourceJobTerminationPattern#END_MARK_FILTERING},
+ * which means the tested source is unbounded, a map operator will be inserted between source and
+ * sink for filtering the end mark, and a {@link SuccessException} will be thrown for terminating
+ * the job if the end mark is received by the map operator.
  */
 public abstract class AbstractSourceJob extends FlinkJob {
 
-	/**
-	 * Main entry of the job.
-	 * @param context Context of the test
-	 * @throws Exception if job execution failed
-	 */
-	public void run(ExternalContext<String> context) throws Exception {
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    /**
+     * Main entry of the job.
+     *
+     * @param context Context of the test
+     * @throws Exception if job execution failed
+     */
+    public void run(ExternalContext<String> context) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		if (context.sourceJobTerminationPattern() == SourceJobTerminationPattern.END_MARK_FILTERING) {
-			env.setRestartStrategy(RestartStrategies.noRestart());
-		}
+        if (context.sourceJobTerminationPattern()
+                == SourceJobTerminationPattern.END_MARK_FILTERING) {
+            env.setRestartStrategy(RestartStrategies.noRestart());
+        }
 
-		File outputFile = new File(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt");
+        File outputFile =
+                new File(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt");
 
-		DataStream<String> stream = env.addSource(context.createSource());
+        DataStream<String> stream = env.addSource(context.createSource());
 
-		switch (context.sourceJobTerminationPattern()) {
-			case END_MARK_FILTERING:
-				stream = stream.map((MapFunction<String, String>) value -> {
-					if (value.equals(END_MARK)) {
-						throw new SuccessException("Successfully received end mark");
-					}
-					return value;
-				});
-				break;
-			case BOUNDED_SOURCE:
-			case DESERIALIZATION_SCHEMA:
-			case FORCE_STOP:
-				break;
-			default:
-				throw new IllegalStateException("Unrecognized stop pattern");
-		}
-		stream.addSink(new SimpleFileSink(outputFile.getAbsolutePath(), false));
-		env.execute(context.jobName() + "-Source");
-	}
+        switch (context.sourceJobTerminationPattern()) {
+            case END_MARK_FILTERING:
+                stream =
+                        stream.map(
+                                (MapFunction<String, String>)
+                                        value -> {
+                                            if (value.equals(END_MARK)) {
+                                                throw new SuccessException(
+                                                        "Successfully received end mark");
+                                            }
+                                            return value;
+                                        });
+                break;
+            case BOUNDED_SOURCE:
+            case DESERIALIZATION_SCHEMA:
+            case FORCE_STOP:
+                break;
+            default:
+                throw new IllegalStateException("Unrecognized stop pattern");
+        }
+        stream.addSink(new SimpleFileSink(outputFile.getAbsolutePath(), false));
+        env.execute(context.jobName() + "-Source");
+    }
 }

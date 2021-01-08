@@ -28,48 +28,44 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 
 import java.util.Properties;
 
-/**
- * Context for Kafka tests.
- */
+/** Context for Kafka tests. */
 public class KafkaExternalContext implements ExternalContext<String> {
 
-	private final Properties kafkaProperties;
+    private final Properties kafkaProperties;
 
-	public KafkaExternalContext(Properties kafkaProperties) {
-		this.kafkaProperties = kafkaProperties;
-	}
+    public KafkaExternalContext(Properties kafkaProperties) {
+        this.kafkaProperties = kafkaProperties;
+    }
 
-	@Override
-	public String jobName() {
-		return "KafkaConnectorTest";
-	}
+    @Override
+    public String jobName() {
+        return "KafkaConnectorTest";
+    }
 
-	@Override
-	public SourceFunction<String> createSource() {
-		FlinkKafkaConsumer<String> kafkaSource = new FlinkKafkaConsumer<>(
-				KafkaContainerizedExternalSystem.TOPIC,
-				new SimpleStringSchema() {
-					@Override
-					public boolean isEndOfStream(String nextElement) {
-						return nextElement.equals("END");
-					}
-				},
-				kafkaProperties);
-		kafkaSource.setStartFromEarliest();
-		return kafkaSource;
-	}
+    @Override
+    public SourceFunction<String> createSource() {
+        FlinkKafkaConsumer<String> kafkaSource =
+                new FlinkKafkaConsumer<>(
+                        KafkaContainerizedExternalSystem.TOPIC,
+                        new SimpleStringSchema() {
+                            @Override
+                            public boolean isEndOfStream(String nextElement) {
+                                return nextElement.equals("END");
+                            }
+                        },
+                        kafkaProperties);
+        kafkaSource.setStartFromEarliest();
+        return kafkaSource;
+    }
 
-	@Override
-	public SinkFunction<String> createSink() {
-		return new FlinkKafkaProducer<>(
-				KafkaContainerizedExternalSystem.TOPIC,
-				new SimpleStringSchema(),
-				kafkaProperties
-		);
-	}
+    @Override
+    public SinkFunction<String> createSink() {
+        return new FlinkKafkaProducer<>(
+                KafkaContainerizedExternalSystem.TOPIC, new SimpleStringSchema(), kafkaProperties);
+    }
 
-	@Override
-	public SourceJobTerminationPattern sourceJobTerminationPattern() {
-		return SourceJobTerminationPattern.DESERIALIZATION_SCHEMA;
-	}
+    @Override
+    public SourceJobTerminationPattern sourceJobTerminationPattern() {
+        return SourceJobTerminationPattern.DESERIALIZATION_SCHEMA;
+    }
 }

@@ -37,41 +37,54 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-/**
- * End-to-end tests for Kafka connector.
- */
+/** End-to-end tests for Kafka connector. */
 public class KafkaConnectorE2ETestCase {
 
-	@ClassRule
-	public static FlinkContainers flink = FlinkContainers
-		.builder("source-sink-combined-test", 1)
-		.build();
+    @ClassRule
+    public static FlinkContainers flink =
+            FlinkContainers.builder("source-sink-combined-test", 1).build();
 
-	@Rule
-	public KafkaContainerizedExternalSystem kafka = new KafkaContainerizedExternalSystem().withFlinkContainers(flink);
+    @Rule
+    public KafkaContainerizedExternalSystem kafka =
+            new KafkaContainerizedExternalSystem().withFlinkContainers(flink);
 
-	@Test
-	public void testBasicFunctionalityOnContainers() throws Exception {
-		// Configure Kafka test context
-		Properties kafkaProperties = new Properties();
-		kafkaProperties.setProperty("bootstrap.servers", KafkaContainerizedExternalSystem.ENTRY);
-		KafkaExternalContext kafkaTestContext = new KafkaExternalContext(kafkaProperties);
+    @Test
+    public void testBasicFunctionalityOnContainers() throws Exception {
+        // Configure Kafka test context
+        Properties kafkaProperties = new Properties();
+        kafkaProperties.setProperty("bootstrap.servers", KafkaContainerizedExternalSystem.ENTRY);
+        KafkaExternalContext kafkaTestContext = new KafkaExternalContext(kafkaProperties);
 
-		// Configure Flink test environment
-		TestEnvironment containerTestEnvironment = new FlinkContainersTestEnvironment(flink,
-				FlinkJarHelper.searchJar().getAbsolutePath());
+        // Configure Flink test environment
+        TestEnvironment containerTestEnvironment =
+                new FlinkContainersTestEnvironment(
+                        flink, FlinkJarHelper.searchJar().getAbsolutePath());
 
-		Configuration config = containerTestEnvironment.getConfiguration();
-		config.set(TestEnvironmentConfigs.RMI_HOST, "localhost");
-		List<String> potentialPorts = flink.getTaskManagerRMIPorts().stream()
-				.map(Object::toString).collect(Collectors.toList());
-		config.set(TestEnvironmentConfigs.RMI_POTENTIAL_PORTS, String.join(",", potentialPorts));
-		config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB, Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "record.txt").toString());
-		config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB, Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt").toString());
-		config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_VALIDATION, Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "record.txt").toString());
-		config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_VALIDATION, Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "output.txt").toString());
+        Configuration config = containerTestEnvironment.getConfiguration();
+        config.set(TestEnvironmentConfigs.RMI_HOST, "localhost");
+        List<String> potentialPorts =
+                flink.getTaskManagerRMIPorts().stream()
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+        config.set(TestEnvironmentConfigs.RMI_POTENTIAL_PORTS, String.join(",", potentialPorts));
+        config.set(
+                TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB,
+                Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "record.txt")
+                        .toString());
+        config.set(
+                TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB,
+                Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt")
+                        .toString());
+        config.set(
+                TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_VALIDATION,
+                Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "record.txt")
+                        .toString());
+        config.set(
+                TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "output.txt")
+                        .toString());
 
-		// Run test case in test suite
-		BasicTestSuite.testBasicFunctionality(kafkaTestContext, containerTestEnvironment);
-	}
+        // Run test case in test suite
+        BasicTestSuite.testBasicFunctionality(kafkaTestContext, containerTestEnvironment);
+    }
 }

@@ -21,48 +21,48 @@ package org.apache.flink.connectors.test.common.environment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
-/**
- * Test environment for running test on a remote Flink cluster.
- */
+/** Test environment for running test on a remote Flink cluster. */
 public class RemoteClusterTestEnvironment implements TestEnvironment {
 
-	private final String host;
-	private final int port;
-	private final String[] jarPath;
-	private final Configuration config;
+    private final String host;
+    private final int port;
+    private final String[] jarPath;
+    private final Configuration config;
 
-	/**
-	 * Construct a test environment for a remote Flink cluster.
-	 * @param host Hostname of the remote JobManager
-	 * @param port REST port of the remote JobManager
-	 * @param jarPath Path of JARs to be shipped to Flink cluster
-	 */
-	public RemoteClusterTestEnvironment(String host, int port, String... jarPath) {
-		this(host, port, new Configuration(), jarPath);
-	}
+    /**
+     * Construct a test environment for a remote Flink cluster.
+     *
+     * @param host Hostname of the remote JobManager
+     * @param port REST port of the remote JobManager
+     * @param jarPath Path of JARs to be shipped to Flink cluster
+     */
+    public RemoteClusterTestEnvironment(String host, int port, String... jarPath) {
+        this(host, port, new Configuration(), jarPath);
+    }
 
-	/**
-	 * Construct a test environment for a remote Flink cluster with configurations.
-	 * @param host Hostname of the remote JobManager
-	 * @param port REST port of the remote JobManager
-	 * @param config Configurations of the test environment
-	 * @param jarPath Path of JARs to be shipped to Flink cluster
-	 */
-	public RemoteClusterTestEnvironment(String host, int port, Configuration config, String... jarPath) {
-		this.host = host;
-		this.port = port;
-		this.config = config;
-		this.jarPath = jarPath;
-	}
+    /**
+     * Construct a test environment for a remote Flink cluster with configurations.
+     *
+     * @param host Hostname of the remote JobManager
+     * @param port REST port of the remote JobManager
+     * @param config Configurations of the test environment
+     * @param jarPath Path of JARs to be shipped to Flink cluster
+     */
+    public RemoteClusterTestEnvironment(
+            String host, int port, Configuration config, String... jarPath) {
+        this.host = host;
+        this.port = port;
+        this.config = config;
+        this.jarPath = jarPath;
+    }
 
-	@Override
-	public StreamExecutionEnvironment createExecutionEnvironment() {
-		return StreamExecutionEnvironment.createRemoteEnvironment(
-				host, port, jarPath);
-	}
+    @Override
+    public StreamExecutionEnvironment createExecutionEnvironment() {
+        return StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarPath);
+    }
 
-	@Override
-	public Configuration getConfiguration() {
-		return config;
-	}
+    @Override
+    public Configuration getConfiguration() {
+        return config;
+    }
 }

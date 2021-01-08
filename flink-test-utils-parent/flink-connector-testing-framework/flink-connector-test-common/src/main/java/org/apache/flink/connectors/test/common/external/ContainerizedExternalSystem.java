@@ -20,19 +20,19 @@ package org.apache.flink.connectors.test.common.external;
 
 import org.apache.flink.connectors.test.common.utils.FlinkContainers;
 
-/**
- * External system using <a href="https://www.testcontainers.org/">Testcontainers</a>.
- */
-public abstract class ContainerizedExternalSystem<T extends ContainerizedExternalSystem<?>> extends ExternalSystem {
-	protected FlinkContainers flink;
+/** External system using <a href="https://www.testcontainers.org/">Testcontainers</a>. */
+public abstract class ContainerizedExternalSystem<T extends ContainerizedExternalSystem<?>>
+        extends ExternalSystem {
+    protected FlinkContainers flink;
 
-	/**
-	 * Bind this containerized external system with Flink container.
-	 *
-	 * <p>The containerized external system has to be binded with flink containers so that they can access each other
-	 * through network. </p>
-	 * @param flink Flink containers
-	 * @return The containerized external system itself
-	 */
-	public abstract T withFlinkContainers(FlinkContainers flink);
+    /**
+     * Bind this containerized external system with Flink container.
+     *
+     * <p>The containerized external system has to be binded with flink containers so that they can
+     * access each other through network.
+     *
+     * @param flink Flink containers
+     * @return The containerized external system itself
+     */
+    public abstract T withFlinkContainers(FlinkContainers flink);
 }

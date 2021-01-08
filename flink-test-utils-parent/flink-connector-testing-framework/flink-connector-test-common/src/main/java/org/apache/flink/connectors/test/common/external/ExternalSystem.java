@@ -23,8 +23,7 @@ import org.junit.rules.ExternalResource;
 /**
  * General external system for end-to-end testing.
  *
- * <p>This external system extends {@link ExternalResource} class so that lifecycle of the external system
- *  * can be managed by JUnit.</p>
+ * <p>This external system extends {@link ExternalResource} class so that lifecycle of the external
+ * system * can be managed by JUnit.
  */
-public abstract class ExternalSystem extends ExternalResource {
-}
+public abstract class ExternalSystem extends ExternalResource {}
