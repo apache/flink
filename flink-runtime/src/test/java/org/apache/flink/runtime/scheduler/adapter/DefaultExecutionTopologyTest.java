@@ -25,6 +25,7 @@ import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.util.IterableUtils;
@@ -142,6 +143,21 @@ public class DefaultExecutionTopologyTest extends TestLogger {
                     adapter.getPipelinedRegionOfVertex(vertex.getId());
             assertRegionContainsAllVertices(pipelinedRegion);
         }
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
+        int parallelism = 3;
+        final JobVertex v1 = createNoOpVertex(parallelism);
+        final JobVertex v2 = createNoOpVertex(parallelism);
+
+        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        v1.setSlotSharingGroup(slotSharingGroup);
+        v2.setSlotSharingGroup(slotSharingGroup);
+        v1.setStrictlyCoLocatedWith(v2);
+
+        final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+        DefaultExecutionTopology.fromExecutionGraph(executionGraph);
     }
 
     private void assertRegionContainsAllVertices(
