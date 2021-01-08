@@ -193,8 +193,10 @@ public class BinaryRowDataSerializer extends AbstractRowDataSerializer<BinaryRow
     }
 
     @Override
-    public void skipRecordFromPages(AbstractPagedInputView source) throws IOException {
-        source.skipBytes(source.readInt());
+    public void skipRecordFromPages(AbstractPagedInputView headerLessView) throws IOException {
+        checkArgument(headerLessView.getHeaderLength() == 0);
+        checkSkipReadForFixLengthPart(headerLessView);
+        headerLessView.skipBytes(headerLessView.readInt());
     }
 
     /**

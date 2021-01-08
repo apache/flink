@@ -123,7 +123,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public WindowKey deserializeFromPages(WindowKey reuse, AbstractPagedInputView source)
             throws IOException {
-        checkSkipReadForWindowPart(source);
+        checkSkipReadForFixLengthPart(source);
         long window = source.readLong();
         BinaryRowData key = keySerializer.deserializeFromPages(reuse.getKey(), source);
         return reuse.replace(window, key);
@@ -132,7 +132,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
     @Override
     public WindowKey mapFromPages(WindowKey reuse, AbstractPagedInputView source)
             throws IOException {
-        checkSkipReadForWindowPart(source);
+        checkSkipReadForFixLengthPart(source);
         long window = source.readLong();
         BinaryRowData key = keySerializer.mapFromPages(reuse.getKey(), source);
         return reuse.replace(window, key);
@@ -140,6 +140,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
 
     @Override
     public void skipRecordFromPages(AbstractPagedInputView source) throws IOException {
+        checkSkipReadForFixLengthPart(source);
         source.skipBytes(WINDOW_IN_BYTES);
         keySerializer.skipRecordFromPages(source);
     }
@@ -162,7 +163,7 @@ public class WindowKeySerializer extends PagedTypeSerializer<WindowKey> {
      * We need skip bytes to read when the remain bytes of current segment is not enough to read
      * window part.
      */
-    private void checkSkipReadForWindowPart(AbstractPagedInputView source) throws IOException {
+    private void checkSkipReadForFixLengthPart(AbstractPagedInputView source) throws IOException {
         // skip if there is no enough size.
         // Note: Use currentSegmentLimit instead of segmentSize.
         int available = source.getCurrentSegmentLimit() - source.getCurrentPositionInSegment();
