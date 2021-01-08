@@ -21,35 +21,26 @@ package org.apache.flink.runtime.operators.util;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.*;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
-import org.apache.flink.types.DeserializationException;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.NullKeyFieldException;
-import org.apache.flink.types.Record;
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.Value;
-
-import org.junit.Assert;
+import org.apache.flink.types.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class OutputEmitterTest {
@@ -188,14 +179,14 @@ public class OutputEmitterTest {
     @Test
     public void testMissingKey() {
         if (!verifyWrongPartitionHashKey(1, 0)) {
-            Assert.fail("Expected a KeyFieldOutOfBoundsException.");
+            Assertions.fail("Expected a KeyFieldOutOfBoundsException.");
         }
     }
 
     @Test
     public void testNullKey() {
         if (!verifyWrongPartitionHashKey(0, 1)) {
-            Assert.fail("Expected a NullKeyFieldException.");
+            Assertions.fail("Expected a NullKeyFieldException.");
         }
     }
 
@@ -226,7 +217,7 @@ public class OutputEmitterTest {
         } catch (DeserializationException re) {
             return;
         }
-        Assert.fail("Expected a NullKeyFieldException.");
+        Assertions.fail("Expected a NullKeyFieldException.");
     }
 
     private void verifyPartitionHashSelectedChannels(
@@ -283,7 +274,7 @@ public class OutputEmitterTest {
         try {
             selector.selectChannel(delegate);
         } catch (NullKeyFieldException re) {
-            Assert.assertEquals(position, re.getFieldNumber());
+            Assertions.assertEquals(position, re.getFieldNumber());
             return true;
         }
         return false;

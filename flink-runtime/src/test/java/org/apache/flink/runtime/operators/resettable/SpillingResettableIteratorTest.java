@@ -27,11 +27,14 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.IntValue;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -75,7 +78,7 @@ public class SpillingResettableIteratorTest {
         this.ioman = null;
 
         if (!this.memman.verifyEmpty()) {
-            Assert.fail(
+            Assertions.fail(
                     "A memory leak has occurred: Not all memory was properly returned to the memory manager.");
         }
         this.memman.shutdown();
@@ -104,12 +107,12 @@ public class SpillingResettableIteratorTest {
             // now test walking through the iterator
             int count = 0;
             while (iterator.hasNext()) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "In initial run, element " + count + " does not match expected value!",
                         count++,
                         iterator.next().getValue());
             }
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
@@ -117,7 +120,7 @@ public class SpillingResettableIteratorTest {
                 iterator.reset();
                 // now we should get the same results
                 while (iterator.hasNext()) {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             "After reset nr. "
                                     + j
                                     + 1
@@ -127,7 +130,7 @@ public class SpillingResettableIteratorTest {
                             count++,
                             iterator.next().getValue());
                 }
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
                         NUM_TESTRECORDS,
                         count);
@@ -136,7 +139,7 @@ public class SpillingResettableIteratorTest {
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 
@@ -162,12 +165,12 @@ public class SpillingResettableIteratorTest {
             // now test walking through the iterator
             int count = 0;
             while (iterator.hasNext()) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "In initial run, element " + count + " does not match expected value!",
                         count++,
                         iterator.next().getValue());
             }
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
@@ -175,7 +178,7 @@ public class SpillingResettableIteratorTest {
                 iterator.reset();
                 // now we should get the same results
                 while (iterator.hasNext()) {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             "After reset nr. "
                                     + j
                                     + 1
@@ -185,7 +188,7 @@ public class SpillingResettableIteratorTest {
                             count++,
                             iterator.next().getValue());
                 }
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
                         NUM_TESTRECORDS,
                         count);
@@ -194,7 +197,7 @@ public class SpillingResettableIteratorTest {
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 
@@ -221,14 +224,14 @@ public class SpillingResettableIteratorTest {
                 cnt++;
             }
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     cnt + " elements read from iterator, but " + NUM_TESTRECORDS + " expected",
                     cnt == NUM_TESTRECORDS);
 
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 
@@ -252,13 +255,13 @@ public class SpillingResettableIteratorTest {
             int cnt = 0;
             while (cnt < NUM_TESTRECORDS) {
                 record = iterator.next();
-                Assert.assertTrue("Record was not read from iterator", record != null);
+                Assertions.assertTrue(record != null, "Record was not read from iterator");
                 cnt++;
             }
 
             try {
                 record = iterator.next();
-                Assert.fail("Too many records were read from iterator.");
+                Assertions.fail("Too many records were read from iterator.");
             } catch (NoSuchElementException nseex) {
                 // expected
             }
@@ -266,7 +269,7 @@ public class SpillingResettableIteratorTest {
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 }

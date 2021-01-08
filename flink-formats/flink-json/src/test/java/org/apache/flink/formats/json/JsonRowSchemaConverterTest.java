@@ -23,12 +23,17 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.net.URL;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JsonRowSchemaConverter}. */
 public class JsonRowSchemaConverterTest {
@@ -107,24 +112,30 @@ public class JsonRowSchemaConverterTest {
 
     @Test
     public void testMissingType() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     JsonRowSchemaConverter.convert("{ }");
-        });
+                });
     }
 
     @Test
     public void testWrongType() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     JsonRowSchemaConverter.convert("{ type: 'whatever' }");
-        });
+                });
     }
 
     @Test
     public void testArrayWithAdditionalItems() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     JsonRowSchemaConverter.convert(
-                "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
-        });
+                            "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+                });
     }
 
     @Test

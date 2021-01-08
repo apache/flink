@@ -203,7 +203,7 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
 
   @Test
   def testSortPartitionWithKeySelector3(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(4)
     val ds = CollectionDataSets.get3TupleDataSet(env)

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link CompensatedSum}. */
@@ -54,16 +54,16 @@ public class CompensatedSumTest {
         naiveResult2 += smallSum.value();
 
         // Kahan summation gave the same result no matter what order we added
-        Assert.assertEquals(1000.011, compensatedResult1.value(), 0.0);
-        Assert.assertEquals(1000.011, compensatedResult2.value(), 0.0);
+        Assertions.assertEquals(1000.011, compensatedResult1.value(), 0.0);
+        Assertions.assertEquals(1000.011, compensatedResult2.value(), 0.0);
 
         // naive addition gave a small floating point error
-        Assert.assertEquals(1000.011, naiveResult1, 0.0);
-        Assert.assertEquals(1000.0109999999997, naiveResult2, 0.0);
+        Assertions.assertEquals(1000.011, naiveResult1, 0.0);
+        Assertions.assertEquals(1000.0109999999997, naiveResult2, 0.0);
 
-        Assert.assertEquals(compensatedResult1.value(), compensatedResult2.value(), 0.0);
-        Assert.assertEquals(naiveResult1, naiveResult2, 0.0001);
-        Assert.assertNotEquals(naiveResult1, naiveResult2, 0.0);
+        Assertions.assertEquals(compensatedResult1.value(), compensatedResult2.value(), 0.0);
+        Assertions.assertEquals(naiveResult1, naiveResult2, 0.0001);
+        Assertions.assertNotEquals(naiveResult1, naiveResult2, 0.0);
     }
 
     @Test
@@ -72,7 +72,8 @@ public class CompensatedSumTest {
         for (int i = 0; i < 10; i++) {
             compensatedResult1 = compensatedResult1.add(0.001);
         }
-        Assert.assertEquals(0.011, compensatedResult1.value(), 0.0);
-        Assert.assertEquals(new Double("8.673617379884035E-19"), compensatedResult1.delta(), 0.0);
+        Assertions.assertEquals(0.011, compensatedResult1.value(), 0.0);
+        Assertions.assertEquals(
+                new Double("8.673617379884035E-19"), compensatedResult1.delta(), 0.0);
     }
 }

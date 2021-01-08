@@ -31,11 +31,14 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -74,7 +77,7 @@ public class StreamingFileWriterTest {
             harness.processElement(row("4"), 0);
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+            Assertions.assertEquals(Arrays.asList("1", "2"), partitions);
         }
 
         // first retry, no partition {1, 2} records
@@ -87,7 +90,7 @@ public class StreamingFileWriterTest {
             state = harness.snapshot(2, 2);
             harness.notifyOfCompletedCheckpoint(2);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2", "3", "4"), partitions);
+            Assertions.assertEquals(Arrays.asList("1", "2", "3", "4"), partitions);
         }
 
         // second retry, partition {4} repeat
@@ -100,7 +103,7 @@ public class StreamingFileWriterTest {
             state = harness.snapshot(3, 3);
             harness.notifyOfCompletedCheckpoint(3);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("3", "4", "5"), partitions);
+            Assertions.assertEquals(Arrays.asList("3", "4", "5"), partitions);
         }
 
         // third retry, multiple snapshots
@@ -118,7 +121,7 @@ public class StreamingFileWriterTest {
             harness.notifyOfCompletedCheckpoint(5);
             List<String> partitions = collect(harness);
             // should not contains partition {9}
-            Assert.assertEquals(Arrays.asList("4", "5", "6", "7", "8"), partitions);
+            Assertions.assertEquals(Arrays.asList("4", "5", "6", "7", "8"), partitions);
         }
     }
 
@@ -143,7 +146,7 @@ public class StreamingFileWriterTest {
 
             harness.notifyOfCompletedCheckpoint(1);
             List<String> partitions = collect(harness);
-            Assert.assertEquals(Arrays.asList("1", "2"), partitions);
+            Assertions.assertEquals(Arrays.asList("1", "2"), partitions);
         }
     }
 

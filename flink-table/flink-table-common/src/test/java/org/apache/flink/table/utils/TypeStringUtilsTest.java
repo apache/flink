@@ -25,8 +25,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.ValidationException;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link TypeStringUtils}. */
 public class TypeStringUtilsTest {
@@ -134,23 +139,30 @@ public class TypeStringUtilsTest {
 
     @Test
     public void testSyntaxError1() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
-        });
+                });
     }
 
     @Test
     public void testSyntaxError2() {
-        Assertions.assertThrows(ValidationException.class, () -> {
-                    TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
-        });
+        assertThrows(
+                ValidationException.class,
+                () -> {
+                    TypeStringUtils.readTypeInfo(
+                            "ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+                });
     }
 
     @Test
     public void testSyntaxError3() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
-        });
+                });
     }
 
     private void testReadAndWrite(String expected, TypeInformation<?> type) {

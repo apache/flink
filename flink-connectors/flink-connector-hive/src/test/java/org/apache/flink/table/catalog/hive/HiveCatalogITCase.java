@@ -40,10 +40,14 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
@@ -70,9 +74,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * IT case for HiveCatalog. TODO: move to flink-connector-hive-test end-to-end test module once it's
@@ -281,7 +285,7 @@ public class HiveCatalogITCase {
         List<Row> rows =
                 CollectionUtil.iteratorToList(
                         tableEnv.executeSql("SELECT * FROM proctime_src").collect());
-        Assert.assertEquals(5, rows.size());
+        Assertions.assertEquals(5, rows.size());
         tableEnv.executeSql("DROP TABLE proctime_src");
     }
 
@@ -303,7 +307,7 @@ public class HiveCatalogITCase {
                                 .select($("price"), $("ts"), $("l_proctime"))
                                 .execute()
                                 .collect());
-        Assert.assertEquals(5, rows.size());
+        Assertions.assertEquals(5, rows.size());
         tableEnv.executeSql("DROP TABLE proctime_src");
     }
 

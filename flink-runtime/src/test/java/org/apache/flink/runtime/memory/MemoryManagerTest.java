@@ -21,11 +21,15 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -34,8 +38,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the memory manager. */
 public class MemoryManagerTest {
@@ -103,7 +107,7 @@ public class MemoryManagerTest {
                     segments.addAll(this.memoryManager.allocatePages(mockInvoke, 2));
                 }
             } catch (MemoryAllocationException e) {
-                Assert.fail("Unable to allocate memory");
+                Assertions.fail("Unable to allocate memory");
             }
 
             this.memoryManager.release(segments);
@@ -138,14 +142,14 @@ public class MemoryManagerTest {
             for (int i = 0; i < numOwners; i++) {
                 this.memoryManager.releaseAll(owners[i]);
                 owners[i] = null;
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "Released memory segments have not been destroyed.",
                         allMemorySegmentsFreed(mems[i]));
                 mems[i] = null;
 
                 // check that the owner owners were not affected
                 for (int k = i + 1; k < numOwners; k++) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "Non-released memory segments are accidentaly destroyed.",
                             allMemorySegmentsValid(mems[k]));
                 }
@@ -165,7 +169,7 @@ public class MemoryManagerTest {
 
             testCannotAllocateAnymore(mockInvoke, 1);
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The previously allocated segments were not valid any more.",
                     allMemorySegmentsValid(segs));
 
@@ -295,27 +299,35 @@ public class MemoryManagerTest {
 
     @Test
     public void testAllocationFailsIfSegmentsNotGced() throws MemoryAllocationException {
-        Assertions.assertThrows(MemoryAllocationException.class, () -> {
-                    List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.allocatePages(new Object(), 1);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-        });
+        assertThrows(
+                MemoryAllocationException.class,
+                () -> {
+                    List<ByteBuffer> byteBuffers =
+                            allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+                    // this allocation should fail
+                    memoryManager.allocatePages(new Object(), 1);
+                    // this should not be reached but keeps the reference to the allocated memory
+                    // and prevents
+                    // its GC
+                    byteBuffers.get(0).put(0, (byte) 1);
+                });
     }
 
     @Test
     public void testReservationFailsIfSegmentsNotGced()
             throws MemoryAllocationException, MemoryReservationException {
-        Assertions.assertThrows(MemoryReservationException.class, () -> {
-                    List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
-        // this allocation should fail
-        memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
-        // this should not be reached but keeps the reference to the allocated memory and prevents
-        // its GC
-        byteBuffers.get(0).put(0, (byte) 1);
-        });
+        assertThrows(
+                MemoryReservationException.class,
+                () -> {
+                    List<ByteBuffer> byteBuffers =
+                            allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+                    // this allocation should fail
+                    memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
+                    // this should not be reached but keeps the reference to the allocated memory
+                    // and prevents
+                    // its GC
+                    byteBuffers.get(0).put(0, (byte) 1);
+                });
     }
 
     @Test
@@ -363,23 +375,29 @@ public class MemoryManagerTest {
 
     @Test
     public void testComputeMemorySizeFailForZeroFraction() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     memoryManager.computeMemorySize(0.0);
-        });
+                });
     }
 
     @Test
     public void testComputeMemorySizeFailForTooLargeFraction() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     memoryManager.computeMemorySize(1.1);
-        });
+                });
     }
 
     @Test
     public void testComputeMemorySizeFailForNegativeFraction() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     memoryManager.computeMemorySize(-0.1);
-        });
+                });
     }
 
     @Test
@@ -396,7 +414,7 @@ public class MemoryManagerTest {
     private void testCannotAllocateAnymore(Object owner, int numPages) {
         try {
             memoryManager.allocatePages(owner, numPages);
-            Assert.fail(
+            Assertions.fail(
                     "Expected MemoryAllocationException. "
                             + "We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
         } catch (MemoryAllocationException maex) {
@@ -407,7 +425,7 @@ public class MemoryManagerTest {
     private void testCannotReserveAnymore(long size) {
         try {
             memoryManager.reserveMemory(new Object(), size);
-            Assert.fail(
+            Assertions.fail(
                     "Expected MemoryAllocationException. "
                             + "We should not be able to any more memory after allocating or(and) reserving all memory of a certain type.");
         } catch (MemoryReservationException maex) {

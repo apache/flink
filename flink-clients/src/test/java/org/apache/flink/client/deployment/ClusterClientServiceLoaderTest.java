@@ -24,6 +24,11 @@ import org.apache.flink.configuration.DeploymentOptions;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -31,10 +36,10 @@ import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link DefaultClusterClientServiceLoader}. */
 public class ClusterClientServiceLoaderTest {
@@ -77,24 +82,28 @@ public class ClusterClientServiceLoaderTest {
 
     @Test
     public void testMoreThanOneCompatibleFactoriesException() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final Configuration config = new Configuration();
-        config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
+                    config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
 
-        serviceLoaderUnderTest.getClusterClientFactory(config);
-        fail();
-        });
+                    serviceLoaderUnderTest.getClusterClientFactory(config);
+                    fail();
+                });
     }
 
     @Test
     public void testNoFactoriesFound() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final Configuration config = new Configuration();
-        config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
+                    config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
 
-        final ClusterClientFactory<Integer> factory =
-                serviceLoaderUnderTest.getClusterClientFactory(config);
-        });
+                    final ClusterClientFactory<Integer> factory =
+                            serviceLoaderUnderTest.getClusterClientFactory(config);
+                });
     }
 
     /** Test {@link ClusterClientFactory} that is successfully discovered. */

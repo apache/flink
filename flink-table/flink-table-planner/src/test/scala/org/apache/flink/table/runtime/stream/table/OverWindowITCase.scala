@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.JavaF
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, Test}
 
 import scala.collection.mutable

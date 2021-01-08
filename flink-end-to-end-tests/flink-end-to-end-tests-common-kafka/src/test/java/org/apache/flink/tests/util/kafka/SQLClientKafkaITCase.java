@@ -32,12 +32,16 @@ import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -59,8 +63,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
-import static org.junit.Assert.assertThat;
 
 /** End-to-end test for the kafka SQL connectors. */
 @RunWith(Parameterized.class)
@@ -231,7 +235,7 @@ public class SQLClientKafkaITCase extends TestLogger {
             }
             Thread.sleep(500);
         }
-        Assert.assertTrue("Did not get expected results before timeout.", success);
+        Assertions.assertTrue(success, "Did not get expected results before timeout.");
     }
 
     private static List<String> readCsvResultFiles(Path path) throws IOException {

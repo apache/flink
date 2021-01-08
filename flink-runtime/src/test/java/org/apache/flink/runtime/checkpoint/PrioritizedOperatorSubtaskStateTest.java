@@ -18,33 +18,21 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.state.InputChannelStateHandle;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.OperatorStreamStateHandle;
-import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
-import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.runtime.state.*;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.deepDummyCopy;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.*;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 
 /** {@link PrioritizedOperatorSubtaskState} test. */
@@ -97,7 +85,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
                 OperatorSubtaskState[] onlyPrimary =
                         new OperatorSubtaskState[] {primaryAndFallback};
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         checkResultAsExpected(
                                 OperatorSubtaskState::getManagedOperatorState,
                                 PrioritizedOperatorSubtaskState::getPrioritizedManagedOperatorState,
@@ -106,7 +94,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
                                         ? validAlternatives
                                         : onlyPrimary));
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         checkResultAsExpected(
                                 OperatorSubtaskState::getManagedKeyedState,
                                 PrioritizedOperatorSubtaskState::getPrioritizedManagedKeyedState,
@@ -115,7 +103,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
                                         ? validAlternatives
                                         : onlyPrimary));
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         checkResultAsExpected(
                                 OperatorSubtaskState::getRawOperatorState,
                                 PrioritizedOperatorSubtaskState::getPrioritizedRawOperatorState,
@@ -124,7 +112,7 @@ public class PrioritizedOperatorSubtaskStateTest extends TestLogger {
                                         ? validAlternatives
                                         : onlyPrimary));
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         checkResultAsExpected(
                                 OperatorSubtaskState::getRawKeyedState,
                                 PrioritizedOperatorSubtaskState::getPrioritizedRawKeyedState,

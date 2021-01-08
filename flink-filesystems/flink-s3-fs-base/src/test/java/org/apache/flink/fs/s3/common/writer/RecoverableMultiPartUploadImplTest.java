@@ -33,6 +33,11 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -142,7 +147,7 @@ public class RecoverableMultiPartUploadImplTest {
 
     @Test
     public void uploadingNonClosedFileAsCompleteShouldThroughException() throws IOException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     final byte[] incompletePart = bytesOf("!!!");
 
         final RefCountedBufferingFileStream incompletePartFile = writeContent(incompletePart);

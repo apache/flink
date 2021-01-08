@@ -28,11 +28,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -43,10 +47,7 @@ import java.util.Queue;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link SortMergeResultPartition}. */
 public class SortMergeResultPartitionTest {
@@ -223,29 +224,31 @@ public class SortMergeResultPartitionTest {
 
     @Test
     public void testReleaseWhileWriting() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int numBuffers = 10;
-        BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
-        SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
+                    BufferPool bufferPool = globalPool.createBufferPool(numBuffers, numBuffers);
+                    SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
-        partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
+                    partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 0);
+                    partition.emitRecord(ByteBuffer.allocate(bufferSize * (numBuffers - 1)), 1);
 
-        partition.emitRecord(ByteBuffer.allocate(bufferSize), 2);
-        assertNull(partition.getResultFile());
-        assertEquals(2, fileChannelManager.getPaths()[0].list().length);
+                    partition.emitRecord(ByteBuffer.allocate(bufferSize), 2);
+                    assertNull(partition.getResultFile());
+                    assertEquals(2, fileChannelManager.getPaths()[0].list().length);
 
-        partition.release();
-        try {
-            partition.emitRecord(ByteBuffer.allocate(bufferSize * numBuffers), 2);
-        } catch (IllegalStateException exception) {
-            assertEquals(0, fileChannelManager.getPaths()[0].list().length);
+                    partition.release();
+                    try {
+                        partition.emitRecord(ByteBuffer.allocate(bufferSize * numBuffers), 2);
+                    } catch (IllegalStateException exception) {
+                        assertEquals(0, fileChannelManager.getPaths()[0].list().length);
 
-            throw exception;
-        }
+                        throw exception;
+                    }
 
-        fail("Should throw ClosedChannelException.");
-        });
+                    fail("Should throw ClosedChannelException.");
+                });
     }
 
     @Test
@@ -294,30 +297,36 @@ public class SortMergeResultPartitionTest {
 
     @Test
     public void testReadUnfinishedPartition() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     BufferPool bufferPool = globalPool.createBufferPool(10, 10);
-        try {
-            SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-            partition.createSubpartitionView(0, listener);
-        } finally {
-            bufferPool.lazyDestroy();
-        }
-        });
+                    try {
+                        SortMergeResultPartition partition =
+                                createSortMergedPartition(10, bufferPool);
+                        partition.createSubpartitionView(0, listener);
+                    } finally {
+                        bufferPool.lazyDestroy();
+                    }
+                });
     }
 
     @Test
     public void testReadReleasedPartition() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     BufferPool bufferPool = globalPool.createBufferPool(10, 10);
-        try {
-            SortMergeResultPartition partition = createSortMergedPartition(10, bufferPool);
-            partition.finish();
-            partition.release();
-            partition.createSubpartitionView(0, listener);
-        } finally {
-            bufferPool.lazyDestroy();
-        }
-        });
+                    try {
+                        SortMergeResultPartition partition =
+                                createSortMergedPartition(10, bufferPool);
+                        partition.finish();
+                        partition.release();
+                        partition.createSubpartitionView(0, listener);
+                    } finally {
+                        bufferPool.lazyDestroy();
+                    }
+                });
     }
 
     private SortMergeResultPartition createSortMergedPartition(

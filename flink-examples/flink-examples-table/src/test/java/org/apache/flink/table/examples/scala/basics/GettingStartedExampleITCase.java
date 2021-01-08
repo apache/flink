@@ -21,9 +21,14 @@ package org.apache.flink.table.examples.scala.basics;
 import org.apache.flink.table.examples.utils.ExampleOutputTestBase;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for Scala {@link GettingStartedExample}. */
 public class GettingStartedExampleITCase extends ExampleOutputTestBase {

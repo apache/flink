@@ -42,7 +42,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.types.Row
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 
 import java.nio.charset.StandardCharsets
@@ -1019,7 +1019,7 @@ class CalcITCase extends BatchTestBase {
     val d1 = LocalDateConverter.INSTANCE.toInternal(
       result.toList.head.getField(0).asInstanceOf[LocalDate])
 
-    Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
+    Assertions.assertTrue(d0 <= d1 && d1 - d0 <= 1)
   }
 
   @Test
@@ -1038,7 +1038,7 @@ class CalcITCase extends BatchTestBase {
 
     val ts2 = System.currentTimeMillis()
 
-    Assert.assertTrue(ts0 <= ts1 && ts1 <= ts2)
+    Assertions.assertTrue(ts0 <= ts1 && ts1 <= ts2)
   }
 
   @Test

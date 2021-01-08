@@ -19,8 +19,7 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link FloatSummaryAggregator}. */
@@ -42,15 +41,15 @@ public class FloatSummaryAggregatorTest {
         NumericColumnSummary<Float> q1 = summarize(q1x);
         NumericColumnSummary<Float> q4 = summarize(q4x);
 
-        Assert.assertEquals(9.0, q1.getMean().doubleValue(), 0.0f);
-        Assert.assertEquals(9.0, q4.getMean().doubleValue(), 0.0f);
+        Assertions.assertEquals(9.0, q1.getMean().doubleValue(), 0.0f);
+        Assertions.assertEquals(9.0, q4.getMean().doubleValue(), 0.0f);
 
-        Assert.assertEquals(11.0, q1.getVariance().doubleValue(), 1e-10d);
-        Assert.assertEquals(11.0, q4.getVariance().doubleValue(), 1e-10d);
+        Assertions.assertEquals(11.0, q1.getVariance().doubleValue(), 1e-10d);
+        Assertions.assertEquals(11.0, q4.getVariance().doubleValue(), 1e-10d);
 
         double stddev = Math.sqrt(11.0f);
-        Assert.assertEquals(stddev, q1.getStandardDeviation().doubleValue(), 1e-10d);
-        Assert.assertEquals(stddev, q4.getStandardDeviation().doubleValue(), 1e-10d);
+        Assertions.assertEquals(stddev, q1.getStandardDeviation().doubleValue(), 1e-10d);
+        Assertions.assertEquals(stddev, q4.getStandardDeviation().doubleValue(), 1e-10d);
     }
 
     /**
@@ -82,66 +81,67 @@ public class FloatSummaryAggregatorTest {
 
         // the y values are have less precisely matching means and variances
 
-        Assert.assertEquals(7.5, q1.getMean().doubleValue(), 0.001);
-        Assert.assertEquals(7.5, q2.getMean().doubleValue(), 0.001);
-        Assert.assertEquals(7.5, q3.getMean().doubleValue(), 0.001);
-        Assert.assertEquals(7.5, q4.getMean().doubleValue(), 0.001);
+        Assertions.assertEquals(7.5, q1.getMean().doubleValue(), 0.001);
+        Assertions.assertEquals(7.5, q2.getMean().doubleValue(), 0.001);
+        Assertions.assertEquals(7.5, q3.getMean().doubleValue(), 0.001);
+        Assertions.assertEquals(7.5, q4.getMean().doubleValue(), 0.001);
 
-        Assert.assertEquals(4.12, q1.getVariance().doubleValue(), 0.01);
-        Assert.assertEquals(4.12, q2.getVariance().doubleValue(), 0.01);
-        Assert.assertEquals(4.12, q3.getVariance().doubleValue(), 0.01);
-        Assert.assertEquals(4.12, q4.getVariance().doubleValue(), 0.01);
+        Assertions.assertEquals(4.12, q1.getVariance().doubleValue(), 0.01);
+        Assertions.assertEquals(4.12, q2.getVariance().doubleValue(), 0.01);
+        Assertions.assertEquals(4.12, q3.getVariance().doubleValue(), 0.01);
+        Assertions.assertEquals(4.12, q4.getVariance().doubleValue(), 0.01);
     }
 
     @Test
     public void testIsNan() throws Exception {
         FloatSummaryAggregator ag = new FloatSummaryAggregator();
-        Assert.assertFalse(ag.isNan(-1.0f));
-        Assert.assertFalse(ag.isNan(0.0f));
-        Assert.assertFalse(ag.isNan(23.0f));
-        Assert.assertFalse(ag.isNan(Float.MAX_VALUE));
-        Assert.assertFalse(ag.isNan(Float.MIN_VALUE));
-        Assert.assertTrue(ag.isNan(Float.NaN));
+        Assertions.assertFalse(ag.isNan(-1.0f));
+        Assertions.assertFalse(ag.isNan(0.0f));
+        Assertions.assertFalse(ag.isNan(23.0f));
+        Assertions.assertFalse(ag.isNan(Float.MAX_VALUE));
+        Assertions.assertFalse(ag.isNan(Float.MIN_VALUE));
+        Assertions.assertTrue(ag.isNan(Float.NaN));
     }
 
     @Test
     public void testIsInfinite() throws Exception {
         FloatSummaryAggregator ag = new FloatSummaryAggregator();
-        Assert.assertFalse(ag.isInfinite(-1.0f));
-        Assert.assertFalse(ag.isInfinite(0.0f));
-        Assert.assertFalse(ag.isInfinite(23.0f));
-        Assert.assertFalse(ag.isInfinite(Float.MAX_VALUE));
-        Assert.assertFalse(ag.isInfinite(Float.MIN_VALUE));
-        Assert.assertTrue(ag.isInfinite(Float.POSITIVE_INFINITY));
-        Assert.assertTrue(ag.isInfinite(Float.NEGATIVE_INFINITY));
+        Assertions.assertFalse(ag.isInfinite(-1.0f));
+        Assertions.assertFalse(ag.isInfinite(0.0f));
+        Assertions.assertFalse(ag.isInfinite(23.0f));
+        Assertions.assertFalse(ag.isInfinite(Float.MAX_VALUE));
+        Assertions.assertFalse(ag.isInfinite(Float.MIN_VALUE));
+        Assertions.assertTrue(ag.isInfinite(Float.POSITIVE_INFINITY));
+        Assertions.assertTrue(ag.isInfinite(Float.NEGATIVE_INFINITY));
     }
 
     @Test
     public void testMean() throws Exception {
-        Assert.assertEquals(50.0, summarize(0.0f, 100.0f).getMean(), 0.0);
-        Assert.assertEquals(33.333333, summarize(0.0f, 0.0f, 100.0f).getMean(), 0.00001);
-        Assert.assertEquals(50.0, summarize(0.0f, 0.0f, 100.0f, 100.0f).getMean(), 0.0);
-        Assert.assertEquals(50.0, summarize(0.0f, 100.0f, null).getMean(), 0.0);
-        Assert.assertNull(summarize().getMean());
+        Assertions.assertEquals(50.0, summarize(0.0f, 100.0f).getMean(), 0.0);
+        Assertions.assertEquals(33.333333, summarize(0.0f, 0.0f, 100.0f).getMean(), 0.00001);
+        Assertions.assertEquals(50.0, summarize(0.0f, 0.0f, 100.0f, 100.0f).getMean(), 0.0);
+        Assertions.assertEquals(50.0, summarize(0.0f, 100.0f, null).getMean(), 0.0);
+        Assertions.assertNull(summarize().getMean());
     }
 
     @Test
     public void testSum() throws Exception {
-        Assert.assertEquals(100.0, summarize(0.0f, 100.0f).getSum().floatValue(), 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(100.0, summarize(0.0f, 100.0f).getSum().floatValue(), 0.0f);
+        Assertions.assertEquals(
                 15, summarize(1.0f, 2.0f, 3.0f, 4.0f, 5.0f).getSum().floatValue(), 0.0f);
-        Assert.assertEquals(0, summarize(-100.0f, 0.0f, 100.0f, null).getSum().floatValue(), 0.0f);
-        Assert.assertEquals(90, summarize(-10.0f, 100.0f, null).getSum().floatValue(), 0.0f);
-        Assert.assertNull(summarize().getSum());
+        Assertions.assertEquals(
+                0, summarize(-100.0f, 0.0f, 100.0f, null).getSum().floatValue(), 0.0f);
+        Assertions.assertEquals(90, summarize(-10.0f, 100.0f, null).getSum().floatValue(), 0.0f);
+        Assertions.assertNull(summarize().getSum());
     }
 
     @Test
     public void testMax() throws Exception {
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1001.0f,
                 summarize(-1000.0f, 0.0f, 1.0f, 50.0f, 999.0f, 1001.0f).getMax().floatValue(),
                 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 11.0f,
                 summarize(
                                 1.0f, 8.0f, 7.0f, 6.0f, 9.0f, 10.0f, 2.0f, 3.0f, 5.0f, 0.0f, 11.0f,
@@ -149,7 +149,7 @@ public class FloatSummaryAggregatorTest {
                         .getMax()
                         .floatValue(),
                 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 11.0f,
                 summarize(
                                 1.0f, 8.0f, 7.0f, 6.0f, 9.0f, null, 10.0f, 2.0f, 3.0f, 5.0f, null,
@@ -157,22 +157,22 @@ public class FloatSummaryAggregatorTest {
                         .getMax()
                         .floatValue(),
                 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 -2.0f,
                 summarize(-8.0f, -7.0f, -6.0f, -9.0f, null, -10.0f, null, -2.0f)
                         .getMax()
                         .floatValue(),
                 0.0f);
-        Assert.assertNull(summarize().getMax());
+        Assertions.assertNull(summarize().getMax());
     }
 
     @Test
     public void testMin() throws Exception {
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 -1000,
                 summarize(-1000.0f, 0.0f, 1.0f, 50.0f, 999.0f, 1001.0f).getMin().floatValue(),
                 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 -2.0f,
                 summarize(
                                 1.0f, 8.0f, 7.0f, 6.0f, 9.0f, 10.0f, 2.0f, 3.0f, 5.0f, 0.0f, 11.0f,
@@ -180,7 +180,7 @@ public class FloatSummaryAggregatorTest {
                         .getMin()
                         .floatValue(),
                 0.0f);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 -2.0f,
                 summarize(
                                 1.0f, 8.0f, 7.0f, 6.0f, 9.0f, null, 10.0f, 2.0f, 3.0f, 5.0f, null,
@@ -188,7 +188,7 @@ public class FloatSummaryAggregatorTest {
                         .getMin()
                         .floatValue(),
                 0.0f);
-        Assert.assertNull(summarize().getMin());
+        Assertions.assertNull(summarize().getMin());
     }
 
     /**
@@ -205,11 +205,11 @@ public class FloatSummaryAggregatorTest {
             @Override
             protected void compareResults(
                     NumericColumnSummary<Float> result1, NumericColumnSummary<Float> result2) {
-                Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0f);
-                Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0f);
-                Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
-                Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-                Assert.assertEquals(
+                Assertions.assertEquals(result1.getMin(), result2.getMin(), 0.0f);
+                Assertions.assertEquals(result1.getMax(), result2.getMax(), 0.0f);
+                Assertions.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
+                Assertions.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
+                Assertions.assertEquals(
                         result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-12d);
             }
         }.summarize(values);

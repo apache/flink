@@ -31,18 +31,15 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -50,11 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for scheduling individual tasks. */
 public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
@@ -129,7 +122,7 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
             errored.set(true);
         }
 
-        assertFalse("The slot releasing thread caused an error.", errored.get());
+        assertFalse(errored.get(), "The slot releasing thread caused an error.");
 
         List<LogicalSlot> slotsAfter = new ArrayList<>();
         for (CompletableFuture<LogicalSlot> future : allAllocatedSlots) {

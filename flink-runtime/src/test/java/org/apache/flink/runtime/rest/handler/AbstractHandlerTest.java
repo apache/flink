@@ -28,8 +28,6 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
@@ -39,14 +37,17 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpRequest;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
 import org.apache.flink.shaded.netty4.io.netty.util.Attribute;
 import org.apache.flink.shaded.netty4.io.netty.util.AttributeKey;
-
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -98,9 +99,9 @@ public class AbstractHandlerTest extends TestLogger {
         handler.respondAsLeader(context, routerRequest, mockRestfulGateway);
 
         // the (asynchronous) request processing is not yet complete so the files should still exist
-        Assert.assertTrue(Files.exists(file));
+        Assertions.assertTrue(Files.exists(file));
         requestProcessingCompleteFuture.complete(null);
-        Assert.assertFalse(Files.exists(file));
+        Assertions.assertFalse(Files.exists(file));
     }
 
     private static class SimpleAttribute implements Attribute<FileUploads> {

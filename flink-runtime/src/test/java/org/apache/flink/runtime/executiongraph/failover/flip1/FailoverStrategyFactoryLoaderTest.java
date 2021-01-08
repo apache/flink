@@ -22,11 +22,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link FailoverStrategyFactoryLoader}. */
 public class FailoverStrategyFactoryLoaderTest extends TestLogger {
@@ -63,10 +67,13 @@ public class FailoverStrategyFactoryLoaderTest extends TestLogger {
 
     @Test
     public void testLoadFromInvalidConfiguration() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     final Configuration config = new Configuration();
-        config.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
-        FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config);
-        });
+                    config.setString(
+                            JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "invalidStrategy");
+                    FailoverStrategyFactoryLoader.loadFailoverStrategyFactory(config);
+                });
     }
 }

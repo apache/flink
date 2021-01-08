@@ -29,9 +29,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class GenericMessageTester {
 
@@ -75,7 +74,7 @@ public class GenericMessageTester {
                         (Class<?>)
                                 ((ParameterizedType) inst.getClass().getGenericInterfaces()[0])
                                         .getActualTypeArguments()[0];
-                assertNotNull("Cannot get type for extra instantiator", type);
+                assertNotNull(type, "Cannot get type for extra instantiator");
                 extraInsts.put(type, inst);
             }
 

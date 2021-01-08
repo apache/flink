@@ -18,42 +18,13 @@
 
 package org.apache.flink.test.completeness;
 
-import org.apache.flink.api.common.typeutils.SerializerTestBase;
-import org.apache.flink.api.common.typeutils.SingleThreadAccessCheckingTypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
-import org.apache.flink.api.common.typeutils.UnloadableDummyTypeSerializer;
-import org.apache.flink.api.common.typeutils.base.EnumSerializer;
-import org.apache.flink.api.common.typeutils.base.GenericArraySerializer;
-import org.apache.flink.api.common.typeutils.base.InstantSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
-import org.apache.flink.api.common.typeutils.base.NullValueSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
-import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.CharPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.DoublePrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.ShortPrimitiveArraySerializer;
-import org.apache.flink.api.common.typeutils.base.array.StringArraySerializer;
-import org.apache.flink.api.java.typeutils.runtime.CopyableValueSerializer;
+import org.apache.flink.api.common.typeutils.*;
+import org.apache.flink.api.common.typeutils.base.*;
+import org.apache.flink.api.common.typeutils.base.array.*;
 import org.apache.flink.api.java.typeutils.runtime.EitherSerializer;
-import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
-import org.apache.flink.api.java.typeutils.runtime.Tuple0Serializer;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.api.java.typeutils.runtime.ValueSerializer;
-import org.apache.flink.api.java.typeutils.runtime.WritableSerializer;
+import org.apache.flink.api.java.typeutils.runtime.*;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
-import org.apache.flink.api.scala.typeutils.EnumValueSerializer;
-import org.apache.flink.api.scala.typeutils.NothingSerializer;
-import org.apache.flink.api.scala.typeutils.OptionSerializer;
-import org.apache.flink.api.scala.typeutils.TraversableSerializer;
-import org.apache.flink.api.scala.typeutils.TrySerializer;
-import org.apache.flink.api.scala.typeutils.UnitSerializer;
+import org.apache.flink.api.scala.typeutils.*;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
 import org.apache.flink.runtime.state.ArrayListSerializer;
 import org.apache.flink.runtime.state.heap.TestDuplicateSerializer;
@@ -66,8 +37,12 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Modifier;
@@ -76,7 +51,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Scans the class path for type serializer and checks if there is a test for it. */
 public class TypeSerializerTestCoverageTest extends TestLogger {
@@ -97,7 +72,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         .map(Class::getName)
                         .collect(Collectors.toSet());
         final Set<String> typeSerializerUpgradeSetupNames =
-                reflections.getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
+                reflections
+                        .getSubTypesOf(TypeSerializerUpgradeTestBase.PreUpgradeSetup.class)
                         .stream()
                         .map(Class::getSimpleName)
                         .collect(Collectors.toSet());

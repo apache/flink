@@ -35,13 +35,18 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link TableOperatorWrapperGenerator}. */
 public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
@@ -404,28 +409,32 @@ public class TableOperatorWrapperGeneratorTest extends MultipleInputTestBase {
 
     @Test
     public void testUnsupportedTransformation() {
-        Assertions.assertThrows(RuntimeException.class, () -> {
-                    final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        Transformation<RowData> source1 = createSource(env, "source1");
-        Transformation<RowData> source2 = createSource(env, "source2");
+        assertThrows(
+                RuntimeException.class,
+                () -> {
+                    final StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    Transformation<RowData> source1 = createSource(env, "source1");
+                    Transformation<RowData> source2 = createSource(env, "source2");
 
-        TestingTransformation<RowData> test = new TestingTransformation<>(source1, "test", 10);
+                    TestingTransformation<RowData> test =
+                            new TestingTransformation<>(source1, "test", 10);
 
-        TwoInputTransformation<RowData, RowData, RowData> join =
-                createTwoInputTransform(
-                        test,
-                        source2,
-                        "join1",
-                        InternalTypeInfo.of(
-                                RowType.of(
-                                        DataTypes.STRING().getLogicalType(),
-                                        DataTypes.STRING().getLogicalType())));
+                    TwoInputTransformation<RowData, RowData, RowData> join =
+                            createTwoInputTransform(
+                                    test,
+                                    source2,
+                                    "join1",
+                                    InternalTypeInfo.of(
+                                            RowType.of(
+                                                    DataTypes.STRING().getLogicalType(),
+                                                    DataTypes.STRING().getLogicalType())));
 
-        TableOperatorWrapperGenerator generator =
-                new TableOperatorWrapperGenerator(
-                        Arrays.asList(source1, source2), join, new int[] {0, 0});
-        generator.generate();
-        });
+                    TableOperatorWrapperGenerator generator =
+                            new TableOperatorWrapperGenerator(
+                                    Arrays.asList(source1, source2), join, new int[] {0, 0});
+                    generator.generate();
+                });
     }
 
     @SafeVarargs

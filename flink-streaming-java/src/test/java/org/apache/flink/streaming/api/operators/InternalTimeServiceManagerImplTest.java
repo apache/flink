@@ -20,8 +20,12 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link InternalTimeServiceManagerImpl}. */
 public class InternalTimeServiceManagerImplTest extends TestLogger {
@@ -30,12 +34,12 @@ public class InternalTimeServiceManagerImplTest extends TestLogger {
     @Test
     public void fixConstants() {
         String expectedTimerStatePrefix = "_timer_state";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expectedTimerStatePrefix, InternalTimeServiceManagerImpl.TIMER_STATE_PREFIX);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expectedTimerStatePrefix + "/processing_",
                 InternalTimeServiceManagerImpl.PROCESSING_TIMER_PREFIX);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expectedTimerStatePrefix + "/event_",
                 InternalTimeServiceManagerImpl.EVENT_TIMER_PREFIX);
     }

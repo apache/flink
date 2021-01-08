@@ -68,6 +68,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -87,12 +92,11 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
 
 /** Tests that verify correct HA behavior. */
@@ -287,8 +291,8 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
             }
         }
 
-        assertNotNull("Unable to find container with TaskManager", taskManagerContainer);
-        assertNotNull("Illegal state", nodeManager);
+        assertNotNull(taskManagerContainer, "Unable to find container with TaskManager");
+        assertNotNull(nodeManager, "Illegal state");
 
         StopContainersRequest scr =
                 StopContainersRequest.newInstance(Collections.singletonList(taskManagerContainer));

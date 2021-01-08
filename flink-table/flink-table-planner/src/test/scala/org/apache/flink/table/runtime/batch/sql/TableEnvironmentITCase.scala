@@ -36,7 +36,7 @@ import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.{CollectionUtil, FileUtils}
 
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit._
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith

@@ -27,7 +27,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 
@@ -45,7 +45,7 @@ public class PojoSubclassComparatorTest extends ComparatorTestBase<PojoContainin
 
     @Override
     protected TypeComparator<PojoContainingTuple> createComparator(boolean ascending) {
-        Assert.assertTrue(type instanceof CompositeType);
+        Assertions.assertTrue(type instanceof CompositeType);
         CompositeType<PojoContainingTuple> cType = (CompositeType<PojoContainingTuple>) type;
         ExpressionKeys<PojoContainingTuple> keys =
                 new ExpressionKeys<PojoContainingTuple>(new String[] {"theTuple.*"}, cType);

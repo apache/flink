@@ -40,6 +40,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 

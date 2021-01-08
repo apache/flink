@@ -33,8 +33,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 
-import org.junit.Assert;
-
 import java.util.Arrays;
 import java.util.List;
 
@@ -145,14 +143,14 @@ public class NonKeyedJob {
                     break;
                 case MIGRATE:
                 case RESTORE:
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             "Failed for "
                                     + valueToStore
                                     + getRuntimeContext().getIndexOfThisSubtask(),
                             1,
                             state.size());
                     String value = state.get(0);
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
             }
         }

@@ -18,29 +18,16 @@
 
 package org.apache.flink.api.java.utils;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.*;
 
 /** Tests for {@link ParameterTool}. */
 public class ParameterToolTest extends AbstractParameterToolTest {
@@ -67,13 +54,13 @@ public class ParameterToolTest extends AbstractParameterToolTest {
                                     "-negativeShort",
                                     "-1024"
                                 });
-        Assert.assertEquals(7, parameter.getNumberOfParameters());
+        Assertions.assertEquals(7, parameter.getNumberOfParameters());
         validate(parameter);
-        Assert.assertTrue(parameter.has("withoutValues"));
-        Assert.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
-        Assert.assertTrue(parameter.getBoolean("isWorking"));
-        Assert.assertEquals(127, parameter.getByte("maxByte"));
-        Assert.assertEquals(-1024, parameter.getShort("negativeShort"));
+        Assertions.assertTrue(parameter.has("withoutValues"));
+        Assertions.assertEquals(-0.58, parameter.getFloat("negativeFloat"), 0.1);
+        Assertions.assertTrue(parameter.getBoolean("isWorking"));
+        Assertions.assertEquals(127, parameter.getByte("maxByte"));
+        Assertions.assertEquals(-1024, parameter.getShort("negativeShort"));
     }
 
     @Test
@@ -87,17 +74,17 @@ public class ParameterToolTest extends AbstractParameterToolTest {
         }
         ParameterTool parameter =
                 ParameterTool.fromPropertiesFile(propertiesFile.getAbsolutePath());
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        Assertions.assertEquals(2, parameter.getNumberOfParameters());
         validate(parameter);
 
         parameter = ParameterTool.fromPropertiesFile(propertiesFile);
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        Assertions.assertEquals(2, parameter.getNumberOfParameters());
         validate(parameter);
 
         try (FileInputStream fis = new FileInputStream(propertiesFile)) {
             parameter = ParameterTool.fromPropertiesFile(fis);
         }
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        Assertions.assertEquals(2, parameter.getNumberOfParameters());
         validate(parameter);
     }
 
@@ -107,7 +94,7 @@ public class ParameterToolTest extends AbstractParameterToolTest {
         props.setProperty("input", "myInput");
         props.setProperty("expectedCount", "15");
         ParameterTool parameter = ParameterTool.fromMap((Map) props);
-        Assert.assertEquals(2, parameter.getNumberOfParameters());
+        Assertions.assertEquals(2, parameter.getNumberOfParameters());
         validate(parameter);
     }
 

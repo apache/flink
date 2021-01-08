@@ -35,9 +35,13 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 
@@ -101,21 +105,23 @@ public class WordCountCompilerTest extends CompilerTestBase {
         SingleInputPlanNode mapper = resolver.getNode("Tokenize Lines");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+        Assertions.assertEquals(ShipStrategyType.FORWARD, mapper.getInput().getShipStrategy());
+        Assertions.assertEquals(
+                ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
+        Assertions.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
 
         Channel c = reducer.getInput();
-        Assert.assertEquals(LocalStrategy.COMBININGSORT, c.getLocalStrategy());
+        Assertions.assertEquals(LocalStrategy.COMBININGSORT, c.getLocalStrategy());
         FieldList l = new FieldList(0);
-        Assert.assertEquals(l, c.getShipStrategyKeys());
-        Assert.assertEquals(l, c.getLocalStrategyKeys());
-        Assert.assertTrue(Arrays.equals(c.getLocalStrategySortOrder(), reducer.getSortOrders(0)));
+        Assertions.assertEquals(l, c.getShipStrategyKeys());
+        Assertions.assertEquals(l, c.getLocalStrategyKeys());
+        Assertions.assertTrue(
+                Arrays.equals(c.getLocalStrategySortOrder(), reducer.getSortOrders(0)));
 
         // check the combiner
         SingleInputPlanNode combiner = (SingleInputPlanNode) reducer.getPredecessor();
-        Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-        Assert.assertEquals(l, combiner.getKeys(0));
-        Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+        Assertions.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
+        Assertions.assertEquals(l, combiner.getKeys(0));
+        Assertions.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
     }
 }

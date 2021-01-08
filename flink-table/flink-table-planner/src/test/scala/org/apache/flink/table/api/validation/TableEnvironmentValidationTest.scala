@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit._
 
 class TableEnvironmentValidationTest extends TableTestBase {

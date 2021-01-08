@@ -23,10 +23,12 @@ import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
-
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that the {@link AkkaRpcService} runs all RPCs in the {@link AkkaRpcActor}'s main thread.
@@ -64,7 +66,7 @@ public class MainThreadValidationTest extends TestLogger {
             } catch (AssertionError e) {
                 exceptionThrown = true;
             }
-            assertTrue("should fail with an assertion error", exceptionThrown);
+            assertTrue(exceptionThrown, "should fail with an assertion error");
 
             testEndpoint.closeAsync();
         } finally {

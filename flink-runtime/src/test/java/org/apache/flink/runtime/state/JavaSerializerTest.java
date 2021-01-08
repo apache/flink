@@ -26,11 +26,16 @@ import org.apache.flink.testutils.ClassLoaderUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.Serializable;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** A test that verifies that the {@link JavaSerializer} properly handles class loading. */
 public class JavaSerializerTest extends SerializerTestBase<Serializable> {

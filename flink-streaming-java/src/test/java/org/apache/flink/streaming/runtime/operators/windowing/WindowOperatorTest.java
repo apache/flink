@@ -30,31 +30,17 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.functions.windowing.PassThroughWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.assigners.DynamicEventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.assigners.DynamicProcessingTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SessionWindowTimeGapExtractor;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
+import org.apache.flink.streaming.api.windowing.assigners.*;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.windowing.triggers.ContinuousEventTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
+import org.apache.flink.streaming.api.windowing.triggers.*;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
@@ -69,12 +55,12 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -84,9 +70,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -287,7 +271,7 @@ public class WindowOperatorTest extends TestLogger {
         testSlidingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+        Assertions.assertEquals("Close was not called.", 2, closeCalled.get());
     }
 
     private void testTumblingEventTimeWindows(
@@ -465,7 +449,7 @@ public class WindowOperatorTest extends TestLogger {
         testTumblingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assert.assertEquals("Close was not called.", 2, closeCalled.get());
+        Assertions.assertEquals("Close was not called.", 2, closeCalled.get());
     }
 
     @Test
@@ -1942,10 +1926,10 @@ public class WindowOperatorTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>(new Tuple2<>("key2", 1), timestamp));
 
         // the garbage collection timer would wrap-around
-        Assert.assertTrue(window.maxTimestamp() + lateness < window.maxTimestamp());
+        Assertions.assertTrue(window.maxTimestamp() + lateness < window.maxTimestamp());
 
         // and it would prematurely fire with watermark (Long.MAX_VALUE - 1500)
-        Assert.assertTrue(window.maxTimestamp() + lateness < Long.MAX_VALUE - 1500);
+        Assertions.assertTrue(window.maxTimestamp() + lateness < Long.MAX_VALUE - 1500);
 
         // if we don't correctly prevent wrap-around in the garbage collection
         // timers this watermark will clean our window state for the just-added
@@ -1953,8 +1937,8 @@ public class WindowOperatorTest extends TestLogger {
         testHarness.processWatermark(new Watermark(Long.MAX_VALUE - 1500));
 
         // this watermark is before the end timestamp of our only window
-        Assert.assertTrue(Long.MAX_VALUE - 1500 < window.maxTimestamp());
-        Assert.assertTrue(window.maxTimestamp() < Long.MAX_VALUE);
+        Assertions.assertTrue(Long.MAX_VALUE - 1500 < window.maxTimestamp());
+        Assertions.assertTrue(window.maxTimestamp() < Long.MAX_VALUE);
 
         // push in a watermark that will trigger computation of our window
         testHarness.processWatermark(new Watermark(window.maxTimestamp()));

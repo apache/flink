@@ -43,13 +43,13 @@ class JoinOperatorTest {
       ds1.join(ds2).where(0).equalTo(0)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testJoinKeyIndices2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -110,13 +110,13 @@ class JoinOperatorTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testJoinKeyFields2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -178,13 +178,13 @@ class JoinOperatorTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testJoinKeyExpressions2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(customTypeData)
     val ds2 = env.fromCollection(customTypeData)
@@ -225,7 +225,7 @@ class JoinOperatorTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -240,7 +240,7 @@ class JoinOperatorTest {
       ds1.join(ds2).where { _.myLong }.equalTo(3)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -255,7 +255,7 @@ class JoinOperatorTest {
       ds1.join(ds2).where(3).equalTo { _.myLong }
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 

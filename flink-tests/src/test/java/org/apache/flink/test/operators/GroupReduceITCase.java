@@ -34,26 +34,24 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.test.operators.util.CollectionDataSets;
-import org.apache.flink.test.operators.util.CollectionDataSets.CrazyNested;
-import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
-import org.apache.flink.test.operators.util.CollectionDataSets.FromTupleWithCTor;
-import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
-import org.apache.flink.test.operators.util.CollectionDataSets.PojoContainingTupleAndWritable;
+import org.apache.flink.test.operators.util.CollectionDataSets.*;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-
 import org.joda.time.DateTime;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import scala.math.BigInt;
 
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-
-import scala.math.BigInt;
 
 /**
  * Integration tests for {@link GroupReduceFunction}, {@link RichGroupReduceFunction}, and {@link
@@ -1084,8 +1082,8 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
         ExecutionConfig ec = env.getConfig();
 
         // check if automatic type registration with Kryo worked
-        Assert.assertTrue(ec.getRegisteredKryoTypes().contains(BigInt.class));
-        Assert.assertFalse(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
+        Assertions.assertTrue(ec.getRegisteredKryoTypes().contains(BigInt.class));
+        Assertions.assertFalse(ec.getRegisteredKryoTypes().contains(java.sql.Date.class));
 
         String expected = null;
 
@@ -1096,7 +1094,7 @@ public class GroupReduceITCase extends MultipleProgramsTestBase {
                         + "For key 92233720368547758070 we got:\n"
                         + "PojoWithCollection{pojos.size()=2, key=0, sqlDate=1976-05-03, bigInt=92233720368547758070, bigDecimalKeepItNull=null, scalaBigInt=31104000, mixed=null}]";
 
-        Assert.assertEquals(localExpected, result.toString());
+        Assertions.assertEquals(localExpected, result.toString());
     }
 
     @Test

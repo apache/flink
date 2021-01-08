@@ -23,7 +23,7 @@ import java.util.function.BiFunction
 import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerializer}
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 
@@ -74,9 +74,9 @@ class TupleSerializerTestInstance[T <: Product] (
     try {
       val serializer: TypeSerializer[T] = getSerializer
       val instance: T = serializer.createInstance
-      assertNotNull("The created instance must not be null.", instance)
+      assertNotNull(instance, "The created instance must not be null.")
       val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
+      assertNotNull(tpe, "The test is corrupt: type class is null.")
       // We cannot check this because Tuple1 instances are not actually of type Tuple1
       // but something like Tuple1$mcI$sp
 //      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)

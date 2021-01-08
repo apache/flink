@@ -24,11 +24,14 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link JobManagerWatermarkTracker}. */
 public class JobManagerWatermarkTrackerTest {
@@ -91,8 +94,8 @@ public class JobManagerWatermarkTrackerTest {
 
         @Override
         public void run(SourceContext<Integer> ctx) {
-            Assert.assertEquals(998, tracker.updateWatermark(998));
-            Assert.assertEquals(999, tracker.updateWatermark(999));
+            Assertions.assertEquals(998, tracker.updateWatermark(998));
+            Assertions.assertEquals(999, tracker.updateWatermark(999));
         }
 
         @Override

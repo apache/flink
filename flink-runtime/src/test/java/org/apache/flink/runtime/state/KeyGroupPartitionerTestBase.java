@@ -23,8 +23,12 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
@@ -71,7 +75,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
         final Set<T> allElementsIdentitySet = Collections.newSetFromMap(new IdentityHashMap<>());
         final T[] data = generateTestInput(random, testSize, allElementsIdentitySet);
 
-        Assert.assertEquals(testSize, allElementsIdentitySet.size());
+        Assertions.assertEquals(testSize, allElementsIdentitySet.size());
 
         // Test with 5 key-groups.
         final KeyGroupRange range = new KeyGroupRange(0, 4);
@@ -109,7 +113,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
             element = elementGenerator.apply(random);
         }
 
-        Assert.assertEquals(numElementsToGenerate, allElementsIdentitySet.size());
+        Assertions.assertEquals(numElementsToGenerate, allElementsIdentitySet.size());
         return partitioningIn;
     }
 
@@ -153,8 +157,8 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
 
         @Override
         public void writeElement(@Nonnull T element, @Nonnull DataOutputView dov) {
-            Assert.assertTrue(allElementsSet.remove(element));
-            Assert.assertEquals(
+            Assertions.assertTrue(allElementsSet.remove(element));
+            Assertions.assertEquals(
                     currentKeyGroup,
                     KeyGroupRangeAssignment.assignToKeyGroup(
                             keyExtractorFunction.extractKeyFromElement(element),
@@ -162,7 +166,7 @@ public abstract class KeyGroupPartitionerTestBase<T> extends TestLogger {
         }
 
         void validateAllElementsSeen() {
-            Assert.assertTrue(allElementsSet.isEmpty());
+            Assertions.assertTrue(allElementsSet.isEmpty());
         }
 
         void setCurrentKeyGroup(int currentKeyGroup) {

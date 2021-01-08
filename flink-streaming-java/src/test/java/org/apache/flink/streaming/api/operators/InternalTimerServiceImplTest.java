@@ -32,8 +32,12 @@ import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.invocation.InvocationOnMock;
@@ -50,9 +54,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -97,7 +101,7 @@ public class InternalTimerServiceImplTest {
                         StringSerializer.INSTANCE,
                         createQueueFactory());
 
-        Assert.assertEquals(startKeyGroupIdx, service.getLocalKeyGroupRangeStartIdx());
+        Assertions.assertEquals(startKeyGroupIdx, service.getLocalKeyGroupRangeStartIdx());
     }
 
     @Test
@@ -166,11 +170,11 @@ public class InternalTimerServiceImplTest {
                     processingTimeTimers.get(i);
 
             if (expected == null) {
-                Assert.assertTrue(actualEvent.isEmpty());
-                Assert.assertTrue(actualProcessing.isEmpty());
+                Assertions.assertTrue(actualEvent.isEmpty());
+                Assertions.assertTrue(actualProcessing.isEmpty());
             } else {
-                Assert.assertEquals(expected, actualEvent);
-                Assert.assertEquals(expected, actualProcessing);
+                Assertions.assertEquals(expected, actualEvent);
+                Assertions.assertEquals(expected, actualProcessing);
             }
         }
     }
@@ -672,7 +676,7 @@ public class InternalTimerServiceImplTest {
                     results.add(Tuple3.of((Integer) keyContext.getCurrentKey(), namespace, timer));
                 });
 
-        Assert.assertEquals(timers, results);
+        Assertions.assertEquals(timers, results);
     }
 
     /**
@@ -717,7 +721,7 @@ public class InternalTimerServiceImplTest {
                     results.add(Tuple3.of((Integer) keyContext.getCurrentKey(), namespace, timer));
                 });
 
-        Assert.assertEquals(timers, results);
+        Assertions.assertEquals(timers, results);
     }
 
     @Test

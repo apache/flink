@@ -21,8 +21,11 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -77,7 +80,7 @@ public class RecordEmitterTest {
         emitter.stop();
         executor.shutdownNow();
 
-        Assert.assertThat(emitter.results, Matchers.contains(one, five, two, ten));
+        MatcherAssert.assertThat(emitter.results, Matchers.contains(one, five, two, ten));
     }
 
     @Test
@@ -117,7 +120,7 @@ public class RecordEmitterTest {
             while (emitter.results.size() != 4 && dl.hasTimeLeft()) {
                 Thread.sleep(10);
             }
-            Assert.assertThat(emitter.results, Matchers.contains(one, two, three, ten));
+            MatcherAssert.assertThat(emitter.results, Matchers.contains(one, two, three, ten));
 
             // advance watermark, emits remaining record from queue0
             emitter.setCurrentWatermark(10);
@@ -125,7 +128,8 @@ public class RecordEmitterTest {
             while (emitter.results.size() != 5 && dl.hasTimeLeft()) {
                 Thread.sleep(10);
             }
-            Assert.assertThat(emitter.results, Matchers.contains(one, two, three, ten, eleven));
+            MatcherAssert.assertThat(
+                    emitter.results, Matchers.contains(one, two, three, ten, eleven));
         } finally {
             emitter.stop();
             executor.shutdownNow();

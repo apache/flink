@@ -20,13 +20,7 @@ package org.apache.flink.table.data;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
-import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
-import org.apache.flink.api.common.typeutils.base.SqlDateSerializer;
-import org.apache.flink.api.common.typeutils.base.SqlTimeSerializer;
-import org.apache.flink.api.common.typeutils.base.SqlTimestampSerializer;
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.typeutils.base.*;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 import org.apache.flink.core.memory.MemorySegment;
@@ -41,20 +35,18 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
 import org.apache.flink.table.data.writer.BinaryArrayWriter;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
-import org.apache.flink.table.runtime.typeutils.ArrayDataSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
-import org.apache.flink.table.runtime.typeutils.InternalSerializers;
-import org.apache.flink.table.runtime.typeutils.MapDataSerializer;
-import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.*;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.RowKind;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -66,28 +58,14 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 import static org.apache.flink.table.data.StringData.fromBytes;
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.data.util.DataFormatTestUtil.MyObj;
 import static org.apache.flink.table.data.util.MapDataUtil.convertToJavaMap;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test of {@link BinaryRowData} and {@link BinaryRowWriter}. */
 public class BinaryRowDataTest {
@@ -389,7 +367,7 @@ public class BinaryRowDataTest {
             writer.complete();
             hashCodes.add(row.hashCode());
         }
-        Assert.assertTrue(hashCodes.size() > count * 0.997);
+        Assertions.assertTrue(hashCodes.size() > count * 0.997);
     }
 
     @Test
@@ -505,8 +483,8 @@ public class BinaryRowDataTest {
         writer.writeBinary(1, bytes2);
         writer.complete();
 
-        Assert.assertArrayEquals(bytes1, row.getBinary(0));
-        Assert.assertArrayEquals(bytes2, row.getBinary(1));
+        Assertions.assertArrayEquals(bytes1, row.getBinary(0));
+        Assertions.assertArrayEquals(bytes2, row.getBinary(1));
     }
 
     @Test

@@ -31,17 +31,14 @@ import org.apache.flink.streaming.api.operators.collect.utils.TestJobClient;
 import org.apache.flink.streaming.api.operators.collect.utils.TestUncheckpointedCoordinationRequestHandler;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /** Tests for {@link CollectResultIterator}. */
@@ -82,7 +79,7 @@ public class CollectResultIteratorTest extends TestLogger {
             // this is an at least once iterator, so we expect each value to at least appear
             Set<Integer> actualSet = new HashSet<>(actual);
             for (int expectedValue : expected) {
-                Assert.assertTrue(actualSet.contains(expectedValue));
+                Assertions.assertTrue(actualSet.contains(expectedValue));
             }
 
             iterator.close();
@@ -109,11 +106,11 @@ public class CollectResultIteratorTest extends TestLogger {
             while (iterator.hasNext()) {
                 actual.add(iterator.next());
             }
-            Assert.assertEquals(expected.size(), actual.size());
+            Assertions.assertEquals(expected.size(), actual.size());
 
             Collections.sort(expected);
             Collections.sort(actual);
-            Assert.assertArrayEquals(
+            Assertions.assertArrayEquals(
                     expected.toArray(new Integer[0]), actual.toArray(new Integer[0]));
 
             iterator.close();
@@ -136,13 +133,13 @@ public class CollectResultIteratorTest extends TestLogger {
         JobClient jobClient = tuple2.f1;
 
         for (int i = 0; i < 100; i++) {
-            Assert.assertTrue(iterator.hasNext());
-            Assert.assertNotNull(iterator.next());
+            Assertions.assertTrue(iterator.hasNext());
+            Assertions.assertNotNull(iterator.next());
         }
-        Assert.assertTrue(iterator.hasNext());
+        Assertions.assertTrue(iterator.hasNext());
         iterator.close();
 
-        Assert.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
+        Assertions.assertEquals(JobStatus.CANCELED, jobClient.getJobStatus().get());
     }
 
     private Tuple2<CollectResultIterator<Integer>, JobClient> createIteratorAndJobClient(

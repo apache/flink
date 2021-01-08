@@ -35,27 +35,21 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.ExceptionUtils;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Queue;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link FileWriter}. */
 public class FileWriterTest {
@@ -111,7 +105,7 @@ public class FileWriterTest {
                 fileWriter.getActiveBuckets().keySet(),
                 new HashSet<>(Arrays.asList("test1", "test2", "test3")));
         for (FileWriterBucket<String> bucket : fileWriter.getActiveBuckets().values()) {
-            assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
+            assertNotNull(bucket.getInProgressPart(), "The in-progress file should be recovered");
         }
     }
 
@@ -160,14 +154,14 @@ public class FileWriterTest {
         // Merged buckets
         for (String bucketId : Arrays.asList("test1", "test2")) {
             FileWriterBucket<String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
-            assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
+            assertNotNull(bucket.getInProgressPart(), "The in-progress file should be recovered");
             assertEquals(1, bucket.getPendingFiles().size());
         }
 
         // Not merged buckets
         for (String bucketId : Collections.singletonList("test3")) {
             FileWriterBucket<String> bucket = restoredWriter.getActiveBuckets().get(bucketId);
-            assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
+            assertNotNull(bucket.getInProgressPart(), "The in-progress file should be recovered");
             assertEquals(0, bucket.getPendingFiles().size());
         }
     }
@@ -369,9 +363,9 @@ public class FileWriterTest {
             long watermark = context.currentWatermark();
             long processingTime = context.currentProcessingTime();
 
-            Assert.assertEquals(expectedTimestamp, elementTimestamp);
-            Assert.assertEquals(expectedProcessingTime, processingTime);
-            Assert.assertEquals(expectedWatermark, watermark);
+            Assertions.assertEquals(expectedTimestamp, elementTimestamp);
+            Assertions.assertEquals(expectedProcessingTime, processingTime);
+            Assertions.assertEquals(expectedWatermark, watermark);
 
             return element;
         }

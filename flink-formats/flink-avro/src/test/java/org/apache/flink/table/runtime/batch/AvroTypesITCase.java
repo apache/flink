@@ -18,11 +18,8 @@
 
 package org.apache.flink.table.runtime.batch;
 
-import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.formats.avro.generated.Colors;
-import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
-import org.apache.flink.formats.avro.generated.User;
+import org.apache.avro.util.Utf8;
+import org.apache.flink.formats.avro.generated.*;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -33,9 +30,12 @@ import org.apache.flink.table.runtime.utils.TableProgramsClusterTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
-
-import org.apache.avro.util.Utf8;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -45,15 +45,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for interoperability with Avro types. */
 @RunWith(Parameterized.class)

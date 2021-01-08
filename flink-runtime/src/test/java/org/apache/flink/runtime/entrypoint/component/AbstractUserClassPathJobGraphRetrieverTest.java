@@ -24,9 +24,13 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.FileUtilsTest;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -35,8 +39,8 @@ import java.nio.file.Path;
 import java.util.Collection;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link AbstractUserClassPathJobGraphRetriever}. */
 public class AbstractUserClassPathJobGraphRetrieverTest extends TestLogger {

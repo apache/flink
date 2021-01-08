@@ -22,16 +22,18 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.TestEventSender.EventWithSubtask;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit tests for the {@link OperatorEventValve}. */
 public class OperatorEventValveTest {
@@ -51,23 +53,27 @@ public class OperatorEventValveTest {
 
     @Test
     public void errorShuttingUnmarkedValve() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final TestEventSender sender = new TestEventSender();
-        final OperatorEventValve valve = new OperatorEventValve(sender);
+                    final OperatorEventValve valve = new OperatorEventValve(sender);
 
-        valve.shutValve(123L);
-        });
+                    valve.shutValve(123L);
+                });
     }
 
     @Test
     public void errorShuttingValveForOtherMark() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final TestEventSender sender = new TestEventSender();
-        final OperatorEventValve valve = new OperatorEventValve(sender);
+                    final OperatorEventValve valve = new OperatorEventValve(sender);
 
-        valve.markForCheckpoint(100L);
-        valve.shutValve(123L);
-        });
+                    valve.markForCheckpoint(100L);
+                    valve.shutValve(123L);
+                });
     }
 
     @Test

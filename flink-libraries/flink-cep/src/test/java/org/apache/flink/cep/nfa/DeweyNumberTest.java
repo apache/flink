@@ -19,12 +19,14 @@
 package org.apache.flink.cep.nfa;
 
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link DeweyNumber}. */
 public class DeweyNumberTest extends TestLogger {
@@ -56,8 +58,10 @@ public class DeweyNumberTest extends TestLogger {
 
     @Test
     public void testZeroSplitsDeweyNumber() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     DeweyNumber.fromString(".");
-        });
+                });
     }
 }

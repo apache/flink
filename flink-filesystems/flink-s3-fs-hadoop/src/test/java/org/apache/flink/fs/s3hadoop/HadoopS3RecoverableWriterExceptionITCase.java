@@ -35,6 +35,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -136,7 +141,7 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
     @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     final Path path = new Path(basePathForTest, "part-0");
 
         final RecoverableFsDataOutputStream stream =
@@ -158,7 +163,7 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
     @Test
     public void testResumeAfterCommit() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
@@ -177,7 +182,7 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
     @Test
     public void testResumeWithWrongOffset() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     // this is a rather unrealistic scenario, but it is to trigger
         // truncation of the file and try to resume with missing data.
 

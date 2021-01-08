@@ -52,7 +52,6 @@ import org.apache.hadoop.yarn.server.nodemanager.NodeManager;
 import org.apache.hadoop.yarn.server.nodemanager.containermanager.container.Container;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -95,7 +94,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * This base class allows to use the MiniYARNCluster. The cluster is re-used for all tests.
@@ -287,7 +286,7 @@ public abstract class YarnTestBase extends TestLogger {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Assert.fail("Should not happen");
+                    Assertions.fail("Should not happen");
                 }
                 isAnyJobRunning =
                         yarnClient.getApplications().stream()
@@ -307,7 +306,7 @@ public abstract class YarnTestBase extends TestLogger {
                                                         + '.')
                                 .collect(Collectors.toList());
                 if (!runningApps.isEmpty()) {
-                    Assert.fail(
+                    Assertions.fail(
                             "There is at least one application on the cluster that is not finished."
                                     + runningApps);
                 }
@@ -420,9 +419,9 @@ public abstract class YarnTestBase extends TestLogger {
     public static void ensureNoProhibitedStringInLogFiles(
             final String[] prohibited, final Pattern[] whitelisted) {
         File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Expecting directory " + cwd.getAbsolutePath() + " to be a directory",
                 cwd.isDirectory());
 
@@ -525,7 +524,7 @@ public abstract class YarnTestBase extends TestLogger {
             try {
                 scanner = new Scanner(foundFile);
             } catch (FileNotFoundException e) {
-                Assert.fail(
+                Assertions.fail(
                         "Unable to locate file: "
                                 + e.getMessage()
                                 + " file: "
@@ -535,7 +534,7 @@ public abstract class YarnTestBase extends TestLogger {
             while (scanner.hasNextLine()) {
                 LOG.warn("LINE: " + scanner.nextLine());
             }
-            Assert.fail(
+            Assertions.fail(
                     "Found a file "
                             + foundFile
                             + " with a prohibited string (one of "
@@ -705,21 +704,21 @@ public abstract class YarnTestBase extends TestLogger {
             homeDir = tmp.newFolder();
         } catch (IOException e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
         System.setProperty("user.home", homeDir.getAbsolutePath());
         String uberjarStartLoc = "..";
         LOG.info("Trying to locate uberjar in {}", new File(uberjarStartLoc).getAbsolutePath());
         flinkUberjar = TestUtils.findFile(uberjarStartLoc, new TestUtils.RootDirFilenameFilter());
-        Assert.assertNotNull("Flink uberjar not found", flinkUberjar);
+        Assertions.assertNotNull(flinkUberjar, "Flink uberjar not found");
         String flinkDistRootDir = flinkUberjar.getParentFile().getParent();
         flinkLibFolder = flinkUberjar.getParentFile(); // the uberjar is located in lib/
-        Assert.assertNotNull("Flink flinkLibFolder not found", flinkLibFolder);
-        Assert.assertTrue("lib folder not found", flinkLibFolder.exists());
-        Assert.assertTrue("lib folder not found", flinkLibFolder.isDirectory());
+        Assertions.assertNotNull(flinkLibFolder, "Flink flinkLibFolder not found");
+        Assertions.assertTrue(flinkLibFolder.exists(), "lib folder not found");
+        Assertions.assertTrue(flinkLibFolder.isDirectory(), "lib folder not found");
 
         if (!flinkUberjar.exists()) {
-            Assert.fail("Unable to locate yarn-uberjar.jar");
+            Assertions.fail("Unable to locate yarn-uberjar.jar");
         }
 
         try {
@@ -742,7 +741,7 @@ public abstract class YarnTestBase extends TestLogger {
             File flinkConfDirPath =
                     TestUtils.findFile(
                             flinkDistRootDir, new ContainsName(new String[] {"flink-conf.yaml"}));
-            Assert.assertNotNull(flinkConfDirPath);
+            Assertions.assertNotNull(flinkConfDirPath);
 
             final String confDirPath = flinkConfDirPath.getParentFile().getAbsolutePath();
             globalConfiguration = GlobalConfiguration.loadConfiguration(confDirPath);
@@ -761,7 +760,7 @@ public abstract class YarnTestBase extends TestLogger {
                     "Temporary Flink configuration directory to be used for secure test: {}",
                     configDir);
 
-            Assert.assertNotNull(configDir);
+            Assertions.assertNotNull(configDir);
 
             map.put(ConfigConstants.ENV_FLINK_CONF_DIR, configDir);
 
@@ -780,7 +779,7 @@ public abstract class YarnTestBase extends TestLogger {
             map.put("MAX_LOG_FILE_NUMBER", "10");
             TestBaseUtils.setEnv(map);
 
-            Assert.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
+            Assertions.assertTrue(yarnCluster.getServiceState() == Service.STATE.STARTED);
 
             // wait for the nodeManagers to connect
             while (!yarnCluster.waitForNodeManagersToConnect(500)) {
@@ -789,7 +788,7 @@ public abstract class YarnTestBase extends TestLogger {
         } catch (Exception ex) {
             ex.printStackTrace();
             LOG.error("setup failure", ex);
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -866,12 +865,12 @@ public abstract class YarnTestBase extends TestLogger {
                     throw new RuntimeException(
                             "Runner failed with exception.", runner.getRunnerError());
                 }
-                Assert.fail("Runner thread died before the test was finished.");
+                Assertions.fail("Runner thread died before the test was finished.");
             }
         }
 
         resetStreamsAndSendOutput();
-        Assert.fail(
+        Assertions.fail(
                 "During the timeout period of "
                         + startTimeoutSeconds
                         + " seconds the "
@@ -965,7 +964,7 @@ public abstract class YarnTestBase extends TestLogger {
                         } catch (InterruptedException e) {
                             LOG.warn("Interrupted while stopping runner", e);
                         }
-                        Assert.fail("Output contained illegal string '" + failOnString + "'");
+                        Assertions.fail("Output contained illegal string '" + failOnString + "'");
                     }
                 }
             }
@@ -1009,7 +1008,7 @@ public abstract class YarnTestBase extends TestLogger {
             // this lets the test fail.
             throw new RuntimeException("Runner failed", runner.getRunnerError());
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "During the timeout period of "
                         + startTimeoutSeconds
                         + " seconds the "
@@ -1090,7 +1089,7 @@ public abstract class YarnTestBase extends TestLogger {
                 }
 
                 if (returnValue != this.expectedReturnValue) {
-                    Assert.fail(
+                    Assertions.fail(
                             "The YARN session returned with unexpected value="
                                     + returnValue
                                     + " expected="
@@ -1193,12 +1192,12 @@ public abstract class YarnTestBase extends TestLogger {
 
         while (state != YarnApplicationState.FINISHED) {
             if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
-                Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
+                Assertions.fail("Application became FAILED or KILLED while expecting FINISHED");
             }
 
             if (deadline.isOverdue()) {
                 yarnClusterDescriptor.killCluster(applicationId);
-                Assert.fail("Application didn't finish before timeout");
+                Assertions.fail("Application didn't finish before timeout");
             }
 
             sleep(sleepIntervalInMS);

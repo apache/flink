@@ -18,20 +18,9 @@
 
 package org.apache.flink.table.data;
 
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.common.typeinfo.*;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.ListTypeInfo;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.api.java.typeutils.*;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.util.DataFormatConverters;
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter;
@@ -49,9 +38,12 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -154,7 +146,7 @@ public class DataFormatConvertersTest {
             converter.toInternal(anotherValue);
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.deepEquals(
                         new Object[] {converter.toExternal(innerValue)}, new Object[] {value}));
     }
@@ -165,7 +157,7 @@ public class DataFormatConvertersTest {
 
     private static void testDataType(DataType dataType, Object value) {
         DataFormatConverter converter = getConverter(dataType);
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.deepEquals(
                         new Object[] {converter.toExternal(converter.toInternal(value))},
                         new Object[] {value}));
@@ -191,7 +183,7 @@ public class DataFormatConvertersTest {
         test(Types.BIG_DEC, null);
         {
             DataFormatConverter converter = getConverter(Types.BIG_DEC);
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     Arrays.deepEquals(
                             new Object[] {
                                 converter.toInternal(

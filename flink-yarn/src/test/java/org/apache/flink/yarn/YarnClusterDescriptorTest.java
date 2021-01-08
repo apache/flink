@@ -21,12 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
@@ -35,40 +30,34 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link YarnClusterDescriptor}. */
 public class YarnClusterDescriptorTest extends TestLogger {
@@ -589,8 +578,8 @@ public class YarnClusterDescriptorTest extends TestLogger {
             File libFile = temporaryFolder.newFile("libFile.jar");
             File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
+            Assertions.assertFalse(descriptor.getShipFiles().contains(libFile));
+            Assertions.assertFalse(descriptor.getShipFiles().contains(libFolder));
 
             List<File> shipFiles = new ArrayList<>();
             shipFiles.add(libFile);
@@ -598,17 +587,17 @@ public class YarnClusterDescriptorTest extends TestLogger {
 
             descriptor.addShipFiles(shipFiles);
 
-            Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
-            Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
+            Assertions.assertTrue(descriptor.getShipFiles().contains(libFile));
+            Assertions.assertTrue(descriptor.getShipFiles().contains(libFolder));
 
             // only execute part of the deployment to test for shipped files
             Set<File> effectiveShipFiles = new HashSet<>();
             descriptor.addLibFoldersToShipFiles(effectiveShipFiles);
 
-            Assert.assertEquals(0, effectiveShipFiles.size());
-            Assert.assertEquals(2, descriptor.getShipFiles().size());
-            Assert.assertTrue(descriptor.getShipFiles().contains(libFile));
-            Assert.assertTrue(descriptor.getShipFiles().contains(libFolder));
+            Assertions.assertEquals(0, effectiveShipFiles.size());
+            Assertions.assertEquals(2, descriptor.getShipFiles().size());
+            Assertions.assertTrue(descriptor.getShipFiles().contains(libFile));
+            Assertions.assertTrue(descriptor.getShipFiles().contains(libFolder));
         }
     }
 
@@ -647,10 +636,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
             }
 
             // only add the ship the folder, not the contents
-            Assert.assertFalse(effectiveShipFiles.contains(libFile));
-            Assert.assertTrue(effectiveShipFiles.contains(libFolder));
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFile));
-            Assert.assertFalse(descriptor.getShipFiles().contains(libFolder));
+            Assertions.assertFalse(effectiveShipFiles.contains(libFile));
+            Assertions.assertTrue(effectiveShipFiles.contains(libFolder));
+            Assertions.assertFalse(descriptor.getShipFiles().contains(libFile));
+            Assertions.assertFalse(descriptor.getShipFiles().contains(libFolder));
         }
     }
 

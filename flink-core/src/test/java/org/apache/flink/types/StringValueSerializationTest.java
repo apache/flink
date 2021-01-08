@@ -23,14 +23,15 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the serialization of StringValue. */
 public class StringValueSerializationTest {
@@ -141,7 +142,7 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 
     public static void testCopy(String[] values) throws IOException {
@@ -182,6 +183,6 @@ public class StringValueSerializationTest {
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 }

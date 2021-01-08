@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.types.extraction.TypeInferenceExtractorTest.TestSpec
 import org.apache.flink.table.types.inference.{ArgumentTypeStrategy, InputTypeStrategies, TypeStrategies}
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

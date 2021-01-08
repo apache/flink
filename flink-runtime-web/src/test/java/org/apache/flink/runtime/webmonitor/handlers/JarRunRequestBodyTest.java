@@ -23,7 +23,7 @@ import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JarRunRequestBody}. */
 public class JarRunRequestBodyTest extends RestRequestMarshallingTestBase<JarRunRequestBody> {

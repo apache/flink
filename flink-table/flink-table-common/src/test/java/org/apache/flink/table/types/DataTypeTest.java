@@ -26,6 +26,11 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,8 +53,8 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.types.TypeTestingUtils.hasConversionClass;
 import static org.apache.flink.table.types.TypeTestingUtils.hasNullability;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for {@link DataType}. */
 public class DataTypeTest {
@@ -80,9 +85,11 @@ public class DataTypeTest {
 
     @Test
     public void testInvalidAtomicConversion() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     TIMESTAMP(0).bridgedTo(DataTypesTest.class);
-        });
+                });
     }
 
     @Test
@@ -104,9 +111,11 @@ public class DataTypeTest {
 
     @Test
     public void testInvalidArrayConversion() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ARRAY(ARRAY(INT())).bridgedTo(int[][][].class);
-        });
+                });
     }
 
     @Test
@@ -125,9 +134,11 @@ public class DataTypeTest {
 
     @Test
     public void testInvalidOrderInterval() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     INTERVAL(MONTH(), YEAR(2));
-        });
+                });
     }
 
     @Test

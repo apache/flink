@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.factories.{TestValuesCatalog, TestValuesTa
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.types.Row
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

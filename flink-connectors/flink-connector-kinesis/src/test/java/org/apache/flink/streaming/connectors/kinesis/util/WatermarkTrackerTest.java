@@ -17,11 +17,14 @@
 
 package org.apache.flink.streaming.connectors.kinesis.util;
 
-import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
-
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.Assert;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -89,17 +92,17 @@ public class WatermarkTrackerTest {
         long watermark = 0;
         TestWatermarkTracker ws = new TestWatermarkTracker();
         ws.open(new MockStreamingRuntimeContext(false, 1, 0));
-        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(Long.MIN_VALUE));
-        Assert.assertEquals(Long.MIN_VALUE, ws.updateWatermark(watermark));
+        Assertions.assertEquals(Long.MIN_VALUE, ws.updateWatermark(Long.MIN_VALUE));
+        Assertions.assertEquals(Long.MIN_VALUE, ws.updateWatermark(watermark));
         // timeout wm1
         clock.add(WatermarkTracker.DEFAULT_UPDATE_TIMEOUT_MILLIS + 1);
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark - 1));
+        Assertions.assertEquals(watermark, ws.updateWatermark(watermark));
+        Assertions.assertEquals(watermark, ws.updateWatermark(watermark - 1));
 
         // min watermark
         wm1.watermark = watermark + 1;
         wm1.lastUpdated = clock.longValue();
-        Assert.assertEquals(watermark, ws.updateWatermark(watermark));
-        Assert.assertEquals(watermark + 1, ws.updateWatermark(watermark + 1));
+        Assertions.assertEquals(watermark, ws.updateWatermark(watermark));
+        Assertions.assertEquals(watermark + 1, ws.updateWatermark(watermark + 1));
     }
 }

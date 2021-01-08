@@ -27,6 +27,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +54,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 
     @Test
     public void throwExceptionWithoutSerializer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.DefaultCommitter(), null);
         testHarness.initializeEmptyState();
@@ -59,7 +64,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 
     @Test
     public void throwExceptionWithoutCommitter() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
         testHarness.initializeEmptyState();
@@ -69,7 +74,7 @@ public class StreamingCommitterOperatorTest extends TestLogger {
 
     @Test
     public void doNotSupportRetry() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     final List<String> input = Arrays.asList("lazy", "leaf");
         final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryCommitter());

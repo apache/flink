@@ -28,7 +28,7 @@ import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._

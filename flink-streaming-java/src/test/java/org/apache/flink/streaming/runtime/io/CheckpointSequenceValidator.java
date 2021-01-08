@@ -26,9 +26,8 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** {@link AbstractInvokable} that validates expected order of completed and aborted checkpoints. */
 class CheckpointSequenceValidator extends AbstractInvokable {

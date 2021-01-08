@@ -45,9 +45,12 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.util.AbstractID;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -58,10 +61,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class JobGraphGeneratorTest {
 
@@ -313,15 +316,15 @@ public class JobGraphGeneratorTest {
 
         JobGraph jobGraph = compileJob(env);
 
-        Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+        Assertions.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
         JobVertex mapVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
-        Assert.assertThat(mapVertex, Matchers.instanceOf(JobVertex.class));
+        MatcherAssert.assertThat(mapVertex, Matchers.instanceOf(JobVertex.class));
 
         // there are 2 output result with one of them is ResultPartitionType.BLOCKING_PERSISTENT
-        Assert.assertEquals(2, mapVertex.getProducedDataSets().size());
+        Assertions.assertEquals(2, mapVertex.getProducedDataSets().size());
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 mapVertex.getProducedDataSets().stream()
                         .anyMatch(
                                 dataSet ->

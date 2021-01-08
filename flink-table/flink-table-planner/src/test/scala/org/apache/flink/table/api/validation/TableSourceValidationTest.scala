@@ -43,7 +43,7 @@ class TableSourceValidationTest extends TableTestBase{
 
   @Test
   def testUnresolvedSchemaField(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val schema = new TableSchema(
       Array("id", "name", "amount", "value"),
       Array(Types.LONG, Types.STRING, Types.INT, Types.DOUBLE))

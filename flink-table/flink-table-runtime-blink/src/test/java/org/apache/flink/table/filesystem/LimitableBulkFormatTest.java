@@ -26,10 +26,13 @@ import org.apache.flink.connector.file.src.reader.TextLineFormat;
 import org.apache.flink.connector.file.src.util.Utils;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -63,6 +66,6 @@ public class LimitableBulkFormatTest {
 
         AtomicInteger i = new AtomicInteger(0);
         Utils.forEachRemaining(reader, s -> i.incrementAndGet());
-        Assert.assertEquals(22, i.get());
+        Assertions.assertEquals(22, i.get());
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
+import org.apache.calcite.rel.RelNode;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
@@ -35,10 +36,12 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.util.FileUtils;
-
-import org.apache.calcite.rel.RelNode;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -110,7 +113,7 @@ public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
             execNode = execNode.getInputNodes().get(0);
         }
         DAGProcessContext context = new DAGProcessContext(util.getPlanner());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected, MultipleInputNodeCreationProcessor.isChainableSource(execNode, context));
     }
 

@@ -22,7 +22,7 @@ import java.util.Collections
 
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.types.Row
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

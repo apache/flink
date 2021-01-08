@@ -37,7 +37,7 @@ import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.{Row, RowKind, RowUtils}
 import org.apache.flink.util.Collector
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, Rule, Test}
 
 import java.io.File
@@ -534,7 +534,7 @@ class TableSinkITCase extends AbstractTestBase {
 
   @Test
   def testToAppendStreamMultiRowtime(): Unit = {
-        Assertions.assertThrows(classOf[TableException], () -> {
+        assertThrows(classOf[TableException], () -> {
                 val t = StreamTestData.get3TupleDataStream(env)
       .assignAscendingTimestamps(_._1.toLong)
       .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)

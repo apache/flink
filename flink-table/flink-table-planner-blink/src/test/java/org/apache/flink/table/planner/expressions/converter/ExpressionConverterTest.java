@@ -18,17 +18,6 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.expressions.TimePointUnit;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.delegation.PlannerContext;
-import org.apache.flink.table.planner.plan.metadata.MetadataTestUtil;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
-import org.apache.flink.table.utils.CatalogManagerMocks;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.calcite.plan.ConventionTraitDef;
@@ -39,21 +28,30 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
-import org.junit.Assert;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.expressions.TimePointUnit;
+import org.apache.flink.table.module.ModuleManager;
+import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.plan.metadata.MetadataTestUtil;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Period;
+import java.time.*;
 import java.util.Arrays;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for {@link ExpressionConverter}. */
 public class ExpressionConverterTest {
@@ -79,16 +77,16 @@ public class ExpressionConverterTest {
     @Test
     public void testLiteral() {
         RexNode rex = converter.visit(valueLiteral((byte) 1));
-        Assert.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
-        Assert.assertEquals(SqlTypeName.TINYINT, rex.getType().getSqlTypeName());
+        Assertions.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
+        Assertions.assertEquals(SqlTypeName.TINYINT, rex.getType().getSqlTypeName());
 
         rex = converter.visit(valueLiteral((short) 1));
-        Assert.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
-        Assert.assertEquals(SqlTypeName.SMALLINT, rex.getType().getSqlTypeName());
+        Assertions.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
+        Assertions.assertEquals(SqlTypeName.SMALLINT, rex.getType().getSqlTypeName());
 
         rex = converter.visit(valueLiteral(1));
-        Assert.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
-        Assert.assertEquals(SqlTypeName.INTEGER, rex.getType().getSqlTypeName());
+        Assertions.assertEquals(1, (int) ((RexLiteral) rex).getValueAs(Integer.class));
+        Assertions.assertEquals(SqlTypeName.INTEGER, rex.getType().getSqlTypeName());
     }
 
     @Test

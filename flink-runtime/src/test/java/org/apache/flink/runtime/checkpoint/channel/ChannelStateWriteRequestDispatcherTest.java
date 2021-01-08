@@ -24,8 +24,12 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -37,11 +41,9 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Optional.empty;
 import static java.util.Optional.of;
-import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeInput;
-import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.completeOutput;
-import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.write;
+import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequest.*;
 import static org.apache.flink.runtime.state.ChannelPersistenceITCase.getStreamFactoryFactory;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** {@link ChannelStateWriteRequestDispatcherImpl} tests. */
 @RunWith(Parameterized.class)

@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -243,8 +243,8 @@ public class TestUtils {
             }
         }
 
-        Assert.assertEquals(expectedInProgress, inProgress);
-        Assert.assertEquals(expectedCompleted, finished);
+        Assertions.assertEquals(expectedInProgress, inProgress);
+        Assertions.assertEquals(expectedCompleted, finished);
     }
 
     static Map<File, String> getFileContentByPath(File directory) throws IOException {
@@ -323,8 +323,8 @@ public class TestUtils {
         }
 
         public Integer deserialize(int version, byte[] serialized) throws IOException {
-            Assert.assertEquals(1L, (long) version);
-            Assert.assertEquals(4L, serialized.length);
+            Assertions.assertEquals(1L, (long) version);
+            Assertions.assertEquals(4L, serialized.length);
             return ByteBuffer.wrap(serialized).order(ByteOrder.LITTLE_ENDIAN).getInt();
         }
     }

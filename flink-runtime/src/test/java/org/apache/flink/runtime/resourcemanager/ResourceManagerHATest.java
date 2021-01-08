@@ -37,9 +37,12 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -122,14 +125,14 @@ public class ResourceManagerHATest extends TestLogger {
         try {
             resourceManager.start();
 
-            Assert.assertNull(resourceManager.getFencingToken());
+            Assertions.assertNull(resourceManager.getFencingToken());
             final UUID leaderId = UUID.randomUUID();
             leaderElectionService.isLeader(leaderId);
             // after grant leadership, resourceManager's leaderId has value
-            Assert.assertEquals(leaderId, leaderSessionIdFuture.get());
+            Assertions.assertEquals(leaderId, leaderSessionIdFuture.get());
             // then revoke leadership, resourceManager's leaderId should be different
             leaderElectionService.notLeader();
-            Assert.assertNotEquals(leaderId, revokedLeaderIdFuture.get());
+            Assertions.assertNotEquals(leaderId, revokedLeaderIdFuture.get());
 
             if (testingFatalErrorHandler.hasExceptionOccurred()) {
                 testingFatalErrorHandler.rethrowError();

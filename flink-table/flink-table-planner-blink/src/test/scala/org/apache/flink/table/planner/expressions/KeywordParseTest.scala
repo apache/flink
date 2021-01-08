@@ -22,7 +22,7 @@ import org.apache.flink.table.expressions.ExpressionParser
 import org.apache.flink.table.expressions.ApiExpressionUtils.{lookupCall, unresolvedCall, unresolvedRef}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 /**

@@ -24,10 +24,13 @@ import org.apache.flink.api.java.typeutils.PojoField;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.expressions.Expression;
-
-import org.junit.Assert;
-import org.junit.jupiter.api.Test;
 import org.junit.experimental.runners.Enclosed;
+import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -69,7 +72,7 @@ public class FieldInfoUtilsTest {
                     FieldInfoUtils.getFieldsInfo(
                             typeInfo, new Expression[] {$("f2"), $("f1"), $("f0")});
 
-            Assert.assertArrayEquals(new String[] {"f2", "f1", "f0"}, schema.getFieldNames());
+            Assertions.assertArrayEquals(new String[] {"f2", "f1", "f0"}, schema.getFieldNames());
         }
 
         @Test
@@ -81,7 +84,7 @@ public class FieldInfoUtilsTest {
                                 $("f1").as("aa"), $("f0").as("bb"), $("f2").as("cc")
                             });
 
-            Assert.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
+            Assertions.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
         }
 
         /** Test Pojo class. */
@@ -107,7 +110,7 @@ public class FieldInfoUtilsTest {
                     FieldInfoUtils.getFieldsInfo(
                             rowTypeInfo, new Expression[] {$("aa"), $("bb"), $("cc")});
 
-            Assert.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
+            Assertions.assertArrayEquals(new String[] {"aa", "bb", "cc"}, schema.getFieldNames());
         }
 
         @Test
@@ -119,7 +122,7 @@ public class FieldInfoUtilsTest {
                                 $("aa"), $("bb"), $("cc"), $("cc").proctime().as("proctime")
                             });
 
-            Assert.assertArrayEquals(
+            Assertions.assertArrayEquals(
                     new String[] {"aa", "bb", "cc", "proctime"}, schema.getFieldNames());
         }
     }

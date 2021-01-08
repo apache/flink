@@ -25,10 +25,14 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
 import org.apache.flink.runtime.util.config.memory.jobmanager.JobManagerFlinkMemoryUtils;
 import org.apache.flink.testutils.logging.TestLoggerResource;
-
 import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.event.Level;
 
 import java.util.HashMap;
@@ -42,8 +46,8 @@ import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsArrayWithSize.arrayWithSize;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link JobManagerProcessUtils}. */
 public class JobManagerProcessUtilsTest extends ProcessMemoryUtilsTestBase<JobManagerProcessSpec> {

@@ -24,10 +24,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.Preconditions;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -93,9 +96,9 @@ public class BucketsRollingPolicyTest {
                         .withRolloverInterval(30)
                         .build();
 
-        Assert.assertEquals(10, policy.getInactivityInterval());
-        Assert.assertEquals(20, policy.getMaxPartSize());
-        Assert.assertEquals(30, policy.getRolloverInterval());
+        Assertions.assertEquals(10, policy.getInactivityInterval());
+        Assertions.assertEquals(20, policy.getMaxPartSize());
+        Assertions.assertEquals(30, policy.getRolloverInterval());
     }
 
     @Test
@@ -287,12 +290,12 @@ public class BucketsRollingPolicyTest {
                 final long onEventRolls,
                 final long onProcessingTimeCalls,
                 final long onProcessingTimeRolls) {
-            Assert.assertEquals(onCheckpointCalls, onCheckpointCallCounter);
-            Assert.assertEquals(onCheckpointRolls, onCheckpointRollCounter);
-            Assert.assertEquals(onEventCalls, onEventCallCounter);
-            Assert.assertEquals(onEventRolls, onEventRollCounter);
-            Assert.assertEquals(onProcessingTimeCalls, onProcessingTimeCallCounter);
-            Assert.assertEquals(onProcessingTimeRolls, onProcessingTimeRollCounter);
+            Assertions.assertEquals(onCheckpointCalls, onCheckpointCallCounter);
+            Assertions.assertEquals(onCheckpointRolls, onCheckpointRollCounter);
+            Assertions.assertEquals(onEventCalls, onEventCallCounter);
+            Assertions.assertEquals(onEventRolls, onEventRollCounter);
+            Assertions.assertEquals(onProcessingTimeCalls, onProcessingTimeCallCounter);
+            Assertions.assertEquals(onProcessingTimeRolls, onProcessingTimeRollCounter);
         }
     }
 }

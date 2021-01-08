@@ -23,16 +23,20 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link BackPressureSampleService}. */
 public class BackPressureSampleServiceTest extends TestLogger {
@@ -78,11 +82,13 @@ public class BackPressureSampleServiceTest extends TestLogger {
 
     @Test
     public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
 
-        fail("Exception expected.");
-        });
+                    fail("Exception expected.");
+                });
     }
 
     /** Task that is always running. */

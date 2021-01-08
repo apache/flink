@@ -28,19 +28,15 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /** */
 public class ReusingSortMergeCoGroupIteratorITCase {
@@ -135,11 +131,11 @@ public class ReusingSortMergeCoGroupIteratorITCase {
                     key = rec.f0;
                     v2 = rec.f1;
                 } else {
-                    Assert.fail("No input on both sides.");
+                    Assertions.fail("No input on both sides.");
                 }
 
                 // assert that matches for this key exist
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "No matches for key " + key, expectedCoGroupsMap.containsKey(key));
 
                 Collection<String> expValues1 = expectedCoGroupsMap.get(key).get(0);
@@ -153,27 +149,29 @@ public class ReusingSortMergeCoGroupIteratorITCase {
 
                 while (iter1.hasNext()) {
                     Tuple2<Integer, String> rec = iter1.next();
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "String not in expected set of first input", expValues1.remove(rec.f1));
                 }
-                Assert.assertTrue("Expected set of first input not empty", expValues1.isEmpty());
+                Assertions.assertTrue(
+                        "Expected set of first input not empty", expValues1.isEmpty());
 
                 while (iter2.hasNext()) {
                     Tuple2<Integer, String> rec = iter2.next();
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "String not in expected set of second input",
                             expValues2.remove(rec.f1));
                 }
-                Assert.assertTrue("Expected set of second input not empty", expValues2.isEmpty());
+                Assertions.assertTrue(
+                        "Expected set of second input not empty", expValues2.isEmpty());
 
                 expectedCoGroupsMap.remove(key);
             }
             iterator.close();
 
-            Assert.assertTrue("Expected key set not empty", expectedCoGroupsMap.isEmpty());
+            Assertions.assertTrue(expectedCoGroupsMap.isEmpty(), "Expected key set not empty");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

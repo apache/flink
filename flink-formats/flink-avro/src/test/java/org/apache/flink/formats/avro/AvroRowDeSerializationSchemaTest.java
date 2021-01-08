@@ -18,19 +18,23 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.utils.AvroTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.specific.SpecificRecord;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for the Avro serialization and deserialization schema. */
 public class AvroRowDeSerializationSchemaTest {

@@ -51,6 +51,11 @@ import org.apache.avro.util.Utf8;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -68,11 +73,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -222,7 +227,7 @@ public class AvroRecordInputFormatTest {
         assertNotNull(u);
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
+        assertNotNull(name, "empty record");
         assertEquals("name not equal", TEST_NAME, name);
 
         // check arrays
@@ -249,8 +254,8 @@ public class AvroRecordInputFormatTest {
                 TEST_MAP_VALUE2,
                 lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertFalse(format.reachedEnd(), "expecting second element");
+        assertNotNull(format.nextRecord(u), "expecting second element");
 
         assertNull(format.nextRecord(u));
         assertTrue(format.reachedEnd());
@@ -276,7 +281,7 @@ public class AvroRecordInputFormatTest {
         assertNotNull(u);
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
+        assertNotNull(name, "empty record");
         assertEquals("name not equal", TEST_NAME, name);
 
         // check arrays
@@ -303,8 +308,8 @@ public class AvroRecordInputFormatTest {
                 TEST_MAP_VALUE2,
                 lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertFalse(format.reachedEnd(), "expecting second element");
+        assertNotNull(format.nextRecord(u), "expecting second element");
 
         assertNull(format.nextRecord(u));
         assertTrue(format.reachedEnd());
@@ -453,7 +458,7 @@ public class AvroRecordInputFormatTest {
             assertEquals("The schemas should be equal", userSchema, u.getSchema());
 
             String name = u.get("name").toString();
-            assertNotNull("empty record", name);
+            assertNotNull(name, "empty record");
             assertEquals("name not equal", TEST_NAME, name);
 
             // check arrays
@@ -480,8 +485,8 @@ public class AvroRecordInputFormatTest {
                     TEST_MAP_VALUE2,
                     lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
 
-            assertFalse("expecting second element", format.reachedEnd());
-            assertNotNull("expecting second element", format.nextRecord(u));
+            assertFalse(format.reachedEnd(), "expecting second element");
+            assertNotNull(format.nextRecord(u), "expecting second element");
 
             assertNull(format.nextRecord(u));
             assertTrue(format.reachedEnd());

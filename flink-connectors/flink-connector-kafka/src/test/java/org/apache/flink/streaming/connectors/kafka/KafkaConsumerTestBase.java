@@ -86,7 +86,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.NotLeaderForPartitionException;
 import org.apache.kafka.common.errors.TimeoutException;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 
@@ -116,11 +115,10 @@ import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommu
 import static org.apache.flink.streaming.connectors.kafka.testutils.ClusterCommunicationUtils.waitUntilNoJobIsRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Abstract test base for all Kafka consumer tests. */
 @SuppressWarnings("serial")
@@ -274,9 +272,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
         Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
         Long o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-        Assert.assertEquals(Long.valueOf(50L), o1);
-        Assert.assertEquals(Long.valueOf(50L), o2);
-        Assert.assertEquals(Long.valueOf(50L), o3);
+        Assertions.assertEquals(Long.valueOf(50L), o1);
+        Assertions.assertEquals(Long.valueOf(50L), o2);
+        Assertions.assertEquals(Long.valueOf(50L), o3);
 
         kafkaOffsetHandler.close();
         deleteTestTopic(topicName);
@@ -367,9 +365,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Long o1 = kafkaOffsetHandler.getCommittedOffset(topicName, 0);
         Long o2 = kafkaOffsetHandler.getCommittedOffset(topicName, 1);
         Long o3 = kafkaOffsetHandler.getCommittedOffset(topicName, 2);
-        Assert.assertEquals(Long.valueOf(50L), o1);
-        Assert.assertEquals(Long.valueOf(50L), o2);
-        Assert.assertEquals(Long.valueOf(50L), o3);
+        Assertions.assertEquals(Long.valueOf(50L), o1);
+        Assertions.assertEquals(Long.valueOf(50L), o2);
+        Assertions.assertEquals(Long.valueOf(50L), o3);
 
         kafkaOffsetHandler.close();
         deleteTestTopic(topicName);
@@ -894,7 +892,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
                                 assertEquals(value.f0 - 1000, (long) v);
 
-                                assertFalse("Received tuple twice", validator.get(v));
+                                assertFalse(validator.get(v), "Received tuple twice");
                                 validator.set(v);
                                 elCnt++;
 
@@ -1144,7 +1142,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Throwable failueCause = jobError.get();
         if (failueCause != null) {
             failueCause.printStackTrace();
-            Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
+            Assertions.fail("Test failed prematurely with: " + failueCause.getMessage());
         }
 
         // cancel
@@ -1214,7 +1212,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         Throwable failueCause = error.get();
         if (failueCause != null) {
             failueCause.printStackTrace();
-            Assert.fail("Test failed prematurely with: " + failueCause.getMessage());
+            Assertions.fail("Test failed prematurely with: " + failueCause.getMessage());
         }
         // cancel
         client.cancel(jobId).get();
@@ -1570,11 +1568,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                     public void flatMap(Tuple2<Long, PojoValue> value, Collector<Object> out)
                             throws Exception {
                         // the elements should be in order.
-                        Assert.assertTrue("Wrong value " + value.f1.lat, value.f1.lat == counter);
+                        Assertions.assertTrue(
+                                "Wrong value " + value.f1.lat, value.f1.lat == counter);
                         if (value.f1.lat % 2 == 0) {
                             assertNull("key was not null", value.f0);
                         } else {
-                            Assert.assertTrue("Wrong value " + value.f0, value.f0 == counter);
+                            Assertions.assertTrue("Wrong value " + value.f0, value.f0 == counter);
                         }
                         counter++;
                         if (counter == elementCount) {
@@ -1876,7 +1875,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
                 offsetMetrics = mBeanServer.queryNames(new ObjectName("*current-offsets*:*"), null);
                 Thread.sleep(50);
             }
-            Assert.assertEquals(5, offsetMetrics.size());
+            Assertions.assertEquals(5, offsetMetrics.size());
             // we can't rely on the consumer to have touched all the partitions already
             // that's why we'll wait until all five partitions have a positive offset.
             // The test will fail if we never meet the condition
@@ -1899,7 +1898,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
             // check if producer metrics are also available.
             Set<ObjectName> producerMetrics =
                     mBeanServer.queryNames(new ObjectName("*KafkaProducer*:*"), null);
-            Assert.assertTrue("No producer metrics found", producerMetrics.size() > 30);
+            Assertions.assertTrue(producerMetrics.size() > 30, "No producer metrics found");
 
             LOG.info("Found all JMX metrics. Cancelling job.");
         } finally {

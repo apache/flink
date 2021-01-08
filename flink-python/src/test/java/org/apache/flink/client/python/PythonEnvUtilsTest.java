@@ -23,26 +23,22 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.client.python.PythonEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
@@ -121,7 +117,7 @@ public class PythonEnvUtilsTest {
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))
                         .map(PythonEnvUtilsTest::replaceUUID)
                         .collect(Collectors.toSet());
-        Assert.assertEquals(expectedPythonPaths, actualPaths);
+        Assertions.assertEquals(expectedPythonPaths, actualPaths);
     }
 
     @Test
@@ -157,7 +153,7 @@ public class PythonEnvUtilsTest {
             }
             String cmdResult = new String(Files.readAllBytes(new File(result).toPath()));
             // Check if the working directory of python process is the same as java process.
-            Assert.assertEquals(cmdResult, System.getProperty("user.dir"));
+            Assertions.assertEquals(cmdResult, System.getProperty("user.dir"));
             pythonProcess.destroyForcibly();
             pyFile.delete();
             new File(result).delete();
@@ -172,9 +168,9 @@ public class PythonEnvUtilsTest {
 
         PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
         if (OperatingSystem.isWindows()) {
-            Assert.assertEquals("python.exe", env.pythonExec);
+            Assertions.assertEquals("python.exe", env.pythonExec);
         } else {
-            Assert.assertEquals("python", env.pythonExec);
+            Assertions.assertEquals("python", env.pythonExec);
         }
 
         Map<String, String> systemEnv = new HashMap<>(System.getenv());
@@ -182,7 +178,7 @@ public class PythonEnvUtilsTest {
         CommonTestUtils.setEnv(systemEnv);
         try {
             env = preparePythonEnvironment(config, null, tmpDirPath);
-            Assert.assertEquals("python3", env.pythonExec);
+            Assertions.assertEquals("python3", env.pythonExec);
         } finally {
             systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
             CommonTestUtils.setEnv(systemEnv);
@@ -190,7 +186,7 @@ public class PythonEnvUtilsTest {
 
         config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
         env = preparePythonEnvironment(config, null, tmpDirPath);
-        Assert.assertEquals("/usr/bin/python", env.pythonExec);
+        Assertions.assertEquals("/usr/bin/python", env.pythonExec);
     }
 
     @Test
@@ -213,7 +209,7 @@ public class PythonEnvUtilsTest {
                 Arrays.stream(env.pythonPath.split(File.pathSeparator))
                         .map(PythonEnvUtilsTest::replaceUUID)
                         .collect(Collectors.toSet());
-        Assert.assertEquals(expectedPythonPaths, actualPaths);
+        Assertions.assertEquals(expectedPythonPaths, actualPaths);
     }
 
     @After

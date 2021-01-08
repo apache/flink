@@ -32,22 +32,20 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /** Sort test for binary row. */
 @RunWith(Parameterized.class)
@@ -101,7 +99,7 @@ public class BinaryExternalSorterTest {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory leak: not all segments have been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -143,12 +141,12 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            Assertions.assertEquals(i, next.getInt(0));
+            Assertions.assertEquals(getString(i), next.getString(1).toString());
         }
 
         sorter.close();
-        Assert.assertTrue(memoryManager.verifyEmpty());
+        Assertions.assertTrue(memoryManager.verifyEmpty());
         memoryManager.shutdown();
     }
 
@@ -183,8 +181,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            Assertions.assertEquals(i, next.getInt(0));
+            Assertions.assertEquals(getString(i), next.getString(1).toString());
         }
 
         sorter.close();
@@ -227,8 +225,8 @@ public class BinaryExternalSorterTest {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < 3; j++) {
                 next = iterator.next(next);
-                Assert.assertEquals(i, next.getInt(0));
-                Assert.assertEquals(getString(i), next.getString(1).toString());
+                Assertions.assertEquals(i, next.getInt(0));
+                Assertions.assertEquals(getString(i), next.getString(1).toString());
             }
         }
 
@@ -266,8 +264,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            Assertions.assertEquals(i, next.getInt(0));
+            Assertions.assertEquals(getString(i), next.getString(1).toString());
         }
 
         sorter.close();
@@ -320,8 +318,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals((int) data.get(i).f0, next.getInt(0));
-            Assert.assertEquals(data.get(i).f1, next.getString(1).toString());
+            Assertions.assertEquals((int) data.get(i).f0, next.getInt(0));
+            Assertions.assertEquals(data.get(i).f1, next.getString(1).toString());
         }
 
         sorter.close();
@@ -360,8 +358,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(i, next.getInt(0));
-            Assert.assertEquals(getString(i), next.getString(1).toString());
+            Assertions.assertEquals(i, next.getInt(0));
+            Assertions.assertEquals(getString(i), next.getString(1).toString());
         }
 
         sorter.close();
@@ -412,8 +410,8 @@ public class BinaryExternalSorterTest {
         BinaryRowData next = serializer.createInstance();
         for (int i = 0; i < size; i++) {
             next = iterator.next(next);
-            Assert.assertEquals(data.get(i).getInt(0), next.getInt(0));
-            Assert.assertEquals(data.get(i).getString(1), next.getString(1));
+            Assertions.assertEquals(data.get(i).getInt(0), next.getInt(0));
+            Assertions.assertEquals(data.get(i).getString(1), next.getString(1));
         }
 
         sorter.close();

@@ -27,8 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -53,7 +51,7 @@ public class BulkIterationWithAllReducerITCase extends JavaProgramTestBase {
 
         env.execute();
 
-        Assert.assertEquals(8, resultList.get(0).intValue());
+        Assertions.assertEquals(8, resultList.get(0).intValue());
     }
 
     private static class PickOneAllReduce extends RichGroupReduceFunction<Integer, Integer> {

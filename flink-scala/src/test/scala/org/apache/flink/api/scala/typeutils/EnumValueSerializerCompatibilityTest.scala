@@ -26,7 +26,7 @@ import org.apache.flink.core.memory.{DataInputViewStreamWrapper, DataOutputViewS
 import org.apache.flink.util.TestLogger
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.scalatest.junit.JUnitSuiteLike
 
 import scala.reflect.NameTransformer

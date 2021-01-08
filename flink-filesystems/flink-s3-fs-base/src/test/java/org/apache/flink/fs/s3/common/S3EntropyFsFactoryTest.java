@@ -25,6 +25,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
@@ -32,7 +37,7 @@ import javax.annotation.Nullable;
 import java.net.URI;
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests that the file system factory picks up the entropy configuration properly. */
 public class S3EntropyFsFactoryTest extends TestLogger {

@@ -20,11 +20,10 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.util.NetUtils;
-
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+import org.apache.flink.util.NetUtils;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -36,7 +35,7 @@ import static org.apache.flink.runtime.io.network.netty.NettyMessage.BufferRespo
 import static org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test utility for Netty server and client setup. */
 public class NettyTestUtil {

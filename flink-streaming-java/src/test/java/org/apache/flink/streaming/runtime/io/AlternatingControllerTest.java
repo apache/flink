@@ -41,6 +41,11 @@ import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -62,8 +67,8 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** {@link AlternatingController} test. */
 public class AlternatingControllerTest {
@@ -809,7 +814,7 @@ public class AlternatingControllerTest {
     private static Optional<BufferOrEvent> assertPoll(CheckpointedInputGate gate)
             throws IOException, InterruptedException {
         Optional<BufferOrEvent> bufferOrEvent = gate.pollNext();
-        assertTrue("empty gate", bufferOrEvent.isPresent());
+        assertTrue(bufferOrEvent.isPresent(), "empty gate");
         return bufferOrEvent;
     }
 }

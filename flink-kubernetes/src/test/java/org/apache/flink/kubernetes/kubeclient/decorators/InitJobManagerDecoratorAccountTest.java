@@ -18,15 +18,19 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesJobManagerTestBase;
-
-import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link InitJobManagerDecorator} decorating service account. */
 public class InitJobManagerDecoratorAccountTest extends KubernetesJobManagerTestBase {

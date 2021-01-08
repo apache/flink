@@ -25,8 +25,12 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -35,12 +39,8 @@ import java.io.DataOutputStream;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
-import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
-import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Unit test for {@link SourceCoordinatorContext}. */
 public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {

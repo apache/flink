@@ -35,8 +35,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.parser.FieldParser;
 import org.apache.flink.types.parser.StringParser;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,12 +54,11 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link CsvInputFormat}. */
 public class CsvInputFormatTest {
@@ -195,7 +198,7 @@ public class CsvInputFormatTest {
             }
             format.close();
         }
-        Assert.assertEquals(4, recordCounter);
+        Assertions.assertEquals(4, recordCounter);
     }
 
     @Test
@@ -1040,13 +1043,13 @@ public class CsvInputFormatTest {
 
             Tuple1<String> result = inputFormat.nextRecord(new Tuple1<String>());
 
-            assertNotNull("Expecting to not return null", result);
+            assertNotNull(result, "Expecting to not return null");
 
             assertEquals(FIRST_PART, result.f0);
 
             result = inputFormat.nextRecord(result);
 
-            assertNotNull("Expecting to not return null", result);
+            assertNotNull(result, "Expecting to not return null");
             assertEquals(SECOND_PART, result.f0);
 
         } catch (Throwable t) {

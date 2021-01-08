@@ -59,6 +59,11 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -70,9 +75,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -220,16 +225,18 @@ public class ClientTest extends TestLogger {
 
     @Test
     public void testMultiExecuteWithEnforcingSingleJobExecution() throws Throwable {
-        Assertions.assertThrows(FlinkRuntimeException.class, () -> {
+        assertThrows(
+                FlinkRuntimeException.class,
+                () -> {
                     try {
-            launchMultiExecuteJob(true);
-        } catch (Exception e) {
-            if (e instanceof ProgramInvocationException) {
-                throw e.getCause();
-            }
-        }
-        fail("Test should have failed due to multiple execute() calls.");
-        });
+                        launchMultiExecuteJob(true);
+                    } catch (Exception e) {
+                        if (e instanceof ProgramInvocationException) {
+                            throw e.getCause();
+                        }
+                    }
+                    fail("Test should have failed due to multiple execute() calls.");
+                });
     }
 
     @Test

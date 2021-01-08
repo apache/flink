@@ -34,10 +34,13 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -46,13 +49,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test the functionality of aggregators in bulk and delta iterative cases. */
 @RunWith(Parameterized.class)
@@ -443,7 +442,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
                         getIterationRuntimeContext()
                                 .getPreviousIterationAggregate(NEGATIVE_ELEMENTS_AGGR);
                 // check previous aggregator value
-                Assert.assertEquals(superstep - 1, previousAggr.getValue());
+                Assertions.assertEquals(superstep - 1, previousAggr.getValue());
             }
         }
 
@@ -509,7 +508,7 @@ public class AggregatorsITCase extends MultipleProgramsTestBase {
                         getIterationRuntimeContext()
                                 .getPreviousIterationAggregate(NEGATIVE_ELEMENTS_AGGR);
                 // check previous aggregator value
-                Assert.assertEquals(superstep - 1, previousAggr.getValue());
+                Assertions.assertEquals(superstep - 1, previousAggr.getValue());
             }
         }
 

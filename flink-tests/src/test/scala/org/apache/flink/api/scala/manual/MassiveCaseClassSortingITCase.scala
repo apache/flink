@@ -28,7 +28,7 @@ import org.apache.flink.runtime.operators.sort.{ExternalSorter, Sorter}
 import org.apache.flink.runtime.operators.testutils.DummyInvokable
 import org.apache.flink.util.{MutableObjectIterator, TestLogger}
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 
 import java.io._
 import java.util.Random

@@ -55,9 +55,9 @@ class DecimalITCase extends BatchTestBase {
     // check result schema
     val resultTable = tableTransfer(t)
     val ts2 = resultTable.getSchema.getFieldDataTypes.map(fromDataTypeToLogicalType)
-    Assert.assertEquals(expectedColTypes.length, ts2.length)
+    Assertions.assertEquals(expectedColTypes.length, ts2.length)
 
-    Assert.assertTrue(expectedColTypes.zip(ts2).forall {
+    Assertions.assertTrue(expectedColTypes.zip(ts2).forall {
       case (t1, t2) => isInteroperable(t1, t2)
     })
 
@@ -66,7 +66,7 @@ class DecimalITCase extends BatchTestBase {
     }
 
     val resultRows = executeQuery(resultTable)
-    Assert.assertEquals(
+    Assertions.assertEquals(
       prepareResult(isSorted, expectedRows),
       prepareResult(isSorted, resultRows))
   }

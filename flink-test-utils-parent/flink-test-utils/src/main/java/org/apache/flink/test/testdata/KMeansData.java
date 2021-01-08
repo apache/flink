@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.testdata;
 
-import org.junit.Assert;
-
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -362,20 +360,20 @@ public class KMeansData {
         final String[] should = expectedResults.split("\n");
         final String[] is = (String[]) resultLines.toArray(new String[resultLines.size()]);
 
-        Assert.assertEquals("Wrong number of result lines.", should.length, is.length);
+        Assertions.assertEquals("Wrong number of result lines.", should.length, is.length);
 
         for (int i = 0; i < should.length; i++) {
             StringTokenizer shouldRecord = new StringTokenizer(should[i], "|");
             StringTokenizer isRecord = new StringTokenizer(is[i], "|");
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
 
             // first token is ID
             String shouldToken = shouldRecord.nextToken();
             String isToken = isRecord.nextToken();
 
-            Assert.assertEquals("Records don't match.", shouldToken, isToken);
+            Assertions.assertEquals("Records don't match.", shouldToken, isToken);
 
             while (shouldRecord.hasMoreTokens()) {
                 shouldToken = shouldRecord.nextToken();
@@ -384,7 +382,7 @@ public class KMeansData {
                 double shouldDouble = Double.parseDouble(shouldToken);
                 double isDouble = Double.parseDouble(isToken);
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "Value "
                                 + isDouble
                                 + " is out of range of "

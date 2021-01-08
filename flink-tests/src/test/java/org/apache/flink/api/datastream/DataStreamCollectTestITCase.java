@@ -27,8 +27,11 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.util.List;
 
@@ -49,7 +52,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
 
         try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(iterator);
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     "Failed to collect all data from the stream",
                     results,
                     Matchers.containsInAnyOrder(1, 2, 3));
@@ -64,7 +67,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Failed to collect the correct number of elements from the stream",
                 1,
                 results.size());
@@ -83,7 +86,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
 
         try (CloseableIterator<Integer> iterator = stream.executeAndCollect()) {
             List<Integer> results = CollectionUtil.iteratorToList(iterator);
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     "Failed to collect all data from the stream",
                     results,
                     Matchers.containsInAnyOrder(1, 2, 3));
@@ -102,7 +105,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Failed to collect the correct number of elements from the stream",
                 1,
                 results.size());

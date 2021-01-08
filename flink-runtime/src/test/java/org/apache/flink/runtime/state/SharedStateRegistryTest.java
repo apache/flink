@@ -21,13 +21,18 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Optional;
 
 import static junit.framework.TestCase.assertFalse;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SharedStateRegistryTest {
 
@@ -89,10 +94,13 @@ public class SharedStateRegistryTest {
     /** Validate that unregister a nonexistent key will throw exception */
     @Test
     public void testUnregisterWithUnexistedKey() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
-        sharedStateRegistry.unregisterReference(new SharedStateRegistryKey("non-existent"));
-        });
+                    sharedStateRegistry.unregisterReference(
+                            new SharedStateRegistryKey("non-existent"));
+                });
     }
 
     private static class TestSharedState implements StreamStateHandle {

@@ -24,11 +24,7 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.operators.util.UserCodeClassWrapper;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.operators.BatchTask;
-import org.apache.flink.runtime.operators.DataSourceTask;
-import org.apache.flink.runtime.operators.DataSourceTaskTest;
-import org.apache.flink.runtime.operators.DriverStrategy;
-import org.apache.flink.runtime.operators.FlatMapDriver;
+import org.apache.flink.runtime.operators.*;
 import org.apache.flink.runtime.operators.FlatMapTaskTest.MockMapStub;
 import org.apache.flink.runtime.operators.ReduceTaskTest.MockCombiningReduceStub;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
@@ -40,10 +36,13 @@ import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -120,14 +119,14 @@ public class ChainTaskTest extends TaskTestBase {
                     testTask.invoke();
                 } catch (Exception e) {
                     e.printStackTrace();
-                    Assert.fail("Invoke method caused exception.");
+                    Assertions.fail("Invoke method caused exception.");
                 }
             }
 
-            Assert.assertEquals(keyCnt, this.outList.size());
+            Assertions.assertEquals(keyCnt, this.outList.size());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -186,11 +185,11 @@ public class ChainTaskTest extends TaskTestBase {
                     stubFailed = true;
                 }
 
-                Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+                Assertions.assertTrue(stubFailed, "Function exception was not forwarded.");
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -216,10 +215,10 @@ public class ChainTaskTest extends TaskTestBase {
             final BatchTask<FlatMapFunction<Record, Record>, Record> testTask =
                     new BatchTask<>(mockEnv);
             testTask.invoke();
-            Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+            Assertions.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -250,10 +249,10 @@ public class ChainTaskTest extends TaskTestBase {
         }
         try {
             testTask.invoke();
-            Assert.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
+            Assertions.assertEquals(keyCnt * valCnt + numChainedTasks, outList.size());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
     }
 

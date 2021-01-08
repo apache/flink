@@ -29,8 +29,12 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.testutils.types.IntList;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.powermock.reflect.Whitebox;
 
 import java.lang.reflect.Field;
@@ -39,7 +43,7 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CompactingHashTableTest extends MutableHashTableTestBase {
 

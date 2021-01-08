@@ -22,12 +22,16 @@ import org.apache.flink.core.fs.local.LocalDataOutputStream;
 import org.apache.flink.orc.data.Record;
 import org.apache.flink.orc.vector.RecordVectorizer;
 import org.apache.flink.orc.vector.Vectorizer;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.MemoryManager;
 import org.apache.orc.OrcFile;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -35,8 +39,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /** Tests the behavior of {@link OrcBulkWriterFactory}. */
 public class OrcBulkWriterFactoryTest {

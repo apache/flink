@@ -18,20 +18,19 @@
 
 package org.apache.flink.streaming.api.operators.source;
 
-import org.apache.flink.api.common.eventtime.NoWatermarksGenerator;
-import org.apache.flink.api.common.eventtime.RecordTimestampAssigner;
-import org.apache.flink.api.common.eventtime.TimestampAssigner;
-import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.common.eventtime.WatermarkGenerator;
-import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.*;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link SourceOutputWithWatermarks}. */
 public class SourceOutputWithWatermarksTest {

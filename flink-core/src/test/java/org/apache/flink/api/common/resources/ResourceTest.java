@@ -21,12 +21,17 @@ package org.apache.flink.api.common.resources;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link Resource}. */
 public class ResourceTest extends TestLogger {
@@ -42,9 +47,11 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testConstructorInvalidValue() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new TestResource(-0.1);
-        });
+                });
     }
 
     @Test
@@ -72,11 +79,13 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testMergeErrorOnDifferentTypes() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource v1 = new TestResource(0.1);
-        final Resource v2 = new GPUResource(0.1);
-        v1.merge(v2);
-        });
+                    final Resource v2 = new GPUResource(0.1);
+                    v1.merge(v2);
+                });
     }
 
     @Test
@@ -88,20 +97,24 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testSubtractLargerValue() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource v1 = new TestResource(0.1);
-        final Resource v2 = new TestResource(0.2);
-        v1.subtract(v2);
-        });
+                    final Resource v2 = new TestResource(0.2);
+                    v1.subtract(v2);
+                });
     }
 
     @Test
     public void testSubtractErrorOnDifferentTypes() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource v1 = new TestResource(0.1);
-        final Resource v2 = new GPUResource(0.1);
-        v1.subtract(v2);
-        });
+                    final Resource v2 = new GPUResource(0.1);
+                    v1.subtract(v2);
+                });
     }
 
     @Test
@@ -113,11 +126,13 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testDivideNegative() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource resource = new TestResource(1.2);
-        final BigDecimal by = BigDecimal.valueOf(-0.5);
-        resource.divide(by);
-        });
+                    final BigDecimal by = BigDecimal.valueOf(-0.5);
+                    resource.divide(by);
+                });
     }
 
     @Test
@@ -129,11 +144,13 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testDivideNegativeInteger() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource resource = new TestResource(1.2);
-        final int by = -5;
-        resource.divide(by);
-        });
+                    final int by = -5;
+                    resource.divide(by);
+                });
     }
 
     @Test
@@ -145,11 +162,13 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testMutiplyNegative() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource resource = new TestResource(0.3);
-        final BigDecimal by = BigDecimal.valueOf(-0.2);
-        resource.multiply(by);
-        });
+                    final BigDecimal by = BigDecimal.valueOf(-0.2);
+                    resource.multiply(by);
+                });
     }
 
     @Test
@@ -161,11 +180,13 @@ public class ResourceTest extends TestLogger {
 
     @Test
     public void testMutiplyNegativeInteger() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Resource resource = new TestResource(0.3);
-        final int by = -2;
-        resource.multiply(by);
-        });
+                    final int by = -2;
+                    resource.multiply(by);
+                });
     }
 
     private static void assertTestResourceValueEquals(final double value, final Resource resource) {

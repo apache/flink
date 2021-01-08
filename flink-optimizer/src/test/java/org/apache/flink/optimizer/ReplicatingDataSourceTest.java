@@ -19,11 +19,7 @@
 package org.apache.flink.optimizer;
 
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.MapPartitionFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.common.io.ReplicatingInputFormat;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.DataSet;
@@ -41,9 +37,13 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class ReplicatingDataSourceTest extends CompilerTestBase {
@@ -81,9 +81,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -124,9 +124,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -167,9 +167,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -210,9 +210,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -253,9 +253,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -299,9 +299,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
     }
 
@@ -338,9 +338,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
     }
 
@@ -380,9 +380,9 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
     }
 
@@ -391,33 +391,39 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
      */
     @Test
     public void checkJoinWithReplicatedSourceInputChangingparallelism() {
-        Assertions.assertThrows(CompilerException.class, () -> {
+        assertThrows(
+                CompilerException.class,
+                () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+                    env.setParallelism(DEFAULT_PARALLELISM);
 
-        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-        env.setParallelism(DEFAULT_PARALLELISM);
+                    TupleTypeInfo<Tuple1<String>> typeInfo =
+                            TupleTypeInfo.getBasicTupleTypeInfo(String.class);
+                    ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
+                            new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
+                                    new TupleCsvInputFormat<Tuple1<String>>(
+                                            new Path("/some/path"), typeInfo));
 
-        TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
-        ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-                new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
-                        new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+                    DataSet<Tuple1<String>> source1 =
+                            env.createInput(
+                                    rif,
+                                    new TupleTypeInfo<Tuple1<String>>(
+                                            BasicTypeInfo.STRING_TYPE_INFO));
+                    DataSet<Tuple1<String>> source2 =
+                            env.readCsvFile("/some/otherpath").types(String.class);
 
-        DataSet<Tuple1<String>> source1 =
-                env.createInput(
-                        rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
-        DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
+                    DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
+                            source1.join(source2)
+                                    .where("*")
+                                    .equalTo("*")
+                                    .setParallelism(DEFAULT_PARALLELISM + 2)
+                                    .writeAsText("/some/newpath");
 
-        DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
-                source1.join(source2)
-                        .where("*")
-                        .equalTo("*")
-                        .setParallelism(DEFAULT_PARALLELISM + 2)
-                        .writeAsText("/some/newpath");
+                    Plan plan = env.createProgramPlan();
 
-        Plan plan = env.createProgramPlan();
-
-        // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
-        });
+                    // submit the plan to the compiler
+                    OptimizedPlan oPlan = compileNoStats(plan);
+                });
     }
 
     /**
@@ -426,96 +432,116 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
      */
     @Test
     public void checkJoinWithReplicatedSourceInputBehindMapChangingparallelism() {
-        Assertions.assertThrows(CompilerException.class, () -> {
+        assertThrows(
+                CompilerException.class,
+                () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+                    env.setParallelism(DEFAULT_PARALLELISM);
 
-        ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-        env.setParallelism(DEFAULT_PARALLELISM);
+                    TupleTypeInfo<Tuple1<String>> typeInfo =
+                            TupleTypeInfo.getBasicTupleTypeInfo(String.class);
+                    ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
+                            new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
+                                    new TupleCsvInputFormat<Tuple1<String>>(
+                                            new Path("/some/path"), typeInfo));
 
-        TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
-        ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-                new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
-                        new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+                    DataSet<Tuple1<String>> source1 =
+                            env.createInput(
+                                    rif,
+                                    new TupleTypeInfo<Tuple1<String>>(
+                                            BasicTypeInfo.STRING_TYPE_INFO));
+                    DataSet<Tuple1<String>> source2 =
+                            env.readCsvFile("/some/otherpath").types(String.class);
 
-        DataSet<Tuple1<String>> source1 =
-                env.createInput(
-                        rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
-        DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
+                    DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
+                            source1.map(new IdMap())
+                                    .setParallelism(DEFAULT_PARALLELISM + 1)
+                                    .join(source2)
+                                    .where("*")
+                                    .equalTo("*")
+                                    .writeAsText("/some/newpath");
 
-        DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
-                source1.map(new IdMap())
-                        .setParallelism(DEFAULT_PARALLELISM + 1)
-                        .join(source2)
-                        .where("*")
-                        .equalTo("*")
-                        .writeAsText("/some/newpath");
+                    Plan plan = env.createProgramPlan();
 
-        Plan plan = env.createProgramPlan();
-
-        // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
-        });
+                    // submit the plan to the compiler
+                    OptimizedPlan oPlan = compileNoStats(plan);
+                });
     }
 
     /** Tests compiler fail for join program with replicated data source behind reduce. */
     @Test
     public void checkJoinWithReplicatedSourceInputBehindReduce() {
-        Assertions.assertThrows(CompilerException.class, () -> {
+        assertThrows(
+                CompilerException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-        env.setParallelism(DEFAULT_PARALLELISM);
+                    env.setParallelism(DEFAULT_PARALLELISM);
 
-        TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
-        ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-                new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
-                        new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+                    TupleTypeInfo<Tuple1<String>> typeInfo =
+                            TupleTypeInfo.getBasicTupleTypeInfo(String.class);
+                    ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
+                            new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
+                                    new TupleCsvInputFormat<Tuple1<String>>(
+                                            new Path("/some/path"), typeInfo));
 
-        DataSet<Tuple1<String>> source1 =
-                env.createInput(
-                        rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
-        DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
+                    DataSet<Tuple1<String>> source1 =
+                            env.createInput(
+                                    rif,
+                                    new TupleTypeInfo<Tuple1<String>>(
+                                            BasicTypeInfo.STRING_TYPE_INFO));
+                    DataSet<Tuple1<String>> source2 =
+                            env.readCsvFile("/some/otherpath").types(String.class);
 
-        DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
-                source1.reduce(new LastReduce())
-                        .join(source2)
-                        .where("*")
-                        .equalTo("*")
-                        .writeAsText("/some/newpath");
+                    DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
+                            source1.reduce(new LastReduce())
+                                    .join(source2)
+                                    .where("*")
+                                    .equalTo("*")
+                                    .writeAsText("/some/newpath");
 
-        Plan plan = env.createProgramPlan();
+                    Plan plan = env.createProgramPlan();
 
-        // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
-        });
+                    // submit the plan to the compiler
+                    OptimizedPlan oPlan = compileNoStats(plan);
+                });
     }
 
     /** Tests compiler fail for join program with replicated data source behind rebalance. */
     @Test
     public void checkJoinWithReplicatedSourceInputBehindRebalance() {
-        Assertions.assertThrows(CompilerException.class, () -> {
+        assertThrows(
+                CompilerException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-        env.setParallelism(DEFAULT_PARALLELISM);
+                    env.setParallelism(DEFAULT_PARALLELISM);
 
-        TupleTypeInfo<Tuple1<String>> typeInfo = TupleTypeInfo.getBasicTupleTypeInfo(String.class);
-        ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
-                new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
-                        new TupleCsvInputFormat<Tuple1<String>>(new Path("/some/path"), typeInfo));
+                    TupleTypeInfo<Tuple1<String>> typeInfo =
+                            TupleTypeInfo.getBasicTupleTypeInfo(String.class);
+                    ReplicatingInputFormat<Tuple1<String>, FileInputSplit> rif =
+                            new ReplicatingInputFormat<Tuple1<String>, FileInputSplit>(
+                                    new TupleCsvInputFormat<Tuple1<String>>(
+                                            new Path("/some/path"), typeInfo));
 
-        DataSet<Tuple1<String>> source1 =
-                env.createInput(
-                        rif, new TupleTypeInfo<Tuple1<String>>(BasicTypeInfo.STRING_TYPE_INFO));
-        DataSet<Tuple1<String>> source2 = env.readCsvFile("/some/otherpath").types(String.class);
+                    DataSet<Tuple1<String>> source1 =
+                            env.createInput(
+                                    rif,
+                                    new TupleTypeInfo<Tuple1<String>>(
+                                            BasicTypeInfo.STRING_TYPE_INFO));
+                    DataSet<Tuple1<String>> source2 =
+                            env.readCsvFile("/some/otherpath").types(String.class);
 
-        DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
-                source1.rebalance()
-                        .join(source2)
-                        .where("*")
-                        .equalTo("*")
-                        .writeAsText("/some/newpath");
+                    DataSink<Tuple2<Tuple1<String>, Tuple1<String>>> out =
+                            source1.rebalance()
+                                    .join(source2)
+                                    .where("*")
+                                    .equalTo("*")
+                                    .writeAsText("/some/newpath");
 
-        Plan plan = env.createProgramPlan();
+                    Plan plan = env.createProgramPlan();
 
-        // submit the plan to the compiler
-        OptimizedPlan oPlan = compileNoStats(plan);
-        });
+                    // submit the plan to the compiler
+                    OptimizedPlan oPlan = compileNoStats(plan);
+                });
     }
 
     public static class IdMap<T> implements MapFunction<T, T> {

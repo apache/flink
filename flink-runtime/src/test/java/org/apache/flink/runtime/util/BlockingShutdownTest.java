@@ -20,17 +20,18 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -55,7 +56,7 @@ public class BlockingShutdownTest {
         try {
             blockingProcess.startProcess();
             long pid = blockingProcess.getProcessId();
-            assertTrue("Cannot determine process ID", pid != -1);
+            assertTrue(pid != -1, "Cannot determine process ID");
 
             // wait for the marker file to appear, which means the process is up properly
             TestJvmProcess.waitForMarkerFile(markerFile, 30000);
@@ -100,7 +101,7 @@ public class BlockingShutdownTest {
         try {
             blockingProcess.startProcess();
             long pid = blockingProcess.getProcessId();
-            assertTrue("Cannot determine process ID", pid != -1);
+            assertTrue(pid != -1, "Cannot determine process ID");
 
             // wait for the marker file to appear, which means the process is up properly
             TestJvmProcess.waitForMarkerFile(markerFile, 30000);

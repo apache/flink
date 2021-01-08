@@ -22,8 +22,13 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,10 +62,10 @@ public class InputOrderCalculatorTest {
         nodes[4].addInput(nodes[3]);
         nodes[6].addInput(nodes[5]);
 
-        Assert.assertFalse(
+        Assertions.assertFalse(
                 InputOrderCalculator.checkPipelinedPath(
                         nodes[4], new HashSet<>(Arrays.asList(nodes[2], nodes[5], nodes[6]))));
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 InputOrderCalculator.checkPipelinedPath(
                         nodes[4], new HashSet<>(Arrays.asList(nodes[0], nodes[2]))));
     }
@@ -103,10 +108,10 @@ public class InputOrderCalculatorTest {
                         new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5])),
                         ExecEdge.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
-        Assert.assertEquals(3, result.size());
-        Assert.assertEquals(0, result.get(nodes[3]).intValue());
-        Assert.assertEquals(1, result.get(nodes[1]).intValue());
-        Assert.assertEquals(2, result.get(nodes[5]).intValue());
+        Assertions.assertEquals(3, result.size());
+        Assertions.assertEquals(0, result.get(nodes[3]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[1]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[5]).intValue());
     }
 
     @Test
@@ -137,11 +142,11 @@ public class InputOrderCalculatorTest {
                         new HashSet<>(Arrays.asList(nodes[0], nodes[1], nodes[3], nodes[6])),
                         ExecEdge.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
-        Assert.assertEquals(4, result.size());
-        Assert.assertEquals(1, result.get(nodes[0]).intValue());
-        Assert.assertEquals(1, result.get(nodes[1]).intValue());
-        Assert.assertEquals(2, result.get(nodes[3]).intValue());
-        Assert.assertEquals(0, result.get(nodes[6]).intValue());
+        Assertions.assertEquals(4, result.size());
+        Assertions.assertEquals(1, result.get(nodes[0]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[1]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[3]).intValue());
+        Assertions.assertEquals(0, result.get(nodes[6]).intValue());
     }
 
     @Test
@@ -177,25 +182,28 @@ public class InputOrderCalculatorTest {
                         new HashSet<>(Arrays.asList(nodes[1], nodes[3], nodes[5], nodes[7])),
                         ExecEdge.DamBehavior.BLOCKING);
         Map<ExecNode<?>, Integer> result = calculator.calculate();
-        Assert.assertEquals(4, result.size());
-        Assert.assertEquals(0, result.get(nodes[1]).intValue());
-        Assert.assertEquals(1, result.get(nodes[3]).intValue());
-        Assert.assertEquals(1, result.get(nodes[5]).intValue());
-        Assert.assertEquals(0, result.get(nodes[7]).intValue());
+        Assertions.assertEquals(4, result.size());
+        Assertions.assertEquals(0, result.get(nodes[1]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[3]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[5]).intValue());
+        Assertions.assertEquals(0, result.get(nodes[7]).intValue());
     }
 
     @Test
     public void testCalculateInputOrderWithLoop() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     TestingBatchExecNode a = new TestingBatchExecNode();
-        TestingBatchExecNode b = new TestingBatchExecNode();
-        for (int i = 0; i < 2; i++) {
-            b.addInput(a, ExecEdge.builder().priority(i).build());
-        }
+                    TestingBatchExecNode b = new TestingBatchExecNode();
+                    for (int i = 0; i < 2; i++) {
+                        b.addInput(a, ExecEdge.builder().priority(i).build());
+                    }
 
-        InputOrderCalculator calculator =
-                new InputOrderCalculator(b, Collections.emptySet(), ExecEdge.DamBehavior.BLOCKING);
-        calculator.calculate();
-        });
+                    InputOrderCalculator calculator =
+                            new InputOrderCalculator(
+                                    b, Collections.emptySet(), ExecEdge.DamBehavior.BLOCKING);
+                    calculator.calculate();
+                });
     }
 }

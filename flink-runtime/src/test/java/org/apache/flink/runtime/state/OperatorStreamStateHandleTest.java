@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.state;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OperatorStreamStateHandleTest {
 
@@ -28,14 +32,14 @@ public class OperatorStreamStateHandleTest {
 
         // Ensure the order / ordinal of all values of enum 'mode' are fixed, as this is used for
         // serialization
-        Assert.assertEquals(0, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.ordinal());
-        Assert.assertEquals(1, OperatorStateHandle.Mode.UNION.ordinal());
-        Assert.assertEquals(2, OperatorStateHandle.Mode.BROADCAST.ordinal());
+        Assertions.assertEquals(0, OperatorStateHandle.Mode.SPLIT_DISTRIBUTE.ordinal());
+        Assertions.assertEquals(1, OperatorStateHandle.Mode.UNION.ordinal());
+        Assertions.assertEquals(2, OperatorStateHandle.Mode.BROADCAST.ordinal());
 
         // Ensure all enum values are registered and fixed forever by this test
-        Assert.assertEquals(3, OperatorStateHandle.Mode.values().length);
+        Assertions.assertEquals(3, OperatorStateHandle.Mode.values().length);
 
         // Byte is used to encode enum value on serialization
-        Assert.assertTrue(OperatorStateHandle.Mode.values().length <= Byte.MAX_VALUE);
+        Assertions.assertTrue(OperatorStateHandle.Mode.values().length <= Byte.MAX_VALUE);
     }
 }

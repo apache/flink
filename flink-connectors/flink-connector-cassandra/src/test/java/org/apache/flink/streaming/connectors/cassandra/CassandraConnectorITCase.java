@@ -57,12 +57,16 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.Mapper;
 import org.apache.cassandra.service.CassandraDaemon;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.jupiter.api.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +91,7 @@ import scala.collection.Seq;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.samePropertyValuesAs;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
@@ -287,7 +291,7 @@ public class CassandraConnectorITCase
         for (com.datastax.driver.core.Row s : result) {
             list.remove(new Integer(s.getInt("counter")));
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
                 list.isEmpty());
     }
@@ -305,7 +309,7 @@ public class CassandraConnectorITCase
         for (com.datastax.driver.core.Row s : result) {
             list.remove(new Integer(s.getInt("counter")));
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
                 list.isEmpty());
     }
@@ -326,7 +330,7 @@ public class CassandraConnectorITCase
         for (com.datastax.driver.core.Row s : result) {
             list.remove(new Integer(s.getInt("counter")));
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
                 list.isEmpty());
     }
@@ -355,7 +359,7 @@ public class CassandraConnectorITCase
         }
 
         Collections.sort(actual);
-        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        Assertions.assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
     @Test
@@ -379,18 +383,18 @@ public class CassandraConnectorITCase
         cc2.open();
         cc3.open();
 
-        Assert.assertFalse(cc1.isCheckpointCommitted(0, 1));
-        Assert.assertFalse(cc2.isCheckpointCommitted(1, 1));
-        Assert.assertFalse(cc3.isCheckpointCommitted(0, 1));
+        Assertions.assertFalse(cc1.isCheckpointCommitted(0, 1));
+        Assertions.assertFalse(cc2.isCheckpointCommitted(1, 1));
+        Assertions.assertFalse(cc3.isCheckpointCommitted(0, 1));
 
         cc1.commitCheckpoint(0, 1);
-        Assert.assertTrue(cc1.isCheckpointCommitted(0, 1));
+        Assertions.assertTrue(cc1.isCheckpointCommitted(0, 1));
         // verify that other sub-tasks aren't affected
-        Assert.assertFalse(cc2.isCheckpointCommitted(1, 1));
+        Assertions.assertFalse(cc2.isCheckpointCommitted(1, 1));
         // verify that other tasks aren't affected
-        Assert.assertFalse(cc3.isCheckpointCommitted(0, 1));
+        Assertions.assertFalse(cc3.isCheckpointCommitted(0, 1));
 
-        Assert.assertFalse(cc1.isCheckpointCommitted(0, 2));
+        Assertions.assertFalse(cc1.isCheckpointCommitted(0, 2));
 
         cc1.close();
         cc2.close();
@@ -404,8 +408,8 @@ public class CassandraConnectorITCase
 
         // verify that checkpoint data is not destroyed within open/close and not reliant on
         // internally cached data
-        Assert.assertTrue(cc1.isCheckpointCommitted(0, 1));
-        Assert.assertFalse(cc1.isCheckpointCommitted(0, 2));
+        Assertions.assertTrue(cc1.isCheckpointCommitted(0, 1));
+        Assertions.assertFalse(cc1.isCheckpointCommitted(0, 2));
 
         cc1.close();
     }
@@ -428,7 +432,7 @@ public class CassandraConnectorITCase
         }
 
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
-        Assert.assertEquals(20, rs.all().size());
+        Assertions.assertEquals(20, rs.all().size());
     }
 
     @Test
@@ -446,7 +450,7 @@ public class CassandraConnectorITCase
         }
 
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
-        Assert.assertEquals(20, rs.all().size());
+        Assertions.assertEquals(20, rs.all().size());
     }
 
     @Test
@@ -464,7 +468,7 @@ public class CassandraConnectorITCase
         }
 
         ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
-        Assert.assertEquals(20, rs.all().size());
+        Assertions.assertEquals(20, rs.all().size());
     }
 
     @Test
@@ -487,7 +491,7 @@ public class CassandraConnectorITCase
                 session.execute(
                         SELECT_DATA_QUERY.replace(
                                 TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
-        Assert.assertEquals(20, rs.all().size());
+        Assertions.assertEquals(20, rs.all().size());
     }
 
     @Test
@@ -521,11 +525,11 @@ public class CassandraConnectorITCase
             cmp.setField(0, o.getString(0));
             cmp.setField(1, o.getInt(2));
             cmp.setField(2, o.getInt(1));
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Row " + cmp + " was written to Cassandra but not in input.",
                     input.remove(cmp));
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "The input data was not completely written to Cassandra", input.isEmpty());
     }
 
@@ -563,7 +567,7 @@ public class CassandraConnectorITCase
                 session.execute(
                         SELECT_DATA_QUERY.replace(
                                 TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
-        Assert.assertEquals(20, rs.all().size());
+        Assertions.assertEquals(20, rs.all().size());
 
         InputFormat<CustomCassandraAnnotatedPojo, InputSplit> source =
                 new CassandraPojoInputFormat<>(
@@ -583,7 +587,7 @@ public class CassandraConnectorITCase
             source.close();
         }
 
-        Assert.assertEquals(20, result.size());
+        Assertions.assertEquals(20, result.size());
         result.sort(Comparator.comparingInt(CustomCassandraAnnotatedPojo::getCounter));
         customCassandraAnnotatedPojos.sort(
                 Comparator.comparingInt(CustomCassandraAnnotatedPojo::getCounter));
@@ -629,7 +633,7 @@ public class CassandraConnectorITCase
             source.close();
         }
 
-        Assert.assertEquals(20, result.size());
+        Assertions.assertEquals(20, result.size());
     }
 
     @Test
@@ -649,7 +653,7 @@ public class CassandraConnectorITCase
 
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         List<com.datastax.driver.core.Row> rows = rs.all();
-        Assert.assertEquals(rowCollection.size(), rows.size());
+        Assertions.assertEquals(rowCollection.size(), rows.size());
     }
 
     private String injectTableName(String target) {
@@ -706,14 +710,14 @@ public class CassandraConnectorITCase
 
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         List<com.datastax.driver.core.Row> rows = rs.all();
-        Assert.assertEquals(scalaTupleCollection.size(), rows.size());
+        Assertions.assertEquals(scalaTupleCollection.size(), rows.size());
 
         for (com.datastax.driver.core.Row row : rows) {
             scalaTupleCollection.remove(
                     new scala.Tuple3<>(
                             row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
         }
-        Assert.assertEquals(0, scalaTupleCollection.size());
+        Assertions.assertEquals(0, scalaTupleCollection.size());
     }
 
     @Test
@@ -744,10 +748,10 @@ public class CassandraConnectorITCase
 
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         List<com.datastax.driver.core.Row> rows = rs.all();
-        Assert.assertEquals(1, rows.size());
+        Assertions.assertEquals(1, rows.size());
         // Since nulls are ignored, we should be reading one complete record
         for (com.datastax.driver.core.Row row : rows) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new scala.Tuple3<>(id, counter, batchId),
                     new scala.Tuple3<>(
                             row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));

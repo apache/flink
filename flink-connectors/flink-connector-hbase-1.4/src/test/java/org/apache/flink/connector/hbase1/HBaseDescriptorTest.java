@@ -33,8 +33,12 @@ import org.apache.flink.table.descriptors.Rowtime;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -123,7 +127,7 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
             } catch (ValidationException e) {
                 caughtExpectedException = true;
             }
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The case#" + i + " didn't get the expected error", caughtExpectedException);
         }
     }
@@ -154,6 +158,6 @@ public class HBaseDescriptorTest extends DescriptorTestBase {
         } catch (Exception e) {
             actual = e.getMessage();
         }
-        Assert.assertEquals(expected, actual);
+        Assertions.assertEquals(expected, actual);
     }
 }

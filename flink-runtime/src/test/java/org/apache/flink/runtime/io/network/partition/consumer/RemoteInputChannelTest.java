@@ -23,54 +23,34 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
-import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
-import org.apache.flink.runtime.io.network.PartitionRequestClient;
-import org.apache.flink.runtime.io.network.TestingConnectionManager;
-import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
+import org.apache.flink.runtime.io.network.*;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
-import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
-import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
-import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.*;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
-import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import org.junit.Assert;
+import org.apache.flink.util.ExceptionUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -87,21 +67,11 @@ import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.hasProperty;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /** Tests for the {@link RemoteInputChannel}. */
 public class RemoteInputChannelTest {
@@ -268,13 +238,15 @@ public class RemoteInputChannelTest {
 
     @Test
     public void testRetriggerWithoutPartitionRequest() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     SingleInputGate inputGate = createSingleInputGate(1);
 
-        RemoteInputChannel ch = createRemoteInputChannel(inputGate, 500, 3000);
+                    RemoteInputChannel ch = createRemoteInputChannel(inputGate, 500, 3000);
 
-        ch.retriggerSubpartitionRequest(0);
-        });
+                    ch.retriggerSubpartitionRequest(0);
+                });
     }
 
     @Test
@@ -379,38 +351,43 @@ public class RemoteInputChannelTest {
 
     @Test
     public void testProducerFailedException() throws Exception {
-        Assertions.assertThrows(CancelTaskException.class, () -> {
+        assertThrows(
+                CancelTaskException.class,
+                () -> {
+                    ConnectionManager connManager = mock(ConnectionManager.class);
+                    when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
+                            .thenReturn(mock(PartitionRequestClient.class));
 
-        ConnectionManager connManager = mock(ConnectionManager.class);
-        when(connManager.createPartitionRequestClient(any(ConnectionID.class)))
-                .thenReturn(mock(PartitionRequestClient.class));
+                    final SingleInputGate gate = createSingleInputGate(1);
+                    final RemoteInputChannel ch =
+                            InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
 
-        final SingleInputGate gate = createSingleInputGate(1);
-        final RemoteInputChannel ch =
-                InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
+                    ch.onError(
+                            new ProducerFailedException(
+                                    new RuntimeException("Expected test exception.")));
 
-        ch.onError(new ProducerFailedException(new RuntimeException("Expected test exception.")));
+                    ch.requestSubpartition(0);
 
-        ch.requestSubpartition(0);
-
-        // Should throw an instance of CancelTaskException.
-        ch.getNextBuffer();
-        });
+                    // Should throw an instance of CancelTaskException.
+                    ch.getNextBuffer();
+                });
     }
 
     @Test
     public void testPartitionConnectionException() throws IOException {
-        Assertions.assertThrows(PartitionConnectionException.class, () -> {
+        assertThrows(
+                PartitionConnectionException.class,
+                () -> {
                     final ConnectionManager connManager = new TestingExceptionConnectionManager();
-        final SingleInputGate gate = createSingleInputGate(1);
-        final RemoteInputChannel ch =
-                InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
-        gate.setInputChannels(ch);
+                    final SingleInputGate gate = createSingleInputGate(1);
+                    final RemoteInputChannel ch =
+                            InputChannelTestUtils.createRemoteInputChannel(gate, 0, connManager);
+                    gate.setInputChannels(ch);
 
-        gate.requestPartitions();
+                    gate.requestPartitions();
 
-        ch.getNextBuffer();
-        });
+                    ch.getNextBuffer();
+                });
     }
 
     /**
@@ -946,7 +923,7 @@ public class RemoteInputChannelTest {
             failingRemoteIC.releaseAllResources();
             assertEquals(0, bufferPool.getNumberOfAvailableMemorySegments());
             buffer = successfulRemoteIC.requestBuffer();
-            assertNotNull("no buffer given to successfulRemoteIC", buffer);
+            assertNotNull(buffer, "no buffer given to successfulRemoteIC");
         } catch (Throwable t) {
             thrown = t;
         } finally {
@@ -1342,13 +1319,15 @@ public class RemoteInputChannelTest {
 
     @Test
     public void testUnblockReleasedChannel() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     SingleInputGate inputGate = createSingleInputGate(1);
-        RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
+                    RemoteInputChannel remoteChannel = createRemoteInputChannel(inputGate);
 
-        remoteChannel.releaseAllResources();
-        remoteChannel.resumeConsumption();
-        });
+                    remoteChannel.releaseAllResources();
+                    remoteChannel.resumeConsumption();
+                });
     }
 
     @Test
@@ -1664,7 +1643,7 @@ public class RemoteInputChannelTest {
 
         simulatedNetworkThread.join();
 
-        Assert.assertFalse(
+        Assertions.assertFalse(
                 "Test ended by timeout or interruption - this indicates that the network thread was blocked.",
                 timedOutOrInterrupted.get());
     }

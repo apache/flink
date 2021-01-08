@@ -49,44 +49,44 @@ class TypeInformationGenTest {
   def testJavaTuple(): Unit = {
     val ti = createTypeInformation[org.apache.flink.api.java.tuple.Tuple3[Int, String, Integer]]
 
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(3, ti.getArity)
-    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(3, ti.getArity)
+    Assertions.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[org.apache.flink.api.java.tuple.Tuple3[_, _, _]], tti.getTypeClass)
+    Assertions.assertEquals(classOf[org.apache.flink.api.java.tuple.Tuple3[_, _, _]], tti.getTypeClass)
     for (i <- 0 until 3) {
-      Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
+      Assertions.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
     }
 
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(2))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(0))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(2))
   }
 
   @Test
   def testCustomJavaTuple(): Unit = {
     val ti = createTypeInformation[CustomTuple]
 
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(2, ti.getArity)
-    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(2, ti.getArity)
+    Assertions.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[CustomTuple], tti.getTypeClass)
+    Assertions.assertEquals(classOf[CustomTuple], tti.getTypeClass)
     for (i <- 0 until 2) {
-      Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
+      Assertions.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
     }
 
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(1))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(1))
   }
 
   @Test
   def testBasicType(): Unit = {
     val ti = createTypeInformation[Boolean]
 
-    Assert.assertTrue(ti.isBasicType)
-    Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti)
-    Assert.assertEquals(classOf[java.lang.Boolean], ti.getTypeClass)
+    Assertions.assertTrue(ti.isBasicType)
+    Assertions.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti)
+    Assertions.assertEquals(classOf[java.lang.Boolean], ti.getTypeClass)
   }
 
   @Test
@@ -98,9 +98,9 @@ class TypeInformationGenTest {
 
       val ti = createTypeInformation[(T, Seq[T])]
 
-      Assert.assertTrue(ti.isTupleType)
+      Assertions.assertTrue(ti.isTupleType)
       val ccti = ti.asInstanceOf[CaseClassTypeInfo[(T, Seq[T])]]
-      Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, ccti.getTypeAt(0))
+      Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, ccti.getTypeAt(0))
 
       (data.head, data)
     }
@@ -131,44 +131,44 @@ class TypeInformationGenTest {
       createTypeInformation[Array[T]]
     }
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(boolArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(byteArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(charArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(shortArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(intArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(longArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(floatArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO,
       getType(doubleArray))
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO,
       getType(stringArray))
 
-    Assert.assertTrue(getType(objectArray).isInstanceOf[ObjectArrayTypeInfo[_, _]])
-    Assert.assertTrue(
+    Assertions.assertTrue(getType(objectArray).isInstanceOf[ObjectArrayTypeInfo[_, _]])
+    Assertions.assertTrue(
       getType(objectArray).asInstanceOf[ObjectArrayTypeInfo[_, _]]
         .getComponentInfo.isInstanceOf[PojoTypeInfo[_]])
   }
@@ -177,51 +177,51 @@ class TypeInformationGenTest {
   def testTupleWithBasicTypes(): Unit = {
     val ti = createTypeInformation[(Int, Long, Double, Float, Boolean, String, Char, Short, Byte)]
 
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(9, ti.getArity)
-    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(9, ti.getArity)
+    Assertions.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[Tuple9[_,_,_,_,_,_,_,_,_]], tti.getTypeClass)
+    Assertions.assertEquals(classOf[Tuple9[_,_,_,_,_,_,_,_,_]], tti.getTypeClass)
     for (i <- 0 until 9) {
-      Assert.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
+      Assertions.assertTrue(tti.getTypeAt(i).isInstanceOf[BasicTypeInfo[_]])
     }
 
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, tti.getTypeAt(1))
-    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tti.getTypeAt(2))
-    Assert.assertEquals(BasicTypeInfo.FLOAT_TYPE_INFO, tti.getTypeAt(3))
-    Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(4))
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(5))
-    Assert.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, tti.getTypeAt(6))
-    Assert.assertEquals(BasicTypeInfo.SHORT_TYPE_INFO, tti.getTypeAt(7))
-    Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, tti.getTypeAt(8))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tti.getTypeAt(0))
+    Assertions.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, tti.getTypeAt(1))
+    Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tti.getTypeAt(2))
+    Assertions.assertEquals(BasicTypeInfo.FLOAT_TYPE_INFO, tti.getTypeAt(3))
+    Assertions.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, tti.getTypeAt(4))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(5))
+    Assertions.assertEquals(BasicTypeInfo.CHAR_TYPE_INFO, tti.getTypeAt(6))
+    Assertions.assertEquals(BasicTypeInfo.SHORT_TYPE_INFO, tti.getTypeAt(7))
+    Assertions.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, tti.getTypeAt(8))
   }
 
   @Test
   def testTupleWithTuples(): Unit = {
     val ti = createTypeInformation[(Tuple1[String], Tuple1[Int], Tuple2[Long, Long])]
 
-    Assert.assertTrue(ti.isTupleType())
-    Assert.assertEquals(3, ti.getArity)
-    Assert.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
+    Assertions.assertTrue(ti.isTupleType())
+    Assertions.assertEquals(3, ti.getArity)
+    Assertions.assertTrue(ti.isInstanceOf[TupleTypeInfoBase[_]])
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[Tuple3[_, _, _]], tti.getTypeClass)
-    Assert.assertTrue(tti.getTypeAt(0).isTupleType())
-    Assert.assertTrue(tti.getTypeAt(1).isTupleType())
-    Assert.assertTrue(tti.getTypeAt(2).isTupleType())
-    Assert.assertEquals(classOf[Tuple1[_]], tti.getTypeAt(0).getTypeClass)
-    Assert.assertEquals(classOf[Tuple1[_]], tti.getTypeAt(1).getTypeClass)
-    Assert.assertEquals(classOf[Tuple2[_, _]], tti.getTypeAt(2).getTypeClass)
-    Assert.assertEquals(1, tti.getTypeAt(0).getArity)
-    Assert.assertEquals(1, tti.getTypeAt(1).getArity)
-    Assert.assertEquals(2, tti.getTypeAt(2).getArity)
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO,
+    Assertions.assertEquals(classOf[Tuple3[_, _, _]], tti.getTypeClass)
+    Assertions.assertTrue(tti.getTypeAt(0).isTupleType())
+    Assertions.assertTrue(tti.getTypeAt(1).isTupleType())
+    Assertions.assertTrue(tti.getTypeAt(2).isTupleType())
+    Assertions.assertEquals(classOf[Tuple1[_]], tti.getTypeAt(0).getTypeClass)
+    Assertions.assertEquals(classOf[Tuple1[_]], tti.getTypeAt(1).getTypeClass)
+    Assertions.assertEquals(classOf[Tuple2[_, _]], tti.getTypeAt(2).getTypeClass)
+    Assertions.assertEquals(1, tti.getTypeAt(0).getArity)
+    Assertions.assertEquals(1, tti.getTypeAt(1).getArity)
+    Assertions.assertEquals(2, tti.getTypeAt(2).getArity)
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO,
       tti.getTypeAt(0).asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO,
       tti.getTypeAt(1).asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
       tti.getTypeAt(2).asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
       tti.getTypeAt(2).asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(1))
   }
 
@@ -229,15 +229,15 @@ class TypeInformationGenTest {
   def testCaseClass(): Unit = {
     val ti = createTypeInformation[CustomCaseClass]
 
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(2, ti.getArity)
-    Assert.assertEquals(
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(2, ti.getArity)
+    Assertions.assertEquals(
       BasicTypeInfo.STRING_TYPE_INFO,
       ti.asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(0))
-    Assert.assertEquals(
+    Assertions.assertEquals(
       BasicTypeInfo.INT_TYPE_INFO,
       ti.asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(1))
-    Assert.assertEquals(
+    Assertions.assertEquals(
       classOf[CustomCaseClass],ti.asInstanceOf[TupleTypeInfoBase[_]].getTypeClass())
   }
 
@@ -245,48 +245,48 @@ class TypeInformationGenTest {
   def testCustomType(): Unit = {
     val ti = createTypeInformation[CustomType]
 
-    Assert.assertFalse(ti.isBasicType)
-    Assert.assertFalse(ti.isTupleType)
-    Assert.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
-    Assert.assertEquals(ti.getTypeClass, classOf[CustomType])
+    Assertions.assertFalse(ti.isBasicType)
+    Assertions.assertFalse(ti.isTupleType)
+    Assertions.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
+    Assertions.assertEquals(ti.getTypeClass, classOf[CustomType])
   }
 
   @Test
   def testTupleWithCustomType(): Unit = {
     val ti = createTypeInformation[(Long, CustomType)]
 
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(2, ti.getArity)
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(2, ti.getArity)
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(classOf[Tuple2[_, _]], tti.getTypeClass)
-    Assert.assertEquals(classOf[java.lang.Long], tti.getTypeAt(0).getTypeClass)
-    Assert.assertTrue(tti.getTypeAt(1).isInstanceOf[PojoTypeInfo[_]])
-    Assert.assertEquals(classOf[CustomType], tti.getTypeAt(1).getTypeClass)
+    Assertions.assertEquals(classOf[Tuple2[_, _]], tti.getTypeClass)
+    Assertions.assertEquals(classOf[java.lang.Long], tti.getTypeAt(0).getTypeClass)
+    Assertions.assertTrue(tti.getTypeAt(1).isInstanceOf[PojoTypeInfo[_]])
+    Assertions.assertEquals(classOf[CustomType], tti.getTypeAt(1).getTypeClass)
   }
 
   @Test
   def testValue(): Unit = {
     val ti = createTypeInformation[StringValue]
 
-    Assert.assertFalse(ti.isBasicType)
-    Assert.assertFalse(ti.isTupleType)
-    Assert.assertTrue(ti.isInstanceOf[ValueTypeInfo[_]])
-    Assert.assertEquals(ti.getTypeClass, classOf[StringValue])
-    Assert.assertTrue(TypeExtractor.getForClass(classOf[StringValue])
+    Assertions.assertFalse(ti.isBasicType)
+    Assertions.assertFalse(ti.isTupleType)
+    Assertions.assertTrue(ti.isInstanceOf[ValueTypeInfo[_]])
+    Assertions.assertEquals(ti.getTypeClass, classOf[StringValue])
+    Assertions.assertTrue(TypeExtractor.getForClass(classOf[StringValue])
       .isInstanceOf[ValueTypeInfo[_]])
-    Assert.assertEquals(TypeExtractor.getForClass(classOf[StringValue]).getTypeClass,
+    Assertions.assertEquals(TypeExtractor.getForClass(classOf[StringValue]).getTypeClass,
       ti.getTypeClass)
   }
 
   @Test
   def testTupleOfValues(): Unit = {
     val ti = createTypeInformation[(StringValue, IntValue)]
-    Assert.assertFalse(ti.isBasicType)
-    Assert.assertTrue(ti.isTupleType)
-    Assert.assertEquals(
+    Assertions.assertFalse(ti.isBasicType)
+    Assertions.assertTrue(ti.isTupleType)
+    Assertions.assertEquals(
       classOf[StringValue],
       ti.asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(0).getTypeClass)
-    Assert.assertEquals(
+    Assertions.assertEquals(
       classOf[IntValue],
       ti.asInstanceOf[TupleTypeInfoBase[_]].getTypeAt(1).getTypeClass)
   }
@@ -296,15 +296,15 @@ class TypeInformationGenTest {
   def testBasicArray(): Unit = {
     val ti = createTypeInformation[Array[String]]
 
-    Assert.assertFalse(ti.isBasicType)
-    Assert.assertFalse(ti.isTupleType)
-    Assert.assertTrue(ti.isInstanceOf[BasicArrayTypeInfo[_, _]] ||
+    Assertions.assertFalse(ti.isBasicType)
+    Assertions.assertFalse(ti.isTupleType)
+    Assertions.assertTrue(ti.isInstanceOf[BasicArrayTypeInfo[_, _]] ||
       ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
     if (ti.isInstanceOf[BasicArrayTypeInfo[_, _]]) {
-      Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, ti)
+      Assertions.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, ti)
     }
     else {
-      Assert.assertEquals(
+      Assertions.assertEquals(
         BasicTypeInfo.STRING_TYPE_INFO,
         ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentInfo)
     }
@@ -314,15 +314,15 @@ class TypeInformationGenTest {
   def testPrimitiveArray(): Unit = {
     val ti = createTypeInformation[Array[Boolean]]
 
-    Assert.assertTrue(ti.isInstanceOf[PrimitiveArrayTypeInfo[_]])
-    Assert.assertEquals(ti, PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO)
+    Assertions.assertTrue(ti.isInstanceOf[PrimitiveArrayTypeInfo[_]])
+    Assertions.assertEquals(ti, PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO)
   }
 
   @Test
   def testCustomArray(): Unit = {
     val ti = createTypeInformation[Array[CustomType]]
-    Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
-    Assert.assertEquals(
+    Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+    Assertions.assertEquals(
       classOf[CustomType],
       ti.asInstanceOf[ObjectArrayTypeInfo[_, _]].getComponentInfo.getTypeClass)
   }
@@ -331,12 +331,12 @@ class TypeInformationGenTest {
   def testTupleArray(): Unit = {
     val ti = createTypeInformation[Array[(String, String)]]
 
-    Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+    Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
     val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-    Assert.assertTrue(oati.getComponentInfo.isTupleType)
+    Assertions.assertTrue(oati.getComponentInfo.isTupleType)
     val tti = oati.getComponentInfo.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
   }
   
   @Test
@@ -345,23 +345,23 @@ class TypeInformationGenTest {
     {
       val ti = createTypeInformation[Array[Array[(String, String)]]]
     
-      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati2 = oati.getComponentInfo.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertTrue(oati2.getComponentInfo.isTupleType)
+      Assertions.assertTrue(oati2.getComponentInfo.isTupleType)
       val tti = oati2.getComponentInfo.asInstanceOf[TupleTypeInfoBase[_]]
-      Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
-      Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
+      Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(0))
+      Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tti.getTypeAt(1))
     }
     
     // primitives
     {
       val ti = createTypeInformation[Array[Array[Int]]]
     
-      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertEquals(oati.getComponentInfo,
+      Assertions.assertEquals(oati.getComponentInfo,
         PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO)
     }
     
@@ -369,21 +369,21 @@ class TypeInformationGenTest {
     {
       val ti = createTypeInformation[Array[Array[Integer]]]
     
-      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertEquals(oati.getComponentInfo, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO)
+      Assertions.assertEquals(oati.getComponentInfo, BasicArrayTypeInfo.INT_ARRAY_TYPE_INFO)
     }
     
     // pojo
     {
       val ti = createTypeInformation[Array[Array[CustomType]]]
     
-      Assert.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(ti.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati = ti.asInstanceOf[ObjectArrayTypeInfo[_, _]]
-      Assert.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
+      Assertions.assertTrue(oati.getComponentInfo.isInstanceOf[ObjectArrayTypeInfo[_, _]])
       val oati2 = oati.getComponentInfo.asInstanceOf[ObjectArrayTypeInfo[_, _]]
       val tti = oati2.getComponentInfo.asInstanceOf[PojoTypeInfo[_]]
-      Assert.assertEquals(classOf[CustomType], tti.getTypeClass())
+      Assertions.assertEquals(classOf[CustomType], tti.getTypeClass())
     }
   }
 
@@ -391,7 +391,7 @@ class TypeInformationGenTest {
   def testParamertizedCustomObject(): Unit = {
     val ti = createTypeInformation[MyObject[String]]
 
-    Assert.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
+    Assertions.assertTrue(ti.isInstanceOf[PojoTypeInfo[_]])
   }
 
   @Test
@@ -401,15 +401,15 @@ class TypeInformationGenTest {
       Array[String])]
 
     val tti = ti.asInstanceOf[TupleTypeInfoBase[_]]
-    Assert.assertEquals(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(0))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(1))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(2))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(3))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(4))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(5))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(6))
-    Assert.assertEquals(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(7))
-    Assert.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, tti.getTypeAt(8))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(0))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.DOUBLE_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(1))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.LONG_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(2))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(3))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.CHAR_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(4))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.FLOAT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(5))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.SHORT_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(6))
+    Assertions.assertEquals(PrimitiveArrayTypeInfo.BOOLEAN_PRIMITIVE_ARRAY_TYPE_INFO, tti.getTypeAt(7))
+    Assertions.assertEquals(BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO, tti.getTypeAt(8))
   }
 
   @Test
@@ -421,7 +421,7 @@ class TypeInformationGenTest {
 
     val ti = createTypeInformation[TestTrait]
 
-    Assert.assertTrue(ti.isInstanceOf[GenericTypeInfo[TestTrait]])
+    Assertions.assertTrue(ti.isInstanceOf[GenericTypeInfo[TestTrait]])
   }
 
   @Test
@@ -429,88 +429,88 @@ class TypeInformationGenTest {
 
     val tupleTypeInfo = createTypeInformation[(Int, Int, Int, Int)].
       asInstanceOf[CaseClassTypeInfo[(Int, Int, Int, Int)]]
-    Assert.assertEquals(0, tupleTypeInfo.getFlatFields("0").get(0).getPosition)
-    Assert.assertEquals(1, tupleTypeInfo.getFlatFields("1").get(0).getPosition)
-    Assert.assertEquals(2, tupleTypeInfo.getFlatFields("2").get(0).getPosition)
-    Assert.assertEquals(3, tupleTypeInfo.getFlatFields("3").get(0).getPosition)
-    Assert.assertEquals(0, tupleTypeInfo.getFlatFields("_1").get(0).getPosition)
-    Assert.assertEquals(1, tupleTypeInfo.getFlatFields("_2").get(0).getPosition)
-    Assert.assertEquals(2, tupleTypeInfo.getFlatFields("_3").get(0).getPosition)
-    Assert.assertEquals(3, tupleTypeInfo.getFlatFields("_4").get(0).getPosition)
+    Assertions.assertEquals(0, tupleTypeInfo.getFlatFields("0").get(0).getPosition)
+    Assertions.assertEquals(1, tupleTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assertions.assertEquals(2, tupleTypeInfo.getFlatFields("2").get(0).getPosition)
+    Assertions.assertEquals(3, tupleTypeInfo.getFlatFields("3").get(0).getPosition)
+    Assertions.assertEquals(0, tupleTypeInfo.getFlatFields("_1").get(0).getPosition)
+    Assertions.assertEquals(1, tupleTypeInfo.getFlatFields("_2").get(0).getPosition)
+    Assertions.assertEquals(2, tupleTypeInfo.getFlatFields("_3").get(0).getPosition)
+    Assertions.assertEquals(3, tupleTypeInfo.getFlatFields("_4").get(0).getPosition)
 
     val nestedTypeInfo = createTypeInformation[(Int, (Int, String, Long), Int, (Double, Double))].
       asInstanceOf[CaseClassTypeInfo[(Int, (Int, String, Long), Int, (Double, Double))]]
-    Assert.assertEquals(0, nestedTypeInfo.getFlatFields("0").get(0).getPosition)
-    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1.0").get(0).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1.1").get(0).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.2").get(0).getPosition)
-    Assert.assertEquals(4, nestedTypeInfo.getFlatFields("2").get(0).getPosition)
-    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("3.0").get(0).getPosition)
-    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("3.1").get(0).getPosition)
-    Assert.assertEquals(4, nestedTypeInfo.getFlatFields("_3").get(0).getPosition)
-    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("_4._1").get(0).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1").size)
-    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1").get(0).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1").get(1).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1").get(2).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").size)
-    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("1.*").get(0).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("1.*").get(1).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").get(2).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("3").size)
-    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("3").get(0).getPosition)
-    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("3").get(1).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("_2").size)
-    Assert.assertEquals(1, nestedTypeInfo.getFlatFields("_2").get(0).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("_2").get(1).getPosition)
-    Assert.assertEquals(3, nestedTypeInfo.getFlatFields("_2").get(2).getPosition)
-    Assert.assertEquals(2, nestedTypeInfo.getFlatFields("_4").size)
-    Assert.assertEquals(5, nestedTypeInfo.getFlatFields("_4").get(0).getPosition)
-    Assert.assertEquals(6, nestedTypeInfo.getFlatFields("_4").get(1).getPosition)
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO,
+    Assertions.assertEquals(0, nestedTypeInfo.getFlatFields("0").get(0).getPosition)
+    Assertions.assertEquals(1, nestedTypeInfo.getFlatFields("1.0").get(0).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("1.1").get(0).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("1.2").get(0).getPosition)
+    Assertions.assertEquals(4, nestedTypeInfo.getFlatFields("2").get(0).getPosition)
+    Assertions.assertEquals(5, nestedTypeInfo.getFlatFields("3.0").get(0).getPosition)
+    Assertions.assertEquals(6, nestedTypeInfo.getFlatFields("3.1").get(0).getPosition)
+    Assertions.assertEquals(4, nestedTypeInfo.getFlatFields("_3").get(0).getPosition)
+    Assertions.assertEquals(5, nestedTypeInfo.getFlatFields("_4._1").get(0).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("1").size)
+    Assertions.assertEquals(1, nestedTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("1").get(2).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").size)
+    Assertions.assertEquals(1, nestedTypeInfo.getFlatFields("1.*").get(0).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("1.*").get(1).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("1.*").get(2).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("3").size)
+    Assertions.assertEquals(5, nestedTypeInfo.getFlatFields("3").get(0).getPosition)
+    Assertions.assertEquals(6, nestedTypeInfo.getFlatFields("3").get(1).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("_2").size)
+    Assertions.assertEquals(1, nestedTypeInfo.getFlatFields("_2").get(0).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("_2").get(1).getPosition)
+    Assertions.assertEquals(3, nestedTypeInfo.getFlatFields("_2").get(2).getPosition)
+    Assertions.assertEquals(2, nestedTypeInfo.getFlatFields("_4").size)
+    Assertions.assertEquals(5, nestedTypeInfo.getFlatFields("_4").get(0).getPosition)
+    Assertions.assertEquals(6, nestedTypeInfo.getFlatFields("_4").get(1).getPosition)
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO,
       nestedTypeInfo.getFlatFields("0").get(0).getType)
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO,
       nestedTypeInfo.getFlatFields("1.1").get(0).getType)
-    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.LONG_TYPE_INFO,
       nestedTypeInfo.getFlatFields("1").get(2).getType)
-    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO,
+    Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO,
       nestedTypeInfo.getFlatFields("3").get(1).getType)
 
     val deepNestedTupleTypeInfo = createTypeInformation[(Int, (Int, (Int, Int)), Int)].
       asInstanceOf[CaseClassTypeInfo[(Int, (Int, (Int, Int)), Int)]]
-    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").size)
-    Assert.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("1").get(0).getPosition)
-    Assert.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("1").get(1).getPosition)
-    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").get(2).getPosition)
-    Assert.assertEquals(5, deepNestedTupleTypeInfo.getFlatFields("*").size)
-    Assert.assertEquals(0, deepNestedTupleTypeInfo.getFlatFields("*").get(0).getPosition)
-    Assert.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("*").get(1).getPosition)
-    Assert.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("*").get(2).getPosition)
-    Assert.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("*").get(3).getPosition)
-    Assert.assertEquals(4, deepNestedTupleTypeInfo.getFlatFields("*").get(4).getPosition)
+    Assertions.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").size)
+    Assertions.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("1").get(0).getPosition)
+    Assertions.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assertions.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("1").get(2).getPosition)
+    Assertions.assertEquals(5, deepNestedTupleTypeInfo.getFlatFields("*").size)
+    Assertions.assertEquals(0, deepNestedTupleTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assertions.assertEquals(1, deepNestedTupleTypeInfo.getFlatFields("*").get(1).getPosition)
+    Assertions.assertEquals(2, deepNestedTupleTypeInfo.getFlatFields("*").get(2).getPosition)
+    Assertions.assertEquals(3, deepNestedTupleTypeInfo.getFlatFields("*").get(3).getPosition)
+    Assertions.assertEquals(4, deepNestedTupleTypeInfo.getFlatFields("*").get(4).getPosition)
 
     val caseClassTypeInfo = createTypeInformation[CustomCaseClass].
       asInstanceOf[CaseClassTypeInfo[CustomCaseClass]]
-    Assert.assertEquals(0, caseClassTypeInfo.getFlatFields("a").get(0).getPosition)
-    Assert.assertEquals(1, caseClassTypeInfo.getFlatFields("b").get(0).getPosition)
-    Assert.assertEquals(2, caseClassTypeInfo.getFlatFields("*").size)
-    Assert.assertEquals(0, caseClassTypeInfo.getFlatFields("*").get(0).getPosition)
-    Assert.assertEquals(1, caseClassTypeInfo.getFlatFields("*").get(1).getPosition)
+    Assertions.assertEquals(0, caseClassTypeInfo.getFlatFields("a").get(0).getPosition)
+    Assertions.assertEquals(1, caseClassTypeInfo.getFlatFields("b").get(0).getPosition)
+    Assertions.assertEquals(2, caseClassTypeInfo.getFlatFields("*").size)
+    Assertions.assertEquals(0, caseClassTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assertions.assertEquals(1, caseClassTypeInfo.getFlatFields("*").get(1).getPosition)
 
     val caseClassInTupleTypeInfo = createTypeInformation[(Int, UmlautCaseClass)].
       asInstanceOf[CaseClassTypeInfo[(Int, UmlautCaseClass)]]
-    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.ä").get(0).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1.ß").get(0).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").size)
-    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("1.*").get(0).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").get(1).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2.*").size)
-    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.*").get(0).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2").get(1).getPosition)
-    Assert.assertEquals(3, caseClassInTupleTypeInfo.getFlatFields("*").size)
-    Assert.assertEquals(0, caseClassInTupleTypeInfo.getFlatFields("*").get(0).getPosition)
-    Assert.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("*").get(1).getPosition)
-    Assert.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("*").get(2).getPosition)
+    Assertions.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.ä").get(0).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1.ß").get(0).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").size)
+    Assertions.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("1.*").get(0).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("1").get(1).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2.*").size)
+    Assertions.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("_2.*").get(0).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("_2").get(1).getPosition)
+    Assertions.assertEquals(3, caseClassInTupleTypeInfo.getFlatFields("*").size)
+    Assertions.assertEquals(0, caseClassInTupleTypeInfo.getFlatFields("*").get(0).getPosition)
+    Assertions.assertEquals(1, caseClassInTupleTypeInfo.getFlatFields("*").get(1).getPosition)
+    Assertions.assertEquals(2, caseClassInTupleTypeInfo.getFlatFields("*").get(2).getPosition)
 
   }
 
@@ -519,45 +519,45 @@ class TypeInformationGenTest {
 
     val tupleTypeInfo = createTypeInformation[(Int, Int, Int, Int)].
       asInstanceOf[CaseClassTypeInfo[(Int, Int, Int, Int)]]
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("0"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("2"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_2"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_4"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("0"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("2"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_2"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tupleTypeInfo.getTypeAt("_4"))
 
     val nestedTypeInfo = createTypeInformation[(Int, (Int, String, Long), Int, (Double, Double))].
       asInstanceOf[CaseClassTypeInfo[(Int, (Int, String, Long), Int, (Double, Double))]]
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("0"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("1.0"))
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, nestedTypeInfo.getTypeAt("1.1"))
-    Assert.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, nestedTypeInfo.getTypeAt("1.2"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("2"))
-    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.0"))
-    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.1"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("_3"))
-    Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("_4._1"))
-    Assert.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("1"))
-    Assert.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("3"))
-    Assert.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("_2"))
-    Assert.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("_4"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("0"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("1.0"))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, nestedTypeInfo.getTypeAt("1.1"))
+    Assertions.assertEquals(BasicTypeInfo.LONG_TYPE_INFO, nestedTypeInfo.getTypeAt("1.2"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("2"))
+    Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.0"))
+    Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("3.1"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, nestedTypeInfo.getTypeAt("_3"))
+    Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, nestedTypeInfo.getTypeAt("_4._1"))
+    Assertions.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("1"))
+    Assertions.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("3"))
+    Assertions.assertEquals(createTypeInformation[(Int, String, Long)], nestedTypeInfo.getTypeAt("_2"))
+    Assertions.assertEquals(createTypeInformation[(Double, Double)], nestedTypeInfo.getTypeAt("_4"))
 
     val deepNestedTupleTypeInfo = createTypeInformation[(Int, (Int, (Int, Int)), Int)].
       asInstanceOf[CaseClassTypeInfo[(Int, (Int, (Int, Int)), Int)]]
-    Assert.assertEquals(createTypeInformation[(Int, (Int, Int))],
+    Assertions.assertEquals(createTypeInformation[(Int, (Int, Int))],
       deepNestedTupleTypeInfo.getTypeAt("1"))
 
     val umlautCaseClassTypeInfo = createTypeInformation[UmlautCaseClass].
       asInstanceOf[CaseClassTypeInfo[UmlautCaseClass]]
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ä"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ß"))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ä"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, umlautCaseClassTypeInfo.getTypeAt("ß"))
 
     val caseClassTypeInfo = createTypeInformation[CustomCaseClass].
       asInstanceOf[CaseClassTypeInfo[CustomCaseClass]]
     val caseClassInTupleTypeInfo = createTypeInformation[(Int, CustomCaseClass)].
       asInstanceOf[CaseClassTypeInfo[(Int, CustomCaseClass)]]
-    Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("_2.a"))
-    Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("1.b"))
-    Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("1"))
-    Assert.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("_2"))
+    Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("_2.a"))
+    Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, caseClassInTupleTypeInfo.getTypeAt("1.b"))
+    Assertions.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("1"))
+    Assertions.assertEquals(caseClassTypeInfo, caseClassInTupleTypeInfo.getTypeAt("_2"))
 
   }
 
@@ -580,7 +580,7 @@ class TypeInformationGenTest {
   @Test
   def testUnit(): Unit = {
     val ti = createTypeInformation[Unit]
-    Assert.assertTrue(ti.isInstanceOf[UnitTypeInfo])
+    Assertions.assertTrue(ti.isInstanceOf[UnitTypeInfo])
 
     // This checks the condition in checkCollection. If this fails with IllegalArgumentException,
     // then things like "env.fromElements((),(),())" won't work.
@@ -600,13 +600,13 @@ class TypeInformationGenTest {
     // make sure that we still create the correct inner element serializer, despite the generics
     val innerTraversableSerializer = outerTraversableSerializer.elementSerializer
       .asInstanceOf[TraversableSerializer[Seq[Int], Int]]
-    Assert.assertEquals(
+    Assertions.assertEquals(
       classOf[IntSerializer],
       innerTraversableSerializer.elementSerializer.getClass)
 
     // if the code in here had Ts it would not compile. This would already fail above when
     // creating the serializer. This is just to verify.
-    Assert.assertEquals(
+    Assertions.assertEquals(
       "implicitly[scala.collection.generic.CanBuildFrom[" +
         "Seq[Seq[Object]], Seq[Object], Seq[Seq[Object]]]" +
         "]",
@@ -622,11 +622,11 @@ class TypeInformationGenTest {
 
     val innerTraversableSerializer = outerTraversableSerializer.elementSerializer
       .asInstanceOf[TraversableSerializer[Seq[Int], Int]]
-    Assert.assertEquals(
+    Assertions.assertEquals(
       classOf[IntSerializer],
       innerTraversableSerializer.elementSerializer.getClass)
 
-    Assert.assertEquals(
+    Assertions.assertEquals(
       "implicitly[scala.collection.generic.CanBuildFrom[" +
         "Seq[Seq[Int]], Seq[Int], Seq[Seq[Int]]]" +
         "]",

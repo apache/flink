@@ -20,11 +20,14 @@ package org.apache.flink.tests.util;
 import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -63,7 +66,7 @@ public class TestUtilsTest extends TestLogger {
         TestUtils.copyDirectory(symbolicLink, target);
 
         for (Path file : files) {
-            Assert.assertTrue(Files.exists(target.resolve(file)));
+            Assertions.assertTrue(Files.exists(target.resolve(file)));
         }
     }
 }

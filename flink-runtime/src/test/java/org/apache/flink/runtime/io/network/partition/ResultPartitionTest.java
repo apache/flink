@@ -37,9 +37,12 @@ import org.apache.flink.util.concurrent.FutureConsumerWithException;
 
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -51,11 +54,11 @@ import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.v
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ResultPartition}. */
 public class ResultPartitionTest {
@@ -536,7 +539,7 @@ public class ResultPartitionTest {
         buffer.recycleBuffer();
         requestThread.join();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 resultPartition.getBackPressuredTimeMsPerSecond().getCount(),
                 Matchers.greaterThan(0L));
         assertNotNull(readView.getNextBuffer().buffer());

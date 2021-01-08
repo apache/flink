@@ -20,14 +20,19 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
 public class LocalBufferPoolDestroyTest {
@@ -75,7 +80,7 @@ public class LocalBufferPoolDestroyTest {
             }
 
             // Verify that Thread was in blocking request
-            assertTrue("Did not trigger blocking buffer request.", success);
+            assertTrue(success, "Did not trigger blocking buffer request.");
 
             // Destroy the buffer pool
             localBufferPool.lazyDestroy();
@@ -84,7 +89,7 @@ public class LocalBufferPoolDestroyTest {
             thread.join();
 
             // Verify expected Exception
-            assertNotNull("Did not throw expected Exception", asyncException.get());
+            assertNotNull(asyncException.get(), "Did not throw expected Exception");
             assertTrue(asyncException.get() instanceof IllegalStateException);
         } finally {
             if (localBufferPool != null) {

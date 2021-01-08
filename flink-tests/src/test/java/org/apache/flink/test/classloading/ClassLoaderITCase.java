@@ -45,6 +45,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,10 +65,10 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test job classloader. */
 public class ClassLoaderITCase extends TestLogger {
@@ -412,7 +417,7 @@ public class ClassLoaderITCase extends TestLogger {
             }
         }
 
-        assertNotNull("Failed to trigger savepoint", savepointPath);
+        assertNotNull(savepointPath, "Failed to trigger savepoint");
 
         clusterClient.disposeSavepoint(savepointPath).get();
 
@@ -420,7 +425,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // make sure, the execution is finished to not influence other test methods
         invokeThread.join(deadline.timeLeft().toMillis());
-        assertFalse("Program invoke thread still running", invokeThread.isAlive());
+        assertFalse(invokeThread.isAlive(), "Program invoke thread still running");
     }
 
     @Test

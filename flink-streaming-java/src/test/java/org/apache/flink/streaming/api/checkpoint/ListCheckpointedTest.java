@@ -22,16 +22,19 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ListCheckpointed}. */
 public class ListCheckpointedTest {
@@ -98,7 +101,7 @@ public class ListCheckpointedTest {
         @Override
         public void restoreState(List<Integer> state) throws Exception {
             if (null != expected) {
-                Assert.assertEquals(expected, state);
+                Assertions.assertEquals(expected, state);
             } else {
                 assertTrue(state.isEmpty());
             }

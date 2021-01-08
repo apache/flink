@@ -21,9 +21,12 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.MethodForwardingTestUtil;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +41,7 @@ public class StateObjectCollectionTest extends TestLogger {
     @Test
     public void testEmptyCollection() {
         StateObjectCollection<StateObject> empty = StateObjectCollection.empty();
-        Assert.assertEquals(0, empty.getStateSize());
+        Assertions.assertEquals(0, empty.getStateSize());
     }
 
     @Test
@@ -59,13 +62,13 @@ public class StateObjectCollectionTest extends TestLogger {
     public void testHasState() {
         StateObjectCollection<StateObject> stateObjects =
                 new StateObjectCollection<>(new ArrayList<>());
-        Assert.assertFalse(stateObjects.hasState());
+        Assertions.assertFalse(stateObjects.hasState());
 
         stateObjects = new StateObjectCollection<>(Collections.singletonList(null));
-        Assert.assertFalse(stateObjects.hasState());
+        Assertions.assertFalse(stateObjects.hasState());
 
         stateObjects =
                 new StateObjectCollection<>(Collections.singletonList(mock(StateObject.class)));
-        Assert.assertTrue(stateObjects.hasState());
+        Assertions.assertTrue(stateObjects.hasState());
     }
 }

@@ -45,7 +45,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import com.google.common.collect.ImmutableList
 import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
-import org.junit.Assert.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 import scala.collection.mutable.ArrayBuffer

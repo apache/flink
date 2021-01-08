@@ -23,7 +23,7 @@ import org.apache.calcite.plan.hep.{HepMatchOrder, HepProgramBuilder}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import java.util.Collections

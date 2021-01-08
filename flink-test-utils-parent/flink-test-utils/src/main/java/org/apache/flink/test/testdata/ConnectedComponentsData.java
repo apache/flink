@@ -20,8 +20,6 @@ package org.apache.flink.test.testdata;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Assert;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.List;
@@ -96,7 +94,8 @@ public class ConnectedComponentsData {
         String line;
         while ((line = result.readLine()) != null) {
             String[] res = split.split(line);
-            Assert.assertEquals("Malformed result: Wrong number of tokens in line.", 2, res.length);
+            Assertions.assertEquals(
+                    "Malformed result: Wrong number of tokens in line.", 2, res.length);
             try {
                 int vertex = Integer.parseInt(res[0]);
                 int component = Integer.parseInt(res[1]);
@@ -105,9 +104,9 @@ public class ConnectedComponentsData {
                 if (should == 0) {
                     should = 2;
                 }
-                Assert.assertEquals("Vertex is in wrong component.", should, component);
+                Assertions.assertEquals("Vertex is in wrong component.", should, component);
             } catch (NumberFormatException e) {
-                Assert.fail("Malformed result.");
+                Assertions.fail("Malformed result.");
             }
         }
     }
@@ -121,9 +120,9 @@ public class ConnectedComponentsData {
                 if (should == 0) {
                     should = 2;
                 }
-                Assert.assertEquals("Vertex is in wrong component.", should, component);
+                Assertions.assertEquals("Vertex is in wrong component.", should, component);
             } catch (NumberFormatException e) {
-                Assert.fail("Malformed result.");
+                Assertions.fail("Malformed result.");
             }
         }
     }

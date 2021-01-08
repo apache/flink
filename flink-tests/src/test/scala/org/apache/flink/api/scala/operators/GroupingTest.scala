@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.operators
 import java.util
 
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Order
 import org.junit.jupiter.api.Test
@@ -44,13 +44,13 @@ class GroupingTest {
       tupleDs.groupBy(0)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testGroupByKeyIndices2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
@@ -96,13 +96,13 @@ class GroupingTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testGroupByKeyFields2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
@@ -148,13 +148,13 @@ class GroupingTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testGroupByKeyExpressions2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
 
     // should not work: groups on basic type
@@ -189,7 +189,7 @@ class GroupingTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -201,13 +201,13 @@ class GroupingTest {
       tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testGroupSortKeyFields2(): Unit = {
-        Assertions.assertThrows(classOf[IndexOutOfBoundsException], () -> {
+        assertThrows(classOf[IndexOutOfBoundsException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
@@ -231,7 +231,7 @@ class GroupingTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 

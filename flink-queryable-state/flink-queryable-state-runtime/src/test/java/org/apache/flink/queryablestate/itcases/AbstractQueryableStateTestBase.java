@@ -68,10 +68,15 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -92,10 +97,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Base class for queryable state integration tests with a configurable state backend. */
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
@@ -121,7 +126,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
         // NOTE: do not use a shared instance for all tests as the tests may break
         this.stateBackend = createStateBackend();
 
-        Assert.assertNotNull(clusterClient);
+        Assertions.assertNotNull(clusterClient);
 
         maxParallelism = 4;
     }
@@ -220,7 +225,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                                     counts.set(key, res.f1);
                                     assertEquals("Key mismatch", key, res.f0.intValue());
                                 } catch (Exception e) {
-                                    Assert.fail(e.getMessage());
+                                    Assertions.fail(e.getMessage());
                                 }
                             });
 
@@ -232,7 +237,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                         .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
             }
 
-            assertTrue("Not all keys are non-zero", allNonZero);
+            assertTrue(allNonZero, "Not all keys are non-zero");
 
             // All should be non-zero
             for (int i = 0; i < numKeys; i++) {
@@ -426,10 +431,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 unknownJobFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
                 fail(); // by now the request must have failed.
             } catch (ExecutionException e) {
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "GOT: " + e.getCause().getMessage(),
                         e.getCause() instanceof RuntimeException);
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "GOT: " + e.getCause().getMessage(),
                         e.getCause()
                                 .getMessage()
@@ -453,10 +458,10 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 unknownQSName.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
                 fail(); // by now the request must have failed.
             } catch (ExecutionException e) {
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "GOT: " + e.getCause().getMessage(),
                         e.getCause() instanceof RuntimeException);
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "GOT: " + e.getCause().getMessage(),
                         e.getCause()
                                 .getMessage()
@@ -535,69 +540,74 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
      */
     @Test
     public void testValueStateDefault() throws Throwable {
-        Assertions.assertThrows(UnknownKeyOrNamespaceException.class, () -> {
+        assertThrows(
+                UnknownKeyOrNamespaceException.class,
+                () -> {
                     final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
-        final long numElements = 1024L;
+                    final long numElements = 1024L;
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(stateBackend);
-        env.setParallelism(maxParallelism);
-        // Very important, because cluster is shared between tests and we
-        // don't explicitly check that all slots are available before
-        // submitting.
-        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setStateBackend(stateBackend);
+                    env.setParallelism(maxParallelism);
+                    // Very important, because cluster is shared between tests and we
+                    // don't explicitly check that all slots are available before
+                    // submitting.
+                    env.setRestartStrategy(
+                            RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 1000L));
 
-        DataStream<Tuple2<Integer, Long>> source =
-                env.addSource(new TestAscendingValueSource(numElements));
+                    DataStream<Tuple2<Integer, Long>> source =
+                            env.addSource(new TestAscendingValueSource(numElements));
 
-        ValueStateDescriptor<Tuple2<Integer, Long>> valueState =
-                new ValueStateDescriptor<>("any", source.getType(), Tuple2.of(0, 1337L));
+                    ValueStateDescriptor<Tuple2<Integer, Long>> valueState =
+                            new ValueStateDescriptor<>(
+                                    "any", source.getType(), Tuple2.of(0, 1337L));
 
-        // only expose key "1"
-        QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
-                source.keyBy(
-                                new KeySelector<Tuple2<Integer, Long>, Integer>() {
-                                    private static final long serialVersionUID =
-                                            4509274556892655887L;
+                    // only expose key "1"
+                    QueryableStateStream<Integer, Tuple2<Integer, Long>> queryableState =
+                            source.keyBy(
+                                            new KeySelector<Tuple2<Integer, Long>, Integer>() {
+                                                private static final long serialVersionUID =
+                                                        4509274556892655887L;
 
-                                    @Override
-                                    public Integer getKey(Tuple2<Integer, Long> value) {
-                                        return 1;
-                                    }
-                                })
-                        .asQueryableState("hakuna", valueState);
+                                                @Override
+                                                public Integer getKey(Tuple2<Integer, Long> value) {
+                                                    return 1;
+                                                }
+                                            })
+                                    .asQueryableState("hakuna", valueState);
 
-        try (AutoCancellableJob autoCancellableJob =
-                new AutoCancellableJob(deadline, clusterClient, env)) {
+                    try (AutoCancellableJob autoCancellableJob =
+                            new AutoCancellableJob(deadline, clusterClient, env)) {
 
-            final JobID jobId = autoCancellableJob.getJobId();
-            final JobGraph jobGraph = autoCancellableJob.getJobGraph();
+                        final JobID jobId = autoCancellableJob.getJobId();
+                        final JobGraph jobGraph = autoCancellableJob.getJobGraph();
 
-            clusterClient.submitJob(jobGraph).get();
+                        clusterClient.submitJob(jobGraph).get();
 
-            // Now query
-            int key = 0;
-            CompletableFuture<ValueState<Tuple2<Integer, Long>>> future =
-                    getKvState(
-                            deadline,
-                            client,
-                            jobId,
-                            queryableState.getQueryableStateName(),
-                            key,
-                            BasicTypeInfo.INT_TYPE_INFO,
-                            valueState,
-                            true,
-                            executor);
+                        // Now query
+                        int key = 0;
+                        CompletableFuture<ValueState<Tuple2<Integer, Long>>> future =
+                                getKvState(
+                                        deadline,
+                                        client,
+                                        jobId,
+                                        queryableState.getQueryableStateName(),
+                                        key,
+                                        BasicTypeInfo.INT_TYPE_INFO,
+                                        valueState,
+                                        true,
+                                        executor);
 
-            try {
-                future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-            } catch (ExecutionException | CompletionException e) {
-                // get() on a completedExceptionally future wraps the
-                // exception in an ExecutionException.
-                throw e.getCause();
-            }
-        }
-        });
+                        try {
+                            future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+                        } catch (ExecutionException | CompletionException e) {
+                            // get() on a completedExceptionally future wraps the
+                            // exception in an ExecutionException.
+                            throw e.getCause();
+                        }
+                    }
+                });
     }
 
     /**
@@ -724,7 +734,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                     }
                 }
 
-                assertTrue("Did not succeed query", success);
+                assertTrue(success, "Did not succeed query");
             }
         }
     }
@@ -825,7 +835,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                     }
                 }
 
-                assertTrue("Did not succeed query", success);
+                assertTrue(success, "Did not succeed query");
             }
         }
     }
@@ -928,7 +938,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                     }
                 }
 
-                assertTrue("Did not succeed query", success);
+                assertTrue(success, "Did not succeed query");
             }
 
             for (int key = 0; key < maxParallelism; key++) {
@@ -1009,7 +1019,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                     }
                 }
 
-                assertTrue("Did not succeed query", success);
+                assertTrue(success, "Did not succeed query");
             }
         }
     }
@@ -1383,7 +1393,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 }
             }
 
-            assertTrue("Did not succeed query", success);
+            assertTrue(success, "Did not succeed query");
         }
     }
 }

@@ -26,21 +26,20 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple7;
-import org.apache.flink.optimizer.plan.Channel;
-import org.apache.flink.optimizer.plan.DualInputPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.SingleInputPlanNode;
-import org.apache.flink.optimizer.plan.SinkPlanNode;
+import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.testfunctions.IdentityCoGrouper;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test case has been created to validate that correct strategies are used if orders within
@@ -81,20 +80,21 @@ public class GroupOrderTest extends CompilerTestBase {
         SingleInputPlanNode reducer = resolver.getNode("Reduce");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
+        Assertions.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
+        Assertions.assertEquals(
+                ShipStrategyType.PARTITION_HASH, reducer.getInput().getShipStrategy());
 
         Channel c = reducer.getInput();
-        Assert.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
+        Assertions.assertEquals(LocalStrategy.SORT, c.getLocalStrategy());
 
         FieldList ship = new FieldList(1);
         FieldList local = new FieldList(1, 3);
-        Assert.assertEquals(ship, c.getShipStrategyKeys());
-        Assert.assertEquals(local, c.getLocalStrategyKeys());
-        Assert.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders(0)[0]);
+        Assertions.assertEquals(ship, c.getShipStrategyKeys());
+        Assertions.assertEquals(local, c.getLocalStrategyKeys());
+        Assertions.assertTrue(c.getLocalStrategySortOrder()[0] == reducer.getSortOrders(0)[0]);
 
         // check that we indeed sort descending
-        Assert.assertEquals(false, c.getLocalStrategySortOrder()[1]);
+        Assertions.assertEquals(false, c.getLocalStrategySortOrder()[1]);
     }
 
     @Test
@@ -152,17 +152,17 @@ public class GroupOrderTest extends CompilerTestBase {
         DualInputPlanNode coGroupNode = resolver.getNode("CoGroup");
 
         // verify the strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(ShipStrategyType.FORWARD, sinkNode.getInput().getShipStrategy());
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH, coGroupNode.getInput1().getShipStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH, coGroupNode.getInput2().getShipStrategy());
 
         Channel c1 = coGroupNode.getInput1();
         Channel c2 = coGroupNode.getInput2();
 
-        Assert.assertEquals(LocalStrategy.SORT, c1.getLocalStrategy());
-        Assert.assertEquals(LocalStrategy.SORT, c2.getLocalStrategy());
+        Assertions.assertEquals(LocalStrategy.SORT, c1.getLocalStrategy());
+        Assertions.assertEquals(LocalStrategy.SORT, c2.getLocalStrategy());
 
         FieldList ship1 = new FieldList(3, 0);
         FieldList ship2 = new FieldList(6, 0);
@@ -170,19 +170,19 @@ public class GroupOrderTest extends CompilerTestBase {
         FieldList local1 = new FieldList(3, 0, 5);
         FieldList local2 = new FieldList(6, 0, 1, 4);
 
-        Assert.assertEquals(ship1, c1.getShipStrategyKeys());
-        Assert.assertEquals(ship2, c2.getShipStrategyKeys());
-        Assert.assertEquals(local1, c1.getLocalStrategyKeys());
-        Assert.assertEquals(local2, c2.getLocalStrategyKeys());
+        Assertions.assertEquals(ship1, c1.getShipStrategyKeys());
+        Assertions.assertEquals(ship2, c2.getShipStrategyKeys());
+        Assertions.assertEquals(local1, c1.getLocalStrategyKeys());
+        Assertions.assertEquals(local2, c2.getLocalStrategyKeys());
 
-        Assert.assertTrue(c1.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
-        Assert.assertTrue(c1.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
-        Assert.assertTrue(c2.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
-        Assert.assertTrue(c2.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
+        Assertions.assertTrue(c1.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
+        Assertions.assertTrue(c1.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
+        Assertions.assertTrue(c2.getLocalStrategySortOrder()[0] == coGroupNode.getSortOrders()[0]);
+        Assertions.assertTrue(c2.getLocalStrategySortOrder()[1] == coGroupNode.getSortOrders()[1]);
 
         // check that the local group orderings are correct
-        Assert.assertEquals(false, c1.getLocalStrategySortOrder()[2]);
-        Assert.assertEquals(false, c2.getLocalStrategySortOrder()[2]);
-        Assert.assertEquals(true, c2.getLocalStrategySortOrder()[3]);
+        Assertions.assertEquals(false, c1.getLocalStrategySortOrder()[2]);
+        Assertions.assertEquals(false, c2.getLocalStrategySortOrder()[2]);
+        Assertions.assertEquals(true, c2.getLocalStrategySortOrder()[3]);
     }
 }

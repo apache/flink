@@ -26,10 +26,14 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.util.ShellScript;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,9 +46,8 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for passing and loading dynamical properties of task manager. Usually(in Yarn, Kubernetes),

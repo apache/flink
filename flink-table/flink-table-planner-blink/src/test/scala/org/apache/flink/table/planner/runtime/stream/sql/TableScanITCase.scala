@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.{TestPreserveWMTableSource, TestTabl
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import java.lang.{Integer => JInt, Long => JLong}

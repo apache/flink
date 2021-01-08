@@ -28,6 +28,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.MapperFea
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -37,9 +42,9 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the DatadogHttpClient. */
 public class DatadogHttpClientTest {
@@ -61,16 +66,20 @@ public class DatadogHttpClientTest {
 
     @Test
     public void testClientWithEmptyKey() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new DatadogHttpClient("", null, 123, DataCenter.US, false);
-        });
+                });
     }
 
     @Test
     public void testClientWithNullKey() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new DatadogHttpClient(null, null, 123, DataCenter.US, false);
-        });
+                });
     }
 
     @Test

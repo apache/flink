@@ -23,8 +23,12 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
@@ -56,7 +60,7 @@ public class KeyedStateCheckpointOutputStreamTest {
         TestMemoryCheckpointOutputStream innerStream =
                 (TestMemoryCheckpointOutputStream) stream.getDelegate();
         stream.close();
-        Assert.assertFalse(innerStream.isClosed());
+        Assertions.assertFalse(innerStream.isClosed());
     }
 
     @Test
@@ -66,8 +70,8 @@ public class KeyedStateCheckpointOutputStreamTest {
         TestMemoryCheckpointOutputStream innerStream =
                 (TestMemoryCheckpointOutputStream) stream.getDelegate();
         KeyGroupsStateHandle emptyHandle = stream.closeAndGetHandle();
-        Assert.assertTrue(innerStream.isClosed());
-        Assert.assertEquals(null, emptyHandle);
+        Assertions.assertTrue(innerStream.isClosed());
+        Assertions.assertEquals(null, emptyHandle);
     }
 
     @Test
@@ -75,7 +79,7 @@ public class KeyedStateCheckpointOutputStreamTest {
         final KeyGroupRange keyRange = new KeyGroupRange(0, 2);
         KeyedStateCheckpointOutputStream stream = createStream(keyRange);
         KeyGroupsStateHandle fullHandle = writeAllTestKeyGroups(stream, keyRange);
-        Assert.assertNotNull(fullHandle);
+        Assertions.assertNotNull(fullHandle);
 
         verifyRead(fullHandle, keyRange);
     }
@@ -87,25 +91,25 @@ public class KeyedStateCheckpointOutputStreamTest {
 
         try {
             stream.startNewKeyGroup(4711);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
             // good
         }
 
-        Assert.assertEquals(-1, stream.getCurrentKeyGroup());
+        Assertions.assertEquals(-1, stream.getCurrentKeyGroup());
 
         DataOutputView dov = new DataOutputViewStreamWrapper(stream);
         int previous = -1;
         for (int kg : keyRange) {
-            Assert.assertFalse(stream.isKeyGroupAlreadyStarted(kg));
-            Assert.assertFalse(stream.isKeyGroupAlreadyFinished(kg));
+            Assertions.assertFalse(stream.isKeyGroupAlreadyStarted(kg));
+            Assertions.assertFalse(stream.isKeyGroupAlreadyFinished(kg));
             stream.startNewKeyGroup(kg);
             if (-1 != previous) {
-                Assert.assertTrue(stream.isKeyGroupAlreadyStarted(previous));
-                Assert.assertTrue(stream.isKeyGroupAlreadyFinished(previous));
+                Assertions.assertTrue(stream.isKeyGroupAlreadyStarted(previous));
+                Assertions.assertTrue(stream.isKeyGroupAlreadyFinished(previous));
             }
-            Assert.assertTrue(stream.isKeyGroupAlreadyStarted(kg));
-            Assert.assertFalse(stream.isKeyGroupAlreadyFinished(kg));
+            Assertions.assertTrue(stream.isKeyGroupAlreadyStarted(kg));
+            Assertions.assertFalse(stream.isKeyGroupAlreadyFinished(kg));
             dov.writeInt(kg);
             previous = kg;
         }
@@ -117,7 +121,7 @@ public class KeyedStateCheckpointOutputStreamTest {
         for (int kg : keyRange) {
             try {
                 stream.startNewKeyGroup(kg);
-                Assert.fail();
+                Assertions.fail();
             } catch (IOException ex) {
                 // required
             }
@@ -142,13 +146,13 @@ public class KeyedStateCheckpointOutputStreamTest {
                 long off = fullHandle.getOffsetForKeyGroup(kg);
                 if (off >= 0) {
                     in.seek(off);
-                    Assert.assertEquals(1, div.readInt());
+                    Assertions.assertEquals(1, div.readInt());
                     ++count;
                 }
             }
         }
 
-        Assert.assertEquals(1, count);
+        Assertions.assertEquals(1, count);
     }
 
     private static void verifyRead(KeyGroupsStateHandle fullHandle, KeyGroupRange keyRange)
@@ -159,11 +163,11 @@ public class KeyedStateCheckpointOutputStreamTest {
             for (int kg : fullHandle.getKeyGroupRange()) {
                 long off = fullHandle.getOffsetForKeyGroup(kg);
                 in.seek(off);
-                Assert.assertEquals(kg, div.readInt());
+                Assertions.assertEquals(kg, div.readInt());
                 ++count;
             }
         }
 
-        Assert.assertEquals(keyRange.getNumberOfKeyGroups(), count);
+        Assertions.assertEquals(keyRange.getNumberOfKeyGroups(), count);
     }
 }

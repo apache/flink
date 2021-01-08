@@ -39,7 +39,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 

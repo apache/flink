@@ -21,13 +21,18 @@ package org.apache.flink.connector.file.src;
 import org.apache.flink.core.fs.Path;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for the {@link FileSourceSplit}. */
 public class FileSourceSplitTest {
 
     @Test
     public void noNullHostsAllowed() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     new FileSourceSplit(
                 "id", new Path("file:/some/random/path"), 0, 10, "host1", null, "host2");
         });

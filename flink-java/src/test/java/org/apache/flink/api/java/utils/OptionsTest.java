@@ -18,12 +18,16 @@
 
 package org.apache.flink.api.java.utils;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the Options utility class. */
 @Deprecated
@@ -51,7 +55,7 @@ public class OptionsTest {
             fail("Exception thrown: " + e.getMessage());
         }
 
-        Assert.assertEquals(option.getDefaultValue(), "a");
+        Assertions.assertEquals(option.getDefaultValue(), "a");
     }
 
     @Test
@@ -67,36 +71,36 @@ public class OptionsTest {
     @Test
     public void testIsCastableToDefinedTypeWithDefaultType() {
         Option option = new Option("name");
-        Assert.assertTrue(option.isCastableToDefinedType("some value"));
+        Assertions.assertTrue(option.isCastableToDefinedType("some value"));
     }
 
     @Test
     public void testIsCastableToDefinedTypeWithMatchingTypes() {
         // Integer
         Option option = new Option("name").type(OptionType.INTEGER);
-        Assert.assertTrue(option.isCastableToDefinedType("15"));
+        Assertions.assertTrue(option.isCastableToDefinedType("15"));
 
         // Double
         Option optionDouble = new Option("name").type(OptionType.DOUBLE);
-        Assert.assertTrue(optionDouble.isCastableToDefinedType("15.0"));
+        Assertions.assertTrue(optionDouble.isCastableToDefinedType("15.0"));
 
         // Boolean
         Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
-        Assert.assertTrue(optionFloat.isCastableToDefinedType("true"));
+        Assertions.assertTrue(optionFloat.isCastableToDefinedType("true"));
     }
 
     @Test
     public void testIsCastableToDefinedTypeWithNonMatchingTypes() {
         // Integer
         Option option = new Option("name").type(OptionType.INTEGER);
-        Assert.assertFalse(option.isCastableToDefinedType("true"));
+        Assertions.assertFalse(option.isCastableToDefinedType("true"));
 
         // Double
         Option optionDouble = new Option("name").type(OptionType.DOUBLE);
-        Assert.assertFalse(optionDouble.isCastableToDefinedType("name"));
+        Assertions.assertFalse(optionDouble.isCastableToDefinedType("name"));
 
         // Boolean
         Option optionFloat = new Option("name").type(OptionType.BOOLEAN);
-        Assert.assertFalse(optionFloat.isCastableToDefinedType("15"));
+        Assertions.assertFalse(optionFloat.isCastableToDefinedType("15"));
     }
 }

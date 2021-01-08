@@ -42,8 +42,12 @@ import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -52,7 +56,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** This test secures the lifecycle of AbstractUdfStreamOperator, including it's UDF handling. */
 public class AbstractUdfStreamOperatorLifecycleTest {
@@ -119,7 +123,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     method.getName() + Arrays.toString(method.getParameterTypes()));
         }
         Collections.sort(methodsWithSignatureString);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "It seems like new methods have been introduced to "
                         + StreamOperator.class
                         + ". Please register them with this test and ensure to document their position in the lifecycle "
@@ -133,7 +137,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                     method.getName() + Arrays.toString(method.getParameterTypes()));
         }
         Collections.sort(methodsWithSignatureString);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "It seems like new methods have been introduced to "
                         + RichFunction.class
                         + ". Please register them with this test and ensure to document their position in the lifecycle "
@@ -290,7 +294,7 @@ public class AbstractUdfStreamOperatorLifecycleTest {
                                     }
                                 } catch (Exception e) {
                                     e.printStackTrace();
-                                    Assert.fail();
+                                    Assertions.fail();
                                 }
                             }
                         };

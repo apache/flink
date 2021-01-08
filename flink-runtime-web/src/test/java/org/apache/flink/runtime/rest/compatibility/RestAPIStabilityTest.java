@@ -22,26 +22,24 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.util.DocumentingDispatcherRestEndpoint;
 import org.apache.flink.runtime.rest.util.DocumentingRestEndpoint;
 import org.apache.flink.runtime.rest.versioning.RestAPIVersion;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /** Stability test and snapshot generator for the REST API. */
@@ -82,7 +80,7 @@ public final class RestAPIStabilityTest extends TestLogger {
         final URL resource =
                 RestAPIStabilityTest.class.getClassLoader().getResource(versionedSnapshotFileName);
         if (resource == null) {
-            Assert.fail(
+            Assertions.fail(
                     "Snapshot file does not exist. If you added a new version, re-run this test with"
                             + " -D"
                             + REGENERATE_SNAPSHOT_PROPERTY
@@ -153,7 +151,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                             result ->
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
-                Assert.fail(
+                Assertions.fail(
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
@@ -176,7 +174,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                             result ->
                                     result.f1.getBackwardCompatibility()
                                             == Compatibility.IDENTICAL)) {
-                Assert.fail(
+                Assertions.fail(
                         "The API was modified in a compatible way, but the snapshot was not updated. "
                                 + "To update the snapshot, re-run this test with -D"
                                 + REGENERATE_SNAPSHOT_PROPERTY
@@ -216,7 +214,7 @@ public final class RestAPIStabilityTest extends TestLogger {
                                 sb.append("\t\t" + error.getMessage());
                             }
                         });
-        Assert.fail(sb.toString());
+        Assertions.fail(sb.toString());
     }
 
     private static CompatibilityCheckResult checkCompatibility(

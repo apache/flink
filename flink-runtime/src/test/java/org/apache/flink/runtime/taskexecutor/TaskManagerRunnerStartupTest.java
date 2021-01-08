@@ -18,12 +18,8 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.commons.io.FileUtils;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -38,18 +34,16 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.After;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
+import org.junit.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -65,8 +59,8 @@ import java.util.stream.Stream;
 
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.core.Every.everyItem;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests that check how the {@link TaskManagerRunner} behaves when encountering startup problems.
@@ -138,14 +132,16 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
      */
     @Test
     public void testMemoryConfigWrong() throws Exception {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     Configuration cfg = createFlinkConfiguration();
 
-        // something invalid
-        cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
-        cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
-        startTaskManager(cfg, rpcService, highAvailabilityServices);
-        });
+                    // something invalid
+                    cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+                    cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
+                    startTaskManager(cfg, rpcService, highAvailabilityServices);
+                });
     }
 
     /**

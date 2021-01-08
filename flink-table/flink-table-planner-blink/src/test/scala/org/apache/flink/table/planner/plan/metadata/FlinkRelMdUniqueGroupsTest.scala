@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
@@ -33,7 +33,7 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUniqueGroupsOnTableScanWithNullColumns(): Unit = {
-        Assertions.assertThrows(classOf[IllegalArgumentException], () -> {
+        assertThrows(classOf[IllegalArgumentException], () -> {
                 mq.getUniqueGroups(studentLogicalScan, null)
   }
 

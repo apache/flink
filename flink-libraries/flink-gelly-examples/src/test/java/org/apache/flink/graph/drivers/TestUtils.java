@@ -19,6 +19,7 @@
 
 package org.apache.flink.graph.drivers;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -30,13 +31,9 @@ import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
 
-import org.apache.commons.lang3.ArrayUtils;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import static org.junit.Assert.assertTrue;
 
 /** Utility methods for testing graph algorithm drivers. */
 public class TestUtils {

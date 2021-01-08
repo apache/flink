@@ -27,18 +27,13 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.VarCharType;
-
-import org.junit.Assert;
+import org.apache.flink.table.types.logical.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -114,7 +109,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
         AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, new LogicalType[] {});
-        Assert.assertTrue(table.isHashSetMode());
+        Assertions.assertTrue(table.isHashSetMode());
 
         K[] keys = generateRandomKeys(NUM_ENTRIES);
         verifyKeyInsert(keys, table);
@@ -191,8 +186,8 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         verifyRetrieve(table, keys, expected);
 
         table.reset();
-        Assert.assertEquals(0, table.getNumElements());
-        Assert.assertEquals(1, table.getRecordAreaMemorySegments().size());
+        Assertions.assertEquals(0, table.getNumElements());
+        Assertions.assertEquals(1, table.getRecordAreaMemorySegments().size());
 
         expected.clear();
         verifyInsertAndUpdate(keys, expected, table);
@@ -220,10 +215,10 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             K groupKey = keys[i];
             // look up and insert
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertFalse(lookupInfo.isFound());
+            Assertions.assertFalse(lookupInfo.isFound());
             try {
                 BinaryRowData entry = table.append(lookupInfo, defaultValue);
-                Assert.assertNotNull(entry);
+                Assertions.assertNotNull(entry);
                 // mock multiple updates
                 for (int j = 0; j < NUM_REWRITES; j++) {
                     updateOutputBuffer(entry, rnd);
@@ -245,7 +240,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
                 // retry
                 lookupInfo = table.lookup(groupKey);
                 BinaryRowData entry = table.append(lookupInfo, defaultValue);
-                Assert.assertNotNull(entry);
+                Assertions.assertNotNull(entry);
                 // mock multiple updates
                 for (int j = 0; j < NUM_REWRITES; j++) {
                     updateOutputBuffer(entry, rnd);
@@ -258,10 +253,10 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             actualKeys.add(keySerializer.copy(iter.getKey()));
             actualValues.add(iter.getValue().copy());
         }
-        Assert.assertEquals(NUM_ENTRIES, expected.size());
-        Assert.assertEquals(NUM_ENTRIES, actualKeys.size());
-        Assert.assertEquals(NUM_ENTRIES, actualValues.size());
-        Assert.assertEquals(expected, actualValues);
+        Assertions.assertEquals(NUM_ENTRIES, expected.size());
+        Assertions.assertEquals(NUM_ENTRIES, actualKeys.size());
+        Assertions.assertEquals(NUM_ENTRIES, actualValues.size());
+        Assertions.assertEquals(expected, actualValues);
         table.free();
     }
 
@@ -282,19 +277,19 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         final K key = generateRandomKeys(1)[0];
         for (int i = 0; i < 3; i++) {
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(key);
-            Assert.assertFalse(lookupInfo.isFound());
+            Assertions.assertFalse(lookupInfo.isFound());
         }
 
         for (int i = 0; i < 3; i++) {
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(key);
             BinaryRowData entry = lookupInfo.getValue();
             if (i == 0) {
-                Assert.assertFalse(lookupInfo.isFound());
+                Assertions.assertFalse(lookupInfo.isFound());
                 entry = table.append(lookupInfo, defaultValue);
             } else {
-                Assert.assertTrue(lookupInfo.isFound());
+                Assertions.assertTrue(lookupInfo.isFound());
             }
-            Assert.assertNotNull(entry);
+            Assertions.assertNotNull(entry);
         }
         table.free();
     }
@@ -314,14 +309,14 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     private void verifyRetrieve(
             AbstractBytesHashMap<K> table, K[] keys, List<BinaryRowData> expected) {
-        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        Assertions.assertEquals(NUM_ENTRIES, table.getNumElements());
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
             // look up and retrieve
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertTrue(lookupInfo.isFound());
-            Assert.assertNotNull(lookupInfo.getValue());
-            Assert.assertEquals(expected.get(i), lookupInfo.getValue());
+            Assertions.assertTrue(lookupInfo.isFound());
+            Assertions.assertNotNull(lookupInfo.getValue());
+            Assertions.assertEquals(expected.get(i), lookupInfo.getValue());
         }
     }
 
@@ -331,13 +326,13 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             K groupKey = keys[i];
             // look up and insert
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertFalse(lookupInfo.isFound());
+            Assertions.assertFalse(lookupInfo.isFound());
             BinaryRowData entry = table.append(lookupInfo, defaultValue);
-            Assert.assertNotNull(entry);
-            Assert.assertEquals(entry, defaultValue);
+            Assertions.assertNotNull(entry);
+            Assertions.assertEquals(entry, defaultValue);
             inserted.add(entry.copy());
         }
-        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        Assertions.assertEquals(NUM_ENTRIES, table.getNumElements());
     }
 
     private void verifyInsertAndUpdate(
@@ -348,29 +343,29 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             K groupKey = keys[i];
             // look up and insert
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertFalse(lookupInfo.isFound());
+            Assertions.assertFalse(lookupInfo.isFound());
             BinaryRowData entry = table.append(lookupInfo, defaultValue);
-            Assert.assertNotNull(entry);
+            Assertions.assertNotNull(entry);
             // mock multiple updates
             for (int j = 0; j < NUM_REWRITES; j++) {
                 updateOutputBuffer(entry, rnd);
             }
             inserted.add(entry.copy());
         }
-        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        Assertions.assertEquals(NUM_ENTRIES, table.getNumElements());
     }
 
     private void verifyKeyPresent(K[] keys, AbstractBytesHashMap<K> table) {
-        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        Assertions.assertEquals(NUM_ENTRIES, table.getNumElements());
         BinaryRowData present = new BinaryRowData(0);
         present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
             // look up and retrieve
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertTrue(lookupInfo.isFound());
-            Assert.assertNotNull(lookupInfo.getValue());
-            Assert.assertEquals(present, lookupInfo.getValue());
+            Assertions.assertTrue(lookupInfo.isFound());
+            Assertions.assertNotNull(lookupInfo.getValue());
+            Assertions.assertEquals(present, lookupInfo.getValue());
         }
     }
 
@@ -381,11 +376,11 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
             K groupKey = keys[i];
             // look up and insert
             BytesMap.LookupInfo<K, BinaryRowData> lookupInfo = table.lookup(groupKey);
-            Assert.assertFalse(lookupInfo.isFound());
+            Assertions.assertFalse(lookupInfo.isFound());
             BinaryRowData entry = table.append(lookupInfo, defaultValue);
-            Assert.assertNotNull(entry);
-            Assert.assertEquals(entry, present);
+            Assertions.assertNotNull(entry);
+            Assertions.assertEquals(entry, present);
         }
-        Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
+        Assertions.assertEquals(NUM_ENTRIES, table.getNumElements());
     }
 }

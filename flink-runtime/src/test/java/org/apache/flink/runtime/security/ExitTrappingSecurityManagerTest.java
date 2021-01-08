@@ -22,20 +22,23 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.Permission;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Unit tests for {@link ExitTrappingSecurityManager}. */
 public class ExitTrappingSecurityManagerTest extends TestLogger {
@@ -74,7 +77,7 @@ public class ExitTrappingSecurityManagerTest extends TestLogger {
                 };
 
         ExitTrappingSecurityManager exitTrappingSecurityManager =
-                new ExitTrappingSecurityManager(status -> Assert.fail(), securityManager);
+                new ExitTrappingSecurityManager(status -> Assertions.fail(), securityManager);
 
         assertThrows(
                 "not allowed",

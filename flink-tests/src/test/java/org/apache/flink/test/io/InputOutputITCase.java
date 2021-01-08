@@ -23,7 +23,7 @@ import org.apache.flink.api.common.operators.util.TestNonRichOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for non rich DataSource and DataSink input output formats being correctly used at runtime.

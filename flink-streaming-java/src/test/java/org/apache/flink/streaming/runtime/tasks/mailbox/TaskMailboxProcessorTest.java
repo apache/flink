@@ -22,10 +22,13 @@ import org.apache.flink.runtime.concurrent.FutureTaskWithException;
 import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.function.RunnableWithException;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.concurrent.RejectedExecutionException;
@@ -46,7 +49,7 @@ public class TaskMailboxProcessorTest {
         mailboxProcessor.prepareClose();
         try {
             mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
-            Assert.fail("Should not be able to accept runnables if not opened.");
+            Assertions.fail("Should not be able to accept runnables if not opened.");
         } catch (RejectedExecutionException expected) {
         }
     }
@@ -86,14 +89,14 @@ public class TaskMailboxProcessorTest {
 
         try {
             mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(() -> {}, "dummy");
-            Assert.fail("Should not be able to accept runnables if not opened.");
+            Assertions.fail("Should not be able to accept runnables if not opened.");
         } catch (RejectedExecutionException expected) {
         }
 
-        Assert.assertFalse(testRunnableFuture.isDone());
+        Assertions.assertFalse(testRunnableFuture.isDone());
 
         mailboxProcessor.close();
-        Assert.assertTrue(testRunnableFuture.isCancelled());
+        Assertions.assertTrue(testRunnableFuture.isCancelled());
     }
 
     @Test
@@ -133,7 +136,7 @@ public class TaskMailboxProcessorTest {
 
         start(mailboxThread);
         mailboxThread.join();
-        Assert.assertEquals(expectedInvocations, counter.get());
+        Assertions.assertEquals(expectedInvocations, counter.get());
     }
 
     @Test
@@ -161,12 +164,12 @@ public class TaskMailboxProcessorTest {
 
         MailboxProcessor mailboxProcessor = start(mailboxThread);
         actionSuspendedLatch.await();
-        Assert.assertEquals(blockAfterInvocations, counter.get());
+        Assertions.assertEquals(blockAfterInvocations, counter.get());
 
         MailboxDefaultAction.Suspension suspension = suspendedActionRef.get();
         mailboxProcessor.getMailboxExecutor(DEFAULT_PRIORITY).execute(suspension::resume, "resume");
         mailboxThread.join();
-        Assert.assertEquals(totalInvocations, counter.get());
+        Assertions.assertEquals(totalInvocations, counter.get());
     }
 
     @Test
@@ -183,7 +186,7 @@ public class TaskMailboxProcessorTest {
 
                         // If this is violated, it means that the default action was invoked while
                         // we assumed suspension
-                        Assert.assertTrue(
+                        Assertions.assertTrue(
                                 suspendedActionRef.compareAndSet(
                                         null, controller.suspendDefaultAction()));
 
@@ -292,8 +295,8 @@ public class TaskMailboxProcessorTest {
         mailboxThread.signalStart();
         mailboxThread.join();
 
-        Assert.assertEquals(expectedInvocations, counter.get());
-        Assert.assertEquals(expectedInvocations, index.get());
+        Assertions.assertEquals(expectedInvocations, counter.get());
+        Assertions.assertEquals(expectedInvocations, index.get());
     }
 
     static class MailboxThread extends Thread implements MailboxDefaultAction {

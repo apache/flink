@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.utils.{StreamTestData, StreamingWithStateT
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._

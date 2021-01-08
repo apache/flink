@@ -28,7 +28,7 @@ import org.apache.flink.runtime.operators.sort.{NormalizedKeySorter, QuickSort}
 import java.util
 import java.util.Random
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 

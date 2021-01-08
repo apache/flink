@@ -23,9 +23,13 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 
@@ -61,13 +65,13 @@ public class AsyncSnapshotCallableTest {
         testAsyncSnapshotCallable =
                 new TestAsyncSnapshotCallable(testProvidedResource, testBlocker);
         task = testAsyncSnapshotCallable.toAsyncSnapshotFutureTask(ownerRegistry);
-        Assert.assertEquals(1, ownerRegistry.getNumberOfRegisteredCloseables());
+        Assertions.assertEquals(1, ownerRegistry.getNumberOfRegisteredCloseables());
     }
 
     @After
     public void finalChecks() {
-        Assert.assertTrue(testProvidedResource.isClosed());
-        Assert.assertEquals(0, ownerRegistry.getNumberOfRegisteredCloseables());
+        Assertions.assertTrue(testProvidedResource.isClosed());
+        Assertions.assertEquals(0, ownerRegistry.getNumberOfRegisteredCloseables());
     }
 
     @Test
@@ -83,12 +87,12 @@ public class AsyncSnapshotCallableTest {
 
         runner.join();
 
-        Assert.assertEquals(SUCCESS, task.get());
-        Assert.assertEquals(
+        Assertions.assertEquals(SUCCESS, task.get());
+        Assertions.assertEquals(
                 Arrays.asList(METHOD_CALL, METHOD_LOG, METHOD_CLEANUP),
                 testAsyncSnapshotCallable.getInvocationOrder());
 
-        Assert.assertTrue(testBlocker.isClosed());
+        Assertions.assertTrue(testBlocker.isClosed());
     }
 
     @Test
@@ -104,18 +108,18 @@ public class AsyncSnapshotCallableTest {
         testBlocker.unblockSuccessfully();
         try {
             task.get();
-            Assert.fail();
+            Assertions.fail();
         } catch (ExecutionException ee) {
-            Assert.assertEquals(IOException.class, ee.getCause().getClass());
+            Assertions.assertEquals(IOException.class, ee.getCause().getClass());
         }
 
         runner.join();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(METHOD_CALL, METHOD_CLEANUP),
                 testAsyncSnapshotCallable.getInvocationOrder());
 
-        Assert.assertTrue(testBlocker.isClosed());
+        Assertions.assertTrue(testBlocker.isClosed());
     }
 
     @Test
@@ -132,17 +136,17 @@ public class AsyncSnapshotCallableTest {
 
         try {
             task.get();
-            Assert.fail();
+            Assertions.fail();
         } catch (CancellationException ignored) {
         }
 
         runner.join();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP),
                 testAsyncSnapshotCallable.getInvocationOrder());
-        Assert.assertTrue(testProvidedResource.isClosed());
-        Assert.assertTrue(testBlocker.isClosed());
+        Assertions.assertTrue(testProvidedResource.isClosed());
+        Assertions.assertTrue(testBlocker.isClosed());
     }
 
     @Test
@@ -158,16 +162,16 @@ public class AsyncSnapshotCallableTest {
 
         try {
             task.get();
-            Assert.fail();
+            Assertions.fail();
         } catch (CancellationException ignored) {
         }
 
         runner.join();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(METHOD_CALL, METHOD_CANCEL, METHOD_CLEANUP),
                 testAsyncSnapshotCallable.getInvocationOrder());
-        Assert.assertTrue(testBlocker.isClosed());
+        Assertions.assertTrue(testBlocker.isClosed());
     }
 
     @Test
@@ -179,17 +183,17 @@ public class AsyncSnapshotCallableTest {
 
         try {
             task.get();
-            Assert.fail();
+            Assertions.fail();
         } catch (CancellationException ignored) {
         }
 
         runner.join();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(METHOD_CANCEL, METHOD_CLEANUP),
                 testAsyncSnapshotCallable.getInvocationOrder());
 
-        Assert.assertTrue(testProvidedResource.isClosed());
+        Assertions.assertTrue(testProvidedResource.isClosed());
     }
 
     private Thread startTask(Runnable task) {

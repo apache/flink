@@ -18,40 +18,31 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.client.cli.CliArgsException;
-import org.apache.flink.client.cli.CliFrontend;
-import org.apache.flink.client.cli.CliFrontendParser;
-import org.apache.flink.client.cli.CustomCommandLine;
-import org.apache.flink.client.cli.GenericCLI;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.Options;
+import org.apache.flink.client.cli.*;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -61,10 +52,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link FlinkYarnSessionCli}. */
 public class FlinkYarnSessionCliTest extends TestLogger {
@@ -253,16 +241,18 @@ public class FlinkYarnSessionCliTest extends TestLogger {
      */
     @Test
     public void testInvalidYarnPropertiesFile() throws Exception {
-        Assertions.assertThrows(FlinkException.class, () -> {
+        assertThrows(
+                FlinkException.class,
+                () -> {
+                    File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
 
-        File directoryPath = writeYarnPropertiesFile(invalidPropertiesFile);
+                    final Configuration configuration = new Configuration();
+                    configuration.setString(
+                            YarnConfigOptions.PROPERTIES_FILE_LOCATION,
+                            directoryPath.getAbsolutePath());
 
-        final Configuration configuration = new Configuration();
-        configuration.setString(
-                YarnConfigOptions.PROPERTIES_FILE_LOCATION, directoryPath.getAbsolutePath());
-
-        createFlinkYarnSessionCli(configuration);
-        });
+                    createFlinkYarnSessionCli(configuration);
+                });
     }
 
     @Test

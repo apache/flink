@@ -24,8 +24,8 @@ import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializ
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 
 import org.junit.jupiter.api.Test
-import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 
 /**
   * Test suite for the [[EitherSerializer]]

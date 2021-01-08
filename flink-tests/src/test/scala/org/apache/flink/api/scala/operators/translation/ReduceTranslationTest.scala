@@ -23,7 +23,7 @@ import org.apache.flink.api.java.operators.translation.{KeyExtractingMapper,
 PlanUnwrappingReduceOperator}
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.apache.flink.api.common.operators.base.MapOperatorBase
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase
 import org.junit.jupiter.api.Test

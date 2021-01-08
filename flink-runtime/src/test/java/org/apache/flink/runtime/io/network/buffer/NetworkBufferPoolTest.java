@@ -25,6 +25,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 
@@ -51,13 +56,13 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsNull.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link NetworkBufferPool}. */
 public class NetworkBufferPoolTest extends TestLogger {
@@ -293,13 +298,15 @@ public class NetworkBufferPoolTest extends TestLogger {
      */
     @Test
     public void testRequestMemorySegmentsWithInvalidArgument() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     NetworkBufferPool globalPool = new NetworkBufferPool(10, 128);
-        // the number of requested buffers should be larger than zero
-        globalPool.requestMemorySegments(0);
-        globalPool.destroy();
-        fail("Should throw an IllegalArgumentException");
-        });
+                    // the number of requested buffers should be larger than zero
+                    globalPool.requestMemorySegments(0);
+                    globalPool.destroy();
+                    fail("Should throw an IllegalArgumentException");
+                });
     }
 
     /**

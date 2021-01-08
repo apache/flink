@@ -19,8 +19,12 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.util.IOUtils;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,9 +37,7 @@ import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests that validate the {@link ClassLoaderUtil}. */
 public class ClassLoaderUtilsTest {
@@ -74,7 +76,7 @@ public class ClassLoaderUtilsTest {
 
             // non existing file
             File nonExisting = File.createTempFile("flink-url-test", ".tmp");
-            assertTrue("Cannot create and delete temp file", nonExisting.delete());
+            assertTrue(nonExisting.delete(), "Cannot create and delete temp file");
 
             // create a URL classloader with
             // - a HTTP URL

@@ -35,32 +35,23 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.operators.over.frame.InsensitiveOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.OverWindowFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RangeSlidingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RangeUnboundedFollowingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RangeUnboundedPrecedingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RowSlidingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RowUnboundedFollowingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.RowUnboundedPrecedingOverFrame;
-import org.apache.flink.table.runtime.operators.over.frame.UnboundedOverWindowFrame;
+import org.apache.flink.table.runtime.operators.over.frame.*;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.comparator;
-import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.function;
-import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputSer;
-import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.inputType;
+import static org.apache.flink.table.runtime.operators.over.NonBufferOverWindowOperatorTest.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -263,7 +254,7 @@ public class BufferDataOverWindowOperatorTest {
         addRow(2, 6L, 2L); /* 9 **/
         operator.endInput();
         GenericRowData[] outputs = this.collect.toArray(new GenericRowData[0]);
-        Assert.assertArrayEquals(expect, outputs);
+        Assertions.assertArrayEquals(expect, outputs);
         operator.close();
     }
 

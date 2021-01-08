@@ -18,8 +18,12 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -35,7 +39,7 @@ public class IOUtilsTest extends TestLogger {
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals("test".getBytes(), Arrays.copyOfRange(out, 0, read));
+        Assertions.assertArrayEquals("test".getBytes(), Arrays.copyOfRange(out, 0, read));
     }
 
     @Test
@@ -45,6 +49,6 @@ public class IOUtilsTest extends TestLogger {
         byte[] out = new byte[4];
         int read = IOUtils.tryReadFully(inputStream, out);
 
-        Assert.assertArrayEquals("t".getBytes(), Arrays.copyOfRange(out, 0, read));
+        Assertions.assertArrayEquals("t".getBytes(), Arrays.copyOfRange(out, 0, read));
     }
 }

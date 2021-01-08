@@ -40,6 +40,11 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -130,7 +135,7 @@ abstract class TopNFunctionTestBase {
     /** RankEnd column must be long, int or short type, but could not be string type yet. */
     @Test
     public void testInvalidVariableRankRangeWithIntType() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     AbstractTopNFunction func =
                 createFunction(RankType.ROW_NUMBER, new VariableRankRange(0), true, false);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness = createTestHarness(func);
@@ -140,21 +145,21 @@ abstract class TopNFunctionTestBase {
 
     @Test
     public void testNotSupportRank() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     createFunction(RankType.RANK, new ConstantRankRange(1, 10), true, true);
         });
     }
 
     @Test
     public void testNotSupportDenseRank() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     createFunction(RankType.DENSE_RANK, new ConstantRankRange(1, 10), true, true);
         });
     }
 
     @Test
     public void testNotSupportWithoutRankEnd() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     createFunction(RankType.ROW_NUMBER, new ConstantRankRangeWithoutEnd(1), true, true);
         });
     }

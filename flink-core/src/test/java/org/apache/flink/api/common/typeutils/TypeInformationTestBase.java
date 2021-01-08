@@ -23,14 +23,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Abstract test base for type information. */
 public abstract class TypeInformationTestBase<T extends TypeInformation<?>> extends TestLogger {
@@ -61,23 +62,24 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
                 // test equality
                 if (typeInfo == otherTypeInfo) {
                     assertTrue(
-                            "hashCode() returns inconsistent results.",
-                            typeInfo.hashCode() == otherTypeInfo.hashCode());
-                    assertEquals("equals() is false for same object.", typeInfo, otherTypeInfo);
+                            typeInfo.hashCode() == otherTypeInfo.hashCode(),
+                            "hashCode() returns inconsistent results.");
+                    Assertions.assertEquals(
+                            typeInfo, otherTypeInfo, "equals() is false for same object.");
                 }
                 // test inequality
                 else {
                     assertNotEquals(
-                            "equals() returned true for different objects.",
                             typeInfo,
-                            otherTypeInfo);
+                            otherTypeInfo,
+                            "equals() returned true for different objects.");
                 }
             }
 
             // compare with unrelated type
             assertFalse(
-                    "Type information allows to compare with unrelated type.",
-                    typeInfo.canEqual(unrelatedTypeInfo));
+                    typeInfo.canEqual(unrelatedTypeInfo),
+                    "Type information allows to compare with unrelated type.");
             assertNotEquals(typeInfo, unrelatedTypeInfo);
         }
     }
@@ -112,7 +114,7 @@ public abstract class TypeInformationTestBase<T extends TypeInformation<?>> exte
     public void testGetTotalFields() {
         final T[] testData = getTestData();
         for (T typeInfo : testData) {
-            assertTrue("Number of total fields must be at least 1", typeInfo.getTotalFields() > 0);
+            assertTrue(typeInfo.getTotalFields() > 0, "Number of total fields must be at least 1");
         }
     }
 

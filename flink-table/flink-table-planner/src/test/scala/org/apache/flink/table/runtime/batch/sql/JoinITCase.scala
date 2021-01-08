@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.utils.TableProgramsTestBase.TableConfigMod
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -294,7 +294,7 @@ class JoinITCase(
 
     val sqlQuery1 = "SELECT * FROM A CROSS JOIN (SELECT count(*) FROM A HAVING count(*) < 0)"
     val result = tEnv.sqlQuery(sqlQuery1).count()
-    Assert.assertEquals(0, result)
+    Assertions.assertEquals(0, result)
   }
 
   @Test

@@ -23,9 +23,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rest.handler.router.Router;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.LoggerFactory;
 
@@ -59,36 +62,36 @@ public class HistoryServerStaticFileServerHandlerTest {
             // verify that 404 message is returned when requesting a non-existent file
             Tuple2<Integer, String> notFound404 =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/hello");
-            Assert.assertThat(notFound404.f0, is(404));
-            Assert.assertThat(notFound404.f1, containsString("not found"));
+            MatcherAssert.assertThat(notFound404.f0, is(404));
+            MatcherAssert.assertThat(notFound404.f1, containsString("not found"));
 
             // verify that a) a file can be loaded using the ClassLoader and b) that the
             // HistoryServer
             // index_hs.html is injected
             Tuple2<Integer, String> index =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/index.html");
-            Assert.assertThat(index.f0, is(200));
-            Assert.assertThat(index.f1, containsString("Apache Flink Web Dashboard"));
+            MatcherAssert.assertThat(index.f0, is(200));
+            MatcherAssert.assertThat(index.f1, containsString("Apache Flink Web Dashboard"));
 
             // verify that index.html is appended if the request path ends on '/'
             Tuple2<Integer, String> index2 =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/");
-            Assert.assertEquals(index, index2);
+            Assertions.assertEquals(index, index2);
 
             // verify that a 405 message is returned when requesting a directory
             File dir = new File(webDir, "dir.json");
             dir.mkdirs();
             Tuple2<Integer, String> dirNotFound =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/dir");
-            Assert.assertThat(dirNotFound.f0, is(405));
-            Assert.assertThat(dirNotFound.f1, containsString("not found"));
+            MatcherAssert.assertThat(dirNotFound.f0, is(405));
+            MatcherAssert.assertThat(dirNotFound.f1, containsString("not found"));
 
             // verify that a 403 message is returned when requesting a file outside the webDir
             tmp.newFile("secret");
             Tuple2<Integer, String> dirOutsideDirectory =
                     HistoryServerTest.getFromHTTP("http://localhost:" + port + "/../secret");
-            Assert.assertThat(dirOutsideDirectory.f0, is(403));
-            Assert.assertThat(dirOutsideDirectory.f1, containsString("Forbidden"));
+            MatcherAssert.assertThat(dirOutsideDirectory.f0, is(403));
+            MatcherAssert.assertThat(dirOutsideDirectory.f1, containsString("Forbidden"));
         } finally {
             webUI.shutdown();
         }

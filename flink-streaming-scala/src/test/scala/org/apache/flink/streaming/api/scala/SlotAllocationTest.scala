@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.api.common.functions.FilterFunction
 import org.apache.flink.runtime.jobgraph.JobGraph
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 

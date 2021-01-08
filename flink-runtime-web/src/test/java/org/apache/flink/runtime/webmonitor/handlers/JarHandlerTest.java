@@ -22,10 +22,13 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -64,7 +67,7 @@ public class JarHandlerTest extends TestLogger {
 
         try {
             JarHandlers.showPlan(handlers.planHandler, storedJarName, restfulGateway);
-            Assert.fail("Should have failed with an exception.");
+            Assertions.fail("Should have failed with an exception.");
         } catch (Exception e) {
             Optional<ProgramInvocationException> expected =
                     ExceptionUtils.findThrowable(e, ProgramInvocationException.class);

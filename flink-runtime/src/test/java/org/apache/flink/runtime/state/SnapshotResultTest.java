@@ -20,8 +20,12 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -44,7 +48,7 @@ public class SnapshotResultTest extends TestLogger {
         SnapshotResult<StateObject> result =
                 SnapshotResult.withLocalState(
                         new DummyStateObject(size), new DummyStateObject(size));
-        Assert.assertEquals(size, result.getStateSize());
+        Assertions.assertEquals(size, result.getStateSize());
     }
 
     static class DummyStateObject implements StateObject {

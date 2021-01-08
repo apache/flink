@@ -21,15 +21,15 @@ package org.apache.flink.table.data.binary;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test for {@link BinarySegmentUtils}, most is covered by {@link
@@ -45,7 +45,7 @@ public class BinarySegmentUtilsTest {
         segments[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15});
 
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, 4, 2);
-        Assert.assertArrayEquals(new byte[] {12, 15}, bytes);
+        Assertions.assertArrayEquals(new byte[] {12, 15}, bytes);
     }
 
     @Test

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.calcite.rex.RexProgram
 
-import org.junit.Assert.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._

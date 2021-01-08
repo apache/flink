@@ -18,23 +18,22 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.formats.avro.generated.Colors;
-import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
-import org.apache.flink.formats.avro.generated.User;
-
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.flink.formats.avro.generated.*;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +47,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -227,18 +226,18 @@ public class AvroSplittableInputFormatTest {
             format.open(splits[i]);
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
+                Assertions.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
                 elementsPerSplit[i]++;
             }
             format.close();
         }
 
-        Assert.assertEquals(1604, elementsPerSplit[0]);
-        Assert.assertEquals(1203, elementsPerSplit[1]);
-        Assert.assertEquals(1203, elementsPerSplit[2]);
-        Assert.assertEquals(990, elementsPerSplit[3]);
-        Assert.assertEquals(NUM_RECORDS, elements);
+        Assertions.assertEquals(1604, elementsPerSplit[0]);
+        Assertions.assertEquals(1203, elementsPerSplit[1]);
+        Assertions.assertEquals(1203, elementsPerSplit[2]);
+        Assertions.assertEquals(990, elementsPerSplit[3]);
+        Assertions.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 
@@ -261,7 +260,7 @@ public class AvroSplittableInputFormatTest {
             format.reopen(splits[i], format.getCurrentState());
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
+                Assertions.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
 
                 if (format.getRecordsReadFromBlock() == recordsUntilCheckpoint) {
@@ -283,11 +282,11 @@ public class AvroSplittableInputFormatTest {
             format.close();
         }
 
-        Assert.assertEquals(1604, elementsPerSplit[0]);
-        Assert.assertEquals(1203, elementsPerSplit[1]);
-        Assert.assertEquals(1203, elementsPerSplit[2]);
-        Assert.assertEquals(990, elementsPerSplit[3]);
-        Assert.assertEquals(NUM_RECORDS, elements);
+        Assertions.assertEquals(1604, elementsPerSplit[0]);
+        Assertions.assertEquals(1203, elementsPerSplit[1]);
+        Assertions.assertEquals(1203, elementsPerSplit[2]);
+        Assertions.assertEquals(990, elementsPerSplit[3]);
+        Assertions.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 
@@ -310,7 +309,7 @@ public class AvroSplittableInputFormatTest {
             format.open(splits[i]);
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
+                Assertions.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
 
                 if (format.getRecordsReadFromBlock() == recordsUntilCheckpoint) {
@@ -332,11 +331,11 @@ public class AvroSplittableInputFormatTest {
             format.close();
         }
 
-        Assert.assertEquals(1604, elementsPerSplit[0]);
-        Assert.assertEquals(1203, elementsPerSplit[1]);
-        Assert.assertEquals(1203, elementsPerSplit[2]);
-        Assert.assertEquals(990, elementsPerSplit[3]);
-        Assert.assertEquals(NUM_RECORDS, elements);
+        Assertions.assertEquals(1604, elementsPerSplit[0]);
+        Assertions.assertEquals(1203, elementsPerSplit[1]);
+        Assertions.assertEquals(1203, elementsPerSplit[2]);
+        Assertions.assertEquals(990, elementsPerSplit[3]);
+        Assertions.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 

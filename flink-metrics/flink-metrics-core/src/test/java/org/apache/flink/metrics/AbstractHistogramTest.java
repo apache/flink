@@ -20,7 +20,7 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.util.TestLogger;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Abstract base class for testing {@link Histogram} and {@link HistogramStatistics}

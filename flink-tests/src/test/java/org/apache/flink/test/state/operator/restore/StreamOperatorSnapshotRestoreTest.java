@@ -36,36 +36,23 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
-import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
-import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
-import org.apache.flink.runtime.state.LocalRecoveryConfig;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProvider;
-import org.apache.flink.runtime.state.LocalRecoveryDirectoryProviderImpl;
-import org.apache.flink.runtime.state.OperatorStateCheckpointOutputStream;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.runtime.state.StatePartitionStreamProvider;
-import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.runtime.state.TestTaskStateManager;
+import org.apache.flink.runtime.state.*;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
-import org.apache.flink.streaming.api.operators.KeyContext;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -248,7 +235,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         OperatorSubtaskState taskLocalState = snapshotWithLocalState.getTaskLocalState();
 
         // We check if local state was created when we enabled local recovery
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 mode > ONLY_JM_RECOVERY == (taskLocalState != null && taskLocalState.hasState()));
 
         if (mode == TM_REMOVE_JM_RECOVERY) {
@@ -292,7 +279,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 // check restored managed keyed state
                 long exp = element.getValue() + 1;
                 long act = keyedState.value();
-                Assert.assertEquals(exp, act);
+                Assertions.assertEquals(exp, act);
             } else {
                 // write managed keyed state that goes into snapshot
                 keyedState.update(element.getValue() + 1);
@@ -318,7 +305,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                 ++count;
             }
 
-            Assert.assertEquals(MAX_PARALLELISM, count);
+            Assertions.assertEquals(MAX_PARALLELISM, count);
 
             // write raw operator state that goes into snapshot
             OperatorStateCheckpointOutputStream outOp = context.getRawOperatorStateOutput();
@@ -332,7 +319,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         @Override
         public void initializeState(StateInitializationContext context) throws Exception {
 
-            Assert.assertEquals(verifyRestore, context.isRestored());
+            Assertions.assertEquals(verifyRestore, context.isRestored());
 
             keyedState =
                     context.getKeyedStateStore()
@@ -352,11 +339,11 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         context.getRawKeyedStateInputs()) {
                     try (InputStream in = streamProvider.getStream()) {
                         DataInputView div = new DataInputViewStreamWrapper(in);
-                        Assert.assertEquals(streamProvider.getKeyGroupId() + 2, div.readInt());
+                        Assertions.assertEquals(streamProvider.getKeyGroupId() + 2, div.readInt());
                         ++count;
                     }
                 }
-                Assert.assertEquals(MAX_PARALLELISM, count);
+                Assertions.assertEquals(MAX_PARALLELISM, count);
 
                 // check restored managed operator state
                 BitSet check = new BitSet(10);
@@ -364,7 +351,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                     check.set(v);
                 }
 
-                Assert.assertEquals(10, check.cardinality());
+                Assertions.assertEquals(10, check.cardinality());
 
                 // check restored raw operator state
                 check = new BitSet(13);
@@ -375,7 +362,7 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
                         check.set(div.readInt() - 42);
                     }
                 }
-                Assert.assertEquals(13, check.cardinality());
+                Assertions.assertEquals(13, check.cardinality());
             }
         }
     }

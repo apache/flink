@@ -17,6 +17,11 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import com.google.cloud.pubsub.v1.Publisher;
+import com.google.protobuf.ByteString;
+import com.google.pubsub.v1.PubsubMessage;
+import com.google.pubsub.v1.ReceivedMessage;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
@@ -25,15 +30,14 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredent
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubSubSubscriberFactoryForEmulator;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.PubsubHelper;
-
-import com.google.cloud.pubsub.v1.Publisher;
-import com.google.protobuf.ByteString;
-import com.google.pubsub.v1.PubsubMessage;
-import com.google.pubsub.v1.ReceivedMessage;
-import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +48,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.gcp.pubsub.SimpleStringSchemaWithStopMarkerDetection.STOP_MARKER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * This is a test using the emulator for a full topology that uses PubSub as both input and output.
@@ -68,7 +69,7 @@ public class EmulatedFullTopologyTest extends GCloudUnitTestBase {
     @BeforeClass
     public static void setUp() throws Exception {
         pubsubHelper = getPubsubHelper();
-        assertNotNull("Missing pubsubHelper.", pubsubHelper);
+        assertNotNull(pubsubHelper, "Missing pubsubHelper.");
         pubsubHelper.createTopic(PROJECT_NAME, INPUT_TOPIC_NAME);
         pubsubHelper.createSubscription(
                 PROJECT_NAME, INPUT_SUBSCRIPTION_NAME, PROJECT_NAME, INPUT_TOPIC_NAME);
@@ -79,7 +80,7 @@ public class EmulatedFullTopologyTest extends GCloudUnitTestBase {
 
     @AfterClass
     public static void tearDown() throws Exception {
-        assertNotNull("Missing pubsubHelper.", pubsubHelper);
+        assertNotNull(pubsubHelper, "Missing pubsubHelper.");
         pubsubHelper.deleteSubscription(PROJECT_NAME, INPUT_SUBSCRIPTION_NAME);
         pubsubHelper.deleteTopic(PROJECT_NAME, INPUT_TOPIC_NAME);
         pubsubHelper.deleteSubscription(PROJECT_NAME, OUTPUT_SUBSCRIPTION_NAME);

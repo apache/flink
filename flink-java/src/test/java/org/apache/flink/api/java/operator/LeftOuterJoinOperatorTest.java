@@ -30,6 +30,11 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -129,7 +134,7 @@ public class LeftOuterJoinOperatorTest {
 
     @Test
     public void testLeftOuter7() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(IndexOutOfBoundsException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -143,7 +148,7 @@ public class LeftOuterJoinOperatorTest {
 
     @Test
     public void testLeftOuter8() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -157,7 +162,7 @@ public class LeftOuterJoinOperatorTest {
 
     @Test
     public void testLeftOuter9() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -171,7 +176,7 @@ public class LeftOuterJoinOperatorTest {
 
     @Test
     public void testLeftOuter10() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
@@ -213,7 +218,7 @@ public class LeftOuterJoinOperatorTest {
 
     @Test
     public void testLeftOuterStrategy6() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     this.testLeftOuterStrategies(JoinHint.BROADCAST_HASH_FIRST);
         });
     }

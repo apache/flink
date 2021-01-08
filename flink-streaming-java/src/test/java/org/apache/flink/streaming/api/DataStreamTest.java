@@ -84,9 +84,13 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.core.StringStartsWith;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
@@ -96,12 +100,12 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link DataStream}. */
 @SuppressWarnings("serial")
@@ -1428,7 +1432,7 @@ public class DataStreamTest extends TestLogger {
         DataStream<Tuple2<Integer[], String>> input =
                 env.fromElements(new Tuple2<>(new Integer[] {1, 2}, "barfoo"));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expectedKeyType, TypeExtractor.getKeySelectorTypes(keySelector, input.getType()));
 
         // adjust the rule
@@ -1496,7 +1500,7 @@ public class DataStreamTest extends TestLogger {
                         new SinkFunction<POJOWithHashCode>() {
                             @Override
                             public void invoke(POJOWithHashCode value) throws Exception {
-                                Assert.assertEquals(value.getId(), new int[] {1, 2});
+                                Assertions.assertEquals(value.getId(), new int[] {1, 2});
                             }
                         });
     }
@@ -1572,7 +1576,7 @@ public class DataStreamTest extends TestLogger {
                 new SinkFunction<Integer>() {
                     @Override
                     public void invoke(Integer value) throws Exception {
-                        Assert.assertEquals(10000L, (long) value);
+                        Assertions.assertEquals(10000L, (long) value);
                     }
                 });
     }

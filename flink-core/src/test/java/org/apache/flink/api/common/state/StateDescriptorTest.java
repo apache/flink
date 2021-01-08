@@ -34,13 +34,13 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the common/shared functionality of {@link StateDescriptor}. */
 public class StateDescriptorTest {
@@ -125,12 +125,12 @@ public class StateDescriptorTest {
     public void testInitializeSerializerAfterSerializationWithCustomConfig() throws Exception {
         // guard our test assumptions.
         assertEquals(
-                "broken test assumption",
                 -1,
                 new KryoSerializer<>(String.class, new ExecutionConfig())
                         .getKryo()
                         .getRegistration(File.class)
-                        .getId());
+                        .getId(),
+                "broken test assumption");
 
         final ExecutionConfig config = new ExecutionConfig();
         config.registerKryoType(File.class);
@@ -245,9 +245,9 @@ public class StateDescriptorTest {
             t.sync();
         }
         assertEquals(
-                "Should use only one serializer but actually: " + serializers,
                 1,
-                serializers.size());
+                serializers.size(),
+                "Should use only one serializer but actually: " + serializers);
         threads.clear();
     }
 

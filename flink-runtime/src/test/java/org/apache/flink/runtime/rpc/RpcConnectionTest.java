@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc;
 
+import akka.actor.ActorSystem;
+import akka.actor.Terminated;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -27,10 +29,14 @@ import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.TestLogger;
-
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import scala.Option;
+import scala.Tuple2;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -38,10 +44,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import scala.Option;
-import scala.Tuple2;
-
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test validates that the RPC service gives a good message when it cannot connect to an

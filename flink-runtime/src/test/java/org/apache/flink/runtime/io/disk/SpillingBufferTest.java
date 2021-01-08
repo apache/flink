@@ -32,11 +32,14 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.EOFException;
 import java.util.ArrayList;
@@ -76,7 +79,7 @@ public class SpillingBufferTest {
         ioManager.close();
 
         if (memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory leak: not all segments have been returned to the memory manager.",
                     memoryManager.verifyEmpty());
             memoryManager.shutdown();
@@ -126,7 +129,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -146,7 +149,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -196,11 +199,11 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "The re-generated and the notifyNonEmpty record do not match.",
                         k1 == k2 && v1.equals(v2));
             }
-            Assert.fail("Read too much, expected EOFException.");
+            Assertions.fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
             // expected
         }
@@ -220,7 +223,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -271,7 +274,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -291,7 +294,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -341,11 +344,11 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "The re-generated and the notifyNonEmpty record do not match.",
                         k1 == k2 && v1.equals(v2));
             }
-            Assert.fail("Read too much, expected EOFException.");
+            Assertions.fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
             // expected
         }
@@ -365,7 +368,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the notifyNonEmpty record do not match.",
                     k1 == k2 && v1.equals(v2));
         }

@@ -39,12 +39,7 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.runtime.operators.testutils.CollectionIterator;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.operators.testutils.Match;
-import org.apache.flink.runtime.operators.testutils.MatchRemovingJoiner;
-import org.apache.flink.runtime.operators.testutils.SimpleTupleJoinFunction;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleConstantValueIterator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -54,18 +49,10 @@ import org.apache.flink.runtime.util.ResettableMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogger {
@@ -118,7 +105,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory Leak: Not all memory has been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -153,7 +140,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        Assertions.assertEquals(expected, actual);
     }
 
     @SuppressWarnings("unchecked")
@@ -181,7 +168,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        Assertions.assertEquals(expected, actual);
     }
 
     @SuppressWarnings("unchecked")
@@ -209,7 +196,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 150),
                         new Tuple4<String, String, String, Object>("Zed", "HR", "Zed", 250));
 
-        Assert.assertEquals(expected, actual);
+        Assertions.assertEquals(expected, actual);
     }
 
     @SuppressWarnings("unchecked")
@@ -235,9 +222,9 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>("Tim", "Sales", null, null),
                         new Tuple4<String, String, String, Object>("Zed", "HR", null, null));
 
-        Assert.assertEquals(expected, actualLeft);
-        Assert.assertEquals(expected, actualFull);
-        Assert.assertEquals(
+        Assertions.assertEquals(expected, actualLeft);
+        Assertions.assertEquals(expected, actualFull);
+        Assertions.assertEquals(
                 Collections.<Tuple4<String, String, String, Object>>emptyList(), actualRight);
     }
 
@@ -265,10 +252,10 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
                         new Tuple4<String, String, String, Object>(null, null, "Zed", 150),
                         new Tuple4<String, String, String, Object>(null, null, "Zed", 250));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Collections.<Tuple4<String, String, String, Object>>emptyList(), actualLeft);
-        Assert.assertEquals(expected, actualRight);
-        Assert.assertEquals(expected, actualFull);
+        Assertions.assertEquals(expected, actualRight);
+        Assertions.assertEquals(expected, actualFull);
     }
 
     @SuppressWarnings("unchecked, rawtypes")
@@ -297,7 +284,8 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
         List<Tuple4<String, String, String, Object>> actual = new ArrayList<>();
         ListCollector<Tuple4<String, String, String, Object>> collector =
                 new ListCollector<>(actual);
-        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector)) ;
+        while (iterator.callWithNextKey(new SimpleTupleJoinFunction(), collector))
+            ;
         iterator.close();
 
         return actual;
@@ -444,19 +432,20 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    Assertions.fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

@@ -27,7 +27,7 @@ import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.api.scala.runtime.TupleSerializerCompatibilityTestGenerator._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.core.memory.DataInputViewStreamWrapper
-import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertTrue}
 import org.junit.jupiter.api.Test
 
 /**

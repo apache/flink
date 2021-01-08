@@ -34,7 +34,7 @@ import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 import scala.collection.Seq

@@ -69,8 +69,12 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 
@@ -89,18 +93,18 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -193,7 +197,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         // ensure that the list was cleared and refilled. while this is an implementation detail, we
         // use it here
         // to figure out that snapshotState() actually did something.
-        Assert.assertTrue(restoredListState.isClearCalled());
+        Assertions.assertTrue(restoredListState.isClearCalled());
 
         Set<Serializable> expected = new HashSet<>();
 
@@ -739,7 +743,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         Tuple2<KafkaTopicPartition, Long> actualTuple =
                 InstantiationUtil.deserializeFromByteArray(kafkaConsumerSerializer, bytes);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.",
                 tuple,
                 actualTuple);

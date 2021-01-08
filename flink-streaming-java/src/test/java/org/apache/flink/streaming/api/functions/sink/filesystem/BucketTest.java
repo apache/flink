@@ -34,9 +34,12 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.utils.NoOpRecove
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -47,8 +50,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@code Bucket}. */
 public class BucketTest {
@@ -125,8 +128,8 @@ public class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(nonResumableWriter);
 
-        Assert.assertThat(nonResumableWriter, hasMethodCallCountersEqualTo(1, 0, 1));
-        Assert.assertThat(bucket, hasNullInProgressFile(true));
+        MatcherAssert.assertThat(nonResumableWriter, hasMethodCallCountersEqualTo(1, 0, 1));
+        MatcherAssert.assertThat(bucket, hasNullInProgressFile(true));
     }
 
     @Test
@@ -135,8 +138,8 @@ public class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(resumableWriter);
 
-        Assert.assertThat(resumableWriter, hasMethodCallCountersEqualTo(1, 1, 0));
-        Assert.assertThat(bucket, hasNullInProgressFile(false));
+        MatcherAssert.assertThat(resumableWriter, hasMethodCallCountersEqualTo(1, 1, 0));
+        MatcherAssert.assertThat(bucket, hasNullInProgressFile(false));
     }
 
     @Test
@@ -147,9 +150,9 @@ public class BucketTest {
         final Bucket<String, String> bucket =
                 getRestoredBucketWithOnlyPendingParts(writer, expectedRecoverForCommitCounter);
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 writer, hasMethodCallCountersEqualTo(0, 0, expectedRecoverForCommitCounter));
-        Assert.assertThat(bucket, hasNullInProgressFile(true));
+        MatcherAssert.assertThat(bucket, hasNullInProgressFile(true));
     }
 
     // ------------------------------- Matchers --------------------------------

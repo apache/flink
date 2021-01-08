@@ -22,9 +22,14 @@ import org.apache.flink.util.JavaGcCleanerWrapper;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test suite for {@link UnsafeMemoryBudget}. */
 public class UnsafeMemoryBudgetTest extends TestLogger {
@@ -58,10 +63,12 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
 
     @Test
     public void testReserveMemoryOverLimitFails() throws MemoryReservationException {
-        Assertions.assertThrows(MemoryReservationException.class, () -> {
+        assertThrows(
+                MemoryReservationException.class,
+                () -> {
                     UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
-        budget.reserveMemory(120L);
-        });
+                    budget.reserveMemory(120L);
+                });
     }
 
     @Test
@@ -74,24 +81,30 @@ public class UnsafeMemoryBudgetTest extends TestLogger {
 
     @Test
     public void testReleaseMemoryMoreThanReservedFails() throws MemoryReservationException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
-        budget.reserveMemory(50L);
-        budget.releaseMemory(70L);
-        });
+                    budget.reserveMemory(50L);
+                    budget.releaseMemory(70L);
+                });
     }
 
     @Test
     public void testReservationFailsIfOwnerNotGced() throws MemoryReservationException {
-        Assertions.assertThrows(MemoryReservationException.class, () -> {
+        assertThrows(
+                MemoryReservationException.class,
+                () -> {
                     UnsafeMemoryBudget budget = createUnsafeMemoryBudget();
-        Object memoryOwner = new Object();
-        budget.reserveMemory(50L);
-        JavaGcCleanerWrapper.createCleaner(memoryOwner, () -> budget.releaseMemory(50L));
-        budget.reserveMemory(60L);
-        // this should not be reached but keeps the reference to the memoryOwner and prevents its GC
-        log.info(memoryOwner.toString());
-        });
+                    Object memoryOwner = new Object();
+                    budget.reserveMemory(50L);
+                    JavaGcCleanerWrapper.createCleaner(
+                            memoryOwner, () -> budget.releaseMemory(50L));
+                    budget.reserveMemory(60L);
+                    // this should not be reached but keeps the reference to the memoryOwner and
+                    // prevents its GC
+                    log.info(memoryOwner.toString());
+                });
     }
 
     @Test

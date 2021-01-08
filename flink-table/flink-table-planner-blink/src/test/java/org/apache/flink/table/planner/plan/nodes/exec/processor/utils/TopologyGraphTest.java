@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -90,9 +93,9 @@ public class TopologyGraphTest {
         for (int i = 0; i < 8; i++) {
             for (int j = 0; j < 8; j++) {
                 if (canReach[i].charAt(j) == '1') {
-                    Assert.assertTrue(graph.canReach(nodes[i], nodes[j]));
+                    Assertions.assertTrue(graph.canReach(nodes[i], nodes[j]));
                 } else {
-                    Assert.assertFalse(graph.canReach(nodes[i], nodes[j]));
+                    Assertions.assertFalse(graph.canReach(nodes[i], nodes[j]));
                 }
             }
         }
@@ -104,12 +107,12 @@ public class TopologyGraphTest {
         TopologyGraph graph = tuple2.f0;
         TestingBatchExecNode[] nodes = tuple2.f1;
 
-        Assert.assertTrue(graph.link(nodes[2], nodes[4]));
-        Assert.assertTrue(graph.link(nodes[3], nodes[5]));
-        Assert.assertTrue(graph.link(nodes[5], nodes[6]));
-        Assert.assertFalse(graph.link(nodes[7], nodes[2]));
-        Assert.assertFalse(graph.link(nodes[7], nodes[4]));
-        Assert.assertTrue(graph.link(nodes[0], nodes[7]));
+        Assertions.assertTrue(graph.link(nodes[2], nodes[4]));
+        Assertions.assertTrue(graph.link(nodes[3], nodes[5]));
+        Assertions.assertTrue(graph.link(nodes[5], nodes[6]));
+        Assertions.assertFalse(graph.link(nodes[7], nodes[2]));
+        Assertions.assertFalse(graph.link(nodes[7], nodes[4]));
+        Assertions.assertTrue(graph.link(nodes[0], nodes[7]));
     }
 
     @Test
@@ -119,11 +122,11 @@ public class TopologyGraphTest {
         TestingBatchExecNode[] nodes = tuple2.f1;
 
         graph.unlink(nodes[2], nodes[5]);
-        Assert.assertTrue(graph.canReach(nodes[0], nodes[5]));
+        Assertions.assertTrue(graph.canReach(nodes[0], nodes[5]));
         graph.unlink(nodes[4], nodes[5]);
-        Assert.assertFalse(graph.canReach(nodes[0], nodes[5]));
+        Assertions.assertFalse(graph.canReach(nodes[0], nodes[5]));
         graph.unlink(nodes[3], nodes[6]);
-        Assert.assertFalse(graph.canReach(nodes[0], nodes[7]));
+        Assertions.assertFalse(graph.canReach(nodes[0], nodes[7]));
     }
 
     @Test
@@ -133,15 +136,15 @@ public class TopologyGraphTest {
         TestingBatchExecNode[] nodes = tuple2.f1;
 
         Map<ExecNode<?>, Integer> result = graph.calculateMaximumDistance();
-        Assert.assertEquals(8, result.size());
-        Assert.assertEquals(0, result.get(nodes[0]).intValue());
-        Assert.assertEquals(1, result.get(nodes[1]).intValue());
-        Assert.assertEquals(2, result.get(nodes[2]).intValue());
-        Assert.assertEquals(2, result.get(nodes[3]).intValue());
-        Assert.assertEquals(3, result.get(nodes[4]).intValue());
-        Assert.assertEquals(3, result.get(nodes[6]).intValue());
-        Assert.assertEquals(4, result.get(nodes[5]).intValue());
-        Assert.assertEquals(4, result.get(nodes[7]).intValue());
+        Assertions.assertEquals(8, result.size());
+        Assertions.assertEquals(0, result.get(nodes[0]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[1]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[2]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[3]).intValue());
+        Assertions.assertEquals(3, result.get(nodes[4]).intValue());
+        Assertions.assertEquals(3, result.get(nodes[6]).intValue());
+        Assertions.assertEquals(4, result.get(nodes[5]).intValue());
+        Assertions.assertEquals(4, result.get(nodes[7]).intValue());
     }
 
     @Test
@@ -151,13 +154,13 @@ public class TopologyGraphTest {
         TestingBatchExecNode[] nodes = tuple2.f1;
 
         Map<ExecNode<?>, Integer> result = graph.calculateMaximumDistance();
-        Assert.assertEquals(6, result.size());
-        Assert.assertEquals(0, result.get(nodes[2]).intValue());
-        Assert.assertEquals(0, result.get(nodes[3]).intValue());
-        Assert.assertEquals(1, result.get(nodes[4]).intValue());
-        Assert.assertEquals(1, result.get(nodes[6]).intValue());
-        Assert.assertEquals(2, result.get(nodes[5]).intValue());
-        Assert.assertEquals(2, result.get(nodes[7]).intValue());
+        Assertions.assertEquals(6, result.size());
+        Assertions.assertEquals(0, result.get(nodes[2]).intValue());
+        Assertions.assertEquals(0, result.get(nodes[3]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[4]).intValue());
+        Assertions.assertEquals(1, result.get(nodes[6]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[5]).intValue());
+        Assertions.assertEquals(2, result.get(nodes[7]).intValue());
     }
 
     @Test
@@ -168,7 +171,7 @@ public class TopologyGraphTest {
 
         graph.makeAsFarAs(nodes[4], nodes[7]);
         Map<ExecNode<?>, Integer> distances = graph.calculateMaximumDistance();
-        Assert.assertEquals(4, distances.get(nodes[7]).intValue());
-        Assert.assertEquals(4, distances.get(nodes[4]).intValue());
+        Assertions.assertEquals(4, distances.get(nodes[7]).intValue());
+        Assertions.assertEquals(4, distances.get(nodes[4]).intValue());
     }
 }

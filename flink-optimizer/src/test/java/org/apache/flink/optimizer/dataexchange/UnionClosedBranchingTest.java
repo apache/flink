@@ -23,12 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.plan.Channel;
-import org.apache.flink.optimizer.plan.DualInputPlanNode;
-import org.apache.flink.optimizer.plan.NAryUnionPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plan.SourcePlanNode;
+import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
@@ -38,8 +33,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,9 +48,7 @@ import java.util.List;
 
 import static org.apache.flink.runtime.io.network.DataExchangeMode.BATCH;
 import static org.apache.flink.runtime.io.network.DataExchangeMode.PIPELINED;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * This tests a fix for FLINK-2540.
@@ -187,7 +184,7 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 
         for (JobVertex src : sources) {
             // Sanity check
-            assertTrue("Unexpected vertex type. Test setup is broken.", src.isInputVertex());
+            assertTrue(src.isInputVertex(), "Unexpected vertex type. Test setup is broken.");
 
             // The union is not translated to an extra union task, but the join uses a union
             // input gate to read multiple inputs. The source create a single result per consumer.

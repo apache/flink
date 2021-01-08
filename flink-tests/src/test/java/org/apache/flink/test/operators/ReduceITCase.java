@@ -35,9 +35,12 @@ import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.operators.util.CollectionDataSets.PojoWithDateAndEnum;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -396,13 +399,13 @@ public class ReduceITCase extends MultipleProgramsTestBase {
                 throws Exception {
             for (PojoWithDateAndEnum val : values) {
                 if (val.cat == CollectionDataSets.Category.CAT_A) {
-                    Assert.assertEquals("a", val.group);
+                    Assertions.assertEquals("a", val.group);
                 } else if (val.cat == CollectionDataSets.Category.CAT_B) {
-                    Assert.assertEquals("b", val.group);
+                    Assertions.assertEquals("b", val.group);
                 } else {
-                    Assert.fail("error. Cat = " + val.cat);
+                    Assertions.fail("error. Cat = " + val.cat);
                 }
-                Assert.assertEquals(666, val.date.getTime());
+                Assertions.assertEquals(666, val.date.getTime());
             }
             out.collect("ok");
         }

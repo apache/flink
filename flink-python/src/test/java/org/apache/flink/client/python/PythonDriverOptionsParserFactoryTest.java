@@ -20,12 +20,16 @@ package org.apache.flink.client.python;
 
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link PythonDriverOptionsParserFactory}. */
 public class PythonDriverOptionsParserFactoryTest {
@@ -53,18 +57,24 @@ public class PythonDriverOptionsParserFactoryTest {
 
     @Test
     public void testMultipleEntrypointsSpecified() throws FlinkParseException {
-        Assertions.assertThrows(FlinkParseException.class, () -> {
-                    final String[] args = {"--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"};
-        commandLineParser.parse(args);
-        });
+        assertThrows(
+                FlinkParseException.class,
+                () -> {
+                    final String[] args = {
+                        "--python", "xxx.py", "--pyModule", "yyy", "--input", "in.txt"
+                    };
+                    commandLineParser.parse(args);
+                });
     }
 
     @Test
     public void testEntrypointNotSpecified() throws FlinkParseException {
-        Assertions.assertThrows(FlinkParseException.class, () -> {
+        assertThrows(
+                FlinkParseException.class,
+                () -> {
                     final String[] args = {"--input", "in.txt"};
-        commandLineParser.parse(args);
-        });
+                    commandLineParser.parse(args);
+                });
     }
 
     private void verifyPythonDriverOptionsParsing(final String[] args) throws FlinkParseException {

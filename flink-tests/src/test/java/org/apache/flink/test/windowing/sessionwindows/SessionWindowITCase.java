@@ -33,15 +33,14 @@ import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /** ITCase for Session Windows. */
 public class SessionWindowITCase extends AbstractTestBase {
@@ -120,10 +119,10 @@ public class SessionWindowITCase extends AbstractTestBase {
         // check that overall event counts match with our expectations. remember that late events
         // within lateness will
         // each trigger a window!
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 (LATE_EVENTS_PER_SESSION + 1) * NUMBER_OF_SESSIONS * EVENTS_PER_SESSION,
                 (long) result.getAccumulatorResult(SESSION_COUNTER_ON_TIME_KEY));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 NUMBER_OF_SESSIONS * (LATE_EVENTS_PER_SESSION * (LATE_EVENTS_PER_SESSION + 1) / 2),
                 (long) result.getAccumulatorResult(SESSION_COUNTER_LATE_KEY));
     }
@@ -179,7 +178,7 @@ public class SessionWindowITCase extends AbstractTestBase {
                     lateWithingBits.set(evt.getEventValue().getEventId() - EVENTS_PER_SESSION);
                 } else {
 
-                    Assert.fail("Illegal event type in window " + timeWindow + ": " + evt);
+                    Assertions.fail("Illegal event type in window " + timeWindow + ": " + evt);
                 }
             }
 
@@ -189,14 +188,14 @@ public class SessionWindowITCase extends AbstractTestBase {
             if (sessionEvents.size() >= EVENTS_PER_SESSION) { // on time events case or non-purging
 
                 // check that the expected amount if events is in the window
-                Assert.assertEquals(onTimeCount, EVENTS_PER_SESSION);
+                Assertions.assertEquals(onTimeCount, EVENTS_PER_SESSION);
 
                 // check that no duplicate events happened
-                Assert.assertEquals(onTimeBits.cardinality(), onTimeCount);
-                Assert.assertEquals(lateWithingBits.cardinality(), lateCount);
+                Assertions.assertEquals(onTimeBits.cardinality(), onTimeCount);
+                Assertions.assertEquals(lateWithingBits.cardinality(), lateCount);
             } else {
 
-                Assert.fail(
+                Assertions.fail(
                         "Event count for session window "
                                 + timeWindow
                                 + " is too low: "

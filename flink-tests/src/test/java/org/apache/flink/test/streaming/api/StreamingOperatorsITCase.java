@@ -32,15 +32,14 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MathUtils;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -126,10 +125,10 @@ public class StreamingOperatorsITCase extends AbstractTestBase {
 
         env.execute();
 
-        Assert.assertEquals(expected, actualResult1);
+        Assertions.assertEquals(expected, actualResult1);
 
         Collections.sort(actualResult2);
-        Assert.assertEquals(expected, actualResult2);
+        Assertions.assertEquals(expected, actualResult2);
 
         MemorySinkFunction.clear();
     }

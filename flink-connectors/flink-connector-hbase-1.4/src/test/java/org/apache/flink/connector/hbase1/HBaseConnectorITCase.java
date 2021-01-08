@@ -27,11 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase.util.PlannerType;
-import org.apache.flink.connector.hbase1.source.AbstractTableInputFormat;
-import org.apache.flink.connector.hbase1.source.HBaseInputFormat;
-import org.apache.flink.connector.hbase1.source.HBaseRowDataInputFormat;
-import org.apache.flink.connector.hbase1.source.HBaseRowInputFormat;
-import org.apache.flink.connector.hbase1.source.HBaseTableSource;
+import org.apache.flink.connector.hbase1.source.*;
 import org.apache.flink.connector.hbase1.util.HBaseTestBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -48,12 +44,16 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
-
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -65,9 +65,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.hbase.util.PlannerType.OLD_PLANNER;
 import static org.apache.flink.table.api.Expressions.$;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** IT cases for HBase connector (including HBaseTableSource and HBaseTableSink). */
 @RunWith(Parameterized.class)

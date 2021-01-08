@@ -22,8 +22,15 @@ import org.apache.flink.api.common.operators.SemanticProperties.InvalidSemanticA
 import org.apache.flink.api.common.operators.util.FieldSet;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SingleInputSemanticPropertiesTest {
 
@@ -116,45 +123,49 @@ public class SingleInputSemanticPropertiesTest {
 
     @Test
     public void testAddForwardedFieldsTargetTwice() {
-        Assertions.assertThrows(InvalidSemanticAnnotationException.class, () -> {
-
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        sp.addForwardedField(0, 2);
-        sp.addForwardedField(1, 2);
-        });
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    sp.addForwardedField(0, 2);
+                    sp.addForwardedField(1, 2);
+                });
     }
 
     @Test
     public void testGetTargetFieldInvalidIndex() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    sp.addForwardedField(0, 0);
 
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        sp.addForwardedField(0, 0);
-
-        sp.getForwardingTargetFields(1, 0);
-        });
+                    sp.getForwardingTargetFields(1, 0);
+                });
     }
 
     @Test
     public void testGetSourceFieldInvalidIndex() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    sp.addForwardedField(0, 0);
 
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        sp.addForwardedField(0, 0);
-
-        sp.getForwardingSourceField(1, 0);
-        });
+                    sp.getForwardingSourceField(1, 0);
+                });
     }
 
     @Test
     public void testGetReadFieldsInvalidIndex() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    sp.addReadFields(new FieldSet(0, 1));
 
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        sp.addReadFields(new FieldSet(0, 1));
-
-        sp.getReadFields(1);
-        });
+                    sp.getReadFields(1);
+                });
     }
 
     @Test
@@ -177,21 +188,23 @@ public class SingleInputSemanticPropertiesTest {
 
     @Test
     public void testAllForwardedSingleInputSemPropsInvalidIndex1() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
-
-        SingleInputSemanticProperties sp =
-                new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-        sp.getForwardingSourceField(1, 0);
-        });
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sp =
+                            new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+                    sp.getForwardingSourceField(1, 0);
+                });
     }
 
     @Test
     public void testAllForwardedSingleInputSemPropsInvalidIndex2() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
-
-        SingleInputSemanticProperties sp =
-                new SingleInputSemanticProperties.AllFieldsForwardedProperties();
-        sp.getForwardingTargetFields(1, 0);
-        });
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sp =
+                            new SingleInputSemanticProperties.AllFieldsForwardedProperties();
+                    sp.getForwardingTargetFields(1, 0);
+                });
     }
 }

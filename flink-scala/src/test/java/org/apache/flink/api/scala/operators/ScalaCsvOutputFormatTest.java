@@ -21,21 +21,23 @@ package org.apache.flink.api.scala.operators;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
+import scala.Tuple3;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-import scala.Tuple3;
-
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link ScalaCsvOutputFormat}. */
 public class ScalaCsvOutputFormatTest {
@@ -63,10 +65,10 @@ public class ScalaCsvOutputFormatTest {
             csvOutputFormat.close();
         }
         java.nio.file.Path p = Paths.get(path);
-        Assert.assertTrue(Files.exists(p));
+        Assertions.assertTrue(Files.exists(p));
         List<String> lines = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
-        Assert.assertEquals(1, lines.size());
-        Assert.assertEquals("One,,8", lines.get(0));
+        Assertions.assertEquals(1, lines.size());
+        Assertions.assertEquals("One,,8", lines.get(0));
     }
 
     @Test

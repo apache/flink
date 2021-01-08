@@ -20,16 +20,17 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link EntrypointClusterConfigurationParserFactory}. */
 public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger {
@@ -83,10 +84,12 @@ public class EntrypointClusterConfigurationParserFactoryTest extends TestLogger 
 
     @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        Assertions.assertThrows(FlinkParseException.class, () -> {
+        assertThrows(
+                FlinkParseException.class,
+                () -> {
                     final String[] args = {};
 
-        commandLineParser.parse(args);
-        });
+                    commandLineParser.parse(args);
+                });
     }
 }

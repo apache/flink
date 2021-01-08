@@ -26,11 +26,14 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -38,19 +41,13 @@ import org.junit.runners.Parameterized;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.CoreMatchers.hasItem;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.iterableWithSize;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link BucketStateSerializer} that verify we can still read snapshots written using
@@ -103,9 +100,9 @@ public class BucketStateSerializerTest {
 
         final Bucket<String, String> bucket = restoreBucket(0, recoveredState);
 
-        Assert.assertEquals(testBucketPath, bucket.getBucketPath());
-        Assert.assertNull(bucket.getInProgressPart());
-        Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
+        Assertions.assertEquals(testBucketPath, bucket.getBucketPath());
+        Assertions.assertNull(bucket.getInProgressPart());
+        Assertions.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
     }
 
     @Test
@@ -129,10 +126,10 @@ public class BucketStateSerializerTest {
 
         final Bucket<String, String> bucket = restoreBucket(0, recoveredState);
 
-        Assert.assertEquals(testBucketPath, bucket.getBucketPath());
+        Assertions.assertEquals(testBucketPath, bucket.getBucketPath());
 
         // check restore the correct in progress file writer
-        Assert.assertEquals(8, bucket.getInProgressPart().getSize());
+        Assertions.assertEquals(8, bucket.getInProgressPart().getSize());
 
         long numFiles =
                 Files.list(Paths.get(testBucketPath.toString()))
@@ -188,7 +185,7 @@ public class BucketStateSerializerTest {
             final Map<Long, List<InProgressFileWriter.PendingFileRecoverable>>
                     pendingFileRecoverables =
                             recoveredState.getPendingFileRecoverablesPerCheckpoint();
-            Assert.assertEquals(5L, pendingFileRecoverables.size());
+            Assertions.assertEquals(5L, pendingFileRecoverables.size());
 
             final Set<String> beforeRestorePaths =
                     Files.list(outputPath.resolve(BUCKET_ID))
@@ -203,8 +200,9 @@ public class BucketStateSerializerTest {
 
             // recover and commit
             final Bucket bucket = restoreBucket(noOfPendingCheckpoints + 1, recoveredState);
-            Assert.assertEquals(testBucketPath, bucket.getBucketPath());
-            Assert.assertEquals(0, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
+            Assertions.assertEquals(testBucketPath, bucket.getBucketPath());
+            Assertions.assertEquals(
+                    0, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
 
             final Set<String> afterRestorePaths =
                     Files.list(outputPath.resolve(BUCKET_ID))

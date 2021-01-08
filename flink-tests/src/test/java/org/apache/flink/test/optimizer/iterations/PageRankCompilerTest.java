@@ -25,11 +25,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.examples.java.graph.PageRank.BuildOutgoingEdgeList;
-import org.apache.flink.examples.java.graph.PageRank.Dampener;
-import org.apache.flink.examples.java.graph.PageRank.EpsilonFilter;
-import org.apache.flink.examples.java.graph.PageRank.JoinVertexWithEdgesMatch;
-import org.apache.flink.examples.java.graph.PageRank.RankAssigner;
+import org.apache.flink.examples.java.graph.PageRank.*;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
 import org.apache.flink.optimizer.plan.BulkPartialSolutionPlanNode;
@@ -38,12 +34,15 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.apache.flink.api.java.aggregation.Aggregations.SUM;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test compilation of PageRank implementation. */
 public class PageRankCompilerTest extends CompilerTestBase {
@@ -108,12 +107,12 @@ public class PageRankCompilerTest extends CompilerTestBase {
                     (BulkIterationPlanNode) sinkPlanNode.getInput().getSource();
 
             // check that the partitioning is pushed out of the first loop
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     ShipStrategyType.PARTITION_HASH, iterPlanNode.getInput().getShipStrategy());
-            Assert.assertEquals(LocalStrategy.NONE, iterPlanNode.getInput().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.NONE, iterPlanNode.getInput().getLocalStrategy());
 
             BulkPartialSolutionPlanNode partSolPlanNode = iterPlanNode.getPartialSolutionPlanNode();
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     ShipStrategyType.FORWARD,
                     partSolPlanNode.getOutgoingChannels().get(0).getShipStrategy());
         } catch (Exception e) {

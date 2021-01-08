@@ -19,6 +19,9 @@
 package org.apache.flink.formats.json;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -28,52 +31,22 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.time.*;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.apache.flink.table.api.DataTypes.ARRAY;
-import static org.apache.flink.table.api.DataTypes.BIGINT;
-import static org.apache.flink.table.api.DataTypes.BOOLEAN;
-import static org.apache.flink.table.api.DataTypes.BYTES;
-import static org.apache.flink.table.api.DataTypes.DATE;
-import static org.apache.flink.table.api.DataTypes.DECIMAL;
-import static org.apache.flink.table.api.DataTypes.DOUBLE;
-import static org.apache.flink.table.api.DataTypes.FIELD;
-import static org.apache.flink.table.api.DataTypes.FLOAT;
-import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.DataTypes.MAP;
-import static org.apache.flink.table.api.DataTypes.MULTISET;
-import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.api.DataTypes.SMALLINT;
-import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.apache.flink.table.api.DataTypes.TIME;
-import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
-import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
-import static org.apache.flink.table.api.DataTypes.TINYINT;
+import static org.apache.flink.table.api.DataTypes.*;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link JsonRowDataDeserializationSchema} and {@link JsonRowDataSerializationSchema}.
@@ -458,7 +431,7 @@ public class JsonRowDataSerDeSchemaTest {
             // failOnMissingField and ignoreParseErrors both enabled
             new JsonRowDataDeserializationSchema(
                     schema, InternalTypeInfo.of(schema), true, true, TimestampFormat.ISO_8601);
-            Assert.fail("expecting exception message: " + errorMessage);
+            Assertions.fail("expecting exception message: " + errorMessage);
         } catch (Throwable t) {
             assertEquals(errorMessage, t.getMessage());
         }
@@ -548,7 +521,7 @@ public class JsonRowDataSerDeSchemaTest {
         try {
             // throw exception when mapNullKey Mode is fail
             serializationSchema1.serialize(rowData);
-            Assert.fail("expecting exception message: " + errorMessage1);
+            Assertions.fail("expecting exception message: " + errorMessage1);
         } catch (Throwable t) {
             assertEquals(errorMessage1, t.getCause().getMessage());
         }

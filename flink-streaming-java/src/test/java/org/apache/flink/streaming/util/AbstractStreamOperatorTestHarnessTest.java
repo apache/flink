@@ -38,9 +38,13 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -96,9 +100,9 @@ public class AbstractStreamOperatorTestHarnessTest extends TestLogger {
             keyedStateBackend.setCurrentKey(1);
             result.setStateTtlProcessingTime(0L);
             state.update(expectedValue);
-            Assert.assertEquals(expectedValue, (int) state.value());
+            Assertions.assertEquals(expectedValue, (int) state.value());
             result.setStateTtlProcessingTime(timeToLive.toMilliseconds() + 1);
-            Assert.assertNull(state.value());
+            Assertions.assertNull(state.value());
         }
     }
 

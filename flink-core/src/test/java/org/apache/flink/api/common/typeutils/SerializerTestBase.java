@@ -33,7 +33,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.lang3.SerializationException;
 import org.apache.commons.lang3.SerializationUtils;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
@@ -45,11 +45,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Abstract test base for serializers.
@@ -104,10 +104,10 @@ public abstract class SerializerTestBase<T> extends TestLogger {
             if (instance == null && allowNullInstances(serializer)) {
                 return;
             }
-            assertNotNull("The created instance must not be null.", instance);
+            assertNotNull(instance, "The created instance must not be null.");
 
             Class<T> type = getTypeClass();
-            assertNotNull("The test is corrupt: type class is null.", type);
+            assertNotNull(type, "The test is corrupt: type class is null.");
 
             if (!type.isAssignableFrom(instance.getClass())) {
                 fail(
@@ -251,14 +251,14 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 serializer.serialize(value, out);
                 TestInputView in = out.getInputView();
 
-                assertTrue("No data available during deserialization.", in.available() > 0);
+                assertTrue(in.available() > 0, "No data available during deserialization.");
 
                 T deserialized = serializer.deserialize(serializer.createInstance(), in);
                 checkToString(deserialized);
 
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
-                assertTrue("Trailing data available after deserialization.", in.available() == 0);
+                assertTrue(in.available() == 0, "Trailing data available after deserialization.");
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -280,14 +280,14 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 serializer.serialize(value, out);
                 TestInputView in = out.getInputView();
 
-                assertTrue("No data available during deserialization.", in.available() > 0);
+                assertTrue(in.available() > 0, "No data available during deserialization.");
 
                 T deserialized = serializer.deserialize(reuseValue, in);
                 checkToString(deserialized);
 
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
-                assertTrue("Trailing data available after deserialization.", in.available() == 0);
+                assertTrue(in.available() == 0, "Trailing data available after deserialization.");
 
                 reuseValue = deserialized;
             }
@@ -320,7 +320,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 num++;
             }
 
-            assertEquals("Wrong number of elements deserialized.", testData.length, num);
+            assertEquals(testData.length, num, "Wrong number of elements deserialized.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -352,7 +352,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 num++;
             }
 
-            assertEquals("Wrong number of elements deserialized.", testData.length, num);
+            assertEquals(testData.length, num, "Wrong number of elements deserialized.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -376,7 +376,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 
                 TestInputView toVerify = target.getInputView();
 
-                assertTrue("No data available copying.", toVerify.available() > 0);
+                assertTrue(toVerify.available() > 0, "No data available copying.");
 
                 T deserialized = serializer.deserialize(serializer.createInstance(), toVerify);
                 checkToString(deserialized);
@@ -384,8 +384,8 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 deepEquals("Deserialized value if wrong.", value, deserialized);
 
                 assertTrue(
-                        "Trailing data available after deserialization.",
-                        toVerify.available() == 0);
+                        toVerify.available() == 0,
+                        "Trailing data available after deserialization.");
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -422,7 +422,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
                 num++;
             }
 
-            assertEquals("Wrong number of elements copied.", testData.length, num);
+            assertEquals(testData.length, num, "Wrong number of elements copied.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -443,7 +443,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
             }
 
             assertEquals(
-                    "The copy of the serializer is not equal to the original one.", ser1, ser2);
+                    ser1, ser2, "The copy of the serializer is not equal to the original one.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
@@ -469,7 +469,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
         final TypeSerializer<T> serializer = getSerializer();
         final CyclicBarrier startLatch = new CyclicBarrier(numThreads);
         final List<SerializerRunner<T>> concurrentRunners = new ArrayList<>(numThreads);
-        Assert.assertEquals(serializer, serializer.duplicate());
+        Assertions.assertEquals(serializer, serializer.duplicate());
 
         T[] testData = getData();
 

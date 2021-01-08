@@ -22,8 +22,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A test that validates that the concurrency checks in the Kryo Serializer are not hard coded to
@@ -62,8 +62,8 @@ public class KryoSerializerConcurrencyCheckInactiveITCase extends TestLogger {
         }
 
         assertTrue(
+                assertionError,
                 "testConcurrentUseOfSerializer() should have failed if "
-                        + "concurrency checks are off by default",
-                assertionError);
+                        + "concurrency checks are off by default");
     }
 }

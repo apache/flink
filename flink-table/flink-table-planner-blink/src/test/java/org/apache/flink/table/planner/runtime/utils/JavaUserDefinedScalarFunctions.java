@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.Random;
 import java.util.TimeZone;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test scalar functions. */
 public class JavaUserDefinedScalarFunctions {

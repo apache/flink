@@ -24,9 +24,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -34,12 +37,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.popCompleted;
-import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.putSuccessfully;
-import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.putUnsuccessfully;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.streaming.api.operators.async.queue.QueueUtil.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for the basic functionality of {@link StreamElementQueue}. The basic operations consist of
@@ -140,13 +139,13 @@ public class StreamElementQueueTest extends TestLogger {
         putSuccessfully(queue, new Watermark(2L));
         putSuccessfully(queue, new Watermark(5L));
 
-        Assert.assertEquals(2, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(2, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(new Watermark(2L), new Watermark(5L)), popCompleted(queue));
-        Assert.assertEquals(0, queue.size());
-        Assert.assertTrue(queue.isEmpty());
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(0, queue.size());
+        Assertions.assertTrue(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
     }
 }

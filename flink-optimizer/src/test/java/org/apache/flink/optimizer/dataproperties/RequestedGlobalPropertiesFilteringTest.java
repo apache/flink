@@ -31,10 +31,14 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestedGlobalPropertiesFilteringTest {
 
@@ -62,13 +66,14 @@ public class RequestedGlobalPropertiesFilteringTest {
 
     @Test
     public void testNullProps() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    RequestedGlobalProperties rgProps = new RequestedGlobalProperties();
+                    rgProps.setAnyPartitioning(new FieldSet(0, 1, 2));
 
-        RequestedGlobalProperties rgProps = new RequestedGlobalProperties();
-        rgProps.setAnyPartitioning(new FieldSet(0, 1, 2));
-
-        rgProps.filterBySemanticProperties(null, 0);
-        });
+                    rgProps.filterBySemanticProperties(null, 0);
+                });
     }
 
     @Test
@@ -460,15 +465,17 @@ public class RequestedGlobalPropertiesFilteringTest {
 
     @Test
     public void testInvalidInputIndex() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
                     SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
 
-        RequestedGlobalProperties gprops = new RequestedGlobalProperties();
-        gprops.setHashPartitioned(new FieldSet(0, 1));
+                    RequestedGlobalProperties gprops = new RequestedGlobalProperties();
+                    gprops.setHashPartitioned(new FieldSet(0, 1));
 
-        gprops.filterBySemanticProperties(sprops, 1);
-        });
+                    gprops.filterBySemanticProperties(sprops, 1);
+                });
     }
 }

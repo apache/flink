@@ -86,8 +86,12 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -99,8 +103,8 @@ import java.util.HashMap;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -163,7 +167,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
         checkpointResponder.declinedLatch.await();
 
-        Assert.assertEquals(ExecutionState.RUNNING, task.getExecutionState());
+        Assertions.assertEquals(ExecutionState.RUNNING, task.getExecutionState());
 
         task.cancelExecution();
         task.getExecutingThread().join();
@@ -172,7 +176,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
     private void runTaskExpectFailure(Task task) throws Exception {
         task.startTaskThread();
         task.getExecutingThread().join();
-        Assert.assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        Assertions.assertEquals(ExecutionState.FAILED, task.getExecutionState());
     }
 
     // ------------------------------------------------------------------------

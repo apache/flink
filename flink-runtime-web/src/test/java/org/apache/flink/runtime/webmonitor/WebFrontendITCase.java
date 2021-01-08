@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -33,21 +31,21 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ArrayNode;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.InputStream;
@@ -63,10 +61,7 @@ import java.util.stream.Collectors;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the WebFrontend. */
 public class WebFrontendITCase extends TestLogger {
@@ -89,8 +84,8 @@ public class WebFrontendITCase extends TestLogger {
         Configuration config = new Configuration();
         try {
             File logDir = File.createTempFile("TestBaseUtils-logdir", null);
-            assertTrue("Unable to delete temp file", logDir.delete());
-            assertTrue("Unable to create temp directory", logDir.mkdir());
+            assertTrue(logDir.delete(), "Unable to delete temp file");
+            assertTrue(logDir.mkdir(), "Unable to create temp directory");
             File logFile = new File(logDir, "jobmanager.log");
             File outFile = new File(logDir, "jobmanager.out");
 
@@ -141,8 +136,8 @@ public class WebFrontendITCase extends TestLogger {
         }
 
         // we don't set the content-encoding header
-        Assert.assertNull(taskManagerConnection.getContentEncoding());
-        Assert.assertEquals(
+        Assertions.assertNull(taskManagerConnection.getContentEncoding());
+        Assertions.assertEquals(
                 "application/json; charset=UTF-8", taskManagerConnection.getContentType());
 
         // check headers in case of an error
@@ -153,8 +148,8 @@ public class WebFrontendITCase extends TestLogger {
         notFoundJobConnection.connect();
         if (notFoundJobConnection.getResponseCode() >= 400) {
             // we don't set the content-encoding header
-            Assert.assertNull(notFoundJobConnection.getContentEncoding());
-            Assert.assertEquals(
+            Assertions.assertNull(notFoundJobConnection.getContentEncoding());
+            Assertions.assertEquals(
                     "application/json; charset=UTF-8", notFoundJobConnection.getContentType());
         } else {
             fail("Request for non-existing job did not return an error.");

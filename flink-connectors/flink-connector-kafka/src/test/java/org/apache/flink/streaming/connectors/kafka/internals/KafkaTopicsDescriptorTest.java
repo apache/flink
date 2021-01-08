@@ -17,8 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kafka.internals;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -60,6 +64,6 @@ public class KafkaTopicsDescriptorTest {
         KafkaTopicsDescriptor topicsDescriptor =
                 new KafkaTopicsDescriptor(fixedTopics, topicPattern);
 
-        Assert.assertEquals(expected, topicsDescriptor.isMatchingTopic(topic));
+        Assertions.assertEquals(expected, topicsDescriptor.isMatchingTopic(topic));
     }
 }

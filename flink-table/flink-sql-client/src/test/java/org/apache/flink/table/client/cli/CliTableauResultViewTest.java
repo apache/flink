@@ -28,11 +28,14 @@ import org.apache.flink.table.client.gateway.ResultDescriptor;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.types.Row;
-
 import org.jline.terminal.Terminal;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -46,8 +49,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for CliTableauResultView. */
 public class CliTableauResultViewTest {
@@ -163,7 +166,7 @@ public class CliTableauResultViewTest {
 
         view.displayBatchResults();
         view.close();
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+---------+-------------+----------------------+--------------------------------+----------------+----------------------------+"
                         + System.lineSeparator()
                         + "| boolean |         int |               bigint |                        varchar | decimal(10, 5) |                  timestamp |"
@@ -218,7 +221,8 @@ public class CliTableauResultViewTest {
         terminal.raise(Terminal.Signal.INT);
         furture.get(5, TimeUnit.SECONDS);
 
-        Assert.assertEquals("Query terminated" + System.lineSeparator(), terminalOutput.toString());
+        Assertions.assertEquals(
+                "Query terminated" + System.lineSeparator(), terminalOutput.toString());
         // didn't have a chance to read page
         assertThat(mockExecutor.getNumRetrieveResultPageCalls(), is(0));
         // tried to cancel query
@@ -243,7 +247,7 @@ public class CliTableauResultViewTest {
         view.displayBatchResults();
         view.close();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+---------+-----+--------+---------+----------------+-----------+"
                         + System.lineSeparator()
                         + "| boolean | int | bigint | varchar | decimal(10, 5) | timestamp |"
@@ -275,9 +279,9 @@ public class CliTableauResultViewTest {
 
         try {
             view.displayBatchResults();
-            Assert.fail("Shouldn't get here");
+            Assertions.fail("Shouldn't get here");
         } catch (SqlExecutionException e) {
-            Assert.assertEquals("query failed", e.getMessage());
+            Assertions.assertEquals("query failed", e.getMessage());
         }
         view.close();
 
@@ -316,7 +320,7 @@ public class CliTableauResultViewTest {
         // width < 2 in IDE by default, every CJK character usually's width is 2, you can open this
         // source file
         // by vim or just cat the file to check the regular result.
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+"
                         + System.lineSeparator()
                         + "| +/- | boolean |         int |               bigint |              varchar | decimal(10, 5) |                  timestamp |"
@@ -362,7 +366,7 @@ public class CliTableauResultViewTest {
         view.displayStreamResults();
         view.close();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+"
                         + System.lineSeparator()
                         + "| +/- | boolean |         int |               bigint |              varchar | decimal(10, 5) |                  timestamp |"
@@ -406,7 +410,7 @@ public class CliTableauResultViewTest {
         furture.get(5, TimeUnit.SECONDS);
         view.close();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+"
                         + System.lineSeparator()
                         + "| +/- | boolean |         int |               bigint |              varchar | decimal(10, 5) |                  timestamp |"
@@ -448,13 +452,13 @@ public class CliTableauResultViewTest {
 
         try {
             view.displayStreamResults();
-            Assert.fail("Shouldn't get here");
+            Assertions.fail("Shouldn't get here");
         } catch (SqlExecutionException e) {
-            Assert.assertEquals("query failed", e.getMessage());
+            Assertions.assertEquals("query failed", e.getMessage());
         }
         view.close();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "+-----+---------+-------------+----------------------+----------------------+----------------+----------------------------+"
                         + System.lineSeparator()
                         + "| +/- | boolean |         int |               bigint |              varchar | decimal(10, 5) |                  timestamp |"

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
@@ -33,12 +34,14 @@ import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -131,11 +134,11 @@ public class BufferedKVExternalSorterTest {
                 new Tuple2<>(keySerializer.createInstance(), valueSerializer.createInstance());
         int count = 0;
         while ((kv = iterator.next(kv)) != null) {
-            Assert.assertEquals((int) expected.get(count), kv.f0.getInt(0));
-            Assert.assertEquals(expected.get(count) * -3 + 177, kv.f1.getInt(0));
+            Assertions.assertEquals((int) expected.get(count), kv.f0.getInt(0));
+            Assertions.assertEquals(expected.get(count) * -3 + 177, kv.f1.getInt(0));
             count++;
         }
-        Assert.assertEquals(expected.size(), count);
+        Assertions.assertEquals(expected.size(), count);
         sorter.close();
     }
 

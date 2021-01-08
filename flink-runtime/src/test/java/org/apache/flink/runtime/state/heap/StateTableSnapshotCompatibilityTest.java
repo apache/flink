@@ -25,16 +25,13 @@ import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.runtime.state.ArrayListSerializer;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
-import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
-import org.apache.flink.runtime.state.StateEntry;
-import org.apache.flink.runtime.state.StateSnapshot;
-import org.apache.flink.runtime.state.StateSnapshotKeyGroupReader;
-
-import org.junit.Assert;
+import org.apache.flink.runtime.state.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -83,9 +80,9 @@ public class StateTableSnapshotCompatibilityTest {
                 nestedMapsStateTable, snapshot, keyContext.getKeyGroupRange());
         snapshot.release();
 
-        Assert.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
+        Assertions.assertEquals(cowStateTable.size(), nestedMapsStateTable.size());
         for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     entry.getState(),
                     nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()));
         }
@@ -96,9 +93,9 @@ public class StateTableSnapshotCompatibilityTest {
         restoreStateTableFromSnapshot(cowStateTable, snapshot, keyContext.getKeyGroupRange());
         snapshot.release();
 
-        Assert.assertEquals(nestedMapsStateTable.size(), cowStateTable.size());
+        Assertions.assertEquals(nestedMapsStateTable.size(), cowStateTable.size());
         for (StateEntry<Integer, Integer, ArrayList<Integer>> entry : cowStateTable) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     nestedMapsStateTable.get(entry.getKey(), entry.getNamespace()),
                     entry.getState());
         }

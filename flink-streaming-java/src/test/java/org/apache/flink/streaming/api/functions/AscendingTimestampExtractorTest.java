@@ -19,11 +19,15 @@
 package org.apache.flink.streaming.api.functions;
 
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link AscendingTimestampExtractor}. */
 public class AscendingTimestampExtractorTest {

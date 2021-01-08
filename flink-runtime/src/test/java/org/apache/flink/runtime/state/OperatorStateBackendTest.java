@@ -43,8 +43,12 @@ import org.apache.flink.runtime.util.BlockingCheckpointOutputStream;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,12 +66,12 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -926,7 +930,7 @@ public class OperatorStateBackendTest {
 
         try {
             runnableFuture.get(60, TimeUnit.SECONDS);
-            Assert.fail();
+            Assertions.fail();
         } catch (CancellationException expected) {
         }
     }
@@ -974,7 +978,7 @@ public class OperatorStateBackendTest {
         runnableFuture.cancel(true);
 
         for (BlockingCheckpointOutputStream stream : streamFactory.getAllCreatedStreams()) {
-            Assert.assertTrue(stream.isClosed());
+            Assertions.assertTrue(stream.isClosed());
         }
 
         // we allow the stream under test to proceed
@@ -982,7 +986,7 @@ public class OperatorStateBackendTest {
 
         try {
             runnableFuture.get(60, TimeUnit.SECONDS);
-            Assert.fail();
+            Assertions.fail();
         } catch (CancellationException ignore) {
         }
     }

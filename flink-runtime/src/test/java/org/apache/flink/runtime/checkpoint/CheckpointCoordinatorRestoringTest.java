@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.OperatorIDPair;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.*;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -32,56 +32,32 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.ChainedStateHandle;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyGroupsStateHandle;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.OperatorStateHandle;
-import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.*;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.compareKeyedState;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.comparePartitionableState;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateChainedPartitionableStateHandle;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generateKeyGroupState;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecution;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionJobVertex;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockSubtaskState;
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.verifyStateRestore;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -573,7 +549,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                             .getTaskVertices()[i]
                             .getCurrentExecutionAttempt()
                             .getTaskRestore();
-            Assert.assertEquals(1L, taskRestore.getRestoreCheckpointId());
+            Assertions.assertEquals(1L, taskRestore.getRestoreCheckpointId());
             TaskStateSnapshot taskStateHandles = taskRestore.getTaskStateSnapshot();
 
             final int headOpIndex = operatorIDs.size() - 1;
@@ -616,115 +592,131 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
      */
     @Test
     public void testRestoreLatestCheckpointFailureWhenMaxParallelismChanges() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final JobID jid = new JobID();
 
-        final JobVertexID jobVertexID1 = new JobVertexID();
-        final JobVertexID jobVertexID2 = new JobVertexID();
-        int parallelism1 = 3;
-        int parallelism2 = 2;
-        int maxParallelism1 = 42;
-        int maxParallelism2 = 13;
+                    final JobVertexID jobVertexID1 = new JobVertexID();
+                    final JobVertexID jobVertexID2 = new JobVertexID();
+                    int parallelism1 = 3;
+                    int parallelism2 = 2;
+                    int maxParallelism1 = 42;
+                    int maxParallelism2 = 13;
 
-        final ExecutionJobVertex jobVertex1 =
-                mockExecutionJobVertex(jobVertexID1, parallelism1, maxParallelism1);
-        final ExecutionJobVertex jobVertex2 =
-                mockExecutionJobVertex(jobVertexID2, parallelism2, maxParallelism2);
+                    final ExecutionJobVertex jobVertex1 =
+                            mockExecutionJobVertex(jobVertexID1, parallelism1, maxParallelism1);
+                    final ExecutionJobVertex jobVertex2 =
+                            mockExecutionJobVertex(jobVertexID2, parallelism2, maxParallelism2);
 
-        List<ExecutionVertex> allExecutionVertices = new ArrayList<>(parallelism1 + parallelism2);
+                    List<ExecutionVertex> allExecutionVertices =
+                            new ArrayList<>(parallelism1 + parallelism2);
 
-        allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
-        allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
+                    allExecutionVertices.addAll(Arrays.asList(jobVertex1.getTaskVertices()));
+                    allExecutionVertices.addAll(Arrays.asList(jobVertex2.getTaskVertices()));
 
-        ExecutionVertex[] arrayExecutionVertices =
-                allExecutionVertices.toArray(new ExecutionVertex[allExecutionVertices.size()]);
+                    ExecutionVertex[] arrayExecutionVertices =
+                            allExecutionVertices.toArray(
+                                    new ExecutionVertex[allExecutionVertices.size()]);
 
-        // set up the coordinator and validate the initial state
-        CheckpointCoordinator coord =
-                new CheckpointCoordinatorBuilder()
-                        .setJobId(jid)
-                        .setTasks(arrayExecutionVertices)
-                        .setTimer(manuallyTriggeredScheduledExecutor)
-                        .build();
+                    // set up the coordinator and validate the initial state
+                    CheckpointCoordinator coord =
+                            new CheckpointCoordinatorBuilder()
+                                    .setJobId(jid)
+                                    .setTasks(arrayExecutionVertices)
+                                    .setTimer(manuallyTriggeredScheduledExecutor)
+                                    .build();
 
-        // trigger the checkpoint
-        coord.triggerCheckpoint(false);
-        manuallyTriggeredScheduledExecutor.triggerAll();
+                    // trigger the checkpoint
+                    coord.triggerCheckpoint(false);
+                    manuallyTriggeredScheduledExecutor.triggerAll();
 
-        assertEquals(1, coord.getPendingCheckpoints().size());
-        long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
+                    assertEquals(1, coord.getPendingCheckpoints().size());
+                    long checkpointId =
+                            Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
 
-        List<KeyGroupRange> keyGroupPartitions1 =
-                StateAssignmentOperation.createKeyGroupPartitions(maxParallelism1, parallelism1);
-        List<KeyGroupRange> keyGroupPartitions2 =
-                StateAssignmentOperation.createKeyGroupPartitions(maxParallelism2, parallelism2);
+                    List<KeyGroupRange> keyGroupPartitions1 =
+                            StateAssignmentOperation.createKeyGroupPartitions(
+                                    maxParallelism1, parallelism1);
+                    List<KeyGroupRange> keyGroupPartitions2 =
+                            StateAssignmentOperation.createKeyGroupPartitions(
+                                    maxParallelism2, parallelism2);
 
-        for (int index = 0; index < jobVertex1.getParallelism(); index++) {
-            KeyGroupsStateHandle keyGroupState =
-                    generateKeyGroupState(jobVertexID1, keyGroupPartitions1.get(index), false);
-            OperatorSubtaskState operatorSubtaskState =
-                    OperatorSubtaskState.builder().setManagedKeyedState(keyGroupState).build();
-            TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
-            taskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-                    OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
-            AcknowledgeCheckpoint acknowledgeCheckpoint =
-                    new AcknowledgeCheckpoint(
-                            jid,
-                            jobVertex1
-                                    .getTaskVertices()[index]
-                                    .getCurrentExecutionAttempt()
-                                    .getAttemptId(),
-                            checkpointId,
-                            new CheckpointMetrics(),
-                            taskOperatorSubtaskStates);
+                    for (int index = 0; index < jobVertex1.getParallelism(); index++) {
+                        KeyGroupsStateHandle keyGroupState =
+                                generateKeyGroupState(
+                                        jobVertexID1, keyGroupPartitions1.get(index), false);
+                        OperatorSubtaskState operatorSubtaskState =
+                                OperatorSubtaskState.builder()
+                                        .setManagedKeyedState(keyGroupState)
+                                        .build();
+                        TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
+                        taskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                                OperatorID.fromJobVertexID(jobVertexID1), operatorSubtaskState);
+                        AcknowledgeCheckpoint acknowledgeCheckpoint =
+                                new AcknowledgeCheckpoint(
+                                        jid,
+                                        jobVertex1
+                                                .getTaskVertices()[index]
+                                                .getCurrentExecutionAttempt()
+                                                .getAttemptId(),
+                                        checkpointId,
+                                        new CheckpointMetrics(),
+                                        taskOperatorSubtaskStates);
 
-            coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
-        }
+                        coord.receiveAcknowledgeMessage(
+                                acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+                    }
 
-        for (int index = 0; index < jobVertex2.getParallelism(); index++) {
-            KeyGroupsStateHandle keyGroupState =
-                    generateKeyGroupState(jobVertexID2, keyGroupPartitions2.get(index), false);
-            OperatorSubtaskState operatorSubtaskState =
-                    OperatorSubtaskState.builder().setManagedKeyedState(keyGroupState).build();
-            TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
-            taskOperatorSubtaskStates.putSubtaskStateByOperatorID(
-                    OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
-            AcknowledgeCheckpoint acknowledgeCheckpoint =
-                    new AcknowledgeCheckpoint(
-                            jid,
-                            jobVertex2
-                                    .getTaskVertices()[index]
-                                    .getCurrentExecutionAttempt()
-                                    .getAttemptId(),
-                            checkpointId,
-                            new CheckpointMetrics(),
-                            taskOperatorSubtaskStates);
+                    for (int index = 0; index < jobVertex2.getParallelism(); index++) {
+                        KeyGroupsStateHandle keyGroupState =
+                                generateKeyGroupState(
+                                        jobVertexID2, keyGroupPartitions2.get(index), false);
+                        OperatorSubtaskState operatorSubtaskState =
+                                OperatorSubtaskState.builder()
+                                        .setManagedKeyedState(keyGroupState)
+                                        .build();
+                        TaskStateSnapshot taskOperatorSubtaskStates = new TaskStateSnapshot();
+                        taskOperatorSubtaskStates.putSubtaskStateByOperatorID(
+                                OperatorID.fromJobVertexID(jobVertexID2), operatorSubtaskState);
+                        AcknowledgeCheckpoint acknowledgeCheckpoint =
+                                new AcknowledgeCheckpoint(
+                                        jid,
+                                        jobVertex2
+                                                .getTaskVertices()[index]
+                                                .getCurrentExecutionAttempt()
+                                                .getAttemptId(),
+                                        checkpointId,
+                                        new CheckpointMetrics(),
+                                        taskOperatorSubtaskStates);
 
-            coord.receiveAcknowledgeMessage(acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
-        }
+                        coord.receiveAcknowledgeMessage(
+                                acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+                    }
 
-        List<CompletedCheckpoint> completedCheckpoints = coord.getSuccessfulCheckpoints();
+                    List<CompletedCheckpoint> completedCheckpoints =
+                            coord.getSuccessfulCheckpoints();
 
-        assertEquals(1, completedCheckpoints.size());
+                    assertEquals(1, completedCheckpoints.size());
 
-        Set<ExecutionJobVertex> tasks = new HashSet<>();
+                    Set<ExecutionJobVertex> tasks = new HashSet<>();
 
-        int newMaxParallelism1 = 20;
-        int newMaxParallelism2 = 42;
+                    int newMaxParallelism1 = 20;
+                    int newMaxParallelism2 = 42;
 
-        final ExecutionJobVertex newJobVertex1 =
-                mockExecutionJobVertex(jobVertexID1, parallelism1, newMaxParallelism1);
+                    final ExecutionJobVertex newJobVertex1 =
+                            mockExecutionJobVertex(jobVertexID1, parallelism1, newMaxParallelism1);
 
-        final ExecutionJobVertex newJobVertex2 =
-                mockExecutionJobVertex(jobVertexID2, parallelism2, newMaxParallelism2);
+                    final ExecutionJobVertex newJobVertex2 =
+                            mockExecutionJobVertex(jobVertexID2, parallelism2, newMaxParallelism2);
 
-        tasks.add(newJobVertex1);
-        tasks.add(newJobVertex2);
+                    tasks.add(newJobVertex1);
+                    tasks.add(newJobVertex2);
 
-        assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
+                    assertTrue(coord.restoreLatestCheckpointedStateToAll(tasks, false));
 
-        fail("The restoration should have failed because the max parallelism changed.");
-        });
+                    fail("The restoration should have failed because the max parallelism changed.");
+                });
     }
 
     @Test
@@ -906,7 +898,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                             .getTaskVertices()[i]
                             .getCurrentExecutionAttempt()
                             .getTaskRestore();
-            Assert.assertEquals(2L, taskRestore.getRestoreCheckpointId());
+            Assertions.assertEquals(2L, taskRestore.getRestoreCheckpointId());
             TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
             OperatorSubtaskState headOpState =
@@ -995,7 +987,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                             .getTaskVertices()[i]
                             .getCurrentExecutionAttempt()
                             .getTaskRestore();
-            Assert.assertEquals(2L, taskRestore.getRestoreCheckpointId());
+            Assertions.assertEquals(2L, taskRestore.getRestoreCheckpointId());
             TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
             // operator 3

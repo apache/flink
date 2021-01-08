@@ -32,8 +32,12 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -69,8 +73,8 @@ public class AsyncCheckpointRunnableTest {
                         (msg, ex) -> {});
         runnable.run();
 
-        Assert.assertTrue(environment.getCause() instanceof CheckpointException);
-        Assert.assertSame(
+        Assertions.assertTrue(environment.getCause() instanceof CheckpointException);
+        Assertions.assertSame(
                 ((CheckpointException) environment.getCause()).getCheckpointFailureReason(),
                 CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
     }

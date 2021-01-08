@@ -18,8 +18,13 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -53,7 +58,7 @@ public class StructuredOptionsSplitterEscapeTest {
         String encoded =
                 StructuredOptionsSplitter.escapeWithSingleQuote(
                         testSpec.getString(), testSpec.getEscapeChars());
-        Assert.assertEquals(testSpec.getEncodedString(), encoded);
+        Assertions.assertEquals(testSpec.getEncodedString(), encoded);
     }
 
     private static class TestSpec {

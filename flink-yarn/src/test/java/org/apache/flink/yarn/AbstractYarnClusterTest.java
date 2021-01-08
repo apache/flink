@@ -35,6 +35,11 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -49,7 +54,7 @@ public class AbstractYarnClusterTest extends TestLogger {
     /** Tests that the cluster retrieval of a finished YARN application fails. */
     @Test
     public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
-        Assertions.assertThrows(ClusterRetrieveException.class, () -> {
+        assertThrows(ClusterRetrieveException.class, () -> {
                     final ApplicationId applicationId =
                 ApplicationId.newInstance(System.currentTimeMillis(), 42);
         final ApplicationReport applicationReport =

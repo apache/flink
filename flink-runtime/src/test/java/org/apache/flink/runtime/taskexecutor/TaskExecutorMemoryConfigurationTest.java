@@ -21,26 +21,16 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.apache.flink.configuration.TaskManagerOptions.FRAMEWORK_HEAP_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.FRAMEWORK_OFF_HEAP_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.JVM_METASPACE;
-import static org.apache.flink.configuration.TaskManagerOptions.JVM_OVERHEAD_FRACTION;
-import static org.apache.flink.configuration.TaskManagerOptions.JVM_OVERHEAD_MAX;
-import static org.apache.flink.configuration.TaskManagerOptions.JVM_OVERHEAD_MIN;
-import static org.apache.flink.configuration.TaskManagerOptions.MANAGED_MEMORY_FRACTION;
-import static org.apache.flink.configuration.TaskManagerOptions.MANAGED_MEMORY_SIZE;
-import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_FRACTION;
-import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MAX;
-import static org.apache.flink.configuration.TaskManagerOptions.NETWORK_MEMORY_MIN;
-import static org.apache.flink.configuration.TaskManagerOptions.TASK_HEAP_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.TASK_OFF_HEAP_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_FLINK_MEMORY;
-import static org.apache.flink.configuration.TaskManagerOptions.TOTAL_PROCESS_MEMORY;
+import static org.apache.flink.configuration.TaskManagerOptions.*;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests the initialization of TaskExecutorMemoryConfiguration. */
 public class TaskExecutorMemoryConfigurationTest extends TestLogger {

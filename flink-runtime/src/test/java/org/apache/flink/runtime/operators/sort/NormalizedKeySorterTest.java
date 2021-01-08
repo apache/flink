@@ -28,11 +28,14 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Random;
@@ -65,7 +68,7 @@ public class NormalizedKeySorterTest {
     @After
     public void afterTest() {
         if (!this.memoryManager.verifyEmpty()) {
-            Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+            Assertions.fail("Memory Leak: Some memory has not been returned to the memory manager.");
         }
 
         if (this.memoryManager != null) {
@@ -116,8 +119,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -156,8 +159,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -199,7 +202,7 @@ public class NormalizedKeySorterTest {
             num2++;
         } while (sorter.write(record));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "The number of records written after the reset was not the same as before.",
                 num,
                 num2);
@@ -219,8 +222,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -272,8 +275,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -313,9 +316,9 @@ public class NormalizedKeySorterTest {
             int cmp = sorter.compare(pos1, pos2);
 
             if (pos1 < pos2) {
-                Assert.assertTrue(cmp <= 0);
+                Assertions.assertTrue(cmp <= 0);
             } else {
-                Assert.assertTrue(cmp >= 0);
+                Assertions.assertTrue(cmp >= 0);
             }
         }
 
@@ -359,7 +362,7 @@ public class NormalizedKeySorterTest {
 
             final int cmp = last - current;
             if (cmp > 0) {
-                Assert.fail("Next key is not larger or equal to previous key.");
+                Assertions.fail("Next key is not larger or equal to previous key.");
             }
 
             last = current;
@@ -407,7 +410,7 @@ public class NormalizedKeySorterTest {
 
             final int cmp = last.compareTo(current);
             if (cmp > 0) {
-                Assert.fail("Next value is not larger or equal to previous value.");
+                Assertions.fail("Next value is not larger or equal to previous value.");
             }
 
             last = current;
@@ -456,7 +459,7 @@ public class NormalizedKeySorterTest {
 
             final int cmp = last.compareTo(current);
             if (cmp > 0) {
-                Assert.fail("Next value is not larger or equal to previous value.");
+                Assertions.fail("Next value is not larger or equal to previous value.");
             }
 
             last = current;

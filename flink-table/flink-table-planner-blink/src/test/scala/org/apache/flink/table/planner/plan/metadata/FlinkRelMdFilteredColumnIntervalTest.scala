@@ -23,7 +23,7 @@ import org.apache.flink.table.types.logical._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{DIVIDE, EQUALS, GREATER_THAN, IS_FALSE, IS_TRUE, LESS_THAN, LESS_THAN_OR_EQUAL}
-import org.junit.Assert.{assertEquals, assertNull}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNull}
 import org.junit.{Before, Test}
 
 import scala.collection.JavaConversions._

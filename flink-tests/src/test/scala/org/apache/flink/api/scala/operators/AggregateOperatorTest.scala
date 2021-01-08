@@ -17,7 +17,7 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException
@@ -41,16 +41,16 @@ class AggregateOperatorTest {
     try {
       tupleDs.aggregate(Aggregations.SUM, 1)
     } catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
 
     // should not work: index out of bounds
     try {
       tupleDs.aggregate(Aggregations.SUM, 10)
-      Assert.fail()
+      Assertions.fail()
     } catch {
       case iae: IllegalArgumentException =>
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
 
     val longDs = env.fromCollection(emptyLongData)
@@ -58,10 +58,10 @@ class AggregateOperatorTest {
     // should not work: not applied to tuple DataSet
     try {
       longDs.aggregate(Aggregations.MIN, 1)
-      Assert.fail()
+      Assertions.fail()
     } catch {
       case uoe: InvalidProgramException =>
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -75,16 +75,16 @@ class AggregateOperatorTest {
     try {
       tupleDs.aggregate(Aggregations.SUM, "_2")
     } catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
 
     // should not work: invalid field
     try {
       tupleDs.aggregate(Aggregations.SUM, "foo")
-      Assert.fail()
+      Assertions.fail()
     } catch {
       case iae: IllegalArgumentException =>
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
 
     val longDs = env.fromCollection(emptyLongData)
@@ -92,11 +92,11 @@ class AggregateOperatorTest {
     // should not work: not applied to tuple DataSet
     try {
       longDs.aggregate(Aggregations.MIN, "_1")
-      Assert.fail()
+      Assertions.fail()
     } catch {
       case uoe: InvalidProgramException =>
       case uoe: UnsupportedOperationException =>
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -116,7 +116,7 @@ class AggregateOperatorTest {
       // should not work: average on string
       try {
         tupleDs.aggregate(Aggregations.SUM, 2)
-        Assert.fail()
+        Assertions.fail()
       } catch {
         case iae: UnsupportedAggregationTypeException =>
       }
@@ -124,7 +124,7 @@ class AggregateOperatorTest {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
-        Assert.fail(e.getMessage)
+        Assertions.fail(e.getMessage)
       }
     }
   }

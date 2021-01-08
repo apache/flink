@@ -24,9 +24,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -34,8 +38,8 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link HighAvailabilityServicesUtils} class. */
 public class HighAvailabilityServicesUtilsTest extends TestLogger {
@@ -90,18 +94,21 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
     @Test
     public void testCustomHAServicesFactoryNotDefined() throws Exception {
-        Assertions.assertThrows(Exception.class, () -> {
+        assertThrows(
+                Exception.class,
+                () -> {
                     Configuration config = new Configuration();
 
-        Executor executor = Executors.directExecutor();
+                    Executor executor = Executors.directExecutor();
 
-        config.setString(
-                HighAvailabilityOptions.HA_MODE,
-                HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
+                    config.setString(
+                            HighAvailabilityOptions.HA_MODE,
+                            HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
 
-        // expect
-        HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
-        });
+                    // expect
+                    HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+                            config, executor);
+                });
     }
 
     @Test

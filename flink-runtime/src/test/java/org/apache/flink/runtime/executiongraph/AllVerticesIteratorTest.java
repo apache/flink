@@ -20,9 +20,12 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 
@@ -59,14 +62,14 @@ public class AllVerticesIteratorTest {
             int numReturned = 0;
             while (iter.hasNext()) {
                 iter.hasNext();
-                Assert.assertNotNull(iter.next());
+                Assertions.assertNotNull(iter.next());
                 numReturned++;
             }
 
-            Assert.assertEquals(13, numReturned);
+            Assertions.assertEquals(13, numReturned);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 }

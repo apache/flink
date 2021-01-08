@@ -23,8 +23,11 @@ import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 
@@ -50,7 +53,7 @@ public class GenericTypeInfoTest {
                         .replaceAll(
                                 "( {8}[a-zA-Z]+:java\\.math\\.BigInteger\\R)( {12}\\S*\\R)+", "$1");
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 serTree,
                 equalTo(
                         "GenericTypeInfo (PojoWithCollectionGeneric)\n"

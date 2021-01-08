@@ -18,8 +18,13 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the {@link
@@ -29,16 +34,18 @@ public class IncompletePartPrefixTest {
 
     @Test
     public void nullObjectNameShouldThroughException() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(
+                NullPointerException.class,
+                () -> {
                     RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(null);
-        });
+                });
     }
 
     @Test
     public void emptyInitialNameShouldSucceed() {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("");
-        Assert.assertEquals("_tmp_", objectNamePrefix);
+        Assertions.assertEquals("_tmp_", objectNamePrefix);
     }
 
     @Test
@@ -46,14 +53,14 @@ public class IncompletePartPrefixTest {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(
                         "no_slash_path");
-        Assert.assertEquals("_no_slash_path_tmp_", objectNamePrefix);
+        Assertions.assertEquals("_no_slash_path_tmp_", objectNamePrefix);
     }
 
     @Test
     public void nameWithOnlySlashShouldSucceed() {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix("/");
-        Assert.assertEquals("/_tmp_", objectNamePrefix);
+        Assertions.assertEquals("/_tmp_", objectNamePrefix);
     }
 
     @Test
@@ -61,6 +68,6 @@ public class IncompletePartPrefixTest {
         String objectNamePrefix =
                 RecoverableMultiPartUploadImpl.createIncompletePartObjectNamePrefix(
                         "/root/home/test-file");
-        Assert.assertEquals("/root/home/_test-file_tmp_", objectNamePrefix);
+        Assertions.assertEquals("/root/home/_test-file_tmp_", objectNamePrefix);
     }
 }

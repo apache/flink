@@ -29,9 +29,13 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.InstantiationUtil;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -39,56 +43,18 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 import javax.annotation.Nullable;
-
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Period;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.time.*;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static java.util.Arrays.asList;
-import static org.apache.flink.table.api.DataTypes.ARRAY;
-import static org.apache.flink.table.api.DataTypes.BINARY;
-import static org.apache.flink.table.api.DataTypes.BOOLEAN;
-import static org.apache.flink.table.api.DataTypes.CHAR;
-import static org.apache.flink.table.api.DataTypes.DATE;
-import static org.apache.flink.table.api.DataTypes.DAY;
-import static org.apache.flink.table.api.DataTypes.DECIMAL;
-import static org.apache.flink.table.api.DataTypes.DOUBLE;
-import static org.apache.flink.table.api.DataTypes.FIELD;
-import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.DataTypes.INTERVAL;
-import static org.apache.flink.table.api.DataTypes.MAP;
-import static org.apache.flink.table.api.DataTypes.MONTH;
-import static org.apache.flink.table.api.DataTypes.MULTISET;
-import static org.apache.flink.table.api.DataTypes.ROW;
-import static org.apache.flink.table.api.DataTypes.SECOND;
-import static org.apache.flink.table.api.DataTypes.STRING;
-import static org.apache.flink.table.api.DataTypes.TIME;
-import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
-import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
-import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_TIME_ZONE;
-import static org.apache.flink.table.api.DataTypes.VARBINARY;
-import static org.apache.flink.table.api.DataTypes.VARCHAR;
-import static org.apache.flink.table.api.DataTypes.YEAR;
+import static org.apache.flink.table.api.DataTypes.*;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** Tests for {@link DataStructureConverters}. */
 @RunWith(Parameterized.class)

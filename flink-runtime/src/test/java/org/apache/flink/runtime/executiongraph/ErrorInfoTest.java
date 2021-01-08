@@ -20,12 +20,16 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.testutils.ClassLoaderUtils;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Simple test for the {@link ErrorInfo}. */
 public class ErrorInfoTest {

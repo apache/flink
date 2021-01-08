@@ -29,7 +29,7 @@ import org.apache.flink.testutils.migration.MigrationVersion;
 import org.hamcrest.Matcher;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 public class PrimitiveArraySerializerUpgradeTestSpecifications {
     // ----------------------------------------------------------------------------------------------

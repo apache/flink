@@ -28,10 +28,14 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.heap.CopyOnWriteStateMap;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.StateMigrationException;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -43,8 +47,6 @@ import java.util.function.Consumer;
 import static org.apache.flink.runtime.state.ttl.StateBackendTestContext.NUMBER_OF_KEY_GROUPS;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
 
@@ -222,7 +224,7 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 300;
         assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
+        assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
     }
 
     @Test
@@ -238,7 +240,7 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 120;
         assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
+        assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
         assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
     }
 
@@ -268,7 +270,7 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 250;
         assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
-        assertTrue("Original state should be cleared on access", ctx().isOriginalEmptyValue());
+        assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
     }
 
     @Test
@@ -457,20 +459,22 @@ public abstract class TtlStateTestBase {
 
     @Test
     public void testRestoreTtlAndRegisterNonTtlStateCompatFailure() throws Exception {
-        Assertions.assertThrows(StateMigrationException.class, () -> {
+        assertThrows(
+                StateMigrationException.class,
+                () -> {
                     assumeThat(this, not(instanceOf(MockTtlStateTest.class)));
 
-        initTest();
+                    initTest();
 
-        timeProvider.time = 0;
-        ctx().update(ctx().updateEmpty);
+                    timeProvider.time = 0;
+                    ctx().update(ctx().updateEmpty);
 
-        KeyedStateHandle snapshot = sbetc.takeSnapshot();
-        sbetc.createAndRestoreKeyedStateBackend(snapshot);
+                    KeyedStateHandle snapshot = sbetc.takeSnapshot();
+                    sbetc.createAndRestoreKeyedStateBackend(snapshot);
 
-        sbetc.setCurrentKey("defaultKey");
-        sbetc.createState(ctx().createStateDescriptor(), "");
-        });
+                    sbetc.setCurrentKey("defaultKey");
+                    sbetc.createState(ctx().createStateDescriptor(), "");
+                });
     }
 
     @Test
@@ -544,7 +548,7 @@ public abstract class TtlStateTestBase {
     private void checkExpiredKeys(int startKey, int endKey) throws Exception {
         for (int i = startKey; i < endKey; i++) {
             sbetc.setCurrentKey(Integer.toString(i));
-            assertTrue("Original state should be cleared", ctx().isOriginalEmptyValue());
+            assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared");
         }
     }
 

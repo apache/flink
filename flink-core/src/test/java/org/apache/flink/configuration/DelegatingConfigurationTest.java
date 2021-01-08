@@ -19,6 +19,11 @@
 package org.apache.flink.configuration;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -26,8 +31,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link DelegatingConfiguration}. */
 public class DelegatingConfigurationTest {
@@ -70,10 +75,10 @@ public class DelegatingConfigurationTest {
             }
 
             assertTrue(
+                    hasMethod,
                     "Configuration method '"
                             + configurationMethod.getName()
-                            + "' has not been wrapped correctly in DelegatingConfiguration wrapper",
-                    hasMethod);
+                            + "' has not been wrapped correctly in DelegatingConfiguration wrapper");
         }
     }
 

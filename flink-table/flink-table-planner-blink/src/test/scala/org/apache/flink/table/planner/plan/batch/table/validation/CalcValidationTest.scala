@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 class CalcValidationTest extends TableTestBase {
@@ -39,7 +39,7 @@ class CalcValidationTest extends TableTestBase {
 
   @Test
   def testFilterInvalidFieldName(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val util = batchTestUtil()
     val t = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
 

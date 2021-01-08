@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.functions
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.apache.flink.api.common.functions.RichJoinFunction
 import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.operators.{GenericDataSinkBase, SingleInputSemanticProperties}

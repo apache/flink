@@ -36,8 +36,12 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -107,13 +111,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the failure
-            Assert.assertTrue(e.getCause().getMessage().contains("artificial failure for record"));
+            Assertions.assertTrue(
+                    e.getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -146,14 +151,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -216,14 +221,14 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the failure from the 2nd request
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -255,14 +260,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getMessage().contains("artificial failure for bulk request"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -294,7 +299,7 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause()
                             .getCause()
                             .getMessage()
@@ -304,7 +309,7 @@ public class ElasticsearchSinkBaseTest {
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -363,7 +368,7 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause()
                             .getCause()
                             .getMessage()
@@ -373,7 +378,7 @@ public class ElasticsearchSinkBaseTest {
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -426,7 +431,7 @@ public class ElasticsearchSinkBaseTest {
         }
 
         // current number of pending request should be 1 due to the re-add
-        Assert.assertEquals(1, sink.getNumPendingRequests());
+        Assertions.assertEquals(1, sink.getNumPendingRequests());
 
         // this time, let the bulk request succeed, so no-more requests are re-added
         sink.setMockItemFailuresListForNextBulkItemResponses(
@@ -481,8 +486,8 @@ public class ElasticsearchSinkBaseTest {
         sink.open(mock(Configuration.class));
         sink.close();
 
-        Assert.assertTrue(sinkFunction.openCalled);
-        Assert.assertTrue(sinkFunction.closeCalled);
+        Assertions.assertTrue(sinkFunction.openCalled);
+        Assertions.assertTrue(sinkFunction.closeCalled);
     }
 
     private static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {

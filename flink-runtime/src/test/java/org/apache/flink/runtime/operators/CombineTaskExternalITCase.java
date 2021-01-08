@@ -30,9 +30,12 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -76,7 +79,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
         int expSum = 0;
@@ -100,12 +103,12 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             }
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + aggMap.size() + ". Expected was " + keyCnt,
                 aggMap.size() == keyCnt);
 
         for (IntValue integer : aggMap.values()) {
-            Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
+            Assertions.assertTrue(integer.getValue() == expSum, "Incorrect result");
         }
 
         this.outList.clear();
@@ -131,7 +134,7 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
         int expSum = 0;
@@ -155,12 +158,12 @@ public class CombineTaskExternalITCase extends DriverTestBase<RichGroupReduceFun
             }
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + aggMap.size() + ". Expected was " + keyCnt,
                 aggMap.size() == keyCnt);
 
         for (IntValue integer : aggMap.values()) {
-            Assert.assertTrue("Incorrect result", integer.getValue() == expSum);
+            Assertions.assertTrue(integer.getValue() == expSum, "Incorrect result");
         }
 
         this.outList.clear();

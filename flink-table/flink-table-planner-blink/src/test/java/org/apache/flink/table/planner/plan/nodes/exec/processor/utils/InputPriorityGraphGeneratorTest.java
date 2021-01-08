@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor.utils;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -62,9 +65,9 @@ public class InputPriorityGraphGeneratorTest {
                         Collections.emptySet(),
                         ExecEdge.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-        Assert.assertEquals(2, ancestors.size());
-        Assert.assertTrue(ancestors.contains(nodes[0]));
-        Assert.assertTrue(ancestors.contains(nodes[5]));
+        Assertions.assertEquals(2, ancestors.size());
+        Assertions.assertTrue(ancestors.contains(nodes[0]));
+        Assertions.assertTrue(ancestors.contains(nodes[5]));
     }
 
     @Test
@@ -89,8 +92,8 @@ public class InputPriorityGraphGeneratorTest {
                         new HashSet<>(Collections.singleton(nodes[1])),
                         ExecEdge.DamBehavior.END_INPUT);
         List<ExecNode<?>> ancestors = resolver.calculatePipelinedAncestors(nodes[2]);
-        Assert.assertEquals(1, ancestors.size());
-        Assert.assertTrue(ancestors.contains(nodes[1]));
+        Assertions.assertEquals(1, ancestors.size());
+        Assertions.assertTrue(ancestors.contains(nodes[1]));
     }
 
     private static class TestingInputPriorityConflictResolver extends InputPriorityGraphGenerator {

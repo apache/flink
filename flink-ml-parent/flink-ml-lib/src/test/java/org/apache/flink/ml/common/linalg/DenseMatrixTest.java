@@ -19,8 +19,12 @@
 
 package org.apache.flink.ml.common.linalg;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test cases for DenseMatrix. */
 public class DenseMatrixTest {
@@ -34,7 +38,7 @@ public class DenseMatrixTest {
         int n = matA[0].length;
         for (int i = 0; i < m; i++) {
             for (int j = 0; j < n; j++) {
-                Assert.assertEquals(matA[i][j], matB[i][j], TOL);
+                Assertions.assertEquals(matA[i][j], matB[i][j], TOL);
             }
         }
     }
@@ -79,9 +83,9 @@ public class DenseMatrixTest {
                         });
         DenseMatrix matB = DenseMatrix.ones(2, 3);
         matA.plusEquals(matB);
-        Assert.assertArrayEquals(matA.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
+        Assertions.assertArrayEquals(matA.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
         matA.plusEquals(1.0);
-        Assert.assertArrayEquals(matA.getData(), new double[] {3, 4, 5, 6, 7, 8}, TOL);
+        Assertions.assertArrayEquals(matA.getData(), new double[] {3, 4, 5, 6, 7, 8}, TOL);
     }
 
     @Test
@@ -94,7 +98,7 @@ public class DenseMatrixTest {
                         });
         DenseMatrix matB = DenseMatrix.ones(2, 3);
         matA.minusEquals(matB);
-        Assert.assertArrayEquals(matA.getData(), new double[] {0, 1, 2, 3, 4, 5}, TOL);
+        Assertions.assertArrayEquals(matA.getData(), new double[] {0, 1, 2, 3, 4, 5}, TOL);
     }
 
     @Test
@@ -107,9 +111,9 @@ public class DenseMatrixTest {
                         });
         DenseMatrix matB = DenseMatrix.ones(2, 3);
         DenseMatrix matC = matA.plus(matB);
-        Assert.assertArrayEquals(matC.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
+        Assertions.assertArrayEquals(matC.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
         DenseMatrix matD = matA.plus(1.0);
-        Assert.assertArrayEquals(matD.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
+        Assertions.assertArrayEquals(matD.getData(), new double[] {2, 3, 4, 5, 6, 7}, TOL);
     }
 
     @Test
@@ -122,7 +126,7 @@ public class DenseMatrixTest {
                         });
         DenseMatrix matB = DenseMatrix.ones(2, 3);
         DenseMatrix matC = matA.minus(matB);
-        Assert.assertArrayEquals(matC.getData(), new double[] {0, 1, 2, 3, 4, 5}, TOL);
+        Assertions.assertArrayEquals(matC.getData(), new double[] {0, 1, 2, 3, 4, 5}, TOL);
     }
 
     @Test
@@ -135,7 +139,7 @@ public class DenseMatrixTest {
 
         DenseMatrix matD = new DenseMatrix(5, 4);
         BLAS.gemm(1., matB, true, matA, true, 0., matD);
-        Assert.assertArrayEquals(matD.transpose().getData(), matC.data, TOL);
+        Assertions.assertArrayEquals(matD.transpose().getData(), matC.data, TOL);
     }
 
     @Test
@@ -143,11 +147,12 @@ public class DenseMatrixTest {
         DenseMatrix matA = DenseMatrix.rand(4, 3);
         DenseVector x = DenseVector.ones(3);
         DenseVector y = matA.multiplies(x);
-        Assert.assertArrayEquals(y.getData(), simpleMV(matA.getArrayCopy2D(), x.getData()), TOL);
+        Assertions.assertArrayEquals(
+                y.getData(), simpleMV(matA.getArrayCopy2D(), x.getData()), TOL);
 
         SparseVector x2 = new SparseVector(3, new int[] {0, 1, 2}, new double[] {1, 1, 1});
         DenseVector y2 = matA.multiplies(x2);
-        Assert.assertArrayEquals(y2.getData(), y.getData(), TOL);
+        Assertions.assertArrayEquals(y2.getData(), y.getData(), TOL);
     }
 
     @Test
@@ -161,35 +166,35 @@ public class DenseMatrixTest {
                         });
         DenseMatrix sub1 = mat.selectRows(new int[] {1});
         DenseMatrix sub2 = mat.getSubMatrix(1, 2, 1, 2);
-        Assert.assertEquals(sub1.numRows(), 1);
-        Assert.assertEquals(sub1.numCols(), 3);
-        Assert.assertEquals(sub2.numRows(), 1);
-        Assert.assertEquals(sub2.numCols(), 1);
-        Assert.assertArrayEquals(sub1.getData(), new double[] {4, 5, 6}, TOL);
-        Assert.assertArrayEquals(sub2.getData(), new double[] {5}, TOL);
+        Assertions.assertEquals(sub1.numRows(), 1);
+        Assertions.assertEquals(sub1.numCols(), 3);
+        Assertions.assertEquals(sub2.numRows(), 1);
+        Assertions.assertEquals(sub2.numCols(), 1);
+        Assertions.assertArrayEquals(sub1.getData(), new double[] {4, 5, 6}, TOL);
+        Assertions.assertArrayEquals(sub2.getData(), new double[] {5}, TOL);
 
         double[] row = mat.getRow(1);
         double[] col = mat.getColumn(1);
-        Assert.assertArrayEquals(row, new double[] {4, 5, 6}, 0.);
-        Assert.assertArrayEquals(col, new double[] {2, 5, 8}, 0.);
+        Assertions.assertArrayEquals(row, new double[] {4, 5, 6}, 0.);
+        Assertions.assertArrayEquals(col, new double[] {2, 5, 8}, 0.);
     }
 
     @Test
     public void testSum() throws Exception {
         DenseMatrix matA = DenseMatrix.ones(3, 2);
-        Assert.assertEquals(matA.sum(), 6.0, TOL);
+        Assertions.assertEquals(matA.sum(), 6.0, TOL);
     }
 
     @Test
     public void testRowMajorFormat() throws Exception {
         double[] data = new double[] {1, 2, 3, 4, 5, 6};
         DenseMatrix matA = new DenseMatrix(2, 3, data, true);
-        Assert.assertArrayEquals(data, new double[] {1, 4, 2, 5, 3, 6}, 0.);
-        Assert.assertArrayEquals(matA.getData(), new double[] {1, 4, 2, 5, 3, 6}, 0.);
+        Assertions.assertArrayEquals(data, new double[] {1, 4, 2, 5, 3, 6}, 0.);
+        Assertions.assertArrayEquals(matA.getData(), new double[] {1, 4, 2, 5, 3, 6}, 0.);
 
         data = new double[] {1, 2, 3, 4};
         matA = new DenseMatrix(2, 2, data, true);
-        Assert.assertArrayEquals(data, new double[] {1, 3, 2, 4}, 0.);
-        Assert.assertArrayEquals(matA.getData(), new double[] {1, 3, 2, 4}, 0.);
+        Assertions.assertArrayEquals(data, new double[] {1, 3, 2, 4}, 0.);
+        Assertions.assertArrayEquals(matA.getData(), new double[] {1, 3, 2, 4}, 0.);
     }
 }

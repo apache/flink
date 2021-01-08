@@ -27,7 +27,6 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Test harness for testing a {@link StreamTask}.

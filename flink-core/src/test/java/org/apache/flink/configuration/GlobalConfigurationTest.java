@@ -22,6 +22,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -30,11 +32,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory
@@ -107,16 +109,20 @@ public class GlobalConfigurationTest extends TestLogger {
 
     @Test
     public void testFailIfNotLoaded() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
-        });
+                });
     }
 
     @Test
     public void testInvalidConfiguration() throws IOException {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
-        });
+                });
     }
 
     @Test

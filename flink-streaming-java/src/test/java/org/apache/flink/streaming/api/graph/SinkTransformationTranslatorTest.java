@@ -36,6 +36,11 @@ import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -181,7 +186,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
 
     @Test
     public void throwExceptionWithoutSettingUid() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         final Configuration config = new Configuration();

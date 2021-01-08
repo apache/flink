@@ -20,16 +20,22 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link MemorySize} class. */
 public class MemorySizeTest {
@@ -74,9 +80,11 @@ public class MemorySizeTest {
 
     @Test
     public void testInvalid() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new MemorySize(-1);
-        });
+                });
     }
 
     @Test
@@ -207,16 +215,20 @@ public class MemorySizeTest {
 
     @Test
     public void testParseNumberOverflow() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     MemorySize.parseBytes("100000000000000000000000000000000 bytes");
-        });
+                });
     }
 
     @Test
     public void testParseNumberTimeUnitOverflow() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     MemorySize.parseBytes("100000000000000 tb");
-        });
+                });
     }
 
     @Test
@@ -241,10 +253,12 @@ public class MemorySizeTest {
 
     @Test
     public void testDivideByNegativeLong() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final MemorySize memory = new MemorySize(100L);
-        memory.divide(-23L);
-        });
+                    memory.divide(-23L);
+                });
     }
 
     @Test

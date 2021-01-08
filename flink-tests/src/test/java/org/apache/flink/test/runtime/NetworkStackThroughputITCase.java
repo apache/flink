@@ -36,9 +36,12 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -295,7 +298,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
         final JobResult jobResult =
                 client.submitJob(jobGraph).thenCompose(client::requestJobResult).get();
 
-        Assert.assertFalse(jobResult.getSerializedThrowable().isPresent());
+        Assertions.assertFalse(jobResult.getSerializedThrowable().isPresent());
 
         final long dataVolumeMbit = dataVolumeGb * 8192;
         final long runtimeSecs =

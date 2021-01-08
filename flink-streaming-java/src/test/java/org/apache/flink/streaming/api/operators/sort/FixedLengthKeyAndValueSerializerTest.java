@@ -25,6 +25,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link KeyAndValueSerializer}, which verify fixed length keys. */
 public class FixedLengthKeyAndValueSerializerTest
@@ -58,7 +63,7 @@ public class FixedLengthKeyAndValueSerializerTest
     @Override
     @Test
     public void testConfigSnapshotInstantiation() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     super.testConfigSnapshotInstantiation();
         });
     }
@@ -66,7 +71,7 @@ public class FixedLengthKeyAndValueSerializerTest
     @Override
     @Test
     public void testSnapshotConfigurationAndReconfigure() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     super.testSnapshotConfigurationAndReconfigure();
         });
     }

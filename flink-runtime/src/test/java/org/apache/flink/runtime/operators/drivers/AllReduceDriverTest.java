@@ -32,9 +32,12 @@ import org.apache.flink.runtime.util.RegularToMutableObjectIterator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -68,7 +71,7 @@ public class AllReduceDriverTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -112,8 +115,8 @@ public class AllReduceDriverTest {
                 char[] expectedString = "abcddeeeffff".toCharArray();
                 Arrays.sort(expectedString);
 
-                Assert.assertArrayEquals(expectedString, foundString);
-                Assert.assertEquals(78, res.f1.intValue());
+                Assertions.assertArrayEquals(expectedString, foundString);
+                Assertions.assertEquals(78, res.f1.intValue());
             }
 
             {
@@ -153,13 +156,13 @@ public class AllReduceDriverTest {
                 char[] expectedString = "abcddeeeffff".toCharArray();
                 Arrays.sort(expectedString);
 
-                Assert.assertArrayEquals(expectedString, foundString);
-                Assert.assertEquals(78, res.f1.intValue());
+                Assertions.assertArrayEquals(expectedString, foundString);
+                Assertions.assertEquals(78, res.f1.intValue());
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -205,8 +208,8 @@ public class AllReduceDriverTest {
                 char[] expectedString = "abcddeeeffff".toCharArray();
                 Arrays.sort(expectedString);
 
-                Assert.assertArrayEquals(expectedString, foundString);
-                Assert.assertEquals(78, res.f1.getValue());
+                Assertions.assertArrayEquals(expectedString, foundString);
+                Assertions.assertEquals(78, res.f1.getValue());
             }
             {
                 TestTaskContext<
@@ -247,13 +250,13 @@ public class AllReduceDriverTest {
                 char[] expectedString = "abcddeeeffff".toCharArray();
                 Arrays.sort(expectedString);
 
-                Assert.assertArrayEquals(expectedString, foundString);
-                Assert.assertEquals(78, res.f1.getValue());
+                Assertions.assertArrayEquals(expectedString, foundString);
+                Assertions.assertEquals(78, res.f1.getValue());
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
     // --------------------------------------------------------------------------------------------

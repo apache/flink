@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase,
 import org.apache.flink.table.planner.utils.{TableAggSum, Top3, Top3Accum, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Test}

@@ -27,6 +27,11 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,48 +43,54 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link StreamingGlobalCommitterOperator}. */
 public class StreamingGlobalCommitterOperatorTest extends TestLogger {
 
     @Test
     public void throwExceptionWithoutSerializer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final OneInputStreamOperatorTestHarness<String, String> testHarness =
-                createTestHarness(new TestSink.DefaultGlobalCommitter(), null);
-        testHarness.initializeEmptyState();
-        testHarness.open();
-        });
+                            createTestHarness(new TestSink.DefaultGlobalCommitter(), null);
+                    testHarness.initializeEmptyState();
+                    testHarness.open();
+                });
     }
 
     @Test
     public void throwExceptionWithoutCommitter() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final OneInputStreamOperatorTestHarness<String, String> testHarness =
-                createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
-        testHarness.initializeEmptyState();
-        testHarness.open();
-        });
+                            createTestHarness(null, TestSink.StringCommittableSerializer.INSTANCE);
+                    testHarness.initializeEmptyState();
+                    testHarness.open();
+                });
     }
 
     @Test
     public void doNotSupportRetry() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     final List<String> input = Arrays.asList("lazy", "leaf");
 
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
-                createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
+                            createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
 
-        testHarness.initializeEmptyState();
-        testHarness.open();
-        testHarness.processElements(
-                input.stream().map(StreamRecord::new).collect(Collectors.toList()));
-        testHarness.snapshot(1L, 1L);
-        testHarness.notifyOfCompletedCheckpoint(1L);
+                    testHarness.initializeEmptyState();
+                    testHarness.open();
+                    testHarness.processElements(
+                            input.stream().map(StreamRecord::new).collect(Collectors.toList()));
+                    testHarness.snapshot(1L, 1L);
+                    testHarness.notifyOfCompletedCheckpoint(1L);
 
-        testHarness.close();
-        });
+                    testHarness.close();
+                });
     }
 
     @Test

@@ -31,6 +31,11 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,7 +44,7 @@ import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Integration test that verifies that a user program with a big(ger) payload is successfully

@@ -24,8 +24,13 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link ShuffleModeUtils}. */
 public class ShuffleModeUtilsTest extends TestLogger {
@@ -108,10 +113,13 @@ public class ShuffleModeUtilsTest extends TestLogger {
 
     @Test
     public void testGetInvalidShuffleMode() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Configuration configuration = new Configuration();
-        configuration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
-        ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
-        });
+                    configuration.setString(
+                            ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE, "invalid-value");
+                    ShuffleModeUtils.getShuffleModeAsGlobalDataExchangeMode(configuration);
+                });
     }
 }

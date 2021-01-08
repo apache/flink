@@ -36,29 +36,18 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.datagen.DataGenTableSource;
 import org.apache.flink.util.InstantiationUtil;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.KIND;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.LENGTH;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.MAX;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.MIN;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.NUMBER_OF_ROWS;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.RANDOM;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.ROWS_PER_SECOND;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.SEQUENCE;
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
 public class DataGenTableSourceFactoryTest {
@@ -111,11 +100,11 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putString(NUMBER_OF_ROWS.key(), "10");
 
         List<RowData> results = runGenerator(schema, descriptor);
-        Assert.assertEquals("Failed to generate all rows", 10, results.size());
+        Assertions.assertEquals("Failed to generate all rows", 10, results.size());
 
         for (RowData row : results) {
             for (int i = 0; i < row.getArity(); i++) {
-                Assert.assertFalse(
+                Assertions.assertFalse(
                         "Column " + schema.getFieldNames()[i] + " should not be null",
                         row.isNullAt(i));
             }
@@ -141,13 +130,13 @@ public class DataGenTableSourceFactoryTest {
 
         List<RowData> results = runGenerator(TEST_SCHEMA, descriptor);
 
-        Assert.assertEquals(11, results.size());
+        Assertions.assertEquals(11, results.size());
         for (int i = 0; i < results.size(); i++) {
             RowData row = results.get(i);
-            Assert.assertEquals(20, row.getString(0).toString().length());
+            Assertions.assertEquals(20, row.getString(0).toString().length());
             long f1 = row.getLong(1);
-            Assert.assertTrue(f1 >= 10 && f1 <= 100);
-            Assert.assertEquals(i + 50, row.getLong(2));
+            Assertions.assertTrue(f1 >= 10 && f1 <= 100);
+            Assertions.assertEquals(i + 50, row.getLong(2));
         }
     }
 
@@ -221,15 +210,15 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage()
                             .contains(
                                     "Could not find required property 'fields.f0.start' for sequence generator."));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -245,15 +234,15 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage()
                             .contains(
                                     "Could not find required property 'fields.f0.end' for sequence generator."));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -268,13 +257,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nwrong-rows-per-second"));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -290,13 +279,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nfields.f0.start"));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -312,13 +301,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nfields.f0.length"));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -335,14 +324,14 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof IllegalArgumentException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof IllegalArgumentException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage()
                             .contains("Could not parse value 'Wrong' for key 'fields.f0.start'"));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 
     private static DynamicTableSource createSource(

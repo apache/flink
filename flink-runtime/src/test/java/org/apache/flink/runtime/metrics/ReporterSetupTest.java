@@ -31,8 +31,11 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,8 +45,8 @@ import java.util.Properties;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link ReporterSetup}. */
 public class ReporterSetupTest extends TestLogger {
@@ -63,7 +66,7 @@ public class ReporterSetupTest extends TestLogger {
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        Assertions.assertEquals(1, reporterSetups.size());
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
         assertReporter1Configured(reporterSetup);
@@ -81,18 +84,18 @@ public class ReporterSetupTest extends TestLogger {
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
-        Assert.assertEquals(2, reporterSetups.size());
+        Assertions.assertEquals(2, reporterSetups.size());
 
         final Optional<ReporterSetup> reporter1Config =
                 reporterSetups.stream().filter(c -> "reporter1".equals(c.getName())).findFirst();
 
-        Assert.assertTrue(reporter1Config.isPresent());
+        Assertions.assertTrue(reporter1Config.isPresent());
         assertReporter1Configured(reporter1Config.get());
 
         final Optional<ReporterSetup> reporter2Config =
                 reporterSetups.stream().filter(c -> "reporter2".equals(c.getName())).findFirst();
 
-        Assert.assertTrue(reporter2Config.isPresent());
+        Assertions.assertTrue(reporter2Config.isPresent());
         assertReporter2Configured(reporter2Config.get());
     }
 
@@ -111,7 +114,7 @@ public class ReporterSetupTest extends TestLogger {
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        Assertions.assertEquals(1, reporterSetups.size());
 
         final ReporterSetup setup = reporterSetups.get(0);
         assertReporter2Configured(setup);
@@ -129,11 +132,11 @@ public class ReporterSetupTest extends TestLogger {
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
 
-        Assert.assertEquals(1, reporterSetups.size());
+        Assertions.assertEquals(1, reporterSetups.size());
 
         final ReporterSetup reporterSetup = reporterSetups.get(0);
         final MetricReporter metricReporter = reporterSetup.getReporter();
-        Assert.assertThat(metricReporter, instanceOf(TestReporter1.class));
+        MatcherAssert.assertThat(metricReporter, instanceOf(TestReporter1.class));
     }
 
     /** Verifies that multiple reporters are instantiated correctly. */
@@ -161,9 +164,9 @@ public class ReporterSetupTest extends TestLogger {
 
         assertEquals(3, reporterSetups.size());
 
-        Assert.assertTrue(TestReporter11.wasOpened);
-        Assert.assertTrue(TestReporter12.wasOpened);
-        Assert.assertTrue(TestReporter13.wasOpened);
+        Assertions.assertTrue(TestReporter11.wasOpened);
+        Assertions.assertTrue(TestReporter12.wasOpened);
+        Assertions.assertTrue(TestReporter13.wasOpened);
     }
 
     /** Reporter that exposes whether open() was called. */
@@ -207,10 +210,10 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     private static void assertReporter1Configured(ReporterSetup setup) {
-        Assert.assertEquals("reporter1", setup.getName());
-        Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", ""));
-        Assert.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
-        Assert.assertEquals(
+        Assertions.assertEquals("reporter1", setup.getName());
+        Assertions.assertEquals("value1", setup.getConfiguration().getString("arg1", ""));
+        Assertions.assertEquals("value2", setup.getConfiguration().getString("arg2", ""));
+        Assertions.assertEquals(
                 ReporterSetupTest.TestReporter1.class.getName(),
                 setup.getConfiguration().getString("class", null));
     }
@@ -226,10 +229,10 @@ public class ReporterSetupTest extends TestLogger {
     }
 
     private static void assertReporter2Configured(ReporterSetup setup) {
-        Assert.assertEquals("reporter2", setup.getName());
-        Assert.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
-        Assert.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
-        Assert.assertEquals(
+        Assertions.assertEquals("reporter2", setup.getName());
+        Assertions.assertEquals("value1", setup.getConfiguration().getString("arg1", null));
+        Assertions.assertEquals("value3", setup.getConfiguration().getString("arg3", null));
+        Assertions.assertEquals(
                 TestReporter2.class.getName(), setup.getConfiguration().getString("class", null));
     }
 

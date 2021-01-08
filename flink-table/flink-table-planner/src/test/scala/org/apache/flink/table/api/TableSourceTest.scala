@@ -436,7 +436,7 @@ class TableSourceTest extends TableTestBase {
       "%%",
       true)
 
-    Assert.assertEquals(source1, source2)
+    Assertions.assertEquals(source1, source2)
   }
 
 // TODO enable this test once we expose the feature through the table environment
@@ -474,7 +474,7 @@ class TableSourceTest extends TableTestBase {
 //      "%%",
 //      true)
 //
-//    Assert.assertEquals(source1, source2)
+//    Assertions.assertEquals(source1, source2)
 //  }
 
   @Test

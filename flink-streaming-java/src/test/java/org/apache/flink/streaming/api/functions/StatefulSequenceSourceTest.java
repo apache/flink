@@ -25,15 +25,14 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Tests for {@link StatefulSequenceSource}. */
@@ -166,7 +165,7 @@ public class StatefulSequenceSourceTest {
         runner3.start();
         runner3.join();
 
-        Assert.assertEquals(3, outputCollector.size()); // we have 3 tasks.
+        Assertions.assertEquals(3, outputCollector.size()); // we have 3 tasks.
 
         // test for at-most-once
         Set<Long> dedupRes = new HashSet<>(Math.abs(maxElement - initElement) + 1);
@@ -175,21 +174,21 @@ public class StatefulSequenceSourceTest {
             List<Long> elements = outputCollector.get(key);
 
             // this tests the correctness of the latches in the test
-            Assert.assertTrue(elements.size() > 0);
+            Assertions.assertTrue(elements.size() > 0);
 
             for (Long elem : elements) {
                 if (!dedupRes.add(elem)) {
-                    Assert.fail("Duplicate entry: " + elem);
+                    Assertions.fail("Duplicate entry: " + elem);
                 }
 
                 if (!expectedOutput.contains(elem)) {
-                    Assert.fail("Unexpected element: " + elem);
+                    Assertions.fail("Unexpected element: " + elem);
                 }
             }
         }
 
         // test for exactly-once
-        Assert.assertEquals(Math.abs(initElement - maxElement) + 1, dedupRes.size());
+        Assertions.assertEquals(Math.abs(initElement - maxElement) + 1, dedupRes.size());
 
         latchToWait1.trigger();
         latchToWait2.trigger();
@@ -230,7 +229,7 @@ public class StatefulSequenceSourceTest {
             this.localOutput = new ArrayList<>();
             List<T> prev = collector.put(name, localOutput);
             if (prev != null) {
-                Assert.fail();
+                Assertions.fail();
             }
         }
 

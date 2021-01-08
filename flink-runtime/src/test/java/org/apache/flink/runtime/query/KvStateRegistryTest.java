@@ -32,23 +32,22 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link KvStateRegistry}. */
 public class KvStateRegistryTest extends TestLogger {
@@ -101,8 +100,8 @@ public class KvStateRegistryTest extends TestLogger {
         final KvStateEntry<?, ?, ?> kvState = kvStateRegistry.getKvState(stateID);
 
         // verify that all the threads are done correctly.
-        Assert.assertEquals(threads, infos.size());
-        Assert.assertEquals(threads, kvState.getCacheSize());
+        Assertions.assertEquals(threads, infos.size());
+        Assertions.assertEquals(threads, kvState.getCacheSize());
 
         latch2.countDown();
 
@@ -111,11 +110,12 @@ public class KvStateRegistryTest extends TestLogger {
             for (KvStateInfo<?, ?, ?> infoB : infos) {
                 if (infoA == infoB) {
                     if (instanceAlreadyFound) {
-                        Assert.fail("More than one thread sharing the same serializer instance.");
+                        Assertions.fail(
+                                "More than one thread sharing the same serializer instance.");
                     }
                     instanceAlreadyFound = true;
                 } else {
-                    Assert.assertEquals(infoA, infoB);
+                    Assertions.assertEquals(infoA, infoB);
                 }
             }
         }
@@ -123,7 +123,7 @@ public class KvStateRegistryTest extends TestLogger {
         kvStateRegistry.unregisterKvState(
                 jobID, jobVertexId, keyGroupRange, registrationName, stateID);
 
-        Assert.assertEquals(0L, kvState.getCacheSize());
+        Assertions.assertEquals(0L, kvState.getCacheSize());
 
         Throwable t = exceptionHolder.get();
         if (t != null) {

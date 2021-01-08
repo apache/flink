@@ -22,28 +22,39 @@ import org.apache.flink.api.common.eventtime.WatermarksWithIdleness.IdlenessTime
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for the {@link WatermarksWithIdleness} class. */
 public class WatermarksWithIdlenessTest {
 
     @Test
     public void testZeroTimeout() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-                    new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ZERO);
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new WatermarksWithIdleness<>(
+                            new AscendingTimestampsWatermarks<>(), Duration.ZERO);
+                });
     }
 
     @Test
     public void testNegativeTimeout() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-                    new WatermarksWithIdleness<>(new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new WatermarksWithIdleness<>(
+                            new AscendingTimestampsWatermarks<>(), Duration.ofMillis(-1L));
+                });
     }
 
     @Test

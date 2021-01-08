@@ -21,8 +21,10 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
 
 public class NormalizableKeyTest {
 
@@ -140,13 +142,14 @@ public class NormalizableKeyTest {
 
             if ((comp = (normKey1 - normKey2)) != 0) {
                 if (Math.signum(key1.compareTo((T) key2)) != Math.signum(comp)) {
-                    Assert.fail("Normalized key comparison differs from actual key comparision");
+                    Assertions.fail(
+                            "Normalized key comparison differs from actual key comparision");
                 }
                 return;
             }
         }
         if (key1.compareTo((T) key2) != 0 && key1.getMaxNormalizedKeyLen() <= len) {
-            Assert.fail(
+            Assertions.fail(
                     "Normalized key was not able to distinguish keys, "
                             + "although it should as the length of it sufficies to uniquely identify them");
         }

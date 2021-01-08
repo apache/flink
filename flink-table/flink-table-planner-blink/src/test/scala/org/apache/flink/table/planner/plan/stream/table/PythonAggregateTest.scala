@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, Lis
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.DataType
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class PythonAggregateTest extends TableTestBase {

@@ -23,78 +23,94 @@ import org.apache.flink.table.descriptors.ClassInstance;
 import org.apache.flink.table.descriptors.FunctionDescriptor;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Tests for {@link FunctionService}. */
 public class FunctionServiceTest {
 
     @Test
     public void testWrongArgsFunctionCreation() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     FunctionDescriptor descriptor =
-                new FunctionDescriptor()
-                        .fromClass(
-                                new ClassInstance()
-                                        .of(NoArgClass.class.getName())
-                                        .parameterString("12"));
+                            new FunctionDescriptor()
+                                    .fromClass(
+                                            new ClassInstance()
+                                                    .of(NoArgClass.class.getName())
+                                                    .parameterString("12"));
 
-        FunctionService.createFunction(descriptor);
-        });
+                    FunctionService.createFunction(descriptor);
+                });
     }
 
     @Test
     public void testPrivateFunctionCreation() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     FunctionDescriptor descriptor =
-                new FunctionDescriptor()
-                        .fromClass(new ClassInstance().of(PrivateClass.class.getName()));
+                            new FunctionDescriptor()
+                                    .fromClass(
+                                            new ClassInstance().of(PrivateClass.class.getName()));
 
-        FunctionService.createFunction(descriptor);
-        });
+                    FunctionService.createFunction(descriptor);
+                });
     }
 
     @Test
     public void testInvalidClassFunctionCreation() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     FunctionDescriptor descriptor =
-                new FunctionDescriptor()
-                        .fromClass(new ClassInstance().of("this.class.does.not.exist"));
+                            new FunctionDescriptor()
+                                    .fromClass(new ClassInstance().of("this.class.does.not.exist"));
 
-        FunctionService.createFunction(descriptor);
-        });
+                    FunctionService.createFunction(descriptor);
+                });
     }
 
     @Test
     public void testNotFunctionClassFunctionCreation() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     FunctionDescriptor descriptor =
-                new FunctionDescriptor()
-                        .fromClass(
-                                new ClassInstance()
-                                        .of(String.class.getName())
-                                        .parameterString("hello"));
+                            new FunctionDescriptor()
+                                    .fromClass(
+                                            new ClassInstance()
+                                                    .of(String.class.getName())
+                                                    .parameterString("hello"));
 
-        FunctionService.createFunction(descriptor);
-        });
+                    FunctionService.createFunction(descriptor);
+                });
     }
 
     @Test
     public void testErrorConstructorClass() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     FunctionDescriptor descriptor =
-                new FunctionDescriptor()
-                        .fromClass(
-                                new ClassInstance()
-                                        .of(ErrorConstructorClass.class.getName())
-                                        .parameterString("arg"));
+                            new FunctionDescriptor()
+                                    .fromClass(
+                                            new ClassInstance()
+                                                    .of(ErrorConstructorClass.class.getName())
+                                                    .parameterString("arg"));
 
-        FunctionService.createFunction(descriptor);
-        });
+                    FunctionService.createFunction(descriptor);
+                });
     }
 
     @Test

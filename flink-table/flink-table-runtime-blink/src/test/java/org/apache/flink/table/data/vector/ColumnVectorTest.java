@@ -19,33 +19,21 @@
 package org.apache.flink.table.data.vector;
 
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.data.vector.heap.HeapBooleanVector;
-import org.apache.flink.table.data.vector.heap.HeapByteVector;
-import org.apache.flink.table.data.vector.heap.HeapBytesVector;
-import org.apache.flink.table.data.vector.heap.HeapDoubleVector;
-import org.apache.flink.table.data.vector.heap.HeapFloatVector;
-import org.apache.flink.table.data.vector.heap.HeapIntVector;
-import org.apache.flink.table.data.vector.heap.HeapLongVector;
-import org.apache.flink.table.data.vector.heap.HeapShortVector;
-import org.apache.flink.table.data.vector.heap.HeapTimestampVector;
+import org.apache.flink.table.data.vector.heap.*;
 import org.apache.flink.table.data.vector.writable.WritableColumnVector;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.BYTE_ARRAY_OFFSET;
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.DOUBLE_ARRAY_OFFSET;
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.FLOAT_ARRAY_OFFSET;
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.INT_ARRAY_OFFSET;
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.LONG_ARRAY_OFFSET;
-import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.UNSAFE;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.data.vector.heap.AbstractHeapVector.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test {@link ColumnVector}. */
 public class ColumnVectorTest {

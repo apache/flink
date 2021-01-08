@@ -24,9 +24,12 @@ import org.apache.flink.runtime.operators.CrossTaskTest.MockCrossStub;
 import org.apache.flink.runtime.operators.testutils.DriverTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record, Record, Record>> {
     private static final long CROSS_MEM = 1024 * 1024;
@@ -67,10 +70,10 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
     }
 
     @Test
@@ -100,9 +103,9 @@ public class CrossTaskExternalITCase extends DriverTestBase<CrossFunction<Record
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
     }
 }

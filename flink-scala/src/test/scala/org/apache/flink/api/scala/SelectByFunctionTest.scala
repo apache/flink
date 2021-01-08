@@ -47,13 +47,13 @@ class SelectByFunctionTest {
     val a1 = Array(0)
     val maxByTuple = new SelectByMaxFunction(tupleTypeInfo, a1)
       try {
-        Assert.assertSame("SelectByMax must return bigger tuple",
+        Assertions.assertSame("SelectByMax must return bigger tuple",
           bigger, maxByTuple.reduce(smaller, bigger))
-        Assert.assertSame("SelectByMax must return bigger tuple",
+        Assertions.assertSame("SelectByMax must return bigger tuple",
           bigger, maxByTuple.reduce(bigger, smaller))
       } catch {
         case e : Exception =>
-          Assert.fail("No exception should be thrown while comparing both tuples")
+          Assertions.fail("No exception should be thrown while comparing both tuples")
       }
   }
 
@@ -70,12 +70,12 @@ class SelectByFunctionTest {
     val maxByTuple = new SelectByMaxFunction(tupleTypeInfo, a1)
 
     try {
-      Assert.assertSame("SelectByMax must return the first given tuple",
+      Assertions.assertSame("SelectByMax must return the first given tuple",
         specialCaseBigger, maxByTuple.reduce(specialCaseBigger, bigger))
-      Assert.assertSame("SelectByMax must return the first given tuple",
+      Assertions.assertSame("SelectByMax must return the first given tuple",
         bigger, maxByTuple.reduce(bigger, specialCaseBigger))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown " +
+      case e : Exception => Assertions.fail("No exception should be thrown " +
         "while comparing both tuples")
     }
   }
@@ -88,12 +88,12 @@ class SelectByFunctionTest {
     val a1 = Array(0, 2, 1, 4, 3)
     val maxByTuple = new SelectByMaxFunction(tupleTypeInfo, a1)
     try {
-      Assert.assertSame("SelectByMax must return bigger tuple",
+      Assertions.assertSame("SelectByMax must return bigger tuple",
         bigger, maxByTuple.reduce(specialCaseBigger, bigger))
-      Assert.assertSame("SelectByMax must return bigger tuple",
+      Assertions.assertSame("SelectByMax must return bigger tuple",
         bigger, maxByTuple.reduce(bigger, specialCaseBigger))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown" +
+      case e : Exception => Assertions.fail("No exception should be thrown" +
         " while comparing both tuples")
     }
   }
@@ -106,12 +106,12 @@ class SelectByFunctionTest {
     val a1 = Array(0, 1, 2, 3, 4)
     val maxByTuple = new SelectByMaxFunction(tupleTypeInfo, a1)
     try {
-      Assert.assertSame("SelectByMax must return bigger tuple",
+      Assertions.assertSame("SelectByMax must return bigger tuple",
         bigger, maxByTuple.reduce(smaller, bigger))
-      Assert.assertSame("SelectByMax must return bigger tuple",
+      Assertions.assertSame("SelectByMax must return bigger tuple",
         bigger, maxByTuple.reduce(bigger, smaller))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown " +
+      case e : Exception => Assertions.fail("No exception should be thrown " +
         "while comparing both tuples")
     }
   }
@@ -125,12 +125,12 @@ class SelectByFunctionTest {
     val maxByTuple = new SelectByMaxFunction(tupleTypeInfo, a1)
 
     try {
-      Assert.assertSame("SelectByMax must return bigger tuple",
+      Assertions.assertSame("SelectByMax must return bigger tuple",
         bigger, maxByTuple.reduce(bigger, bigger))
-      Assert.assertSame("SelectByMax must return smaller tuple",
+      Assertions.assertSame("SelectByMax must return smaller tuple",
         smaller, maxByTuple.reduce(smaller, smaller))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown" +
+      case e : Exception => Assertions.fail("No exception should be thrown" +
         " while comparing both tuples")
     }
   }
@@ -146,12 +146,12 @@ class SelectByFunctionTest {
     val a1 = Array(0)
     val minByTuple = new SelectByMinFunction(tupleTypeInfo, a1)
     try {
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(smaller, bigger))
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(bigger, smaller))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown " +
+      case e : Exception => Assertions.fail("No exception should be thrown " +
         "while comparing both tuples")
     }
   }
@@ -167,12 +167,12 @@ class SelectByFunctionTest {
     val minByTuple = new SelectByMinFunction(tupleTypeInfo, a1)
 
     try {
-      Assert.assertSame("SelectByMin must return the first given tuple",
+      Assertions.assertSame("SelectByMin must return the first given tuple",
         specialCaseBigger, minByTuple.reduce(specialCaseBigger, bigger))
-      Assert.assertSame("SelectByMin must return the first given tuple",
+      Assertions.assertSame("SelectByMin must return the first given tuple",
         bigger, minByTuple.reduce(bigger, specialCaseBigger))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown " +
+      case e : Exception => Assertions.fail("No exception should be thrown " +
         "while comparing both tuples")
     }
   }
@@ -188,12 +188,12 @@ class SelectByFunctionTest {
     val minByTuple = new SelectByMinFunction(tupleTypeInfo, a1)
 
     try {
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(specialCaseSmaller, smaller))
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(smaller, specialCaseSmaller))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown" +
+      case e : Exception => Assertions.fail("No exception should be thrown" +
         " while comparing both tuples")
     }
   }
@@ -206,12 +206,12 @@ class SelectByFunctionTest {
     val a1 = Array(0, 1, 2, 3, 4)
     val minByTuple  = new SelectByMinFunction(tupleTypeInfo, a1)
     try {
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(smaller, bigger))
-      Assert.assertSame("SelectByMin must return smaller tuple",
+      Assertions.assertSame("SelectByMin must return smaller tuple",
         smaller, minByTuple.reduce(bigger, smaller))
     } catch {
-      case e : Exception => Assert.fail("No exception should be thrown" +
+      case e : Exception => Assertions.fail("No exception should be thrown" +
         " while comparing both tuples")
     }
   }

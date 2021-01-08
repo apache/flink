@@ -27,8 +27,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-
 /** Test accumulator within iteration. */
 public class AccumulatorIterativeITCase extends JavaProgramTestBase {
     private static final int NUM_ITERATIONS = 3;
@@ -51,7 +49,8 @@ public class AccumulatorIterativeITCase extends JavaProgramTestBase {
                 .closeWith(iteration.reduceGroup(new SumReducer()))
                 .output(new DiscardingOutputFormat<Integer>());
 
-        Assert.assertEquals(NUM_ITERATIONS * 6, (int) env.execute().getAccumulatorResult(ACC_NAME));
+        Assertions.assertEquals(
+                NUM_ITERATIONS * 6, (int) env.execute().getAccumulatorResult(ACC_NAME));
     }
 
     static final class SumReducer extends RichGroupReduceFunction<Integer, Integer> {

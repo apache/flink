@@ -77,7 +77,7 @@ class CRowSerializerTest extends TestLogger {
     testHarness.processElement(new StreamRecord[Integer](2, 1L))
     testHarness.processElement(new StreamRecord[Integer](3, 1L))
 
-    Assert.assertEquals(1, numKeyedStateEntries(operator))
+    Assertions.assertEquals(1, numKeyedStateEntries(operator))
 
     val snapshot = testHarness.snapshot(0L, 0L)
     testHarness.close()
@@ -94,7 +94,7 @@ class CRowSerializerTest extends TestLogger {
 
     testHarness.open()
 
-    Assert.assertEquals(1, numKeyedStateEntries(operator))
+    Assertions.assertEquals(1, numKeyedStateEntries(operator))
 
     testHarness.close()
   }

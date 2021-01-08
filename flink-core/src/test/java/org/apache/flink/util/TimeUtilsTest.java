@@ -21,6 +21,11 @@ package org.apache.flink.util;
 import org.apache.flink.api.common.time.Time;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
@@ -28,9 +33,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link TimeUtils}. */
 public class TimeUtilsTest {
@@ -171,9 +176,11 @@ public class TimeUtilsTest {
 
     @Test
     public void testParseDurationNumberOverflow() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     TimeUtils.parseDuration("100000000000000000000000000000000 ms");
-        });
+                });
     }
 
     @Test

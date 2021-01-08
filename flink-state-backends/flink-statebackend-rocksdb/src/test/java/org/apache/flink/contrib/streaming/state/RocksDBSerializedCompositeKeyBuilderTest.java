@@ -24,10 +24,13 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -168,7 +171,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
             byte[] result = dataOutputSerializer.getCopyOfBuffer();
             deserializer.setBuffer(result);
             assertKeyKeyGroupBytes(testKey, keyGroup, prefixBytes, serializer, deserializer, false);
-            Assert.assertEquals(0, deserializer.available());
+            Assertions.assertEquals(0, deserializer.available());
         }
     }
 
@@ -204,7 +207,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
                         namespaceSerializer,
                         deserializer,
                         ambiguousPossible);
-                Assert.assertEquals(0, deserializer.available());
+                Assertions.assertEquals(0, deserializer.available());
             }
         }
     }
@@ -252,7 +255,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
                             deserializer,
                             ambiguousPossible);
 
-                    Assert.assertEquals(0, deserializer.available());
+                    Assertions.assertEquals(0, deserializer.available());
                 }
             }
         }
@@ -287,9 +290,9 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
             boolean ambiguousCompositeKeyPossible)
             throws IOException {
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 keyGroup, RocksDBKeySerializationUtils.readKeyGroup(prefixBytes, deserializer));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 key,
                 RocksDBKeySerializationUtils.readKey(
                         typeSerializer, deserializer, ambiguousCompositeKeyPossible));
@@ -315,7 +318,7 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
         N readNamespace =
                 RocksDBKeySerializationUtils.readNamespace(
                         namespaceSerializer, deserializer, ambiguousCompositeKeyPossible);
-        Assert.assertEquals(namespace, readNamespace);
+        Assertions.assertEquals(namespace, readNamespace);
     }
 
     private <K, N, U> void assertKeyGroupKeyNamespaceUserKeyBytes(
@@ -339,6 +342,6 @@ public class RocksDBSerializedCompositeKeyBuilderTest {
                 namespaceSerializer,
                 deserializer,
                 ambiguousCompositeKeyPossible);
-        Assert.assertEquals(userKey, userKeySerializer.deserialize(deserializer));
+        Assertions.assertEquals(userKey, userKeySerializer.deserialize(deserializer));
     }
 }

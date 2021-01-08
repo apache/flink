@@ -22,16 +22,16 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.blob.BlobUtils;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
+import org.apache.flink.runtime.blob.*;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,8 +42,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Integration test for {@link BlobLibraryCacheManager}. */
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
@@ -159,7 +158,7 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
-            assertNotNull("HA storage directory does not exist", recoveryFiles);
+            assertNotNull(recoveryFiles, "HA storage directory does not exist");
             assertEquals(
                     "Unclean state backend: " + Arrays.toString(recoveryFiles),
                     0,

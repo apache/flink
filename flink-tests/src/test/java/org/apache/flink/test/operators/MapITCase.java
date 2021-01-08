@@ -27,9 +27,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.CustomType;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -86,12 +89,12 @@ public class MapITCase extends MultipleProgramsTestBase {
                         new RichMapFunction<String, String>() {
                             @Override
                             public String map(String value) throws Exception {
-                                Assert.assertTrue(
+                                Assertions.assertTrue(
                                         1000
                                                 == getRuntimeContext()
                                                         .getExecutionConfig()
                                                         .getNumberOfExecutionRetries());
-                                Assert.assertTrue(
+                                Assertions.assertTrue(
                                         50000
                                                 == getRuntimeContext()
                                                         .getExecutionConfig()
@@ -527,7 +530,7 @@ public class MapITCase extends MultipleProgramsTestBase {
         @Override
         public void open(Configuration config) {
             int val = config.getInteger(TEST_KEY, -1);
-            Assert.assertEquals(TEST_VALUE, val);
+            Assertions.assertEquals(TEST_VALUE, val);
         }
 
         @Override

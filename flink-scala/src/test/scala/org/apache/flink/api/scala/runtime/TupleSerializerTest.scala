@@ -28,7 +28,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.util.StringUtils
 import org.joda.time.LocalDate
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Assert, Test}
 
 import scala.collection.JavaConverters._
@@ -228,7 +228,7 @@ class TupleSerializerTest {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
-        Assert.fail(e.getMessage)
+        Assertions.fail(e.getMessage)
       }
     }
   }

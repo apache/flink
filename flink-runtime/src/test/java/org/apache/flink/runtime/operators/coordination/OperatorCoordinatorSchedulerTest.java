@@ -55,6 +55,11 @@ import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -75,14 +80,12 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the integration of the {@link OperatorCoordinator} with the scheduler, to ensure the
@@ -687,13 +690,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
         final ExecutionJobVertex vertexWithCoordinator = getJobVertex(scheduler, testVertexId);
-        assertNotNull("vertex for coordinator not found", vertexWithCoordinator);
+        assertNotNull(vertexWithCoordinator, "vertex for coordinator not found");
 
         final Optional<OperatorCoordinatorHolder> coordinatorOptional =
                 vertexWithCoordinator.getOperatorCoordinators().stream()
                         .filter((holder) -> holder.operatorId().equals(testOperatorId))
                         .findFirst();
-        assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
+        assertTrue(coordinatorOptional.isPresent(), "vertex does not contain coordinator");
 
         final OperatorCoordinator coordinator = coordinatorOptional.get().coordinator();
         assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));

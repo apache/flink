@@ -31,9 +31,13 @@ import org.apache.flink.testutils.ArtificialCNFExceptionThrowingClassLoader;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
@@ -51,8 +55,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Unit tests for {@link TypeSerializerSerializationUtil}. */
 public class TypeSerializerSerializationUtilTest implements Serializable {
@@ -80,7 +84,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                             Thread.currentThread().getContextClassLoader());
         }
 
-        Assert.assertEquals(serializer, deserializedSerializer);
+        Assertions.assertEquals(serializer, deserializedSerializer);
     }
 
     /**
@@ -110,9 +114,9 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                                     Collections.singleton(IntSerializer.class.getName())),
                             true);
         }
-        Assert.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
+        Assertions.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 InstantiationUtil.serializeObject(serializer),
                 ((UnloadableDummyTypeSerializer<?>) deserializedSerializer).getActualBytes());
     }
@@ -144,7 +148,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                                     Collections.singleton(IntSerializer.class.getName())),
                             true);
         }
-        Assert.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
+        Assertions.assertTrue(deserializedSerializer instanceof UnloadableDummyTypeSerializer);
     }
 
     /** Verifies that reading and writing configuration snapshots work correctly. */
@@ -178,24 +182,29 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
     /** Verifies that deserializing config snapshots fail if the config class could not be found. */
     @Test
     public void testFailsWhenConfigurationSnapshotClassNotFound() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     byte[] serializedConfig;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
-                    new DataOutputViewStreamWrapper(out),
-                    new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(123, "foobar"),
-                    StringSerializer.INSTANCE);
-            serializedConfig = out.toByteArray();
-        }
+                    try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+                        TypeSerializerSnapshotSerializationUtil.writeSerializerSnapshot(
+                                new DataOutputViewStreamWrapper(out),
+                                new TypeSerializerSerializationUtilTest.TestConfigSnapshot<>(
+                                        123, "foobar"),
+                                StringSerializer.INSTANCE);
+                        serializedConfig = out.toByteArray();
+                    }
 
-        try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
-            // read using a dummy classloader
-            TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
-                    new DataInputViewStreamWrapper(in), new URLClassLoader(new URL[0], null), null);
-        }
+                    try (ByteArrayInputStream in = new ByteArrayInputStream(serializedConfig)) {
+                        // read using a dummy classloader
+                        TypeSerializerSnapshotSerializationUtil.readSerializerSnapshot(
+                                new DataInputViewStreamWrapper(in),
+                                new URLClassLoader(new URL[0], null),
+                                null);
+                    }
 
-        fail("Expected a ClassNotFoundException wrapped in IOException");
-        });
+                    fail("Expected a ClassNotFoundException wrapped in IOException");
+                });
     }
 
     /**
@@ -232,9 +241,9 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                                     cnfThrowingClassnames));
         }
 
-        Assert.assertEquals(1, restored.size());
-        Assert.assertTrue(restored.get(0).f0 instanceof UnloadableDummyTypeSerializer);
-        Assert.assertThat(
+        Assertions.assertEquals(1, restored.size());
+        Assertions.assertTrue(restored.get(0).f0 instanceof UnloadableDummyTypeSerializer);
+        MatcherAssert.assertThat(
                 restored.get(0).f1, Matchers.instanceOf(SimpleTypeSerializerSnapshot.class));
     }
 
@@ -253,7 +262,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
                     }
                 };
         // assert that our assumption holds
-        Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
+        Assertions.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
 
         byte[] anonymousSerializerBytes;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -264,7 +273,7 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
 
         long newSerialVersionUID = 1234567L;
         // assert that we're actually modifying to a different serialVersionUID
-        Assert.assertNotEquals(
+        Assertions.assertNotEquals(
                 ObjectStreamClass.lookup(anonymousClassSerializer.getClass()).getSerialVersionUID(),
                 newSerialVersionUID);
         modifySerialVersionUID(
@@ -280,8 +289,8 @@ public class TypeSerializerSerializationUtilTest implements Serializable {
         }
 
         // serializer should have been deserialized despite serialVersionUID mismatch
-        Assert.assertNotNull(anonymousClassSerializer);
-        Assert.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
+        Assertions.assertNotNull(anonymousClassSerializer);
+        Assertions.assertTrue(anonymousClassSerializer.getClass().isAnonymousClass());
     }
 
     public static class TestConfigSnapshot<T> extends TypeSerializerConfigSnapshot<T> {

@@ -23,7 +23,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
-import org.junit.Assert.{assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertTrue, fail}
 import org.junit.jupiter.api.Test
 
 class CorrelateValidationTest extends TableTestBase {
@@ -108,7 +108,7 @@ class CorrelateValidationTest extends TableTestBase {
 
   @Test
   def testInvalidMapFunctionTypeAggregation(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val util = streamTestUtil()
     util.addTable[(Int)](
       "MyTable", 'int)

@@ -18,21 +18,25 @@
 
 package org.apache.flink.formats.avro;
 
+import com.esotericsoftware.kryo.Kryo;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.FilteredClassLoader;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-
-import com.esotericsoftware.kryo.Kryo;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * This test makes sure that reversed classloading works for the Avro/Kryo integration when Kryo is

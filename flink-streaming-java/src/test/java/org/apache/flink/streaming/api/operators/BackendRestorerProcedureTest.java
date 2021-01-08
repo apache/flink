@@ -36,8 +36,12 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionWithException;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -122,7 +126,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 
         OperatorStateBackend restoredBackend =
                 restorerProcedure.createAndRestore(sortedRestoreOptions);
-        Assert.assertNotNull(restoredBackend);
+        Assertions.assertNotNull(restoredBackend);
 
         try {
             verify(firstFailHandle).openInputStream();
@@ -132,11 +136,11 @@ public class BackendRestorerProcedureTest extends TestLogger {
             ListState<Integer> listState = restoredBackend.getListState(stateDescriptor);
 
             Iterator<Integer> stateIterator = listState.get().iterator();
-            Assert.assertEquals(0, (int) stateIterator.next());
-            Assert.assertEquals(1, (int) stateIterator.next());
-            Assert.assertEquals(2, (int) stateIterator.next());
-            Assert.assertEquals(3, (int) stateIterator.next());
-            Assert.assertFalse(stateIterator.hasNext());
+            Assertions.assertEquals(0, (int) stateIterator.next());
+            Assertions.assertEquals(1, (int) stateIterator.next());
+            Assertions.assertEquals(2, (int) stateIterator.next());
+            Assertions.assertEquals(3, (int) stateIterator.next());
+            Assertions.assertFalse(stateIterator.hasNext());
 
         } finally {
             restoredBackend.close();
@@ -166,7 +170,7 @@ public class BackendRestorerProcedureTest extends TestLogger {
 
         try {
             restorerProcedure.createAndRestore(sortedRestoreOptions);
-            Assert.fail();
+            Assertions.fail();
         } catch (Exception ignore) {
         }
 
@@ -212,6 +216,6 @@ public class BackendRestorerProcedureTest extends TestLogger {
         restoreThread.join();
 
         Exception exception = exceptionReference.get();
-        Assert.assertTrue(exception instanceof FlinkException);
+        Assertions.assertTrue(exception instanceof FlinkException);
     }
 }

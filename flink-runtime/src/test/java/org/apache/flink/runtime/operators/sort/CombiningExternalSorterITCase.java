@@ -39,11 +39,14 @@ import org.apache.flink.runtime.util.ReusingKeyGroupedIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +56,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CombiningExternalSorterITCase extends TestLogger {
 
@@ -98,7 +101,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory leak: not all segments have been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -300,7 +303,7 @@ public class CombiningExternalSorterITCase extends TestLogger {
         Tuple2<Integer, String> rec = new Tuple2<>();
 
         for (int i = 0; i < NUM_PAIRS; i++) {
-            Assert.assertTrue((rec = generator.next(rec)) != null);
+            Assertions.assertTrue((rec = generator.next(rec)) != null);
             final Integer key = rec.f0;
             rec.setField("1", 1);
             reader.emit(rec);
@@ -317,14 +320,14 @@ public class CombiningExternalSorterITCase extends TestLogger {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        Assertions.assertTrue((rec1 = iterator.next(rec1)) != null);
         countTable.put(rec1.f0, countTable.get(rec1.f0) - (Integer.parseInt(rec1.f1)));
 
         while ((rec2 = iterator.next(rec2)) != null) {
             int k1 = rec1.f0;
             int k2 = rec2.f0;
 
-            Assert.assertTrue(keyComparator.compare(k1, k2) <= 0);
+            Assertions.assertTrue(keyComparator.compare(k1, k2) <= 0);
             countTable.put(k2, countTable.get(k2) - (Integer.parseInt(rec2.f1)));
 
             rec1 = rec2;

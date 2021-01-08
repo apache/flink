@@ -18,16 +18,20 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.formats.avro.generated.SimpleRecord;
-import org.apache.flink.formats.avro.utils.TestDataGenerator;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.flink.formats.avro.generated.Address;
+import org.apache.flink.formats.avro.generated.SimpleRecord;
+import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,8 +39,8 @@ import java.io.OutputStream;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Tests for {@link RegistryAvroDeserializationSchema}. */
 public class RegistryAvroDeserializationSchemaTest {

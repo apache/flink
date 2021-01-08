@@ -29,18 +29,17 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
-import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.KeyContext;
-import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.ArrayList;
@@ -51,8 +50,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for {@link BatchExecutionInternalTimeServiceManager} and {@link
@@ -355,14 +354,14 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
             return new TriggerWithTimerServiceAccess<>(
                     eventTimeHandler,
                     (timer, timeService) ->
-                            Assert.fail("We did not expect processing timer to be triggered."));
+                            Assertions.fail("We did not expect processing timer to be triggered."));
         }
 
         public static <K, N> TriggerWithTimerServiceAccess<K, N> processingTimeTrigger(
                 BiConsumer<InternalTimer<K, N>, InternalTimerService<N>> processingTimeHandler) {
             return new TriggerWithTimerServiceAccess<>(
                     (timer, timeService) ->
-                            Assert.fail("We did not expect event timer to be triggered."),
+                            Assertions.fail("We did not expect event timer to be triggered."),
                     processingTimeHandler);
         }
 
@@ -390,13 +389,14 @@ public class BatchExecutionInternalTimeServiceTest extends TestLogger {
                 Consumer<InternalTimer<K, N>> eventTimeHandler) {
             return new LambdaTrigger<>(
                     eventTimeHandler,
-                    timer -> Assert.fail("We did not expect processing timer to be triggered."));
+                    timer ->
+                            Assertions.fail("We did not expect processing timer to be triggered."));
         }
 
         public static <K, N> LambdaTrigger<K, N> processingTimeTrigger(
                 Consumer<InternalTimer<K, N>> processingTimeHandler) {
             return new LambdaTrigger<>(
-                    timer -> Assert.fail("We did not expect event timer to be triggered."),
+                    timer -> Assertions.fail("We did not expect event timer to be triggered."),
                     processingTimeHandler);
         }
 

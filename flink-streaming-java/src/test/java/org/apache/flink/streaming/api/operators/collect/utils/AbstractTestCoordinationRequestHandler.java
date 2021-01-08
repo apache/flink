@@ -29,18 +29,8 @@ import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRespo
 import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.util.OptionalFailure;
 
-import org.junit.Assert;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /** A {@link CoordinationRequestHandler} to test fetching SELECT query results. */
@@ -85,11 +75,11 @@ public abstract class AbstractTestCoordinationRequestHandler<T>
             throw new RuntimeException("Handler closed");
         }
 
-        Assert.assertTrue(request instanceof CollectCoordinationRequest);
+        Assertions.assertTrue(request instanceof CollectCoordinationRequest);
         CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
         updateBufferedResults();
-        Assert.assertTrue(offset <= collectRequest.getOffset());
+        Assertions.assertTrue(offset <= collectRequest.getOffset());
 
         List<T> subList = Collections.emptyList();
         if (collectRequest.getVersion().equals(version)) {

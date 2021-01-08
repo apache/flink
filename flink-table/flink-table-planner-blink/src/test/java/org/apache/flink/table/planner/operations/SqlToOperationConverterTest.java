@@ -76,6 +76,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
@@ -98,10 +103,10 @@ import static org.apache.flink.table.planner.utils.OperationMatchers.withOptions
 import static org.apache.flink.table.planner.utils.OperationMatchers.withSchema;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
@@ -197,10 +202,12 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testUseDatabaseWithException() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     final String sql = "USE cat1.db1.tbl1";
-        Operation operation = parse(sql, SqlDialect.DEFAULT);
-        });
+                    Operation operation = parse(sql, SqlDialect.DEFAULT);
+                });
     }
 
     @Test

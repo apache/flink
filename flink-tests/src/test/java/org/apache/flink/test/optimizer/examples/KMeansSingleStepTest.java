@@ -40,16 +40,17 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collection;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Validate the compilation and result of a single iteration of KMeans. */
 @SuppressWarnings("serial")
@@ -115,7 +116,7 @@ public class KMeansSingleStepTest extends CompilerTestBase {
         assertNull(mapper.getBroadcastInputs().get(0).getLocalStrategySortOrder());
 
         // check the combiner
-        Assert.assertNotNull(combiner);
+        Assertions.assertNotNull(combiner);
         assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
         assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
         assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());

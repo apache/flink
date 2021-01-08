@@ -18,29 +18,22 @@
 
 package org.apache.flink.table.data.vector;
 
-import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.ColumnarArrayData;
-import org.apache.flink.table.data.ColumnarRowData;
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.data.vector.heap.HeapBooleanVector;
-import org.apache.flink.table.data.vector.heap.HeapByteVector;
-import org.apache.flink.table.data.vector.heap.HeapBytesVector;
-import org.apache.flink.table.data.vector.heap.HeapDoubleVector;
-import org.apache.flink.table.data.vector.heap.HeapFloatVector;
-import org.apache.flink.table.data.vector.heap.HeapIntVector;
-import org.apache.flink.table.data.vector.heap.HeapLongVector;
-import org.apache.flink.table.data.vector.heap.HeapShortVector;
-
 import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.flink.table.data.*;
+import org.apache.flink.table.data.vector.heap.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test {@link VectorizedColumnBatch}. */
 public class VectorizedColumnBatchTest {

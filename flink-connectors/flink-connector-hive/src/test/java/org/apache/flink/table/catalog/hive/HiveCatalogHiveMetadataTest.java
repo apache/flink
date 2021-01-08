@@ -54,16 +54,21 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFAbs;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for HiveCatalog on Hive metadata. */
 public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
@@ -220,7 +225,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
                 new CatalogTableImpl(builder.build(), getBatchTableProperties(), null),
                 false);
         CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(path1);
-        assertTrue("PK not present", catalogTable.getSchema().getPrimaryKey().isPresent());
+        assertTrue(catalogTable.getSchema().getPrimaryKey().isPresent(), "PK not present");
         UniqueConstraint pk = catalogTable.getSchema().getPrimaryKey().get();
         assertEquals("pk_name", pk.getName());
         assertEquals(Collections.singletonList("x"), pk.getColumns());

@@ -37,7 +37,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 
 import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, Rule, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
@@ -56,7 +56,7 @@ class TableSourceITCase extends AbstractTestBase {
 
   @Test
   def testInvalidDatastreamType(): Unit = {
-        Assertions.assertThrows(classOf[TableException], () -> {
+        assertThrows(classOf[TableException], () -> {
                 val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)

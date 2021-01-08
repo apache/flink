@@ -27,7 +27,7 @@ import org.apache.flink.api.scala.io.CsvInputFormatTest.CaseClassItem
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
-import org.junit.Assert.{assertEquals, assertNotNull, assertNull, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotNull, assertNull, assertTrue, fail}
 import org.junit.jupiter.api.Test
 
 import scala.collection.mutable.ArrayBuffer
@@ -383,10 +383,10 @@ class CsvInputFormatTest {
       val splits = inputFormat.createInputSplits(1)
       inputFormat.open(splits(0))
       var result = inputFormat.nextRecord(null)
-      assertNotNull("Expecting to not return null", result)
+      assertNotNull(result, "Expecting to not return null")
       assertEquals(FIRST_PART, result._1)
       result = inputFormat.nextRecord(result)
-      assertNotNull("Expecting to not return null", result)
+      assertNotNull(result, "Expecting to not return null")
       assertEquals(SECOND_PART, result._1)
     }
     catch {

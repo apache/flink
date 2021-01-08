@@ -28,28 +28,25 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.api.Expressions.call;
-import static org.apache.flink.table.api.Expressions.range;
-import static org.apache.flink.table.api.Expressions.withColumns;
+import static org.apache.flink.table.api.Expressions.*;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End to end tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
 public class ValuesITCase extends StreamingTestBase {

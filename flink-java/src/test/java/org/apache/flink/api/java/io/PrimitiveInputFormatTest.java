@@ -21,17 +21,18 @@ package org.apache.flink.api.java.io;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link PrimitiveInputFormat}. */
 public class PrimitiveInputFormatTest {
@@ -153,26 +154,27 @@ public class PrimitiveInputFormatTest {
 
     @Test
     public void testFailingInput() throws IOException {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
+                    final String fileContent = "111|222|asdf|17";
+                    final FileInputSplit split = createInputSplit(fileContent);
 
-        final String fileContent = "111|222|asdf|17";
-        final FileInputSplit split = createInputSplit(fileContent);
+                    final PrimitiveInputFormat<Integer> format =
+                            new PrimitiveInputFormat<Integer>(PATH, "|", Integer.class);
 
-        final PrimitiveInputFormat<Integer> format =
-                new PrimitiveInputFormat<Integer>(PATH, "|", Integer.class);
+                    format.configure(new Configuration());
+                    format.open(split);
 
-        format.configure(new Configuration());
-        format.open(split);
+                    Integer result = null;
+                    result = format.nextRecord(result);
+                    assertEquals(Integer.valueOf(111), result);
 
-        Integer result = null;
-        result = format.nextRecord(result);
-        assertEquals(Integer.valueOf(111), result);
+                    result = format.nextRecord(result);
+                    assertEquals(Integer.valueOf(222), result);
 
-        result = format.nextRecord(result);
-        assertEquals(Integer.valueOf(222), result);
-
-        result = format.nextRecord(result);
-        });
+                    result = format.nextRecord(result);
+                });
     }
 
     private FileInputSplit createInputSplit(String content) throws IOException {

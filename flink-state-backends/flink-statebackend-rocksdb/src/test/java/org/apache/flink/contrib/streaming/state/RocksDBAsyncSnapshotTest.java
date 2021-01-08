@@ -28,30 +28,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
-import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.checkpoint.*;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
-import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.*;
 import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOutputStream;
-import org.apache.flink.runtime.state.CheckpointedStateScope;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.KeyedStateHandle;
-import org.apache.flink.runtime.state.SnapshotResult;
-import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.state.StreamStateHandle;
-import org.apache.flink.runtime.state.TestLocalRecoveryConfig;
-import org.apache.flink.runtime.state.TestTaskStateManager;
-import org.apache.flink.runtime.state.VoidNamespace;
-import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.BackendForTestStream;
@@ -70,16 +55,18 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.annotation.Nullable;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -92,13 +79,9 @@ import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.END_OF_KEY_GROUP_MARK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.FIRST_BIT_IN_BYTE_MASK;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
-import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -236,7 +219,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
         testHarness.waitForTaskCompletion();
         if (errorRef.get() != null) {
@@ -354,13 +337,13 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
         Set<BlockingCheckpointOutputStream> createdStreams =
                 blockerCheckpointStreamFactory.getAllCreatedStreams();
 
         for (BlockingCheckpointOutputStream stream : createdStreams) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Not all of the "
                             + createdStreams.size()
                             + " created streams have been closed.",
@@ -431,7 +414,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                 FutureUtils.runIfNotDoneAndGet(snapshotFuture);
                 fail("Expected an exception to be thrown here.");
             } catch (ExecutionException e) {
-                Assert.assertEquals(testException, e.getCause());
+                Assertions.assertEquals(testException, e.getCause());
             }
 
             verify(outputStream).close();
@@ -445,21 +428,21 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
     @Test
     public void testConsistentSnapshotSerializationFlagsAndMasks() {
 
-        Assert.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
-        Assert.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
+        Assertions.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
+        Assertions.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
 
         byte[] expectedKey = new byte[] {42, 42};
         byte[] modKey = expectedKey.clone();
 
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertFalse(hasMetaDataFollowsFlag(modKey));
 
         setMetaDataFollowsFlagInKey(modKey);
-        Assert.assertTrue(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertTrue(hasMetaDataFollowsFlag(modKey));
 
         clearMetaDataFollowsFlag(modKey);
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertFalse(hasMetaDataFollowsFlag(modKey));
 
-        Assert.assertTrue(Arrays.equals(expectedKey, modKey));
+        Assertions.assertTrue(Arrays.equals(expectedKey, modKey));
     }
 
     // ------------------------------------------------------------------------

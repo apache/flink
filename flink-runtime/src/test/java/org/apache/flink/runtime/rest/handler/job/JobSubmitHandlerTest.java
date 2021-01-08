@@ -36,16 +36,18 @@ import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -129,9 +131,9 @@ public class JobSubmitHandlerTest extends TestLogger {
             handler.handleRequest(
                     new HandlerRequest<>(request, EmptyMessageParameters.getInstance()),
                     mockGateway);
-            Assert.fail();
+            Assertions.fail();
         } catch (RestHandlerException rhe) {
-            Assert.assertEquals(HttpResponseStatus.BAD_REQUEST, rhe.getHttpResponseStatus());
+            Assertions.assertEquals(HttpResponseStatus.BAD_REQUEST, rhe.getHttpResponseStatus());
         }
     }
 
@@ -280,11 +282,11 @@ public class JobSubmitHandlerTest extends TestLogger {
                         dispatcherGateway)
                 .get();
 
-        Assert.assertTrue("No JobGraph was submitted.", submittedJobGraphFuture.isDone());
+        Assertions.assertTrue(submittedJobGraphFuture.isDone(), "No JobGraph was submitted.");
         final JobGraph submittedJobGraph = submittedJobGraphFuture.get();
-        Assert.assertEquals(1, submittedJobGraph.getUserJarBlobKeys().size());
-        Assert.assertEquals(1, submittedJobGraph.getUserArtifacts().size());
-        Assert.assertNotNull(submittedJobGraph.getUserArtifacts().get(dcEntryName).blobKey);
+        Assertions.assertEquals(1, submittedJobGraph.getUserJarBlobKeys().size());
+        Assertions.assertEquals(1, submittedJobGraph.getUserArtifacts().size());
+        Assertions.assertNotNull(submittedJobGraph.getUserArtifacts().get(dcEntryName).blobKey);
     }
 
     @Test
@@ -331,7 +333,7 @@ public class JobSubmitHandlerTest extends TestLogger {
                     .get();
         } catch (Exception e) {
             Throwable t = ExceptionUtils.stripExecutionException(e);
-            Assert.assertEquals(errorMessage, t.getMessage());
+            Assertions.assertEquals(errorMessage, t.getMessage());
         }
     }
 }

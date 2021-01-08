@@ -24,8 +24,7 @@ import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.test.util.JavaProgramTestBase;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
 
@@ -69,8 +68,8 @@ public class DataSourceITCase extends JavaProgramTestBase {
         public void configure(Configuration parameters) {
             super.configure(parameters);
 
-            Assert.assertNotNull(parameters.getString("prepend", null));
-            Assert.assertEquals("test", parameters.getString("prepend", null));
+            Assertions.assertNotNull(parameters.getString("prepend", null));
+            Assertions.assertEquals("test", parameters.getString("prepend", null));
         }
     }
 }

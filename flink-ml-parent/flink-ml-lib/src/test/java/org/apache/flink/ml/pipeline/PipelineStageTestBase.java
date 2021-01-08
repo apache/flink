@@ -26,6 +26,11 @@ import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The base class for testing the base implementation of pipeline stages, i.e. Estimators and
@@ -36,7 +41,7 @@ abstract class PipelineStageTestBase {
 
     @Test
     public void testMismatchTableEnvironment() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
         DataSet<Integer> input = env.getExecutionEnvironment().fromElements(1, 2, 3);
@@ -56,7 +61,7 @@ abstract class PipelineStageTestBase {
 
     @Test
     public void testNullInputTable() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
 

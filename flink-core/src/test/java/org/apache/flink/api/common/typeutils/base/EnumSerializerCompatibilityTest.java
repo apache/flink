@@ -26,9 +26,14 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
@@ -49,28 +54,30 @@ public class EnumSerializerCompatibilityTest extends TestLogger {
     /** Check that identical enums don't require migration */
     @Test
     public void checkIndenticalEnums() throws Exception {
-        Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs());
+        Assertions.assertTrue(checkCompatibility(ENUM_A, ENUM_A).isCompatibleAsIs());
     }
 
     /** Check that appending fields to the enum does not require migration */
     @Test
     public void checkAppendedField() throws Exception {
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 checkCompatibility(ENUM_A, ENUM_B).isCompatibleWithReconfiguredSerializer());
     }
 
     /** Check that removing enum fields makes the snapshot incompatible */
     @Test
     public void removingFieldShouldBeIncompatible() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    Assert.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
-        });
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    Assertions.assertTrue(checkCompatibility(ENUM_A, ENUM_C).isIncompatible());
+                });
     }
 
     /** Check that changing the enum field order don't require migration */
     @Test
     public void checkDifferentFieldOrder() throws Exception {
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 checkCompatibility(ENUM_A, ENUM_D).isCompatibleWithReconfiguredSerializer());
     }
 

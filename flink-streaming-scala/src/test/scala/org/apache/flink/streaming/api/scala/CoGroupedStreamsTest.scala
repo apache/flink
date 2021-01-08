@@ -41,7 +41,7 @@ class CoGroupedStreamsTest {
       .equalTo(keySelector)
       .window(tsAssigner)
       .allowedLateness(lateness)
-    Assert.assertEquals(lateness.toMilliseconds, withLateness.allowedLateness.toMilliseconds)
+    Assertions.assertEquals(lateness.toMilliseconds, withLateness.allowedLateness.toMilliseconds)
   }
 
 }

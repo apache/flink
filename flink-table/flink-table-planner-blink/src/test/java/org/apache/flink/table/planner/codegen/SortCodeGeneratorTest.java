@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.codegen;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeComparator;
@@ -29,12 +30,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.GenericRowData;
-import org.apache.flink.table.data.RawValueData;
-import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.*;
 import org.apache.flink.table.data.binary.BinaryArrayData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -54,41 +50,23 @@ import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.TinyIntType;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
-import org.apache.flink.table.types.logical.VarBinaryType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.*;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Random test for sort code generator. */
 public class SortCodeGeneratorTest {
@@ -624,14 +602,14 @@ public class SortCodeGeneratorTest {
             for (int j = 0; j < keys.length; j++) {
                 boolean isNull1 = data.get(i).isNullAt(keys[j]);
                 boolean isNull2 = result.get(i).isNullAt(keys[j]);
-                Assert.assertEquals(msg, isNull1, isNull2);
+                Assertions.assertEquals(msg, isNull1, isNull2);
                 if (!isNull1 || !isNull2) {
                     RowData.FieldGetter fieldGetter =
                             RowData.createFieldGetter(keyTypes[j], keys[j]);
                     Object o1 = fieldGetter.getFieldOrNull(data.get(i));
                     Object o2 = fieldGetter.getFieldOrNull(result.get(i));
                     if (keyTypes[j] instanceof VarBinaryType) {
-                        Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
+                        Assertions.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
                     } else if (keyTypes[j] instanceof TypeInformationRawType) {
                         assertThat(
                                 msg,
@@ -640,7 +618,7 @@ public class SortCodeGeneratorTest {
                                         (RawValueData) o2,
                                         new RawValueDataSerializer<>(IntSerializer.INSTANCE)));
                     } else {
-                        Assert.assertEquals(msg, o1, o2);
+                        Assertions.assertEquals(msg, o1, o2);
                     }
                 }
             }

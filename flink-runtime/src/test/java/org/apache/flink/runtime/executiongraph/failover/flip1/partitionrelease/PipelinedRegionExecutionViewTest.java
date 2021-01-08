@@ -26,11 +26,16 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingPipelinedReg
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link PipelinedRegionExecutionView}. */
 public class PipelinedRegionExecutionViewTest extends TestLogger {
@@ -76,12 +81,15 @@ public class PipelinedRegionExecutionViewTest extends TestLogger {
 
     @Test
     public void finishingUnknownVertexThrowsException() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final PipelinedRegionExecutionView pipelinedRegionExecutionView =
-                new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
+                            new PipelinedRegionExecutionView(TEST_PIPELINED_REGION);
 
-        final ExecutionVertexID unknownVertexId = new ExecutionVertexID(new JobVertexID(), 0);
-        pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
-        });
+                    final ExecutionVertexID unknownVertexId =
+                            new ExecutionVertexID(new JobVertexID(), 0);
+                    pipelinedRegionExecutionView.vertexFinished(unknownVertexId);
+                });
     }
 }

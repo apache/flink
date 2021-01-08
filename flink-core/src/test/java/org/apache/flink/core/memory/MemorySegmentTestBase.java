@@ -19,6 +19,11 @@
 package org.apache.flink.core.memory;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayInputStream;
@@ -40,14 +45,14 @@ import java.util.Random;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the access and transfer methods of the HeapMemorySegment. */
 public abstract class MemorySegmentTestBase {
@@ -1845,16 +1850,20 @@ public abstract class MemorySegmentTestBase {
 
     @Test
     public void testHeapByteBufferGetReadOnly() {
-        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+        assertThrows(
+                ReadOnlyBufferException.class,
+                () -> {
                     testByteBufferGetReadOnly(false);
-        });
+                });
     }
 
     @Test
     public void testOffHeapByteBufferGetReadOnly() {
-        Assertions.assertThrows(ReadOnlyBufferException.class, () -> {
+        assertThrows(
+                ReadOnlyBufferException.class,
+                () -> {
                     testByteBufferGetReadOnly(true);
-        });
+                });
     }
 
     /**

@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.recovery;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -29,10 +30,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -220,14 +219,14 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase
         public void invoke(Long value) throws Exception {
             long expected = collected * stepSize + congruence;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Value did not match expected value. " + expected + " != " + value,
                     value.equals(expected));
 
             collected++;
 
             if (collected > toCollect) {
-                Assert.fail("Collected <= toCollect: " + collected + " > " + toCollect);
+                Assertions.fail("Collected <= toCollect: " + collected + " > " + toCollect);
             }
         }
 

@@ -29,12 +29,17 @@ import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for selective reading of {@code TwoInputStreamTask}. */
 public class StreamTaskSelectiveReadingITCase {

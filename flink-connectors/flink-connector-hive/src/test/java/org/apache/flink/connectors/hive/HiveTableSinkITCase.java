@@ -33,9 +33,13 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -86,7 +90,7 @@ public class HiveTableSinkITCase {
                     CollectionUtil.iteratorToList(
                             tEnv.executeSql("select * from append_table").collect());
             rows.sort(Comparator.comparingInt(o -> (int) o.getField(0)));
-            Assert.assertEquals(Arrays.asList(Row.of(1, 1), Row.of(2, 2)), rows);
+            Assertions.assertEquals(Arrays.asList(Row.of(1, 1), Row.of(2, 2)), rows);
         } finally {
             tEnv.executeSql("drop database db1 cascade");
         }
@@ -153,7 +157,7 @@ public class HiveTableSinkITCase {
                                         "insert into db1.sink_table select 6,'a','b','2020-05-03','12'")
                                 .await();
                     } catch (Exception e) {
-                        Assert.fail("Failed to execute sql: " + e.getMessage());
+                        Assertions.fail("Failed to execute sql: " + e.getMessage());
                     }
 
                     assertBatch(
@@ -175,12 +179,12 @@ public class HiveTableSinkITCase {
 
     private void checkSuccessFiles(String path) {
         File basePath = new File(path, "d=2020-05-03");
-        Assert.assertEquals(5, basePath.list().length);
-        Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
-        Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
+        Assertions.assertEquals(5, basePath.list().length);
+        Assertions.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists());
+        Assertions.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists());
+        Assertions.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists());
+        Assertions.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists());
+        Assertions.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists());
     }
 
     private void testStreamingWrite(
@@ -276,7 +280,7 @@ public class HiveTableSinkITCase {
                     .collect()
                     .forEachRemaining(r -> results.add(r.toString()));
             results.sort(String::compareTo);
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     Arrays.asList(
                             "+I[1, a, b, 2020-05-03, 7]",
                             "+I[1, a, b, 2020-05-03, 7]",
@@ -314,6 +318,6 @@ public class HiveTableSinkITCase {
                 .forEachRemaining(r -> results.add(r.toString()));
         results.sort(String::compareTo);
         expected.sort(String::compareTo);
-        Assert.assertEquals(expected, results);
+        Assertions.assertEquals(expected, results);
     }
 }

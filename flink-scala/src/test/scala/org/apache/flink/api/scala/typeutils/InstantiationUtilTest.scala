@@ -36,7 +36,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    MatcherAssert.assertThat(copy, Matchers.equalTo(instance))
   }
 
   @Test
@@ -56,7 +56,7 @@ class InstantiationUtilTest extends TestLogger {
 
     val copy = serializeDeserializeInstance(instance)
 
-    Assert.assertThat(copy, Matchers.equalTo(instance))
+    MatcherAssert.assertThat(copy, Matchers.equalTo(instance))
   }
 
   private def serializeDeserializeInstance[T](instance: T): T = {

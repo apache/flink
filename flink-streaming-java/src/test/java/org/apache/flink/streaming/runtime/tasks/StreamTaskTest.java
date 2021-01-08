@@ -118,9 +118,13 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
@@ -153,14 +157,14 @@ import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -302,7 +306,7 @@ public class StreamTaskTest extends TestLogger {
 
             task.getExecutingThread().join();
 
-            assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
+            assertFalse(task.getExecutingThread().isAlive(), "Task did not cancel");
             assertEquals(ExecutionState.CANCELED, task.getExecutionState());
         }
     }
@@ -976,7 +980,7 @@ public class StreamTaskTest extends TestLogger {
             checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
 
             // ensure that 'null' was acknowledged as subtask state
-            Assert.assertNull(checkpointResult.get(0));
+            Assertions.assertNull(checkpointResult.get(0));
 
             task.streamTask.cancel();
             task.waitForTaskCompletion(true);

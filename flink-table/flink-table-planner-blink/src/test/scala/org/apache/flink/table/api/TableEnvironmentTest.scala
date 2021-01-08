@@ -32,7 +32,7 @@ import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -279,7 +279,7 @@ class TableEnvironmentTest {
 
   @Test
   def testExecuteSqlWithDropTemporaryTableTwice(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val createTableStmt =
       """
         |CREATE TEMPORARY TABLE tbl1 (

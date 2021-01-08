@@ -26,46 +26,28 @@ import org.apache.flink.runtime.io.disk.NoOpFileChannelManager;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.BufferProvider;
-import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
-import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
-import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
-import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
-import org.apache.flink.runtime.io.network.partition.PipelinedResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.buffer.*;
+import org.apache.flink.runtime.io.network.partition.*;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.io.network.util.TestPartitionProducer;
 import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.util.function.CheckedSupplier;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
+import org.apache.flink.util.function.CheckedSupplier;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -77,20 +59,13 @@ import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTes
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /** Tests for the {@link LocalInputChannel}. */
 public class LocalInputChannelTest {
@@ -124,7 +99,7 @@ public class LocalInputChannelTest {
         channel.checkpointStarted(barrier);
         // pull data
         channel.getNextBuffer();
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "no data should be persisted after receiving a barrier",
                 stateWriter.getAddedInput().isEmpty());
     }
@@ -290,29 +265,32 @@ public class LocalInputChannelTest {
 
     @Test
     public void testProducerFailedException() throws Exception {
-        Assertions.assertThrows(CancelTaskException.class, () -> {
+        assertThrows(
+                CancelTaskException.class,
+                () -> {
                     ResultSubpartitionView view = mock(ResultSubpartitionView.class);
-        when(view.isReleased()).thenReturn(true);
-        when(view.getFailureCause()).thenReturn(new Exception("Expected test exception"));
+                    when(view.isReleased()).thenReturn(true);
+                    when(view.getFailureCause())
+                            .thenReturn(new Exception("Expected test exception"));
 
-        ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
-        when(partitionManager.createSubpartitionView(
-                        any(ResultPartitionID.class),
-                        anyInt(),
-                        any(BufferAvailabilityListener.class)))
-                .thenReturn(view);
+                    ResultPartitionManager partitionManager = mock(ResultPartitionManager.class);
+                    when(partitionManager.createSubpartitionView(
+                                    any(ResultPartitionID.class),
+                                    anyInt(),
+                                    any(BufferAvailabilityListener.class)))
+                            .thenReturn(view);
 
-        SingleInputGate inputGate = mock(SingleInputGate.class);
-        BufferProvider bufferProvider = mock(BufferProvider.class);
-        when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
+                    SingleInputGate inputGate = mock(SingleInputGate.class);
+                    BufferProvider bufferProvider = mock(BufferProvider.class);
+                    when(inputGate.getBufferProvider()).thenReturn(bufferProvider);
 
-        LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager);
+                    LocalInputChannel ch = createLocalInputChannel(inputGate, partitionManager);
 
-        ch.requestSubpartition(0);
+                    ch.requestSubpartition(0);
 
-        // Should throw an instance of CancelTaskException.
-        ch.getNextBuffer();
-        });
+                    // Should throw an instance of CancelTaskException.
+                    ch.getNextBuffer();
+                });
     }
 
     /**
@@ -511,14 +489,16 @@ public class LocalInputChannelTest {
 
     @Test
     public void testUnblockReleasedChannel() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     SingleInputGate inputGate = createSingleInputGate(1);
-        LocalInputChannel localChannel =
-                createLocalInputChannel(inputGate, new ResultPartitionManager());
+                    LocalInputChannel localChannel =
+                            createLocalInputChannel(inputGate, new ResultPartitionManager());
 
-        localChannel.releaseAllResources();
-        localChannel.resumeConsumption();
-        });
+                    localChannel.releaseAllResources();
+                    localChannel.resumeConsumption();
+                });
     }
 
     @Test

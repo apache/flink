@@ -18,9 +18,14 @@
 
 package org.apache.flink.fs.s3.common.utils;
 
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -45,7 +50,7 @@ public class RefCountedFileWithStreamTest {
         final RefCountedFileWithStream fileUnderTest = getClosedRefCountedFileWithContent(content);
         long fileLength = fileUnderTest.getLength();
 
-        Assert.assertEquals(content.length, fileLength);
+        Assertions.assertEquals(content.length, fileLength);
     }
 
     @Test
@@ -56,28 +61,32 @@ public class RefCountedFileWithStreamTest {
 
     @Test
     public void writeAfterCloseShouldThrowException() throws IOException {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     final RefCountedFileWithStream fileUnderTest =
-                getClosedRefCountedFileWithContent("hello world");
-        byte[] content = bytesOf("Hello Again");
-        fileUnderTest.write(content, 0, content.length);
-        });
+                            getClosedRefCountedFileWithContent("hello world");
+                    byte[] content = bytesOf("Hello Again");
+                    fileUnderTest.write(content, 0, content.length);
+                });
     }
 
     @Test
     public void flushAfterCloseShouldThrowException() throws IOException {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     final RefCountedFileWithStream fileUnderTest =
-                getClosedRefCountedFileWithContent("hello world");
-        fileUnderTest.flush();
-        });
+                            getClosedRefCountedFileWithContent("hello world");
+                    fileUnderTest.flush();
+                });
     }
 
     // ------------------------------------- Utilities -------------------------------------
 
     private void verifyTheFileIsStillThere() throws IOException {
         try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-            Assert.assertEquals(1L, files.count());
+            Assertions.assertEquals(1L, files.count());
         }
     }
 

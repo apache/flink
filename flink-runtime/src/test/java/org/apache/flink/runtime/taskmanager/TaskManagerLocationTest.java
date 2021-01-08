@@ -20,17 +20,16 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.InstantiationUtil;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetAddress;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -152,7 +151,7 @@ public class TaskManagerLocationTest {
 
             final TaskManagerLocation info =
                     new TaskManagerLocation(ResourceID.generate(), address, 19871);
-            Assert.assertEquals("worker2", info.getHostname());
+            Assertions.assertEquals("worker2", info.getHostname());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -169,7 +168,7 @@ public class TaskManagerLocationTest {
 
             TaskManagerLocation info =
                     new TaskManagerLocation(ResourceID.generate(), address, 19871);
-            Assert.assertEquals("worker10", info.getHostname());
+            Assertions.assertEquals("worker10", info.getHostname());
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import akka.actor.ActorSystem;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
@@ -33,13 +34,14 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
-import akka.actor.ActorSystem;
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,12 +49,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_FLINK;
-import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MANAGED_MEMORY;
-import static org.apache.flink.runtime.metrics.util.MetricUtils.METRIC_GROUP_MEMORY;
+import static org.apache.flink.runtime.metrics.util.MetricUtils.*;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link MetricUtils} class. */
 public class MetricUtilsTest extends TestLogger {
@@ -96,9 +96,9 @@ public class MetricUtilsTest extends TestLogger {
 
         MetricUtils.instantiateNonHeapMemoryMetrics(nonHeapMetrics);
 
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
+        Assertions.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_USED));
+        Assertions.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assertions.assertNotNull(nonHeapMetrics.get(MetricNames.MEMORY_MAX));
     }
 
     @Test
@@ -113,9 +113,9 @@ public class MetricUtilsTest extends TestLogger {
 
         MetricUtils.instantiateMetaspaceMemoryMetrics(metaspaceMetrics);
 
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
+        Assertions.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_USED));
+        Assertions.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assertions.assertNotNull(metaspaceMetrics.get(MetricNames.MEMORY_MAX));
     }
 
     @Test
@@ -124,9 +124,9 @@ public class MetricUtilsTest extends TestLogger {
 
         MetricUtils.instantiateHeapMemoryMetrics(heapMetrics);
 
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
-        Assert.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
+        Assertions.assertNotNull(heapMetrics.get(MetricNames.MEMORY_USED));
+        Assertions.assertNotNull(heapMetrics.get(MetricNames.MEMORY_COMMITTED));
+        Assertions.assertNotNull(heapMetrics.get(MetricNames.MEMORY_MAX));
     }
 
     /**
@@ -157,7 +157,7 @@ public class MetricUtilsTest extends TestLogger {
             }
             Thread.sleep(50);
         }
-        Assert.fail("Heap usage metric never changed it's value.");
+        Assertions.fail("Heap usage metric never changed it's value.");
     }
 
     @Test
@@ -192,7 +192,7 @@ public class MetricUtilsTest extends TestLogger {
             }
             Thread.sleep(50);
         }
-        Assert.fail("Metaspace usage metric never changed it's value.");
+        Assertions.fail("Metaspace usage metric never changed it's value.");
     }
 
     @Test

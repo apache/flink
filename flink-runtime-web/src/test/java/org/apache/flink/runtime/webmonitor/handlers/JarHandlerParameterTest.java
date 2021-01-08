@@ -34,24 +34,22 @@ import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
@@ -320,8 +318,8 @@ public abstract class JarHandlerParameterTest<
 
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
-        Assert.assertEquals(0, ParameterProgram.actualArguments.length);
-        Assert.assertEquals(
+        Assertions.assertEquals(0, ParameterProgram.actualArguments.length);
+        Assertions.assertEquals(
                 CoreOptions.DEFAULT_PARALLELISM.defaultValue().intValue(),
                 getExecutionConfig(jobGraph).getParallelism());
         return jobGraph;
@@ -329,8 +327,8 @@ public abstract class JarHandlerParameterTest<
 
     JobGraph validateGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
-        Assert.assertArrayEquals(PROG_ARGS, ParameterProgram.actualArguments);
-        Assert.assertEquals(PARALLELISM, getExecutionConfig(jobGraph).getParallelism());
+        Assertions.assertArrayEquals(PROG_ARGS, ParameterProgram.actualArguments);
+        Assertions.assertEquals(PARALLELISM, getExecutionConfig(jobGraph).getParallelism());
         return jobGraph;
     }
 

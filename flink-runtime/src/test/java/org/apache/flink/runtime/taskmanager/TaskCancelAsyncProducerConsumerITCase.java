@@ -43,18 +43,21 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.LocalBufferPoolDestroyTest.isInBlockingBufferRequest;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
@@ -162,7 +165,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
         }
 
         // Verify that async consumer is in blocking request
-        assertTrue("Consumer thread is not blocked.", consumerWaiting);
+        assertTrue(consumerWaiting, "Consumer thread is not blocked.");
 
         flink.cancelJob(jobGraph.getJobID())
                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);

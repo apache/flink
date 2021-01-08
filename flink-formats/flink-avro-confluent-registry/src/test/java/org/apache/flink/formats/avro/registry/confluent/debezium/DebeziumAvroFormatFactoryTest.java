@@ -35,10 +35,13 @@ import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContex
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
@@ -46,7 +49,7 @@ import java.util.Map;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link DebeziumAvroFormatFactory}. */
 public class DebeziumAvroFormatFactoryTest extends TestLogger {
@@ -77,7 +80,7 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
         DebeziumAvroSerializationSchema expectedSer =
                 new DebeziumAvroSerializationSchema(ROW_TYPE, REGISTRY_URL, SUBJECT);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        Assert.assertEquals(expectedSer, actualSer);
+        Assertions.assertEquals(expectedSer, actualSer);
     }
 
     private Map<String, String> getAllOptions() {

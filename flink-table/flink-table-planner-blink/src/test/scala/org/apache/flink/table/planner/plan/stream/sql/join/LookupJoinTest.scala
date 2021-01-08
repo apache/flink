@@ -35,7 +35,7 @@ import org.apache.flink.table.sources._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.utils.EncodingUtils
 
-import org.junit.Assert.{assertThat, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertThat, assertTrue, fail}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Assume, Before, Test}

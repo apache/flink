@@ -21,9 +21,12 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ExecutionJobVertexTest {
 
@@ -34,32 +37,32 @@ public class ExecutionJobVertexTest {
 
         // default minimum
         ExecutionJobVertex executionJobVertex = createExecutionJobVertex(1, NOT_CONFIGURED);
-        Assert.assertEquals(128, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(128, executionJobVertex.getMaxParallelism());
 
         // test round up part 1
         executionJobVertex = createExecutionJobVertex(171, NOT_CONFIGURED);
-        Assert.assertEquals(256, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(256, executionJobVertex.getMaxParallelism());
 
         // test round up part 2
         executionJobVertex = createExecutionJobVertex(172, NOT_CONFIGURED);
-        Assert.assertEquals(512, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(512, executionJobVertex.getMaxParallelism());
 
         // test round up limit
         executionJobVertex = createExecutionJobVertex(1 << 15, NOT_CONFIGURED);
-        Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
 
         // test upper bound
         try {
             executionJobVertex = createExecutionJobVertex(1 + (1 << 15), NOT_CONFIGURED);
             executionJobVertex.getMaxParallelism();
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException ignore) {
         }
 
         // parallelism must be smaller than the max parallelism
         try {
             createExecutionJobVertex(172, 4);
-            Assert.fail(
+            Assertions.fail(
                     "We should not be able to create an ExecutionJobVertex which "
                             + "has a smaller max parallelism than parallelism.");
         } catch (JobException ignored) {
@@ -68,32 +71,32 @@ public class ExecutionJobVertexTest {
 
         // test configured / trumps computed default
         executionJobVertex = createExecutionJobVertex(4, 1 << 15);
-        Assert.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(1 << 15, executionJobVertex.getMaxParallelism());
 
         // test upper bound configured
         try {
             executionJobVertex = createExecutionJobVertex(4, 1 + (1 << 15));
-            Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
+            Assertions.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
         } catch (IllegalArgumentException ignore) {
         }
 
         // test lower bound configured
         try {
             executionJobVertex = createExecutionJobVertex(4, 0);
-            Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
+            Assertions.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
         } catch (IllegalArgumentException ignore) {
         }
 
         // test override trumps test configured 2
         executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
         executionJobVertex.setMaxParallelism(7);
-        Assert.assertEquals(7, executionJobVertex.getMaxParallelism());
+        Assertions.assertEquals(7, executionJobVertex.getMaxParallelism());
 
         // test lower bound with derived value
         executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
         try {
             executionJobVertex.setMaxParallelism(0);
-            Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
+            Assertions.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
         } catch (IllegalArgumentException ignore) {
         }
 
@@ -101,7 +104,7 @@ public class ExecutionJobVertexTest {
         executionJobVertex = createExecutionJobVertex(4, NOT_CONFIGURED);
         try {
             executionJobVertex.setMaxParallelism(1 + (1 << 15));
-            Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
+            Assertions.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
         } catch (IllegalArgumentException ignore) {
         }
 
@@ -109,7 +112,7 @@ public class ExecutionJobVertexTest {
         executionJobVertex = createExecutionJobVertex(4, 16);
         try {
             executionJobVertex.setMaxParallelism(7);
-            Assert.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
+            Assertions.fail(String.valueOf(executionJobVertex.getMaxParallelism()));
         } catch (IllegalStateException ignore) {
         }
     }

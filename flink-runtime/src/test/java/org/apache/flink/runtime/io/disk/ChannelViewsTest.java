@@ -21,13 +21,7 @@ package org.apache.flink.runtime.io.disk;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.disk.iomanager.*;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
@@ -35,11 +29,14 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.EOFException;
 import java.util.List;
@@ -87,7 +84,7 @@ public class ChannelViewsTest {
         this.ioManager.close();
 
         if (memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory leak: not all segments have been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -141,7 +138,7 @@ public class ChannelViewsTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the read record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -192,7 +189,7 @@ public class ChannelViewsTest {
             final String v1 = rec.f1;
             final int k2 = readRec.f0;
             final String v2 = readRec.f1;
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the read record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -244,16 +241,16 @@ public class ChannelViewsTest {
                 final String v1 = rec.f1;
                 final int k2 = readRec.f0;
                 final String v2 = readRec.f1;
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "The re-generated and the read record do not match.",
                         k1 == k2 && v1.equals(v2));
             }
-            Assert.fail("Expected an EOFException which did not occur.");
+            Assertions.fail("Expected an EOFException which did not occur.");
         } catch (EOFException eofex) {
             // expected
         } catch (Throwable t) {
             // unexpected
-            Assert.fail("Unexpected Exception: " + t.getMessage());
+            Assertions.fail("Unexpected Exception: " + t.getMessage());
         }
 
         this.memoryManager.release(inView.close());
@@ -304,7 +301,7 @@ public class ChannelViewsTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the read record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -357,7 +354,7 @@ public class ChannelViewsTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the read record do not match.",
                     k1 == k2 && v1.equals(v2));
         }
@@ -411,7 +408,7 @@ public class ChannelViewsTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "The re-generated and the read record do not match.",
                     k1 == k2 && v1.equals(v2));
         }

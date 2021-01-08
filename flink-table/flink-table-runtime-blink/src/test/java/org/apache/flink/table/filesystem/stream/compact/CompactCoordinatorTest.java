@@ -21,22 +21,16 @@ package org.apache.flink.table.filesystem.stream.compact;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CompactionUnit;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorInput;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.CoordinatorOutput;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCheckpoint;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.EndCompaction;
-import org.apache.flink.table.filesystem.stream.compact.CompactMessages.InputFile;
+import org.apache.flink.table.filesystem.stream.compact.CompactMessages.*;
 import org.apache.flink.util.function.ThrowingConsumer;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -87,12 +81,12 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
 
                     List<CoordinatorOutput> outputs = harness.extractOutputValues();
 
-                    Assert.assertEquals(7, outputs.size());
+                    Assertions.assertEquals(7, outputs.size());
 
                     List<CompactionUnit> cp1Units = new ArrayList<>();
                     for (int i = 0; i < 4; i++) {
                         CoordinatorOutput output = outputs.get(i);
-                        Assert.assertTrue(output instanceof CompactionUnit);
+                        Assertions.assertTrue(output instanceof CompactionUnit);
                         cp1Units.add((CompactionUnit) output);
                     }
                     cp1Units.sort(
@@ -127,20 +121,20 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
     }
 
     private void assertEndCompaction(CoordinatorOutput output, long checkpointId) {
-        Assert.assertTrue(output instanceof EndCompaction);
+        Assertions.assertTrue(output instanceof EndCompaction);
         EndCompaction end = (EndCompaction) output;
 
-        Assert.assertEquals(checkpointId, end.getCheckpointId());
+        Assertions.assertEquals(checkpointId, end.getCheckpointId());
     }
 
     private void assertUnit(
             CoordinatorOutput output, int unitId, String partition, List<String> fileNames) {
-        Assert.assertTrue(output instanceof CompactionUnit);
+        Assertions.assertTrue(output instanceof CompactionUnit);
         CompactionUnit unit = (CompactionUnit) output;
 
-        Assert.assertEquals(unitId, unit.getUnitId());
-        Assert.assertEquals(partition, unit.getPartition());
-        Assert.assertEquals(
+        Assertions.assertEquals(unitId, unit.getUnitId());
+        Assertions.assertEquals(partition, unit.getPartition());
+        Assertions.assertEquals(
                 fileNames,
                 unit.getPaths().stream().map(Path::getName).collect(Collectors.toList()));
     }

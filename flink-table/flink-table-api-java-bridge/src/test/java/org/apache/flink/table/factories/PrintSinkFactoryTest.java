@@ -24,9 +24,12 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -59,6 +62,6 @@ public class PrintSinkFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader(),
                         false);
-        Assert.assertEquals("Print to System.err", sink.asSummaryString());
+        Assertions.assertEquals("Print to System.err", sink.asSummaryString());
     }
 }

@@ -28,9 +28,12 @@ import org.apache.flink.graph.spargel.MessageIterator;
 import org.apache.flink.graph.spargel.ScatterFunction;
 import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Dummy iteration to test that the supersteps are correctly incremented and can be retrieved from
@@ -63,7 +66,7 @@ public class CollectionModeSuperstepITCase extends TestLogger {
         @Override
         public void sendMessages(Vertex<Long, Long> vertex) {
             long superstep = getSuperstepNumber();
-            Assert.assertEquals(true, vertex.getValue() == superstep);
+            Assertions.assertEquals(true, vertex.getValue() == superstep);
             // send message to keep vertices active
             sendMessageToAllNeighbors(vertex.getValue());
         }
@@ -73,7 +76,7 @@ public class CollectionModeSuperstepITCase extends TestLogger {
         @Override
         public void updateVertex(Vertex<Long, Long> vertex, MessageIterator<Long> inMessages) {
             long superstep = getSuperstepNumber();
-            Assert.assertEquals(true, vertex.getValue() == superstep);
+            Assertions.assertEquals(true, vertex.getValue() == superstep);
             setNewVertexValue(vertex.getValue() + 1);
         }
     }

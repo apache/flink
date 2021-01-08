@@ -58,10 +58,14 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -78,7 +82,7 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for region failover with multi regions. */
 public class RegionFailoverITCase extends TestLogger {
@@ -149,12 +153,12 @@ public class RegionFailoverITCase extends TestLogger {
             verifyAfterJobExecuted();
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
     private void verifyAfterJobExecuted() {
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "The test multi-region job has never ever restored state.", restoredState);
 
         int keyCount = 0;
@@ -309,23 +313,23 @@ public class RegionFailoverITCase extends TestLogger {
                         StreamSupport.stream(unionListState.get().spliterator(), false)
                                 .collect(Collectors.toSet());
                 if (getRuntimeContext().getTaskName().contains(SINGLE_REGION_SOURCE_NAME)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_SINGLE_REGION, actualIndices));
                 } else {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_MULTI_REGION, actualIndices));
                 }
 
                 if (indexOfThisSubtask == 0) {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "list state should be empty for subtask-0",
                             ((List<Integer>) listState.get()).isEmpty());
                 } else {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "list state should not be empty for subtask-" + indexOfThisSubtask,
                             ((List<Integer>) listState.get()).size() > 0);
 

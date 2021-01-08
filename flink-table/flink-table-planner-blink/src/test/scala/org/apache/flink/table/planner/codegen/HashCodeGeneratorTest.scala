@@ -48,8 +48,8 @@ class HashCodeGeneratorTest {
     ).newInstance(classLoader)
 
     val row = GenericRowData.of(ji(5), jl(8), Array[Byte](1, 5, 6))
-    Assert.assertEquals(637, hashFunc1.hashCode(row))
-    Assert.assertEquals(136516167, hashFunc2.hashCode(row))
+    Assertions.assertEquals(637, hashFunc1.hashCode(row))
+    Assertions.assertEquals(136516167, hashFunc2.hashCode(row))
   }
 
   def ji(i: Int): Integer = {

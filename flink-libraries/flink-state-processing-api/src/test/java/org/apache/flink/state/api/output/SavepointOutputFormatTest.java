@@ -27,9 +27,14 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
@@ -41,12 +46,14 @@ public class SavepointOutputFormatTest {
 
     @Test
     public void testSavepointOutputFormatOnlyWorksWithParallelismOne() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     Path path = new Path(temporaryFolder.newFolder().getAbsolutePath());
-        SavepointOutputFormat format = createSavepointOutputFormat(path);
+                    SavepointOutputFormat format = createSavepointOutputFormat(path);
 
-        format.open(0, 2);
-        });
+                    format.open(0, 2);
+                });
     }
 
     @Test
@@ -62,17 +69,17 @@ public class SavepointOutputFormatTest {
 
         CheckpointMetadata metadataOnDisk = SavepointLoader.loadSavepointMetadata(path.getPath());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Incorrect checkpoint id",
                 metadata.getCheckpointId(),
                 metadataOnDisk.getCheckpointId());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Incorrect number of operator states in savepoint",
                 metadata.getOperatorStates().size(),
                 metadataOnDisk.getOperatorStates().size());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Incorrect operator state in savepoint",
                 metadata.getOperatorStates().iterator().next(),
                 metadataOnDisk.getOperatorStates().iterator().next());

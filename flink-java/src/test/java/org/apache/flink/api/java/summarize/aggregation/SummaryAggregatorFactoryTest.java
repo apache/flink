@@ -18,15 +18,8 @@
 
 package org.apache.flink.api.java.summarize.aggregation;
 
-import org.apache.flink.types.BooleanValue;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.FloatValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.ShortValue;
-import org.apache.flink.types.StringValue;
-
-import org.junit.Assert;
+import org.apache.flink.types.*;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -37,56 +30,56 @@ public class SummaryAggregatorFactoryTest {
     @Test
     public void testCreate() throws Exception {
         // supported primitive types
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 StringSummaryAggregator.class,
                 SummaryAggregatorFactory.create(String.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShortSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Short.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 IntegerSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Integer.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 LongSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Long.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 FloatSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Float.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 DoubleSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Double.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 BooleanSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Boolean.class).getClass());
 
         // supported value types
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.StringValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(StringValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.ShortValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(ShortValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.IntegerValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(IntValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.LongValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(LongValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.FloatValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(FloatValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.DoubleValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(DoubleValue.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ValueSummaryAggregator.BooleanValueSummaryAggregator.class,
                 SummaryAggregatorFactory.create(BooleanValue.class).getClass());
 
         // some not well supported types - these fallback to ObjectSummaryAggregator
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ObjectSummaryAggregator.class,
                 SummaryAggregatorFactory.create(Object.class).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ObjectSummaryAggregator.class,
                 SummaryAggregatorFactory.create(List.class).getClass());
     }

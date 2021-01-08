@@ -20,11 +20,14 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link ChoiceParameter}. */
@@ -45,19 +48,19 @@ public class ChoiceParameterTest extends ParameterTestBase {
     @Test
     public void testWithDefaultWithParameter() {
         parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
-        Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
+        Assertions.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--choice", "c1"}));
-        Assert.assertEquals("c1", parameter.getValue());
+        Assertions.assertEquals("c1", parameter.getValue());
     }
 
     @Test
     public void testWithDefaultWithoutParameter() {
         parameter.setDefaultValue("default").addChoices("c0", "c1", "c2");
-        Assert.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
+        Assertions.assertEquals("[--choice <default | c0 | c1 | c2>]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {}));
-        Assert.assertEquals("default", parameter.getValue());
+        Assertions.assertEquals("default", parameter.getValue());
     }
 
     // Without default
@@ -65,16 +68,16 @@ public class ChoiceParameterTest extends ParameterTestBase {
     @Test
     public void testWithoutDefaultWithParameter() {
         parameter.addChoices("c0", "c1", "c2");
-        Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
+        Assertions.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--choice", "c2"}));
-        Assert.assertEquals("c2", parameter.getValue());
+        Assertions.assertEquals("c2", parameter.getValue());
     }
 
     @Test
     public void testWithoutDefaultWithoutParameter() {
         parameter.addChoices("c0", "c1", "c2");
-        Assert.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
+        Assertions.assertEquals("--choice <c0 | c1 | c2>", parameter.getUsage());
 
         expectedException.expect(ProgramParametrizationException.class);
         expectedException.expectMessage("Must select a choice for option 'choice': '[c0, c1, c2]'");

@@ -36,19 +36,19 @@ import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ExternalSortLargeRecordsITCase extends TestLogger {
 
@@ -75,7 +75,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
         this.ioManager.close();
 
         if (this.memoryManager != null && testSuccess) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory leak: not all segments have been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -228,7 +228,7 @@ public class ExternalSortLargeRecordsITCase extends TestLogger {
             for (int i = 0; i < NUM_RECORDS; i++) {
                 val = iterator.next(val);
 
-                assertTrue("Sort order violated", val.f0 <= prevKey);
+                assertTrue(val.f0 <= prevKey, "Sort order violated");
                 assertEquals(
                         "Serialization of test data type incorrect",
                         val.f0.intValue(),

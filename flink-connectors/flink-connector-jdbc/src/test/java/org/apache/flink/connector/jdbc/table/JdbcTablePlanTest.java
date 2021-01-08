@@ -24,6 +24,11 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Plan tests for JDBC connector, for example, testing projection push down. */
 public class JdbcTablePlanTest extends TableTestBase {

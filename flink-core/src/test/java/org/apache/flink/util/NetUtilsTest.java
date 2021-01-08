@@ -18,8 +18,11 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -31,8 +34,8 @@ import java.util.Set;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link NetUtils}. */
 public class NetUtilsTest extends TestLogger {
@@ -128,32 +131,32 @@ public class NetUtilsTest extends TestLogger {
         Iterator<Integer> portsIter = NetUtils.getPortRangeFromString(rangeDefinition);
         Set<Integer> ports = new HashSet<>();
         while (portsIter.hasNext()) {
-            Assert.assertTrue("Duplicate element", ports.add(portsIter.next()));
+            Assertions.assertTrue(ports.add(portsIter.next()), "Duplicate element");
         }
 
-        Assert.assertEquals(51 + 101 + 1, ports.size());
+        Assertions.assertEquals(51 + 101 + 1, ports.size());
         // check first range
-        Assert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
+        MatcherAssert.assertThat(ports, hasItems(50000, 50001, 50002, 50050));
         // check second range and last point
-        Assert.assertThat(ports, hasItems(50100, 50101, 50110, 50200, 51234));
+        MatcherAssert.assertThat(ports, hasItems(50100, 50101, 50110, 50200, 51234));
         // check that only ranges are included
-        Assert.assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
+        MatcherAssert.assertThat(ports, not(hasItems(50051, 50052, 1337, 50201, 49999, 50099)));
 
         // test single port "range":
         portsIter = NetUtils.getPortRangeFromString(" 51234");
-        Assert.assertTrue(portsIter.hasNext());
-        Assert.assertEquals(51234, (int) portsIter.next());
-        Assert.assertFalse(portsIter.hasNext());
+        Assertions.assertTrue(portsIter.hasNext());
+        Assertions.assertEquals(51234, (int) portsIter.next());
+        Assertions.assertFalse(portsIter.hasNext());
 
         // test port list
         portsIter = NetUtils.getPortRangeFromString("5,1,2,3,4");
-        Assert.assertTrue(portsIter.hasNext());
-        Assert.assertEquals(5, (int) portsIter.next());
-        Assert.assertEquals(1, (int) portsIter.next());
-        Assert.assertEquals(2, (int) portsIter.next());
-        Assert.assertEquals(3, (int) portsIter.next());
-        Assert.assertEquals(4, (int) portsIter.next());
-        Assert.assertFalse(portsIter.hasNext());
+        Assertions.assertTrue(portsIter.hasNext());
+        Assertions.assertEquals(5, (int) portsIter.next());
+        Assertions.assertEquals(1, (int) portsIter.next());
+        Assertions.assertEquals(2, (int) portsIter.next());
+        Assertions.assertEquals(3, (int) portsIter.next());
+        Assertions.assertEquals(4, (int) portsIter.next());
+        Assertions.assertFalse(portsIter.hasNext());
 
         Throwable error = null;
 
@@ -163,7 +166,7 @@ public class NetUtilsTest extends TestLogger {
         } catch (Throwable t) {
             error = t;
         }
-        Assert.assertTrue(error instanceof NumberFormatException);
+        Assertions.assertTrue(error instanceof NumberFormatException);
         error = null;
 
         // incomplete range
@@ -172,7 +175,7 @@ public class NetUtilsTest extends TestLogger {
         } catch (Throwable t) {
             error = t;
         }
-        Assert.assertTrue(error instanceof NumberFormatException);
+        Assertions.assertTrue(error instanceof NumberFormatException);
         error = null;
 
         // incomplete range
@@ -181,7 +184,7 @@ public class NetUtilsTest extends TestLogger {
         } catch (Throwable t) {
             error = t;
         }
-        Assert.assertTrue(error instanceof NumberFormatException);
+        Assertions.assertTrue(error instanceof NumberFormatException);
         error = null;
 
         // empty range
@@ -190,7 +193,7 @@ public class NetUtilsTest extends TestLogger {
         } catch (Throwable t) {
             error = t;
         }
-        Assert.assertTrue(error instanceof NumberFormatException);
+        Assertions.assertTrue(error instanceof NumberFormatException);
     }
 
     @Test
@@ -199,7 +202,7 @@ public class NetUtilsTest extends TestLogger {
             // IPv4
             String host = "1.2.3.4";
             int port = 42;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     host + ":" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }
@@ -207,7 +210,7 @@ public class NetUtilsTest extends TestLogger {
             // IPv6
             String host = "2001:0db8:85a3:0000:0000:8a2e:0370:7334";
             int port = 42;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "[2001:db8:85a3::8a2e:370:7334]:" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }
@@ -215,7 +218,7 @@ public class NetUtilsTest extends TestLogger {
             // [IPv6]
             String host = "[2001:0db8:85a3:0000:0000:8a2e:0370:7334]";
             int port = 42;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "[2001:db8:85a3::8a2e:370:7334]:" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }
@@ -223,7 +226,7 @@ public class NetUtilsTest extends TestLogger {
             // Hostnames
             String host = "somerandomhostname";
             int port = 99;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     host + ":" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }
@@ -231,7 +234,7 @@ public class NetUtilsTest extends TestLogger {
             // Whitespace
             String host = "  somerandomhostname  ";
             int port = 99;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     host.trim() + ":" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }
@@ -266,7 +269,7 @@ public class NetUtilsTest extends TestLogger {
             // lower case conversion of hostnames
             String host = "CamelCaseHostName";
             int port = 99;
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     host.toLowerCase() + ":" + port,
                     NetUtils.unresolvedHostAndPortToNormalizedString(host, port));
         }

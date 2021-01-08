@@ -34,9 +34,12 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -423,14 +426,14 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
                     ctx.getBroadcastState(firstStateDesc).immutableEntries()) {
                 actualFirstState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedFirstState, actualFirstState);
+            Assertions.assertEquals(expectedFirstState, actualFirstState);
 
             final Map<String, Long> actualSecondState = new HashMap<>();
             for (Map.Entry<String, Long> entry :
                     ctx.getBroadcastState(secondStateDesc).immutableEntries()) {
                 actualSecondState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedSecondState, actualSecondState);
+            Assertions.assertEquals(expectedSecondState, actualSecondState);
 
             out.collect(value);
         }
@@ -481,7 +484,7 @@ public class StatefulJobWBroadcastStateMigrationITCase extends SavepointMigratio
                     ctx.getBroadcastState(stateDesc).immutableEntries()) {
                 actualState.put(entry.getKey(), entry.getValue());
             }
-            Assert.assertEquals(expectedState, actualState);
+            Assertions.assertEquals(expectedState, actualState);
 
             out.collect(value);
         }

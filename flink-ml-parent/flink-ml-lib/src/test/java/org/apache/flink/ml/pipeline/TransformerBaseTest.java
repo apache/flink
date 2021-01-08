@@ -25,9 +25,12 @@ import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.ml.operator.stream.StreamOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link TransformerBase}. */
 public class TransformerBaseTest extends PipelineStageTestBase {
@@ -67,8 +70,8 @@ public class TransformerBaseTest extends PipelineStageTestBase {
         transFormer.setMLEnvironmentId(id);
         transFormer.transform(env.getBatchTableEnvironment(), table);
 
-        Assert.assertTrue(transFormer.batchTransformed);
-        Assert.assertFalse(transFormer.streamTransformed);
+        Assertions.assertTrue(transFormer.batchTransformed);
+        Assertions.assertFalse(transFormer.streamTransformed);
     }
 
     @Test
@@ -82,7 +85,7 @@ public class TransformerBaseTest extends PipelineStageTestBase {
         transFormer.setMLEnvironmentId(id);
         transFormer.transform(env.getStreamTableEnvironment(), table);
 
-        Assert.assertFalse(transFormer.batchTransformed);
-        Assert.assertTrue(transFormer.streamTransformed);
+        Assertions.assertFalse(transFormer.batchTransformed);
+        Assertions.assertTrue(transFormer.streamTransformed);
     }
 }

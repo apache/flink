@@ -20,9 +20,12 @@ package org.apache.flink.orc;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.apache.flink.orc.OrcSplitReaderUtil.logicalTypeToOrcType;
 
@@ -61,6 +64,6 @@ public class OrcSplitReaderUtilTest {
     }
 
     private void test(String expected, DataType type) {
-        Assert.assertEquals(expected, logicalTypeToOrcType(type.getLogicalType()).toString());
+        Assertions.assertEquals(expected, logicalTypeToOrcType(type.getLogicalType()).toString());
     }
 }

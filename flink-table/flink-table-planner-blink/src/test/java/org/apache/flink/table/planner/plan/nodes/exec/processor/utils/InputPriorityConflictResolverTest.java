@@ -25,9 +25,12 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.TestingBatchExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -77,20 +80,20 @@ public class InputPriorityConflictResolverTest {
                         ShuffleMode.BATCH,
                         new Configuration());
         resolver.detectAndResolve();
-        Assert.assertEquals(nodes[1], nodes[7].getInputNodes().get(0));
-        Assert.assertEquals(nodes[2], nodes[7].getInputNodes().get(1));
-        Assert.assertTrue(nodes[7].getInputNodes().get(2) instanceof BatchExecExchange);
-        Assert.assertEquals(
+        Assertions.assertEquals(nodes[1], nodes[7].getInputNodes().get(0));
+        Assertions.assertEquals(nodes[2], nodes[7].getInputNodes().get(1));
+        Assertions.assertTrue(nodes[7].getInputNodes().get(2) instanceof BatchExecExchange);
+        Assertions.assertEquals(
                 Optional.of(ShuffleMode.BATCH),
                 ((BatchExecExchange) nodes[7].getInputNodes().get(2)).getRequiredShuffleMode());
-        Assert.assertEquals(nodes[3], nodes[7].getInputNodes().get(2).getInputNodes().get(0));
-        Assert.assertTrue(nodes[7].getInputNodes().get(3) instanceof BatchExecExchange);
-        Assert.assertEquals(
+        Assertions.assertEquals(nodes[3], nodes[7].getInputNodes().get(2).getInputNodes().get(0));
+        Assertions.assertTrue(nodes[7].getInputNodes().get(3) instanceof BatchExecExchange);
+        Assertions.assertEquals(
                 Optional.of(ShuffleMode.BATCH),
                 ((BatchExecExchange) nodes[7].getInputNodes().get(3)).getRequiredShuffleMode());
-        Assert.assertEquals(nodes[4], nodes[7].getInputNodes().get(3).getInputNodes().get(0));
-        Assert.assertEquals(nodes[5], nodes[7].getInputNodes().get(4));
-        Assert.assertEquals(nodes[6], nodes[7].getInputNodes().get(5));
+        Assertions.assertEquals(nodes[4], nodes[7].getInputNodes().get(3).getInputNodes().get(0));
+        Assertions.assertEquals(nodes[5], nodes[7].getInputNodes().get(4));
+        Assertions.assertEquals(nodes[6], nodes[7].getInputNodes().get(5));
     }
 
     @Test
@@ -125,14 +128,15 @@ public class InputPriorityConflictResolverTest {
 
         ExecNode<?> input0 = nodes[1].getInputNodes().get(0);
         ExecNode<?> input1 = nodes[1].getInputNodes().get(1);
-        Assert.assertNotSame(input0, input1);
+        Assertions.assertNotSame(input0, input1);
 
         Consumer<ExecNode<?>> checkExchange =
                 execNode -> {
-                    Assert.assertTrue(execNode instanceof BatchExecExchange);
+                    Assertions.assertTrue(execNode instanceof BatchExecExchange);
                     BatchExecExchange e = (BatchExecExchange) execNode;
-                    Assert.assertEquals(Optional.of(ShuffleMode.BATCH), e.getRequiredShuffleMode());
-                    Assert.assertEquals(nodes[0], e.getInputNodes().get(0));
+                    Assertions.assertEquals(
+                            Optional.of(ShuffleMode.BATCH), e.getRequiredShuffleMode());
+                    Assertions.assertEquals(nodes[0], e.getInputNodes().get(0));
                 };
         checkExchange.accept(input0);
         checkExchange.accept(input1);

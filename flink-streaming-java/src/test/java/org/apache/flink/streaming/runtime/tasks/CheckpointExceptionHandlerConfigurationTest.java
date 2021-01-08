@@ -25,8 +25,12 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test that the configuration mechanism for how tasks react on checkpoint errors works correctly.
@@ -38,8 +42,8 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
         StreamExecutionEnvironment streamExecutionEnvironment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         CheckpointConfig checkpointConfig = streamExecutionEnvironment.getCheckpointConfig();
-        Assert.assertTrue(checkpointConfig.isFailOnCheckpointingErrors());
-        Assert.assertEquals(0, checkpointConfig.getTolerableCheckpointFailureNumber());
+        Assertions.assertTrue(checkpointConfig.isFailOnCheckpointingErrors());
+        Assertions.assertEquals(0, checkpointConfig.getTolerableCheckpointFailureNumber());
     }
 
     @Test
@@ -50,19 +54,19 @@ public class CheckpointExceptionHandlerConfigurationTest extends TestLogger {
 
         // use deprecated API to set not fail on checkpoint errors
         checkpointConfig.setFailOnCheckpointingErrors(false);
-        Assert.assertFalse(checkpointConfig.isFailOnCheckpointingErrors());
-        Assert.assertEquals(
+        Assertions.assertFalse(checkpointConfig.isFailOnCheckpointingErrors());
+        Assertions.assertEquals(
                 CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER,
                 checkpointConfig.getTolerableCheckpointFailureNumber());
 
         // use new API to set tolerable declined checkpoint number
         checkpointConfig.setTolerableCheckpointFailureNumber(5);
-        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
+        Assertions.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
 
         // after we configure the tolerable declined checkpoint number, deprecated API would not
         // take effect
         checkpointConfig.setFailOnCheckpointingErrors(true);
-        Assert.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
+        Assertions.assertEquals(5, checkpointConfig.getTolerableCheckpointFailureNumber());
     }
 
     @Test

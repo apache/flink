@@ -43,10 +43,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 /**
  * By using this class as the super class of a set of tests you will have a HBase testing cluster
  * available that is very suitable for writing tests for scanning and filtering against.
@@ -65,7 +61,7 @@ public class HBaseTestingClusterAutoStarter {
 
     protected static void createTable(
             TableName tableName, byte[][] columnFamilyName, byte[][] splitKeys) {
-        assertNotNull("HBaseAdmin is not initialized successfully.", admin);
+        assertNotNull(admin, "HBaseAdmin is not initialized successfully.");
         HTableDescriptor desc = new HTableDescriptor(tableName);
         for (byte[] fam : columnFamilyName) {
             HColumnDescriptor colDef = new HColumnDescriptor(fam);
@@ -75,7 +71,7 @@ public class HBaseTestingClusterAutoStarter {
         try {
             admin.createTable(desc, splitKeys);
             createdTables.add(tableName);
-            assertTrue("Fail to create the table", admin.tableExists(tableName));
+            assertTrue(admin.tableExists(tableName), "Fail to create the table");
         } catch (IOException e) {
             assertNull("Exception found while creating table", e);
         }
@@ -83,7 +79,7 @@ public class HBaseTestingClusterAutoStarter {
 
     protected static Table openTable(TableName tableName) throws IOException {
         Table table = TEST_UTIL.getConnection().getTable(tableName);
-        assertTrue("Fail to create the table", admin.tableExists(tableName));
+        assertTrue(admin.tableExists(tableName), "Fail to create the table");
         return table;
     }
 

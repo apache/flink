@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 import scala.collection.mutable

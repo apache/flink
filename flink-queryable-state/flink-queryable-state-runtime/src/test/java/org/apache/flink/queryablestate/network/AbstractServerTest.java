@@ -25,15 +25,17 @@ import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.queryablestate.network.stats.AtomicKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.DisabledKvStateRequestStats;
 import org.apache.flink.queryablestate.network.stats.KvStateRequestStats;
+import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.net.InetAddress;
@@ -114,39 +116,39 @@ public class AbstractServerTest extends TestLogger {
                                         new TestMessage.TestMessageDeserializer()),
                                 clientStats)) {
             server1.start();
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     server1.getServerAddress().getPort() >= portRangeStart
                             && server1.getServerAddress().getPort() <= portRangeEnd);
 
             server2.start();
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     server2.getServerAddress().getPort() >= portRangeStart
                             && server2.getServerAddress().getPort() <= portRangeEnd);
 
             TestMessage response1 =
                     client.sendRequest(server1.getServerAddress(), new TestMessage("ping")).join();
-            Assert.assertEquals(server1.getServerName() + "-ping", response1.getMessage());
+            Assertions.assertEquals(server1.getServerName() + "-ping", response1.getMessage());
 
             TestMessage response2 =
                     client.sendRequest(server2.getServerAddress(), new TestMessage("pong")).join();
-            Assert.assertEquals(server2.getServerName() + "-pong", response2.getMessage());
+            Assertions.assertEquals(server2.getServerName() + "-pong", response2.getMessage());
 
-            Assert.assertEquals(1L, serverStats1.getNumConnections());
-            Assert.assertEquals(1L, serverStats2.getNumConnections());
+            Assertions.assertEquals(1L, serverStats1.getNumConnections());
+            Assertions.assertEquals(1L, serverStats2.getNumConnections());
 
-            Assert.assertEquals(2L, clientStats.getNumConnections());
-            Assert.assertEquals(0L, clientStats.getNumFailed());
-            Assert.assertEquals(2L, clientStats.getNumSuccessful());
-            Assert.assertEquals(2L, clientStats.getNumRequests());
+            Assertions.assertEquals(2L, clientStats.getNumConnections());
+            Assertions.assertEquals(0L, clientStats.getNumFailed());
+            Assertions.assertEquals(2L, clientStats.getNumSuccessful());
+            Assertions.assertEquals(2L, clientStats.getNumRequests());
         }
 
-        Assert.assertEquals(0L, serverStats1.getNumConnections());
-        Assert.assertEquals(0L, serverStats2.getNumConnections());
+        Assertions.assertEquals(0L, serverStats1.getNumConnections());
+        Assertions.assertEquals(0L, serverStats2.getNumConnections());
 
-        Assert.assertEquals(0L, clientStats.getNumConnections());
-        Assert.assertEquals(0L, clientStats.getNumFailed());
-        Assert.assertEquals(2L, clientStats.getNumSuccessful());
-        Assert.assertEquals(2L, clientStats.getNumRequests());
+        Assertions.assertEquals(0L, clientStats.getNumConnections());
+        Assertions.assertEquals(0L, clientStats.getNumFailed());
+        Assertions.assertEquals(2L, clientStats.getNumSuccessful());
+        Assertions.assertEquals(2L, clientStats.getNumRequests());
     }
 
     private static class TestClient extends Client<TestMessage, TestMessage>
@@ -163,7 +165,7 @@ public class AbstractServerTest extends TestLogger {
         @Override
         public void close() throws Exception {
             shutdown().join();
-            Assert.assertTrue(isEventGroupShutdown());
+            Assertions.assertTrue(isEventGroupShutdown());
         }
     }
 
@@ -209,8 +211,8 @@ public class AbstractServerTest extends TestLogger {
         @Override
         public void close() throws Exception {
             shutdownServer().get();
-            Assert.assertTrue(getQueryExecutor().isTerminated());
-            Assert.assertTrue(isEventGroupShutdown());
+            Assertions.assertTrue(getQueryExecutor().isTerminated());
+            Assertions.assertTrue(isEventGroupShutdown());
         }
     }
 

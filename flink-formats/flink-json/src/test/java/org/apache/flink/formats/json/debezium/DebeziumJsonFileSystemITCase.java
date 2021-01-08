@@ -22,9 +22,12 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -117,7 +120,7 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .collect(Collectors.toList());
         iter.close();
 
-        Assert.assertEquals(EXPECTED, results);
+        Assertions.assertEquals(EXPECTED, results);
     }
 
     @Test
@@ -140,11 +143,11 @@ public class DebeziumJsonFileSystemITCase extends StreamingTestBase {
                         .map(Row::toString)
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(EXPECTED, results);
+        Assertions.assertEquals(EXPECTED, results);
 
         // check partition value
         for (Row row : list) {
-            Assert.assertEquals(1, row.getField(4));
+            Assertions.assertEquals(1, row.getField(4));
         }
     }
 

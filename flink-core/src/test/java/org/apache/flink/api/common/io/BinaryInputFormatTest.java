@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.types.Record;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -73,13 +73,14 @@ public class BinaryInputFormatTest {
 
         FileInputSplit[] inputSplits = inputFormat.createInputSplits(numBlocks);
 
-        Assert.assertEquals("Returns requested numbers of splits.", numBlocks, inputSplits.length);
-        Assert.assertEquals(
-                "1. split has block size length.", blockSize, inputSplits[0].getLength());
-        Assert.assertEquals(
-                "2. split has block size length.", blockSize, inputSplits[1].getLength());
-        Assert.assertEquals(
-                "3. split has block size length.", blockSize, inputSplits[2].getLength());
+        Assertions.assertEquals(
+                numBlocks, inputSplits.length, "Returns requested numbers of splits.");
+        Assertions.assertEquals(
+                blockSize, (Object) inputSplits[0].getLength(), "1. split has block size length.");
+        Assertions.assertEquals(
+                blockSize, (Object) inputSplits[1].getLength(), "2. split has block size length.");
+        Assertions.assertEquals(
+                blockSize, (Object) inputSplits[2].getLength(), "3. split has block size length.");
     }
 
     @Test
@@ -106,23 +107,23 @@ public class BinaryInputFormatTest {
         int numSplitsFile1 = 0;
         int numSplitsFile2 = 0;
 
-        Assert.assertEquals(
-                "Returns requested numbers of splits.", numBlocksTotal, inputSplits.length);
+        Assertions.assertEquals(
+                numBlocksTotal, inputSplits.length, "Returns requested numbers of splits.");
         for (int i = 0; i < inputSplits.length; i++) {
-            Assert.assertEquals(
-                    String.format("%d. split has block size length.", i),
+            Assertions.assertEquals(
                     blockSize,
-                    inputSplits[i].getLength());
+                    (Object) inputSplits[i].getLength(),
+                    String.format("%d. split has block size length.", i));
             if (inputSplits[i].getPath().toString().equals(pathFile1)) {
                 numSplitsFile1++;
             } else if (inputSplits[i].getPath().toString().equals(pathFile2)) {
                 numSplitsFile2++;
             } else {
-                Assert.fail("Split does not belong to any input file.");
+                Assertions.fail("Split does not belong to any input file.");
             }
         }
-        Assert.assertEquals(numBlocks1, numSplitsFile1);
-        Assert.assertEquals(numBlocks2, numSplitsFile2);
+        Assertions.assertEquals(numBlocks1, numSplitsFile1);
+        Assertions.assertEquals(numBlocks2, numSplitsFile2);
     }
 
     @Test
@@ -134,7 +135,7 @@ public class BinaryInputFormatTest {
         format.configure(new Configuration());
 
         BaseStatistics stats = format.getStatistics(null);
-        Assert.assertNull("The file statistics should be null.", stats);
+        Assertions.assertNull(stats, "The file statistics should be null.");
     }
 
     @Test
@@ -154,10 +155,10 @@ public class BinaryInputFormatTest {
         inputFormat.setBlockSize(blockSize);
 
         BaseStatistics stats = inputFormat.getStatistics(null);
-        Assert.assertEquals(
-                "The file size statistics is wrong",
+        Assertions.assertEquals(
                 blockSize * (numBlocks1 + numBlocks2),
-                stats.getTotalInputSize());
+                (Object) stats.getTotalInputSize(),
+                "The file size statistics is wrong");
     }
 
     /** Creates a temp file with a certain number of blocks of a certain size. */

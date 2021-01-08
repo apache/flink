@@ -19,10 +19,13 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
@@ -33,7 +36,7 @@ import org.rocksdb.RocksDB;
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link RocksDBStateBackend} on initialization. */
 @RunWith(PowerMockRunner.class)
@@ -64,7 +67,7 @@ public class RocksDBInitTest {
             // ignored
         }
         File[] files = tempFolder.listFiles();
-        Assert.assertNotNull(files);
-        Assert.assertEquals(0, files.length);
+        Assertions.assertNotNull(files);
+        Assertions.assertEquals(0, files.length);
     }
 }

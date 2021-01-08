@@ -25,15 +25,14 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -87,7 +86,7 @@ public class DataGeneratorSourceTest {
                 });
 
         for (Long l : results) {
-            Assert.assertTrue(l >= min && l <= max);
+            Assertions.assertTrue(l >= min && l <= max);
         }
     }
 
@@ -214,7 +213,7 @@ public class DataGeneratorSourceTest {
         runner3.start();
         runner3.join();
 
-        Assert.assertEquals(3, outputCollector.size()); // we have 3 tasks.
+        Assertions.assertEquals(3, outputCollector.size()); // we have 3 tasks.
 
         // test for at-most-once
         Set<T> dedupRes = new HashSet<>(expectedOutput.size());
@@ -223,21 +222,21 @@ public class DataGeneratorSourceTest {
             List<T> elements = outputCollector.get(key);
 
             // this tests the correctness of the latches in the test
-            Assert.assertTrue(elements.size() > 0);
+            Assertions.assertTrue(elements.size() > 0);
 
             for (T elem : elements) {
                 if (!dedupRes.add(elem)) {
-                    Assert.fail("Duplicate entry: " + elem);
+                    Assertions.fail("Duplicate entry: " + elem);
                 }
 
                 if (!expectedOutput.contains(elem)) {
-                    Assert.fail("Unexpected element: " + elem);
+                    Assertions.fail("Unexpected element: " + elem);
                 }
             }
         }
 
         // test for exactly-once
-        Assert.assertEquals(expectedOutput.size(), dedupRes.size());
+        Assertions.assertEquals(expectedOutput.size(), dedupRes.size());
 
         latchToWait1.trigger();
         latchToWait2.trigger();

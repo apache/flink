@@ -37,9 +37,13 @@ import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -51,8 +55,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Abstract class to verify that it is possible to migrate a savepoint across upgraded Flink
@@ -164,7 +168,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
             }
         }
 
-        assertNotNull("Could not take savepoint.", savepointPath);
+        assertNotNull(savepointPath, "Could not take savepoint.");
 
         CompletableFuture<JobStatus> jobCanceledFuture =
                 FutureUtils.retrySuccessfulWithDelay(
@@ -186,7 +190,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         jobToRestore.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, allowNonRestoredState));
 
-        assertNotNull("Job doesn't have a JobID.", jobToRestore.getJobID());
+        assertNotNull(jobToRestore.getJobID(), "Job doesn't have a JobID.");
 
         clusterClient.submitJob(jobToRestore).get();
 

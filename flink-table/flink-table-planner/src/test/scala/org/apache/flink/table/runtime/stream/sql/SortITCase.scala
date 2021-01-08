@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, Strea
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 import scala.collection.mutable

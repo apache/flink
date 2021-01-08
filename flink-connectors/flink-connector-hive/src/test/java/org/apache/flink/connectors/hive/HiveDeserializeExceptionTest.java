@@ -33,14 +33,19 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Collections;
 import java.util.Properties;
 
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Sometimes users only add hive connector deps on client side but forget to add them on JM/TM. This

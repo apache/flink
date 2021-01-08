@@ -36,8 +36,6 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -165,7 +163,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
         List<byte[]> serializedResults =
                 SerializedListAccumulator.deserializeList(
                         accLocalValue, BytePrimitiveArraySerializer.INSTANCE);
-        Assert.assertEquals(1, serializedResults.size());
+        Assertions.assertEquals(1, serializedResults.size());
         byte[] serializedResult = serializedResults.get(0);
         return CollectSinkFunction.deserializeAccumulatorResult(serializedResult);
     }

@@ -23,10 +23,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.Collections;
@@ -41,48 +44,48 @@ public class TableUtilTest {
     @Test
     public void testFindIndexFromName() {
         String[] colNames = new String[] {"f0", "f1", "F2"};
-        Assert.assertEquals(0, TableUtil.findColIndex(colNames, "f0"));
-        Assert.assertEquals(1, TableUtil.findColIndex(colNames, "F1"));
-        Assert.assertEquals(-1, TableUtil.findColIndex(colNames, "f3"));
-        Assert.assertEquals(0, TableUtil.findColIndex(tableSchema, "f0"));
+        Assertions.assertEquals(0, TableUtil.findColIndex(colNames, "f0"));
+        Assertions.assertEquals(1, TableUtil.findColIndex(colNames, "F1"));
+        Assertions.assertEquals(-1, TableUtil.findColIndex(colNames, "f3"));
+        Assertions.assertEquals(0, TableUtil.findColIndex(tableSchema, "f0"));
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new int[] {1, 2}, TableUtil.findColIndices(colNames, new String[] {"f1", "F2"}));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new int[] {1, 2}, TableUtil.findColIndices(tableSchema, new String[] {"f1", "F2"}));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new int[] {-1, 2},
                 TableUtil.findColIndices(tableSchema, new String[] {"f3", "F2"}));
-        Assert.assertArrayEquals(new int[] {0, 1, 2}, TableUtil.findColIndices(colNames, null));
+        Assertions.assertArrayEquals(new int[] {0, 1, 2}, TableUtil.findColIndices(colNames, null));
     }
 
     @Test
     public void testFindTypeFromTable() {
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {TypeInformation.of(Integer.class), Types.LONG},
                 TableUtil.findColTypes(tableSchema, new String[] {"f0", "f1"}));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.LONG, null},
                 TableUtil.findColTypes(tableSchema, new String[] {"f1", "f3"}));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.INT, Types.LONG, Types.STRING},
                 TableUtil.findColTypes(tableSchema, null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 TypeInformation.of(Integer.class), TableUtil.findColType(tableSchema, "f0"));
-        Assert.assertNull(TableUtil.findColType(tableSchema, "f3"));
+        Assertions.assertNull(TableUtil.findColType(tableSchema, "f3"));
     }
 
     @Test
     public void isNumberIsStringTest() {
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.INT));
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.DOUBLE));
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.LONG));
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.BYTE));
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.FLOAT));
-        Assert.assertTrue(TableUtil.isSupportedNumericType(Types.SHORT));
-        Assert.assertFalse(TableUtil.isSupportedNumericType(Types.STRING));
-        Assert.assertTrue(TableUtil.isString(Types.STRING));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.INT));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.DOUBLE));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.LONG));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.BYTE));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.FLOAT));
+        Assertions.assertTrue(TableUtil.isSupportedNumericType(Types.SHORT));
+        Assertions.assertFalse(TableUtil.isSupportedNumericType(Types.STRING));
+        Assertions.assertTrue(TableUtil.isString(Types.STRING));
     }
 
     @Test
@@ -136,10 +139,11 @@ public class TableUtilTest {
                         new String[] {"f0", "f1", "F2", "f3"},
                         new TypeInformation[] {Types.INT, Types.LONG, Types.STRING, Types.BOOLEAN});
 
-        Assert.assertArrayEquals(new String[] {"f0", "f1"}, TableUtil.getNumericCols(tableSchema));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
+                new String[] {"f0", "f1"}, TableUtil.getNumericCols(tableSchema));
+        Assertions.assertArrayEquals(
                 new String[] {"f1"}, TableUtil.getNumericCols(tableSchema, new String[] {"f0"}));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f0", "f1"},
                 TableUtil.getNumericCols(tableSchema, new String[] {"f2"}));
     }
@@ -151,16 +155,16 @@ public class TableUtilTest {
                         new String[] {"f0", "f1", "f2", "f3"},
                         new TypeInformation[] {Types.INT, Types.LONG, Types.STRING, Types.BOOLEAN});
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f2", "f3"},
                 TableUtil.getCategoricalCols(tableSchema, tableSchema.getFieldNames(), null));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f2", "f0", "f3"},
                 TableUtil.getCategoricalCols(
                         tableSchema, new String[] {"f2", "f1", "f0", "f3"}, new String[] {"f0"}));
 
         thrown.expect(IllegalArgumentException.class);
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f3", "f2"},
                 TableUtil.getCategoricalCols(
                         tableSchema, new String[] {"f3", "f0"}, new String[] {"f2"}));
@@ -173,8 +177,8 @@ public class TableUtilTest {
                         new String[] {"f0", "f1", "F2", "f3"},
                         new TypeInformation[] {Types.INT, Types.LONG, Types.STRING, Types.BOOLEAN});
 
-        Assert.assertArrayEquals(new String[] {"F2"}, TableUtil.getStringCols(tableSchema));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(new String[] {"F2"}, TableUtil.getStringCols(tableSchema));
+        Assertions.assertArrayEquals(
                 new String[] {}, TableUtil.getStringCols(tableSchema, new String[] {"F2"}));
     }
 
@@ -188,13 +192,13 @@ public class TableUtilTest {
 
         String format =
                 TableUtil.format(tableSchema.getFieldNames(), Collections.singletonList(row));
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 ("f0|f1|F2|f3\r\n" + "--|--|--|--\n" + "1|2|3|true").equalsIgnoreCase(format));
     }
 
     @Test
     public void testTempTable() {
-        Assert.assertTrue(TableUtil.getTempTableName().startsWith("temp_"));
-        Assert.assertFalse(TableUtil.getTempTableName().contains("-"));
+        Assertions.assertTrue(TableUtil.getTempTableName().startsWith("temp_"));
+        Assertions.assertFalse(TableUtil.getTempTableName().contains("-"));
     }
 }

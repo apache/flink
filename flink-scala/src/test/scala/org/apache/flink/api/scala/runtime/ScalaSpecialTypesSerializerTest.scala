@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Assert, Test}
 
 import scala.collection.{SortedMap, SortedSet}
@@ -142,7 +142,7 @@ class ScalaSpecialTypesSerializerTest {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
-        Assert.fail(e.getMessage)
+        Assertions.fail(e.getMessage)
       }
     }
   }
@@ -217,10 +217,10 @@ class ScalaSpecialTypesSerializerTestInstance[T](
       if (!serializer.isInstanceOf[KryoSerializer[_]]) {
         // kryo serializer does return null, so only test for non-kryo-serializers
         val instance: T = serializer.createInstance
-        assertNotNull("The created instance must not be null.", instance)
+        assertNotNull(instance, "The created instance must not be null.")
       }
       val tpe: Class[T] = getTypeClass
-      assertNotNull("The test is corrupt: type class is null.", tpe)
+      assertNotNull(tpe, "The test is corrupt: type class is null.")
       // We cannot check this because Collection Instances are not always of the type
       // that the user writes, they might have generated names.
       // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)

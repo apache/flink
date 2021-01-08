@@ -42,6 +42,11 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -52,10 +57,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link FileWriterBucket}. */
 public class FileWriterBucketTest {
@@ -245,7 +248,7 @@ public class FileWriterBucketTest {
         StubResumableWriter resumableWriter = new StubResumableWriter();
         FileWriterBucket<String> bucket =
                 getRestoredBucketWithOnlyInProgressPart(resumableWriter, DEFAULT_ROLLING_POLICY);
-        assertNotNull("The in-progress file should be recovered", bucket.getInProgressPart());
+        assertNotNull(bucket.getInProgressPart(), "The in-progress file should be recovered");
 
         List<FileSinkCommittable> fileSinkCommittables = bucket.prepareCommit(false);
         FileWriterBucketState bucketState = bucket.snapshotState();
@@ -304,7 +307,7 @@ public class FileWriterBucketTest {
                 getRestoredBucketWithOnlyInProgressPart(
                         new StubResumableWriter(), DEFAULT_ROLLING_POLICY);
         bucket1.merge(bucket2);
-        assertNotNull("The in-progress file should be recovered", bucket1.getInProgressPart());
+        assertNotNull(bucket1.getInProgressPart(), "The in-progress file should be recovered");
 
         List<FileSinkCommittable> fileSinkCommittables = bucket1.prepareCommit(false);
         FileWriterBucketState bucketState = bucket1.snapshotState();

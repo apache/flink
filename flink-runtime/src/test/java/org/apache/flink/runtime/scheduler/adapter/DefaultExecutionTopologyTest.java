@@ -29,21 +29,19 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
-import org.apache.flink.util.IterableUtils;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
+import org.apache.flink.util.IterableUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -54,9 +52,8 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Unit tests for {@link DefaultExecutionTopology}. */
 public class DefaultExecutionTopologyTest extends TestLogger {
@@ -155,19 +152,21 @@ public class DefaultExecutionTopologyTest extends TestLogger {
 
     @Test
     public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int parallelism = 3;
-        final JobVertex v1 = createNoOpVertex(parallelism);
-        final JobVertex v2 = createNoOpVertex(parallelism);
+                    final JobVertex v1 = createNoOpVertex(parallelism);
+                    final JobVertex v2 = createNoOpVertex(parallelism);
 
-        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-        v1.setSlotSharingGroup(slotSharingGroup);
-        v2.setSlotSharingGroup(slotSharingGroup);
-        v1.setStrictlyCoLocatedWith(v2);
+                    SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+                    v1.setSlotSharingGroup(slotSharingGroup);
+                    v2.setSlotSharingGroup(slotSharingGroup);
+                    v1.setStrictlyCoLocatedWith(v2);
 
-        final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
-        DefaultExecutionTopology.fromExecutionGraph(executionGraph);
-        });
+                    final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+                    DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+                });
     }
 
     private void assertRegionContainsAllVertices(

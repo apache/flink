@@ -26,9 +26,12 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -43,8 +46,8 @@ public class VectorTypesTest {
         ser.serialize(vector, out);
         DataInputDeserializer in = new DataInputDeserializer(out.getCopyOfBuffer());
         Vector deserialize = (Vector) ser.deserialize(in);
-        Assert.assertEquals(vector.getClass(), deserialize.getClass());
-        Assert.assertEquals(vector, deserialize);
+        Assertions.assertEquals(vector.getClass(), deserialize.getClass());
+        Assertions.assertEquals(vector, deserialize);
     }
 
     @Test

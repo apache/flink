@@ -22,12 +22,17 @@ import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the {@link SimpleVersionedSerialization} class. */
 public class SimpleVersionedSerializationTest {
@@ -98,10 +103,12 @@ public class SimpleVersionedSerializationTest {
 
     @Test
     public void testUnderflow() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     SimpleVersionedSerialization.readVersionAndDeSerialize(
-                new TestStringSerializer(), new byte[7]);
-        });
+                            new TestStringSerializer(), new byte[7]);
+                });
     }
 
     // ------------------------------------------------------------------------

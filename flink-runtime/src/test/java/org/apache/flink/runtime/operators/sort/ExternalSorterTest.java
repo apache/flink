@@ -36,19 +36,22 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link ExternalSorter}. */
 public class ExternalSorterTest extends TestLogger {
@@ -134,8 +137,8 @@ public class ExternalSorterTest extends TestLogger {
             // wait for the results
             unilateralSortMerger.getIterator();
             unilateralSortMerger.close();
-            assertTrue("Combiner was not opened", combiner.isOpen);
-            assertTrue("Combiner was not closed", combiner.isClosed);
+            assertTrue(combiner.isOpen, "Combiner was not opened");
+            assertTrue(combiner.isClosed, "Combiner was not closed");
         } finally {
             memoryManager.shutdown();
         }
@@ -152,7 +155,7 @@ public class ExternalSorterTest extends TestLogger {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            assertFalse("UDF was already opened", isOpen);
+            assertFalse(isOpen, "UDF was already opened");
             isOpen = true;
             assertThat(parameters.get(testOption), equalTo("TEST"));
         }

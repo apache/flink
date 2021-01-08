@@ -29,9 +29,12 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CoGroupTaskExternalITCase
         extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {
@@ -87,10 +90,10 @@ public class CoGroupTaskExternalITCase
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
     }
 
     public static final class MockCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {

@@ -41,11 +41,12 @@ import java.net.URLClassLoader;
 import java.util.Objects;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link InstantiationUtil}. */
 public class InstantiationUtilTest extends TestLogger {
@@ -127,9 +128,11 @@ public class InstantiationUtilTest extends TestLogger {
 
     @Test
     public void testCheckForInstantiationOfPrivateClass() {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     InstantiationUtil.checkForInstantiation(TestClass.class);
-        });
+                });
     }
 
     @Test
@@ -143,7 +146,7 @@ public class InstantiationUtilTest extends TestLogger {
                 InstantiationUtil.deserializeFromByteArray(serializer, serialized);
 
         assertEquals(
-                "Serialized record is not equal after serialization.", toSerialize, deserialized);
+                toSerialize, deserialized, "Serialized record is not equal after serialization.");
     }
 
     @Test

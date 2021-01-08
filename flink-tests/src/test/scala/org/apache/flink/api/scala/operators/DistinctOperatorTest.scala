@@ -18,7 +18,7 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.apache.flink.api.common.InvalidProgramException
 import org.junit.jupiter.api.Test
 
@@ -40,13 +40,13 @@ class DistinctOperatorTest {
       tupleDs.distinct(0)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testDistinctByKeyIndices2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
@@ -91,7 +91,7 @@ class DistinctOperatorTest {
       longDs.distinct()
         });
     } catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -105,13 +105,13 @@ class DistinctOperatorTest {
       tupleDs.distinct("_1")
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testDistinctByKeyFields2(): Unit = {
-        Assertions.assertThrows(classOf[RuntimeException], () -> {
+        assertThrows(classOf[RuntimeException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val longDs = env.fromCollection(emptyLongData)
 
@@ -156,7 +156,7 @@ class DistinctOperatorTest {
       longDs.distinct("_")
         });
     } catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -168,7 +168,7 @@ class DistinctOperatorTest {
       customDs.distinct {_.myLong}
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 }

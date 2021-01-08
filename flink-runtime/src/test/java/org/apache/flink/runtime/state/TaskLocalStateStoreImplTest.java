@@ -27,9 +27,13 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -90,12 +94,12 @@ public class TaskLocalStateStoreImplTest {
     public void getLocalRecoveryRootDirectoryProvider() {
 
         LocalRecoveryConfig directoryProvider = taskLocalStateStore.getLocalRecoveryConfig();
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 allocationBaseDirs.length,
                 directoryProvider.getLocalStateDirectoryProvider().allocationBaseDirsCount());
 
         for (int i = 0; i < allocationBaseDirs.length; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     allocationBaseDirs[i],
                     directoryProvider
                             .getLocalStateDirectoryProvider()
@@ -110,14 +114,14 @@ public class TaskLocalStateStoreImplTest {
         final int chkCount = 3;
 
         for (int i = 0; i < chkCount; ++i) {
-            Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+            Assertions.assertNull(taskLocalStateStore.retrieveLocalState(i));
         }
 
         List<TaskStateSnapshot> taskStateSnapshots = storeStates(chkCount);
 
         checkStoredAsExpected(taskStateSnapshots, 0, chkCount);
 
-        Assert.assertNull(taskLocalStateStore.retrieveLocalState(chkCount + 1));
+        Assertions.assertNull(taskLocalStateStore.retrieveLocalState(chkCount + 1));
     }
 
     /** Test checkpoint pruning. */
@@ -132,7 +136,7 @@ public class TaskLocalStateStoreImplTest {
         taskLocalStateStore.pruneMatchingCheckpoints((long chk) -> chk != chkCount - 1);
 
         for (int i = 0; i < chkCount - 1; ++i) {
-            Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+            Assertions.assertNull(taskLocalStateStore.retrieveLocalState(i));
         }
 
         checkStoredAsExpected(taskStateSnapshots, chkCount - 1, chkCount);
@@ -181,7 +185,7 @@ public class TaskLocalStateStoreImplTest {
             throws Exception {
         for (int i = start; i < end; ++i) {
             TaskStateSnapshot expected = history.get(i);
-            Assert.assertTrue(expected == taskLocalStateStore.retrieveLocalState(i));
+            Assertions.assertTrue(expected == taskLocalStateStore.retrieveLocalState(i));
             Mockito.verify(expected, Mockito.never()).discardState();
         }
     }
@@ -189,7 +193,7 @@ public class TaskLocalStateStoreImplTest {
     private void checkPrunedAndDiscarded(List<TaskStateSnapshot> history, int start, int end)
             throws Exception {
         for (int i = start; i < end; ++i) {
-            Assert.assertNull(taskLocalStateStore.retrieveLocalState(i));
+            Assertions.assertNull(taskLocalStateStore.retrieveLocalState(i));
             Mockito.verify(history.get(i)).discardState();
         }
     }

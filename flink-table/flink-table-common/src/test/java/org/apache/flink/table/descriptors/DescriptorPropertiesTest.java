@@ -26,6 +26,11 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.LogicalTypeParserTest;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link DescriptorProperties}. */
 public class DescriptorPropertiesTest {
@@ -100,46 +105,56 @@ public class DescriptorPropertiesTest {
 
     @Test
     public void testArrayInvalidValues() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     DescriptorProperties properties = new DescriptorProperties();
-        properties.putString(ARRAY_KEY + ".0", "12");
-        properties.putString(ARRAY_KEY + ".1", "66");
-        properties.putString(ARRAY_KEY + ".2", "INVALID");
+                    properties.putString(ARRAY_KEY + ".0", "12");
+                    properties.putString(ARRAY_KEY + ".1", "66");
+                    properties.putString(ARRAY_KEY + ".2", "INVALID");
 
-        testArrayValidation(properties, 1, Integer.MAX_VALUE);
-        });
+                    testArrayValidation(properties, 1, Integer.MAX_VALUE);
+                });
     }
 
     @Test
     public void testArrayInvalidSingleValue() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     DescriptorProperties properties = new DescriptorProperties();
-        properties.putString(ARRAY_KEY, "INVALID");
+                    properties.putString(ARRAY_KEY, "INVALID");
 
-        testArrayValidation(properties, 1, Integer.MAX_VALUE);
-        });
+                    testArrayValidation(properties, 1, Integer.MAX_VALUE);
+                });
     }
 
     @Test
     public void testInvalidMissingArray() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     DescriptorProperties properties = new DescriptorProperties();
 
-        testArrayValidation(properties, 1, Integer.MAX_VALUE);
-        });
+                    testArrayValidation(properties, 1, Integer.MAX_VALUE);
+                });
     }
 
     @Test
     public void testInvalidFixedIndexedProperties() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     DescriptorProperties property = new DescriptorProperties();
-        List<List<String>> list = new ArrayList<>();
-        list.add(Arrays.asList("1", "string"));
-        list.add(Arrays.asList("INVALID", "string"));
-        property.putIndexedFixedProperties(
-                FIXED_INDEXED_PROPERTY_KEY, Arrays.asList(PROPERTY_1_KEY, PROPERTY_2_KEY), list);
-        testFixedIndexedPropertiesValidation(property);
-        });
+                    List<List<String>> list = new ArrayList<>();
+                    list.add(Arrays.asList("1", "string"));
+                    list.add(Arrays.asList("INVALID", "string"));
+                    property.putIndexedFixedProperties(
+                            FIXED_INDEXED_PROPERTY_KEY,
+                            Arrays.asList(PROPERTY_1_KEY, PROPERTY_2_KEY),
+                            list);
+                    testFixedIndexedPropertiesValidation(property);
+                });
     }
 
     @Test

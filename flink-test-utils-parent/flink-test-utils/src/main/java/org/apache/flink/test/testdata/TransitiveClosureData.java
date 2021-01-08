@@ -18,8 +18,6 @@
 
 package org.apache.flink.test.testdata;
 
-import org.junit.Assert;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.regex.Pattern;
@@ -32,14 +30,15 @@ public class TransitiveClosureData {
         String line;
         while ((line = result.readLine()) != null) {
             String[] res = split.split(line);
-            Assert.assertEquals("Malformed result: Wrong number of tokens in line.", 2, res.length);
+            Assertions.assertEquals(
+                    "Malformed result: Wrong number of tokens in line.", 2, res.length);
             try {
                 int from = Integer.parseInt(res[0]);
                 int to = Integer.parseInt(res[1]);
 
-                Assert.assertEquals("Vertex should not be reachable.", from % 2, to % 2);
+                Assertions.assertEquals("Vertex should not be reachable.", from % 2, to % 2);
             } catch (NumberFormatException e) {
-                Assert.fail("Malformed result.");
+                Assertions.fail("Malformed result.");
             }
         }
     }

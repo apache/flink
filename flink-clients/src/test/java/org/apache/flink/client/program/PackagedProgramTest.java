@@ -21,9 +21,14 @@ package org.apache.flink.client.program;
 import org.apache.flink.client.cli.CliFrontendTestUtils;
 import org.apache.flink.configuration.ConfigConstants;
 
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -54,8 +59,8 @@ public class PackagedProgramTest {
         }
 
         final List<File> files = PackagedProgram.extractContainedLibraries(fakeJar.toURI().toURL());
-        Assert.assertEquals(1, files.size());
-        Assert.assertArrayEquals(
+        Assertions.assertEquals(1, files.size());
+        Assertions.assertArrayEquals(
                 nestedJarContent, Files.readAllBytes(files.iterator().next().toPath()));
     }
 
@@ -71,8 +76,10 @@ public class PackagedProgramTest {
     @Test
     public void testBuilderThrowExceptionIfjarFileAndEntryPointClassNameAreBothNull()
             throws ProgramInvocationException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     PackagedProgram.newBuilder().build();
-        });
+                });
     }
 }

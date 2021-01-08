@@ -33,13 +33,18 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collections;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -182,12 +187,16 @@ public class RMQSinkTest {
 
     @Test
     public void exceptionDuringPublishingIsNotIgnored() throws Exception {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     RMQSink<String> rmqSink = createRMQSink();
 
-        doThrow(IOException.class).when(channel).basicPublish("", QUEUE_NAME, null, MESSAGE);
-        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-        });
+                    doThrow(IOException.class)
+                            .when(channel)
+                            .basicPublish("", QUEUE_NAME, null, MESSAGE);
+                    rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+                });
     }
 
     @Test
@@ -227,20 +236,24 @@ public class RMQSinkTest {
 
     @Test
     public void invokePublishBytesToQueueWithOptionsMandatory() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     RMQSink<String> rmqSink = createRMQSinkWithOptions(true, false);
 
-        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-        });
+                    rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+                });
     }
 
     @Test
     public void invokePublishBytesToQueueWithOptionsImmediate() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     RMQSink<String> rmqSink = createRMQSinkWithOptions(false, true);
 
-        rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
-        });
+                    rmqSink.invoke(MESSAGE_STR, SinkContextUtil.forTimestamp(0));
+                });
     }
 
     @Test
@@ -277,20 +290,22 @@ public class RMQSinkTest {
 
     @Test
     public void exceptionDuringWithOptionsPublishingIsNotIgnored() throws Exception {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     RMQSink<String> rmqSink = createRMQSinkWithOptions(false, false);
 
-        doThrow(IOException.class)
-                .when(channel)
-                .basicPublish(
-                        EXCHANGE,
-                        ROUTING_KEY,
-                        false,
-                        false,
-                        publishOptions.computeProperties(""),
-                        MESSAGE);
-        rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
-        });
+                    doThrow(IOException.class)
+                            .when(channel)
+                            .basicPublish(
+                                    EXCHANGE,
+                                    ROUTING_KEY,
+                                    false,
+                                    false,
+                                    publishOptions.computeProperties(""),
+                                    MESSAGE);
+                    rmqSink.invoke("msg", SinkContextUtil.forTimestamp(0));
+                });
     }
 
     @Test

@@ -20,18 +20,19 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.NO_ALIGNMENT_TIME_OUT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link CheckpointOptions} class. */
 public class CheckpointOptionsTest {
@@ -65,10 +66,16 @@ public class CheckpointOptionsTest {
 
     @Test
     public void testSavepointNeedsAlignment() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new CheckpointOptions(
-                SAVEPOINT, CheckpointStorageLocationReference.getDefault(), true, true, 0);
-        });
+                            SAVEPOINT,
+                            CheckpointStorageLocationReference.getDefault(),
+                            true,
+                            true,
+                            0);
+                });
     }
 
     @Test
@@ -100,7 +107,7 @@ public class CheckpointOptionsTest {
 
     private void assertTimeoutable(
             CheckpointOptions options, boolean isUnaligned, boolean isTimeoutable, long timeout) {
-        assertTrue("exactly once", options.isExactlyOnceMode());
+        assertTrue(options.isExactlyOnceMode(), "exactly once");
         assertEquals("need alignment", !isUnaligned, options.needsAlignment());
         assertEquals("unaligned", isUnaligned, options.isUnalignedCheckpoint());
         assertEquals("timeoutable", isTimeoutable, options.isTimeoutable());

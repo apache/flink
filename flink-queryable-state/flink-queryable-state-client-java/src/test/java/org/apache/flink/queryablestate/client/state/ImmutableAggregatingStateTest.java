@@ -26,10 +26,15 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableAggregatingStateTest}. */
 public class ImmutableAggregatingStateTest {
@@ -55,22 +60,26 @@ public class ImmutableAggregatingStateTest {
 
     @Test
     public void testUpdate() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     String value = aggrState.get();
-        assertEquals("42", value);
+                    assertEquals("42", value);
 
-        aggrState.add(54L);
-        });
+                    aggrState.add(54L);
+                });
     }
 
     @Test
     public void testClear() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     String value = aggrState.get();
-        assertEquals("42", value);
+                    assertEquals("42", value);
 
-        aggrState.clear();
-        });
+                    aggrState.clear();
+                });
     }
 
     /**

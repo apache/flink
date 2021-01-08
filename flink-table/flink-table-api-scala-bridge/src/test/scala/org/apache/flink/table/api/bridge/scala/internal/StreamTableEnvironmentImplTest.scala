@@ -29,7 +29,7 @@ import org.apache.flink.table.operations.ModifyOperation
 import org.apache.flink.table.utils.{CatalogManagerMocks, ExecutorMock, PlannerMock}
 import org.apache.flink.types.Row
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 import java.time.Duration
 

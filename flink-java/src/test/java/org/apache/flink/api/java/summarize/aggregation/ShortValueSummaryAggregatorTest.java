@@ -20,8 +20,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.ShortValue;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 /** Tests for {@link ValueSummaryAggregator.ShortValueSummaryAggregator}. */
 public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest {
@@ -45,26 +44,29 @@ public class ShortValueSummaryAggregatorTest extends ShortSummaryAggregatorTest 
             protected void compareResults(
                     NumericColumnSummary<Short> result1, NumericColumnSummary<Short> result2) {
 
-                Assert.assertEquals(result1.getTotalCount(), result2.getTotalCount());
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getMissingCount(), result2.getMissingCount());
-                Assert.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
-                Assert.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
-                Assert.assertEquals(result1.getNanCount(), result2.getNanCount());
+                Assertions.assertEquals(result1.getTotalCount(), result2.getTotalCount());
+                Assertions.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assertions.assertEquals(result1.getMissingCount(), result2.getMissingCount());
+                Assertions.assertEquals(result1.getNonMissingCount(), result2.getNonMissingCount());
+                Assertions.assertEquals(result1.getInfinityCount(), result2.getInfinityCount());
+                Assertions.assertEquals(result1.getNanCount(), result2.getNanCount());
 
-                Assert.assertEquals(result1.containsNull(), result2.containsNull());
-                Assert.assertEquals(result1.containsNonNull(), result2.containsNonNull());
+                Assertions.assertEquals(result1.containsNull(), result2.containsNull());
+                Assertions.assertEquals(result1.containsNonNull(), result2.containsNonNull());
 
-                Assert.assertEquals(result1.getMin().shortValue(), result2.getMin().shortValue());
-                Assert.assertEquals(result1.getMax().shortValue(), result2.getMax().shortValue());
-                Assert.assertEquals(result1.getSum().shortValue(), result2.getSum().shortValue());
-                Assert.assertEquals(
+                Assertions.assertEquals(
+                        result1.getMin().shortValue(), result2.getMin().shortValue());
+                Assertions.assertEquals(
+                        result1.getMax().shortValue(), result2.getMax().shortValue());
+                Assertions.assertEquals(
+                        result1.getSum().shortValue(), result2.getSum().shortValue());
+                Assertions.assertEquals(
                         result1.getMean().doubleValue(), result2.getMean().doubleValue(), 1e-12d);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         result1.getVariance().doubleValue(),
                         result2.getVariance().doubleValue(),
                         1e-9d);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         result1.getStandardDeviation().doubleValue(),
                         result2.getStandardDeviation().doubleValue(),
                         1e-12d);

@@ -37,30 +37,29 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.IOUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test for {@link OrcColumnarRowFileInputFormat}. */
 public class OrcColumnarRowFileInputFormatTest {
@@ -109,10 +108,10 @@ public class OrcColumnarRowFileInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
+                        Assertions.assertFalse(row.isNullAt(0));
+                        Assertions.assertFalse(row.isNullAt(1));
                         totalF0.addAndGet(row.getInt(0));
-                        Assert.assertNotNull(row.getString(1).toString());
+                        Assertions.assertNotNull(row.getString(1).toString());
                         cnt.incrementAndGet();
                     });
         }
@@ -136,12 +135,12 @@ public class OrcColumnarRowFileInputFormatTest {
                     format,
                     split,
                     row -> {
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertNotNull(row.getString(0).toString());
+                        Assertions.assertFalse(row.isNullAt(0));
+                        Assertions.assertFalse(row.isNullAt(1));
+                        Assertions.assertFalse(row.isNullAt(2));
+                        Assertions.assertNotNull(row.getString(0).toString());
                         totalF0.addAndGet(row.getInt(1));
-                        Assert.assertNotNull(row.getString(2).toString());
+                        Assertions.assertNotNull(row.getString(2).toString());
                         cnt.incrementAndGet();
                     });
         }
@@ -231,21 +230,21 @@ public class OrcColumnarRowFileInputFormatTest {
                     split,
                     row -> {
                         // data values
-                        Assert.assertFalse(row.isNullAt(3));
-                        Assert.assertFalse(row.isNullAt(5));
+                        Assertions.assertFalse(row.isNullAt(3));
+                        Assertions.assertFalse(row.isNullAt(5));
                         totalF0.addAndGet(row.getInt(3));
-                        Assert.assertNotNull(row.getString(5).toString());
+                        Assertions.assertNotNull(row.getString(5).toString());
 
                         // part values
-                        Assert.assertFalse(row.isNullAt(0));
-                        Assert.assertFalse(row.isNullAt(1));
-                        Assert.assertFalse(row.isNullAt(2));
-                        Assert.assertFalse(row.isNullAt(4));
-                        Assert.assertEquals(
+                        Assertions.assertFalse(row.isNullAt(0));
+                        Assertions.assertFalse(row.isNullAt(1));
+                        Assertions.assertFalse(row.isNullAt(2));
+                        Assertions.assertFalse(row.isNullAt(4));
+                        Assertions.assertEquals(
                                 DecimalDataUtils.castFrom(5.333, 10, 5), row.getDecimal(0, 10, 5));
-                        Assert.assertEquals(1, row.getInt(1));
-                        Assert.assertEquals(3, row.getLong(2));
-                        Assert.assertEquals("f5", row.getString(4).toString());
+                        Assertions.assertEquals(1, row.getInt(1));
+                        Assertions.assertEquals(3, row.getLong(2));
+                        Assertions.assertEquals("f5", row.getString(4).toString());
                         cnt.incrementAndGet();
                     });
         }
@@ -301,8 +300,8 @@ public class OrcColumnarRowFileInputFormatTest {
 
         Consumer<RowData> consumer =
                 row -> {
-                    Assert.assertFalse(row.isNullAt(0));
-                    Assert.assertFalse(row.isNullAt(1));
+                    Assertions.assertFalse(row.isNullAt(0));
+                    Assertions.assertFalse(row.isNullAt(1));
                     totalF0.addAndGet(row.getInt(0));
                     assertNotNull(row.getString(1).toString());
                     cnt.incrementAndGet();
@@ -315,7 +314,7 @@ public class OrcColumnarRowFileInputFormatTest {
         try (BulkFormat.Reader<RowData> reader = createReader(format, split)) {
             while (cnt.get() < breakCnt) {
                 BulkFormat.RecordIterator<RowData> batch = reader.readBatch();
-                Assert.assertNotNull(batch);
+                Assertions.assertNotNull(batch);
 
                 RecordAndPosition<RowData> record;
                 while ((record = batch.next()) != null && cnt.get() < breakCnt) {

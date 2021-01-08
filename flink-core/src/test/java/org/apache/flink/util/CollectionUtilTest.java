@@ -18,7 +18,7 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -33,12 +33,13 @@ public class CollectionUtilTest {
         List<Integer> list = Arrays.asList(1, 2, 3, 4);
         Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
 
-        Assert.assertEquals(
-                "List partitioned into the an incorrect number of partitions",
+        Assertions.assertEquals(
                 4,
-                partitioned.size());
+                partitioned.size(),
+                "List partitioned into the an incorrect number of partitions");
         for (List<Integer> partition : partitioned) {
-            Assert.assertEquals("Unexpected number of elements in partition", 1, partition.size());
+            Assertions.assertEquals(
+                    1, partition.size(), "Unexpected number of elements in partition");
         }
     }
 }

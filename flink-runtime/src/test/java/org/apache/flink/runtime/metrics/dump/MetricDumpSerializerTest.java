@@ -19,15 +19,14 @@
 package org.apache.flink.runtime.metrics.dump;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.*;
 import org.apache.flink.metrics.util.TestHistogram;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,13 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_COUNTER;
-import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_GAUGE;
-import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_HISTOGRAM;
-import static org.apache.flink.runtime.metrics.dump.MetricDump.METRIC_CATEGORY_METER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.metrics.dump.MetricDump.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link MetricDumpSerialization}. */
 public class MetricDumpSerializerTest {
@@ -74,13 +68,13 @@ public class MetricDumpSerializerTest {
                         Collections.<Meter, Tuple2<QueryScopeInfo, String>>emptyMap());
 
         // no metrics should be serialized
-        Assert.assertEquals(0, output.serializedCounters.length);
-        Assert.assertEquals(0, output.serializedGauges.length);
-        Assert.assertEquals(0, output.serializedHistograms.length);
-        Assert.assertEquals(0, output.serializedMeters.length);
+        Assertions.assertEquals(0, output.serializedCounters.length);
+        Assertions.assertEquals(0, output.serializedGauges.length);
+        Assertions.assertEquals(0, output.serializedHistograms.length);
+        Assertions.assertEquals(0, output.serializedMeters.length);
 
         List<MetricDump> deserialized = deserializer.deserialize(output);
-        Assert.assertEquals(0, deserialized.size());
+        Assertions.assertEquals(0, deserialized.size());
     }
 
     @Test

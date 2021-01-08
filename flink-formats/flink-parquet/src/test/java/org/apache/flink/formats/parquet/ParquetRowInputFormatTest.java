@@ -32,6 +32,11 @@ import org.apache.avro.specific.SpecificRecord;
 import org.apache.parquet.schema.MessageType;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -43,11 +48,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Simple test case for reading {@link org.apache.flink.types.Row} from Parquet files. */
 @RunWith(Parameterized.class)
@@ -414,22 +419,24 @@ public class ParquetRowInputFormatTest extends TestUtil {
 
     @Test
     public void testInvalidProjectionOfNestedRecord() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     Tuple3<Class<? extends SpecificRecord>, SpecificRecord, Row> nested =
-                getNestedRecordTestData();
-        Path path =
-                createTempParquetFile(
-                        tempRoot.newFolder(),
-                        NESTED_SCHEMA,
-                        Collections.singletonList(nested.f1),
-                        getConfiguration());
-        MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
+                            getNestedRecordTestData();
+                    Path path =
+                            createTempParquetFile(
+                                    tempRoot.newFolder(),
+                                    NESTED_SCHEMA,
+                                    Collections.singletonList(nested.f1),
+                                    getConfiguration());
+                    MessageType nestedType = getSchemaConverter().convert(NESTED_SCHEMA);
 
-        ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, nestedType);
-        inputFormat.setRuntimeContext(getMockRuntimeContext());
+                    ParquetRowInputFormat inputFormat = new ParquetRowInputFormat(path, nestedType);
+                    inputFormat.setRuntimeContext(getMockRuntimeContext());
 
-        inputFormat.selectFields(new String[] {"bar", "celona"});
-        });
+                    inputFormat.selectFields(new String[] {"bar", "celona"});
+                });
     }
 
     @Test

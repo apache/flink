@@ -24,6 +24,11 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -33,10 +38,10 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link CsvRowSerializationSchema} and {@link CsvRowDeserializationSchema}. */
 public class CsvRowDeSerializationSchemaTest {
@@ -222,16 +227,22 @@ public class CsvRowDeSerializationSchemaTest {
 
     @Test
     public void testInvalidNesting() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-                    testNullableField(Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    testNullableField(
+                            Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
+                });
     }
 
     @Test
     public void testInvalidType() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-                    testNullableField(Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    testNullableField(
+                            Types.GENERIC(java.util.Date.class), "FAIL", new java.util.Date());
+                });
     }
 
     @Test

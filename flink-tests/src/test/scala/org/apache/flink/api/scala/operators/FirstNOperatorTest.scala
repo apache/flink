@@ -39,7 +39,7 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
@@ -47,29 +47,29 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.first(0)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.first(-1)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
   }
@@ -84,7 +84,7 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
@@ -92,29 +92,29 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.groupBy(0).first(0)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.groupBy(2).first(-1)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
   }
@@ -129,7 +129,7 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
@@ -137,29 +137,29 @@ class FirstNOperatorTest {
     }
     catch {
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.groupBy(0).sortGroup(4, Order.ASCENDING).first(0)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
     try {
       tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(-1)
-      Assert.fail()
+      Assertions.fail()
     }
     catch {
       case ipe: InvalidProgramException => {
       }
       case e: Exception => {
-        Assert.fail()
+        Assertions.fail()
       }
     }
   }

@@ -59,7 +59,7 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertTrue(output.contains(
+    Assertions.assertTrue(output.contains(
       "UnsupportedOperationException: Execution Environment is already " +
       "defined for this shell"))
   }
@@ -76,7 +76,7 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertTrue(output.contains(
+    Assertions.assertTrue(output.contains(
       "UnsupportedOperationException: Execution Environment is already " +
       "defined for this shell"))
   }
@@ -102,9 +102,9 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
   }
 
   /** WordCount in Shell */
@@ -122,15 +122,15 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
 
     // some of the words that should be included
-    Assert.assertTrue(output.contains("(a,1)"))
-    Assert.assertTrue(output.contains("(whether,1)"))
-    Assert.assertTrue(output.contains("(to,4)"))
-    Assert.assertTrue(output.contains("(arrows,1)"))
+    Assertions.assertTrue(output.contains("(a,1)"))
+    Assertions.assertTrue(output.contains("(whether,1)"))
+    Assertions.assertTrue(output.contains("(to,4)"))
+    Assertions.assertTrue(output.contains("(arrows,1)"))
   }
 
   /** Sum 1..10, should be 55 */
@@ -145,11 +145,11 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("55"))
+    Assertions.assertTrue(output.contains("55"))
   }
 
   /** WordCount in Shell with custom case class */
@@ -168,12 +168,12 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("WC(hello,1)"))
-    Assert.assertTrue(output.contains("WC(world,10)"))
+    Assertions.assertTrue(output.contains("WC(hello,1)"))
+    Assertions.assertTrue(output.contains("WC(world,10)"))
   }
 
   @Test
@@ -191,11 +191,11 @@ class ScalaShellITCase extends TestLogger {
         |:q
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
-    Assert.assertTrue(output.contains("+I[1, Hi]"))
-    Assert.assertTrue(output.contains("+I[3, Hello world]"))
+    Assertions.assertFalse(output.toLowerCase.contains("failed"))
+    Assertions.assertFalse(output.toLowerCase.contains("error"))
+    Assertions.assertFalse(output.toLowerCase.contains("exception"))
+    Assertions.assertTrue(output.contains("+I[1, Hi]"))
+    Assertions.assertTrue(output.contains("+I[3, Hello world]"))
   }
 
   @Test
@@ -223,12 +223,12 @@ class ScalaShellITCase extends TestLogger {
         | senv.execute
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("+I[6, 1]"))
-    Assert.assertTrue(output.contains("+I[1, 2]"))
-    Assert.assertTrue(output.contains("+I[2, 1]"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assertions.assertTrue(output.contains("+I[6, 1]"))
+    Assertions.assertTrue(output.contains("+I[1, 2]"))
+    Assertions.assertTrue(output.contains("+I[2, 1]"))
+    Assertions.assertFalse(output.toLowerCase.contains("failed"))
+    Assertions.assertFalse(output.toLowerCase.contains("error"))
+    Assertions.assertFalse(output.toLowerCase.contains("exception"))
   }
 
   /**
@@ -247,12 +247,12 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
 
 
-    Assert.assertTrue(output.contains("\nHELLO 42"))
+    Assertions.assertTrue(output.contains("\nHELLO 42"))
   }
 
   /**
@@ -272,11 +272,11 @@ class ScalaShellITCase extends TestLogger {
 
     val output: String = processInShell(input, Option("customjar-test-jar.jar"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("error"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("error"))
+    Assertions.assertFalse(output.contains("Exception"))
 
-    Assert.assertTrue(output.contains("\nHELLO 42"))
+    Assertions.assertTrue(output.contains("\nHELLO 42"))
   }
 
 
@@ -358,17 +358,17 @@ class ScalaShellITCase extends TestLogger {
     val output: String = baos.toString
     System.setOut(oldOut)
 
-    Assert.assertTrue(output.contains("IntCounter: 2"))
-    Assert.assertTrue(output.contains("foobar"))
-    Assert.assertTrue(output.contains("barfoo"))
+    Assertions.assertTrue(output.contains("IntCounter: 2"))
+    Assertions.assertTrue(output.contains("foobar"))
+    Assertions.assertTrue(output.contains("barfoo"))
 
-    Assert.assertTrue(output.contains("foobarStreaming"))
-    Assert.assertTrue(output.contains("barfooStreaming"))
+    Assertions.assertTrue(output.contains("foobarStreaming"))
+    Assertions.assertTrue(output.contains("barfooStreaming"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("Error"))
-    Assert.assertFalse(output.contains("ERROR"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("Error"))
+    Assertions.assertFalse(output.contains("ERROR"))
+    Assertions.assertFalse(output.contains("Exception"))
   }
 
   @Test
@@ -386,10 +386,10 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertTrue(output.contains("the java list size is: 5"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assertions.assertTrue(output.contains("the java list size is: 5"))
+    Assertions.assertFalse(output.toLowerCase.contains("failed"))
+    Assertions.assertFalse(output.toLowerCase.contains("error"))
+    Assertions.assertFalse(output.toLowerCase.contains("exception"))
 
   }
 
@@ -410,10 +410,10 @@ class ScalaShellITCase extends TestLogger {
 
     val output = processInShell(input)
 
-    Assert.assertTrue(output.contains("sum is: 15"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
+    Assertions.assertTrue(output.contains("sum is: 15"))
+    Assertions.assertFalse(output.toLowerCase.contains("failed"))
+    Assertions.assertFalse(output.toLowerCase.contains("error"))
+    Assertions.assertTrue(output.contains("java.lang.UnsupportedOperationException"))
   }
 
   @Test
@@ -432,10 +432,10 @@ class ScalaShellITCase extends TestLogger {
       """.stripMargin
 
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("the java list size is: 5"))
-    Assert.assertFalse(output.toLowerCase.contains("failed"))
-    Assert.assertFalse(output.toLowerCase.contains("error"))
-    Assert.assertFalse(output.toLowerCase.contains("exception"))
+    Assertions.assertTrue(output.contains("the java list size is: 5"))
+    Assertions.assertFalse(output.toLowerCase.contains("failed"))
+    Assertions.assertFalse(output.toLowerCase.contains("error"))
+    Assertions.assertFalse(output.toLowerCase.contains("exception"))
   }
 
   @Test
@@ -445,7 +445,7 @@ class ScalaShellITCase extends TestLogger {
         |val newEnv = ExecutionEnvironment.getExecutionEnvironment
       """.stripMargin
     val output = processInShell(input)
-    Assert.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
+    Assertions.assertTrue(output.contains("java.lang.UnsupportedOperationException: Execution " +
       "Environment is already defined for this shell."))
   }
 

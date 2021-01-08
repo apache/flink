@@ -32,8 +32,12 @@ import org.apache.flink.runtime.state.metainfo.StateMetaInfoReader;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -90,8 +94,8 @@ public class SerializationProxiesTest {
             serializationProxy.read(new DataInputViewStreamWrapper(in));
         }
 
-        Assert.assertTrue(serializationProxy.isUsingKeyGroupCompression());
-        Assert.assertTrue(
+        Assertions.assertTrue(serializationProxy.isUsingKeyGroupCompression());
+        Assertions.assertTrue(
                 serializationProxy.getKeySerializerSnapshot()
                         instanceof IntSerializer.IntSerializerSnapshot);
 
@@ -132,7 +136,7 @@ public class SerializationProxiesTest {
                             Thread.currentThread().getContextClassLoader());
         }
 
-        Assert.assertEquals(name, metaInfo.getName());
+        Assertions.assertEquals(name, metaInfo.getName());
     }
 
     @Test
@@ -232,9 +236,10 @@ public class SerializationProxiesTest {
         RegisteredOperatorStateBackendMetaInfo<?> restoredMetaInfo =
                 new RegisteredOperatorStateBackendMetaInfo<>(snapshot);
 
-        Assert.assertEquals(name, restoredMetaInfo.getName());
-        Assert.assertEquals(OperatorStateHandle.Mode.UNION, restoredMetaInfo.getAssignmentMode());
-        Assert.assertEquals(stateSerializer, restoredMetaInfo.getPartitionStateSerializer());
+        Assertions.assertEquals(name, restoredMetaInfo.getName());
+        Assertions.assertEquals(
+                OperatorStateHandle.Mode.UNION, restoredMetaInfo.getAssignmentMode());
+        Assertions.assertEquals(stateSerializer, restoredMetaInfo.getPartitionStateSerializer());
     }
 
     @Test
@@ -274,11 +279,11 @@ public class SerializationProxiesTest {
         RegisteredBroadcastStateBackendMetaInfo<?, ?> restoredMetaInfo =
                 new RegisteredBroadcastStateBackendMetaInfo<>(snapshot);
 
-        Assert.assertEquals(name, restoredMetaInfo.getName());
-        Assert.assertEquals(
+        Assertions.assertEquals(name, restoredMetaInfo.getName());
+        Assertions.assertEquals(
                 OperatorStateHandle.Mode.BROADCAST, restoredMetaInfo.getAssignmentMode());
-        Assert.assertEquals(keySerializer, restoredMetaInfo.getKeySerializer());
-        Assert.assertEquals(valueSerializer, restoredMetaInfo.getValueSerializer());
+        Assertions.assertEquals(keySerializer, restoredMetaInfo.getKeySerializer());
+        Assertions.assertEquals(valueSerializer, restoredMetaInfo.getValueSerializer());
     }
 
     /**
@@ -288,20 +293,20 @@ public class SerializationProxiesTest {
     @Test
     public void testFixTypeOrder() {
         // ensure all elements are covered
-        Assert.assertEquals(7, StateDescriptor.Type.values().length);
+        Assertions.assertEquals(7, StateDescriptor.Type.values().length);
         // fix the order of elements to keep serialization format stable
-        Assert.assertEquals(0, StateDescriptor.Type.UNKNOWN.ordinal());
-        Assert.assertEquals(1, StateDescriptor.Type.VALUE.ordinal());
-        Assert.assertEquals(2, StateDescriptor.Type.LIST.ordinal());
-        Assert.assertEquals(3, StateDescriptor.Type.REDUCING.ordinal());
-        Assert.assertEquals(4, StateDescriptor.Type.FOLDING.ordinal());
-        Assert.assertEquals(5, StateDescriptor.Type.AGGREGATING.ordinal());
-        Assert.assertEquals(6, StateDescriptor.Type.MAP.ordinal());
+        Assertions.assertEquals(0, StateDescriptor.Type.UNKNOWN.ordinal());
+        Assertions.assertEquals(1, StateDescriptor.Type.VALUE.ordinal());
+        Assertions.assertEquals(2, StateDescriptor.Type.LIST.ordinal());
+        Assertions.assertEquals(3, StateDescriptor.Type.REDUCING.ordinal());
+        Assertions.assertEquals(4, StateDescriptor.Type.FOLDING.ordinal());
+        Assertions.assertEquals(5, StateDescriptor.Type.AGGREGATING.ordinal());
+        Assertions.assertEquals(6, StateDescriptor.Type.MAP.ordinal());
     }
 
     private void assertEqualStateMetaInfoSnapshotsLists(
             List<StateMetaInfoSnapshot> expected, List<StateMetaInfoSnapshot> actual) {
-        Assert.assertEquals(expected.size(), actual.size());
+        Assertions.assertEquals(expected.size(), actual.size());
         for (int i = 0; i < expected.size(); ++i) {
             assertEqualStateMetaInfoSnapshots(expected.get(i), actual.get(i));
         }
@@ -309,10 +314,10 @@ public class SerializationProxiesTest {
 
     private void assertEqualStateMetaInfoSnapshots(
             StateMetaInfoSnapshot expected, StateMetaInfoSnapshot actual) {
-        Assert.assertEquals(expected.getName(), actual.getName());
-        Assert.assertEquals(expected.getBackendStateType(), actual.getBackendStateType());
-        Assert.assertEquals(expected.getOptionsImmutable(), actual.getOptionsImmutable());
-        Assert.assertEquals(
+        Assertions.assertEquals(expected.getName(), actual.getName());
+        Assertions.assertEquals(expected.getBackendStateType(), actual.getBackendStateType());
+        Assertions.assertEquals(expected.getOptionsImmutable(), actual.getOptionsImmutable());
+        Assertions.assertEquals(
                 expected.getSerializerSnapshotsImmutable(),
                 actual.getSerializerSnapshotsImmutable());
     }

@@ -23,13 +23,20 @@ import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for ResourceSpec class, including its all public api: isValid, lessThanOrEqual, equals,
@@ -60,18 +67,22 @@ public class ResourceSpecTest extends TestLogger {
 
     @Test
     public void testLessThanOrEqualWhenUnknownWithSpecified() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
-        assertTrue(ResourceSpec.UNKNOWN.lessThanOrEqual(rs1));
-        });
+                    assertTrue(ResourceSpec.UNKNOWN.lessThanOrEqual(rs1));
+                });
     }
 
     @Test
     public void testLessThanOrEqualWhenSpecifiedWithUnknown() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
-        assertTrue(rs1.lessThanOrEqual(ResourceSpec.UNKNOWN));
-        });
+                    assertTrue(rs1.lessThanOrEqual(ResourceSpec.UNKNOWN));
+                });
     }
 
     @Test
@@ -186,12 +197,14 @@ public class ResourceSpecTest extends TestLogger {
 
     @Test
     public void testSubtractOtherHasLargerResources() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final ResourceSpec rs1 = ResourceSpec.newBuilder(1.0, 100).build();
-        final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 200).build();
+                    final ResourceSpec rs2 = ResourceSpec.newBuilder(0.2, 200).build();
 
-        rs1.subtract(rs2);
-        });
+                    rs1.subtract(rs2);
+                });
     }
 
     @Test

@@ -36,8 +36,12 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -104,34 +108,35 @@ public class HBaseTableFactoryTest {
         TableSource source =
                 TableFactoryService.find(HBase2TableFactory.class, descriptorProperties.asMap())
                         .createTableSource(descriptorProperties.asMap());
-        Assert.assertTrue(source instanceof HBaseTableSource);
+        Assertions.assertTrue(source instanceof HBaseTableSource);
         TableFunction<Row> tableFunction =
                 ((HBaseTableSource) source).getLookupFunction(new String[] {ROWKEY});
-        Assert.assertTrue(tableFunction instanceof HBaseLookupFunction);
-        Assert.assertEquals(
+        Assertions.assertTrue(tableFunction instanceof HBaseLookupFunction);
+        Assertions.assertEquals(
                 "testHBastTable", ((HBaseLookupFunction) tableFunction).getHTableName());
 
         HBaseTableSchema hbaseSchema = ((HBaseTableSource) source).getHBaseTableSchema();
-        Assert.assertEquals(2, hbaseSchema.getRowKeyIndex());
-        Assert.assertEquals(Optional.of(Types.LONG), hbaseSchema.getRowKeyTypeInfo());
+        Assertions.assertEquals(2, hbaseSchema.getRowKeyIndex());
+        Assertions.assertEquals(Optional.of(Types.LONG), hbaseSchema.getRowKeyTypeInfo());
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f1", "f2", "f3", "f4"}, hbaseSchema.getFamilyNames());
-        Assert.assertArrayEquals(new String[] {"c1"}, hbaseSchema.getQualifierNames("f1"));
-        Assert.assertArrayEquals(new String[] {"c1", "c2"}, hbaseSchema.getQualifierNames("f2"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(new String[] {"c1"}, hbaseSchema.getQualifierNames("f1"));
+        Assertions.assertArrayEquals(
+                new String[] {"c1", "c2"}, hbaseSchema.getQualifierNames("f2"));
+        Assertions.assertArrayEquals(
                 new String[] {"c1", "c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"c1", "c2", "c3", "c4"}, hbaseSchema.getQualifierNames("f4"));
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.INT}, hbaseSchema.getQualifierTypes("f1"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.DOUBLE, Types.BOOLEAN, Types.STRING},
                 hbaseSchema.getQualifierTypes("f3"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {
                     Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME
                 },
@@ -173,29 +178,32 @@ public class HBaseTableFactoryTest {
                 TableFactoryService.find(HBase2TableFactory.class, descriptorProperties.asMap())
                         .createTableSink(descriptorProperties.asMap());
 
-        Assert.assertTrue(sink instanceof HBaseUpsertTableSink);
+        Assertions.assertTrue(sink instanceof HBaseUpsertTableSink);
 
         HBaseTableSchema hbaseSchema = ((HBaseUpsertTableSink) sink).getHBaseTableSchema();
-        Assert.assertEquals(0, hbaseSchema.getRowKeyIndex());
-        Assert.assertEquals(Optional.of(Types.STRING), hbaseSchema.getRowKeyTypeInfo());
+        Assertions.assertEquals(0, hbaseSchema.getRowKeyIndex());
+        Assertions.assertEquals(Optional.of(Types.STRING), hbaseSchema.getRowKeyTypeInfo());
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"f1", "f2", "f3", "f4"}, hbaseSchema.getFamilyNames());
-        Assert.assertArrayEquals(new String[] {"c1", "c2"}, hbaseSchema.getQualifierNames("f1"));
-        Assert.assertArrayEquals(new String[] {"c1", "c3"}, hbaseSchema.getQualifierNames("f2"));
-        Assert.assertArrayEquals(new String[] {"c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
+                new String[] {"c1", "c2"}, hbaseSchema.getQualifierNames("f1"));
+        Assertions.assertArrayEquals(
+                new String[] {"c1", "c3"}, hbaseSchema.getQualifierNames("f2"));
+        Assertions.assertArrayEquals(
+                new String[] {"c2", "c3"}, hbaseSchema.getQualifierNames("f3"));
+        Assertions.assertArrayEquals(
                 new String[] {"c1", "c2", "c3", "c4"}, hbaseSchema.getQualifierNames("f4"));
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.DOUBLE, Types.INT},
                 hbaseSchema.getQualifierTypes("f1"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.INT, Types.LONG}, hbaseSchema.getQualifierTypes("f2"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {Types.BOOLEAN, Types.STRING},
                 hbaseSchema.getQualifierTypes("f3"));
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {
                     Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME
                 },
@@ -208,6 +216,6 @@ public class HBaseTableFactoryTest {
                         .setBufferFlushMaxSizeInBytes(10 * 1024 * 1024)
                         .build();
         HBaseWriteOptions actualWriteOptions = ((HBaseUpsertTableSink) sink).getWriteOptions();
-        Assert.assertEquals(expectedWriteOptions, actualWriteOptions);
+        Assertions.assertEquals(expectedWriteOptions, actualWriteOptions);
     }
 }

@@ -58,34 +58,21 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link AsyncWaitOperator}. These test that:
@@ -287,11 +274,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
         } else {
             Object[] jobOutputQueue = testHarness.getOutput().toArray();
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Watermark should be at index 2",
                     new Watermark(initialTime + 2),
                     jobOutputQueue[2]);
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "StreamRecord 3 should be at the end",
                     new StreamRecord<>(6, initialTime + 3),
                     jobOutputQueue[3]);
@@ -476,7 +463,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         // be build our own OperatorChain
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
-        Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+        Assertions.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
         return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
     }

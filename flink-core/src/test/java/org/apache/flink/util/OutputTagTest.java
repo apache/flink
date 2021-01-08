@@ -21,34 +21,39 @@ package org.apache.flink.util;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link OutputTag}. */
 public class OutputTagTest {
 
     @Test
     public void testNullRejected() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(NullPointerException.class, () -> {
                     new OutputTag<Integer>(null);
         });
     }
 
     @Test
     public void testNullRejectedWithTypeInfo() {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(NullPointerException.class, () -> {
                     new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
         });
     }
 
     @Test
     public void testEmptyStringRejected() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     new OutputTag<Integer>("");
         });
     }
 
     @Test
     public void testEmptyStringRejectedWithTypeInfo() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
         });
     }

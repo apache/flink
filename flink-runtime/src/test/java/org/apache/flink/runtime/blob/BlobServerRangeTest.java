@@ -21,10 +21,14 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -56,29 +60,34 @@ public class BlobServerRangeTest extends TestLogger {
     /** Try allocating on an unavailable port. */
     @Test
     public void testPortUnavailable() throws IOException {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     // allocate on an ephemeral port
-        ServerSocket socket = null;
-        try {
-            socket = new ServerSocket(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-            Assert.fail("An exception was thrown while preparing the test " + e.getMessage());
-        }
+                    ServerSocket socket = null;
+                    try {
+                        socket = new ServerSocket(0);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Assertions.fail(
+                                "An exception was thrown while preparing the test "
+                                        + e.getMessage());
+                    }
 
-        Configuration conf = new Configuration();
-        conf.setString(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
-        conf.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+                    Configuration conf = new Configuration();
+                    conf.setString(BlobServerOptions.PORT, String.valueOf(socket.getLocalPort()));
+                    conf.setString(
+                            BlobServerOptions.STORAGE_DIRECTORY,
+                            temporaryFolder.newFolder().getAbsolutePath());
 
-        // this thing is going to throw an exception
-        try {
-            BlobServer server = new BlobServer(conf, new VoidBlobStore());
-            server.start();
-        } finally {
-            socket.close();
-        }
-        });
+                    // this thing is going to throw an exception
+                    try {
+                        BlobServer server = new BlobServer(conf, new VoidBlobStore());
+                        server.start();
+                    } finally {
+                        socket.close();
+                    }
+                });
     }
 
     /** Give the BlobServer a choice of three ports, where two of them are allocated. */
@@ -91,7 +100,8 @@ public class BlobServerRangeTest extends TestLogger {
                 sockets[i] = new ServerSocket(0);
             } catch (IOException e) {
                 e.printStackTrace();
-                Assert.fail("An exception was thrown while preparing the test " + e.getMessage());
+                Assertions.fail(
+                        "An exception was thrown while preparing the test " + e.getMessage());
             }
         }
         Configuration conf = new Configuration();

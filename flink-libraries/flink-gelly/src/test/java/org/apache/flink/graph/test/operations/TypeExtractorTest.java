@@ -24,17 +24,16 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-import org.apache.flink.graph.Edge;
-import org.apache.flink.graph.EdgeDirection;
-import org.apache.flink.graph.EdgesFunction;
-import org.apache.flink.graph.Graph;
-import org.apache.flink.graph.Vertex;
+import org.apache.flink.graph.*;
 import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test output types from {@link Graph} methods. */
 public class TypeExtractorTest {
@@ -58,7 +57,7 @@ public class TypeExtractorTest {
         // test type extraction in mapVertices
         DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices =
                 inputGraph.mapVertices(new VertexMapper<>()).getVertices();
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 new TupleTypeInfo(
                                 Vertex.class,
                                 BasicTypeInfo.LONG_TYPE_INFO,
@@ -73,7 +72,7 @@ public class TypeExtractorTest {
         // test type extraction in mapEdges
         DataSet<Edge<Long, Tuple2<Long, Integer>>> outEdges =
                 inputGraph.mapEdges(new EdgeMapper<>()).getEdges();
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 new TupleTypeInfo(
                                 Edge.class,
                                 BasicTypeInfo.LONG_TYPE_INFO,
@@ -87,7 +86,7 @@ public class TypeExtractorTest {
     public void testFromDataSet() throws Exception {
         DataSet<Vertex<Long, Tuple2<Long, Integer>>> outVertices =
                 Graph.fromDataSet(edges, new VertexInitializer<>(), env).getVertices();
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 new TupleTypeInfo(
                                 Vertex.class,
                                 BasicTypeInfo.LONG_TYPE_INFO,
@@ -100,7 +99,7 @@ public class TypeExtractorTest {
     public void testGroupReduceOnEdges() throws Exception {
         DataSet<Tuple2<Long, Long>> output =
                 inputGraph.groupReduceOnEdges(new EdgesGroupFunction<>(), EdgeDirection.OUT);
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 (new TupleTypeInfo<Tuple2<Long, Long>>(
                                 BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.LONG_TYPE_INFO))
                         .equals(output.getType()));

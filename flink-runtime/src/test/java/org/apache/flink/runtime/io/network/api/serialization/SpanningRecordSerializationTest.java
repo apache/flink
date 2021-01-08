@@ -34,10 +34,13 @@ import org.apache.flink.testutils.serialization.types.SerializationTestTypeFacto
 import org.apache.flink.testutils.serialization.types.Util;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
@@ -173,7 +176,7 @@ public class SpanningRecordSerializationTest extends TestLogger {
                     deserializer.setNextBuffer(serializationResult.buildBuffer());
                 }
             }
-            Assert.assertFalse(serializedRecord.hasRemaining());
+            Assertions.assertFalse(serializedRecord.hasRemaining());
         }
 
         // deserialize left over records
@@ -185,14 +188,14 @@ public class SpanningRecordSerializationTest extends TestLogger {
             SerializationTestType actual = expected.getClass().newInstance();
             RecordDeserializer.DeserializationResult result = deserializer.getNextRecord(actual);
 
-            Assert.assertTrue(result.isFullRecord());
-            Assert.assertEquals(expected, actual);
+            Assertions.assertTrue(result.isFullRecord());
+            Assertions.assertEquals(expected, actual);
             numRecords--;
         }
 
         // assert that all records have been serialized and deserialized
-        Assert.assertEquals(0, numRecords);
-        Assert.assertFalse(deserializer.hasUnfinishedData());
+        Assertions.assertEquals(0, numRecords);
+        Assertions.assertFalse(deserializer.hasUnfinishedData());
     }
 
     @Test
@@ -308,12 +311,12 @@ public class SpanningRecordSerializationTest extends TestLogger {
     private static void assertUnconsumedBuffer(
             ByteArrayOutputStream expected, CloseableIterator<Buffer> actual) throws Exception {
         if (!actual.hasNext()) {
-            Assert.assertEquals(expected.size(), 0);
+            Assertions.assertEquals(expected.size(), 0);
         }
 
         ByteBuffer expectedByteBuffer = ByteBuffer.wrap(expected.toByteArray());
         ByteBuffer actualByteBuffer = actual.next().getNioBufferReadable();
-        Assert.assertEquals(expectedByteBuffer, actualByteBuffer);
+        Assertions.assertEquals(expectedByteBuffer, actualByteBuffer);
         actual.close();
     }
 

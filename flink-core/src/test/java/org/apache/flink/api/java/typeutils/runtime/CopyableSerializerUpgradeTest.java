@@ -29,8 +29,11 @@ import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.types.CopyableValue;
 
 import org.hamcrest.Matcher;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -170,6 +173,6 @@ public class CopyableSerializerUpgradeTest
     @Test
     public void testF() {
         SimpleCopyable a = new SimpleCopyable(123456);
-        Assert.assertThat(a, is(new SimpleCopyable(123456)));
+        MatcherAssert.assertThat(a, is(new SimpleCopyable(123456)));
     }
 }

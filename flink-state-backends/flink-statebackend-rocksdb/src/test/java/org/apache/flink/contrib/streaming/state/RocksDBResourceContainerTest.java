@@ -20,20 +20,16 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
 import org.apache.flink.util.function.ThrowingRunnable;
-
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
-import org.rocksdb.BlockBasedTableConfig;
-import org.rocksdb.Cache;
-import org.rocksdb.ColumnFamilyOptions;
-import org.rocksdb.DBOptions;
-import org.rocksdb.LRUCache;
-import org.rocksdb.NativeLibraryLoader;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.WriteBufferManager;
-import org.rocksdb.WriteOptions;
+import org.rocksdb.*;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -42,7 +38,7 @@ import java.util.HashSet;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests to guard {@link RocksDBResourceContainer}. */
 public class RocksDBResourceContainerTest {

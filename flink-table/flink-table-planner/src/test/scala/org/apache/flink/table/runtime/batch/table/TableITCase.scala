@@ -25,7 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit._
 
 import java.util

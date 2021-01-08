@@ -18,8 +18,8 @@
 package org.apache.flink.api.scala.runtime.tuple.base
 
 import org.apache.flink.util.TestLogger
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.apache.flink.api.common.typeutils.TypePairComparator
 import org.junit.jupiter.api.Test
 

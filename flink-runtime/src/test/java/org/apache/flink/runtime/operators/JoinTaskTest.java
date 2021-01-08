@@ -20,28 +20,26 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
-import org.apache.flink.runtime.operators.testutils.DriverTestBase;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
-import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordPairComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
 
@@ -103,11 +101,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -143,12 +141,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -184,12 +182,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -225,12 +223,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -266,12 +264,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -305,12 +303,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -344,12 +342,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -381,12 +379,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
                 this.outList.size() == expCnt);
 
@@ -416,12 +414,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
         try {
             testDriver(testTask, MockFailingMatchStub.class);
-            Assert.fail("Driver did not forward Exception.");
+            Assertions.fail("Driver did not forward Exception.");
         } catch (ExpectedTestException e) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
     }
 
@@ -447,7 +445,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
                 addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
             } catch (Exception e) {
                 e.printStackTrace();
-                Assert.fail("The test caused an exception.");
+                Assertions.fail("The test caused an exception.");
             }
 
             final AtomicReference<Throwable> error = new AtomicReference<>();
@@ -472,7 +470,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
             taskRunner.join(60000);
 
-            assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+            assertFalse(taskRunner.isAlive(), "Task thread did not finish within 60 seconds");
 
             Throwable taskError = error.get();
             if (taskError != null) {
@@ -507,7 +505,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
                         new DelayingInfinitiveInputIterator(100), this.comparator1.duplicate());
             } catch (Exception e) {
                 e.printStackTrace();
-                Assert.fail("The test caused an exception.");
+                Assertions.fail("The test caused an exception.");
             }
 
             final AtomicReference<Throwable> error = new AtomicReference<>();
@@ -532,7 +530,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
             taskRunner.join(60000);
 
-            assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+            assertFalse(taskRunner.isAlive(), "Task thread did not finish within 60 seconds");
 
             Throwable taskError = error.get();
             if (taskError != null) {
@@ -586,7 +584,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
             taskRunner.join(60000);
 
-            assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+            assertFalse(taskRunner.isAlive(), "Task thread did not finish within 60 seconds");
 
             Throwable taskError = error.get();
             if (taskError != null) {
@@ -622,11 +620,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
         this.outList.clear();
     }
 
@@ -653,11 +651,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
         this.outList.clear();
     }
 
@@ -684,11 +682,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
         this.outList.clear();
     }
 
@@ -715,11 +713,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
         this.outList.clear();
     }
 
@@ -746,11 +744,11 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assert.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
         this.outList.clear();
     }
 
@@ -775,12 +773,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
         try {
             testDriver(testTask, MockFailingMatchStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
     }
 
@@ -805,12 +803,12 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
         try {
             testDriver(testTask, MockFailingMatchStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
     }
 
@@ -857,14 +855,14 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             try {
                 taskRunner.join();
             } catch (InterruptedException ie) {
-                Assert.fail("Joining threads failed");
+                Assertions.fail("Joining threads failed");
             }
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Test threw an exception even though it was properly canceled.", success.get());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -911,14 +909,14 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             try {
                 taskRunner.join();
             } catch (InterruptedException ie) {
-                Assert.fail("Joining threads failed");
+                Assertions.fail("Joining threads failed");
             }
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Test threw an exception even though it was properly canceled.", success.get());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -961,10 +959,10 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Test threw an exception even though it was properly canceled.", success.get());
     }
 
@@ -1007,10 +1005,10 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Test threw an exception even though it was properly canceled.", success.get());
     }
 

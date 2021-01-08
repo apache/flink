@@ -39,11 +39,15 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -65,9 +69,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link ClassPathPackagedProgramRetriever}. */
 public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
@@ -255,7 +258,7 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
                         .build();
         try {
             retrieveJobGraph(retrieverUnderTest, new Configuration());
-            Assert.fail("This case should throw exception !");
+            Assertions.fail("This case should throw exception !");
         } catch (FlinkException e) {
             assertTrue(
                     ExceptionUtils.findThrowableWithMessage(
@@ -275,7 +278,7 @@ public class ClassPathPackagedProgramRetrieverTest extends TestLogger {
                         .build();
         try {
             retrieveJobGraph(retrieverUnderTest, new Configuration());
-            Assert.fail("This case should throw class not found exception!!");
+            Assertions.fail("This case should throw class not found exception!!");
         } catch (FlinkException e) {
             assertTrue(
                     ExceptionUtils.findThrowableWithMessage(

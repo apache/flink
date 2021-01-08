@@ -34,17 +34,16 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
-import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
-import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
-import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
-import org.apache.flink.streaming.runtime.io.StreamTaskInput;
+import org.apache.flink.streaming.runtime.io.*;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
@@ -54,7 +53,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Longer running IT tests for {@link SortingDataInput} and {@link MultiInputSortingDataInput}.
@@ -199,7 +198,7 @@ public class LargeSortingDataInputITCase {
             E incomingKey = keySelector.getKey(streamRecord.getValue());
             if (!Objects.equals(incomingKey, currentKey)) {
                 if (!seenKeys.add(incomingKey)) {
-                    Assert.fail("Received an out of order key: " + incomingKey);
+                    Assertions.fail("Received an out of order key: " + incomingKey);
                 }
                 this.currentKey = incomingKey;
             }

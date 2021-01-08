@@ -23,8 +23,12 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -174,8 +178,8 @@ public class JdbcDataTypeTest {
             try {
                 tEnv.sqlQuery("SELECT * FROM T");
             } catch (Exception ex) {
-                Assert.assertTrue(ex.getCause() instanceof ValidationException);
-                Assert.assertEquals(testItem.expectError, ex.getCause().getMessage());
+                Assertions.assertTrue(ex.getCause() instanceof ValidationException);
+                Assertions.assertEquals(testItem.expectError, ex.getCause().getMessage());
             }
         } else {
             tEnv.sqlQuery("SELECT * FROM T");

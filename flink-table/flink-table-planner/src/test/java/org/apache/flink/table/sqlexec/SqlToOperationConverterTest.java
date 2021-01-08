@@ -70,6 +70,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
@@ -85,10 +90,10 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test cases for {@link SqlToOperationConverter}. * */
 public class SqlToOperationConverterTest {
@@ -167,10 +172,12 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testUseDatabaseWithException() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     final String sql = "USE cat1.db1.tbl1";
-        Operation operation = parse(sql, SqlDialect.DEFAULT);
-        });
+                    Operation operation = parse(sql, SqlDialect.DEFAULT);
+                });
     }
 
     @Test
@@ -354,26 +361,28 @@ public class SqlToOperationConverterTest {
 
     @Test
     public void testCreateTableWithPkUniqueKeys() {
-        Assertions.assertThrows(TableException.class, () -> {
+        assertThrows(
+                TableException.class,
+                () -> {
                     final String sql =
-                "CREATE TABLE tbl1 (\n"
-                        + "  a bigint,\n"
-                        + "  b varchar, \n"
-                        + "  c int, \n"
-                        + "  d varchar, \n"
-                        + "  primary key(a), \n"
-                        + "  unique(a, b) \n"
-                        + ")\n"
-                        + "  PARTITIONED BY (a, d)\n"
-                        + "  with (\n"
-                        + "    'connector' = 'kafka', \n"
-                        + "    'kafka.topic' = 'log.test'\n"
-                        + ")\n";
-        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-        SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
-        assert node instanceof SqlCreateTable;
-        SqlToOperationConverter.convert(planner, catalogManager, node);
-        });
+                            "CREATE TABLE tbl1 (\n"
+                                    + "  a bigint,\n"
+                                    + "  b varchar, \n"
+                                    + "  c int, \n"
+                                    + "  d varchar, \n"
+                                    + "  primary key(a), \n"
+                                    + "  unique(a, b) \n"
+                                    + ")\n"
+                                    + "  PARTITIONED BY (a, d)\n"
+                                    + "  with (\n"
+                                    + "    'connector' = 'kafka', \n"
+                                    + "    'kafka.topic' = 'log.test'\n"
+                                    + ")\n";
+                    final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+                    SqlNode node = getParserBySqlDialect(SqlDialect.DEFAULT).parse(sql);
+                    assert node instanceof SqlCreateTable;
+                    SqlToOperationConverter.convert(planner, catalogManager, node);
+                });
     }
 
     @Test

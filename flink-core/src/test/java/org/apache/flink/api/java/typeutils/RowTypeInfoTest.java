@@ -24,14 +24,19 @@ import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link RowTypeInfo}. */
 public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
@@ -58,7 +63,7 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 
     @Test
     public void testWrongNumberOfFieldNames() {
-        Assertions.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> {
                     new RowTypeInfo(typeList, new String[] {"int", "string"});
@@ -68,7 +73,7 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 
     @Test
     public void testDuplicateCustomFieldNames() {
-        Assertions.assertThrows(
+        assertThrows(
                 IllegalArgumentException.class,
                 () -> {
                     new RowTypeInfo(typeList, new String[] {"int", "string", "string"});

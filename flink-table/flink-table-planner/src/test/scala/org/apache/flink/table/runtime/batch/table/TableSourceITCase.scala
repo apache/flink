@@ -49,7 +49,7 @@ class TableSourceITCase(
 
   @Test
   def testInvalidDatastreamType(): Unit = {
-        Assertions.assertThrows(classOf[TableException], () -> {
+        assertThrows(classOf[TableException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 

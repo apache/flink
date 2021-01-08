@@ -26,13 +26,16 @@ import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -87,7 +90,8 @@ public class RestClientMultipartTest extends TestLogger {
                         files);
 
         responseFuture.get();
-        Assert.assertEquals(json, MULTIPART_UPLOAD_RESOURCE.getMixedHandler().lastReceivedRequest);
+        Assertions.assertEquals(
+                json, MULTIPART_UPLOAD_RESOURCE.getMixedHandler().lastReceivedRequest);
     }
 
     @Test
@@ -104,7 +108,8 @@ public class RestClientMultipartTest extends TestLogger {
                         Collections.emptyList());
 
         responseFuture.get();
-        Assert.assertEquals(json, MULTIPART_UPLOAD_RESOURCE.getJsonHandler().lastReceivedRequest);
+        Assertions.assertEquals(
+                json, MULTIPART_UPLOAD_RESOURCE.getJsonHandler().lastReceivedRequest);
     }
 
     @Test

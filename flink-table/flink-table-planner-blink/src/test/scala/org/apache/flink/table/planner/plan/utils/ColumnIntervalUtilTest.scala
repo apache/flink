@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil._
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.junit.Assert.{assertEquals, assertNull}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNull}
 import org.junit.jupiter.api.Test
 
 import java.lang

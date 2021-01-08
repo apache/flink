@@ -63,8 +63,12 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SplittableIterator;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -77,9 +81,9 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** An end to end test for sorted inputs for a keyed operator with bounded inputs. */
 public class SortingBoundedInputITCase extends AbstractTestBase {
@@ -531,7 +535,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
             Integer incomingKey = element.getValue().f0;
             if (!Objects.equals(incomingKey, currentKey)) {
                 if (!seenKeys.add(incomingKey)) {
-                    Assert.fail("Received an out of order key: " + incomingKey);
+                    Assertions.fail("Received an out of order key: " + incomingKey);
                 }
                 this.currentKey = incomingKey;
             }
@@ -568,7 +572,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
             Integer incomingKey = element.getValue().f0;
             if (!Objects.equals(incomingKey, currentKey)) {
                 if (!seenKeys.add(incomingKey)) {
-                    Assert.fail("Received an out of order key: " + incomingKey);
+                    Assertions.fail("Received an out of order key: " + incomingKey);
                 }
                 this.currentKey = incomingKey;
             }
@@ -610,7 +614,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
             Integer incomingKey = element.f0;
             if (!Objects.equals(incomingKey, currentKey)) {
                 if (!seenKeys.add(incomingKey)) {
-                    Assert.fail("Received an out of order key: " + incomingKey);
+                    Assertions.fail("Received an out of order key: " + incomingKey);
                 }
                 this.currentKey = incomingKey;
             }

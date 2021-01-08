@@ -22,12 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -38,14 +33,11 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
-
-import java.util.concurrent.TimeUnit;
-
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
+
+import java.util.concurrent.TimeUnit;
 
 /** Base class for testing job cancellation. */
 public abstract class CancelingTestBase extends TestLogger {
@@ -71,7 +63,7 @@ public abstract class CancelingTestBase extends TestLogger {
 
     private static void verifyJvmOptions() {
         final long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Insufficient java heap space "
                         + heap
                         + "mb - set JVM option: -Xmx"
@@ -111,7 +103,7 @@ public abstract class CancelingTestBase extends TestLogger {
             jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
         if (jobStatus != JobStatus.RUNNING) {
-            Assert.fail("Job not in state RUNNING.");
+            Assertions.fail("Job not in state RUNNING.");
         }
 
         Thread.sleep(msecsTillCanceling);
@@ -129,7 +121,7 @@ public abstract class CancelingTestBase extends TestLogger {
                     client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
         if (jobStatusAfterCancel != JobStatus.CANCELED) {
-            Assert.fail("Failed to cancel job with ID " + jobID + '.');
+            Assertions.fail("Failed to cancel job with ID " + jobID + '.');
         }
     }
 

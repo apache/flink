@@ -32,9 +32,12 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,8 +98,8 @@ public class MultiStateKeyIteratorTest {
             keys.add(iterator.next());
         }
 
-        Assert.assertEquals("Unexpected number of keys", 2, keys.size());
-        Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
+        Assertions.assertEquals("Unexpected number of keys", 2, keys.size());
+        Assertions.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
     }
 
     @Test
@@ -110,14 +113,14 @@ public class MultiStateKeyIteratorTest {
                 new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
 
         int key = iterator.next();
-        Assert.assertEquals("Unexpected keys pulled from state backend", 1, key);
+        Assertions.assertEquals("Unexpected keys pulled from state backend", 1, key);
 
         iterator.remove();
-        Assert.assertFalse(
+        Assertions.assertFalse(
                 "Failed to drop key from all descriptors in state backend", iterator.hasNext());
 
         for (StateDescriptor<?, ?> descriptor : descriptors) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Failed to drop key for state descriptor",
                     0,
                     keyedStateBackend

@@ -23,8 +23,12 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the{@link JSONKeyValueDeserializationSchema}. */
 public class JSONKeyValueDeserializationSchemaTest {
@@ -44,9 +48,9 @@ public class JSONKeyValueDeserializationSchemaTest {
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
-        Assert.assertTrue(deserializedValue.get("metadata") == null);
-        Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
-        Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+        Assertions.assertTrue(deserializedValue.get("metadata") == null);
+        Assertions.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+        Assertions.assertEquals("world", deserializedValue.get("value").get("word").asText());
     }
 
     @Test
@@ -62,9 +66,9 @@ public class JSONKeyValueDeserializationSchemaTest {
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
-        Assert.assertTrue(deserializedValue.get("metadata") == null);
-        Assert.assertTrue(deserializedValue.get("key") == null);
-        Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+        Assertions.assertTrue(deserializedValue.get("metadata") == null);
+        Assertions.assertTrue(deserializedValue.get("key") == null);
+        Assertions.assertEquals("world", deserializedValue.get("value").get("word").asText());
     }
 
     private static ConsumerRecord<byte[], byte[]> newConsumerRecord(
@@ -95,9 +99,9 @@ public class JSONKeyValueDeserializationSchemaTest {
         ObjectNode deserializedValue =
                 schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
-        Assert.assertTrue(deserializedValue.get("metadata") == null);
-        Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
-        Assert.assertTrue(deserializedValue.get("value") == null);
+        Assertions.assertTrue(deserializedValue.get("metadata") == null);
+        Assertions.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+        Assertions.assertTrue(deserializedValue.get("value") == null);
     }
 
     @Test
@@ -116,10 +120,10 @@ public class JSONKeyValueDeserializationSchemaTest {
                 newConsumerRecord("topic#1", 3, 4L, serializedKey, serializedValue);
         ObjectNode deserializedValue = schema.deserialize(consumerRecord);
 
-        Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
-        Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
-        Assert.assertEquals("topic#1", deserializedValue.get("metadata").get("topic").asText());
-        Assert.assertEquals(4, deserializedValue.get("metadata").get("offset").asInt());
-        Assert.assertEquals(3, deserializedValue.get("metadata").get("partition").asInt());
+        Assertions.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+        Assertions.assertEquals("world", deserializedValue.get("value").get("word").asText());
+        Assertions.assertEquals("topic#1", deserializedValue.get("metadata").get("topic").asText());
+        Assertions.assertEquals(4, deserializedValue.get("metadata").get("offset").asInt());
+        Assertions.assertEquals(3, deserializedValue.get("metadata").get("partition").asInt());
     }
 }

@@ -30,8 +30,13 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -44,8 +49,8 @@ import java.util.function.Function;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -56,28 +61,30 @@ public class CassandraSinkBaseTest {
 
     @Test
     public void testHostNotFoundErrorHandling() throws Exception {
-        Assertions.assertThrows(NoHostAvailableException.class, () -> {
+        assertThrows(
+                NoHostAvailableException.class,
+                () -> {
                     CassandraSinkBase base =
-                new CassandraSinkBase(
-                        new ClusterBuilder() {
-                            @Override
-                            protected Cluster buildCluster(Cluster.Builder builder) {
-                                return builder.addContactPoint("127.0.0.1")
-                                        .withoutJMXReporting()
-                                        .withoutMetrics()
-                                        .build();
-                            }
-                        },
-                        CassandraSinkBaseConfig.newBuilder().build(),
-                        new NoOpCassandraFailureHandler()) {
-                    @Override
-                    public ListenableFuture send(Object value) {
-                        return null;
-                    }
-                };
+                            new CassandraSinkBase(
+                                    new ClusterBuilder() {
+                                        @Override
+                                        protected Cluster buildCluster(Cluster.Builder builder) {
+                                            return builder.addContactPoint("127.0.0.1")
+                                                    .withoutJMXReporting()
+                                                    .withoutMetrics()
+                                                    .build();
+                                        }
+                                    },
+                                    CassandraSinkBaseConfig.newBuilder().build(),
+                                    new NoOpCassandraFailureHandler()) {
+                                @Override
+                                public ListenableFuture send(Object value) {
+                                    return null;
+                                }
+                            };
 
-        base.open(new Configuration());
-        });
+                    base.open(new Configuration());
+                });
     }
 
     @Test(timeout = DEFAULT_TEST_TIMEOUT)
@@ -87,12 +94,12 @@ public class CassandraSinkBaseTest {
 
             final int originalPermits = casSinkFunc.getAvailablePermits();
             assertThat(originalPermits, greaterThan(0));
-            Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(0, casSinkFunc.getAcquiredPermits());
 
             casSinkFunc.invoke("hello");
 
-            Assert.assertEquals(originalPermits, casSinkFunc.getAvailablePermits());
-            Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(originalPermits, casSinkFunc.getAvailablePermits());
+            Assertions.assertEquals(0, casSinkFunc.getAcquiredPermits());
         }
     }
 
@@ -108,7 +115,7 @@ public class CassandraSinkBaseTest {
         try {
             casSinkFunc.close();
 
-            Assert.fail("Close should have thrown an exception.");
+            Assertions.fail("Close should have thrown an exception.");
         } catch (IOException e) {
             ExceptionUtils.findThrowable(e, candidate -> candidate == cause).orElseThrow(() -> e);
         }
@@ -124,10 +131,10 @@ public class CassandraSinkBaseTest {
 
             try {
                 casSinkFunc.invoke("world");
-                Assert.fail("Sending of second value should have failed.");
+                Assertions.fail("Sending of second value should have failed.");
             } catch (IOException e) {
-                Assert.assertEquals(cause, e.getCause());
-                Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
+                Assertions.assertEquals(cause, e.getCause());
+                Assertions.assertEquals(0, casSinkFunc.getAcquiredPermits());
             }
         }
     }
@@ -135,7 +142,7 @@ public class CassandraSinkBaseTest {
     @Test(timeout = DEFAULT_TEST_TIMEOUT)
     public void testIgnoreError() throws Exception {
         Exception cause = new RuntimeException();
-        CassandraFailureHandler failureHandler = failure -> Assert.assertEquals(cause, failure);
+        CassandraFailureHandler failureHandler = failure -> Assertions.assertEquals(cause, failure);
 
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink(failureHandler)) {
 
@@ -161,9 +168,9 @@ public class CassandraSinkBaseTest {
             try {
                 testHarness.snapshot(123L, 123L);
 
-                Assert.fail();
+                Assertions.fail();
             } catch (Exception e) {
-                Assert.assertTrue(e.getCause() instanceof IOException);
+                Assertions.assertTrue(e.getCause() instanceof IOException);
             }
         }
     }
@@ -178,7 +185,7 @@ public class CassandraSinkBaseTest {
             casSinkFunc.enqueueCompletableFuture(completableFuture);
 
             casSinkFunc.invoke("hello");
-            Assert.assertEquals(1, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(1, casSinkFunc.getAcquiredPermits());
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
@@ -194,10 +201,10 @@ public class CassandraSinkBaseTest {
                 Thread.sleep(5);
             }
 
-            Assert.assertEquals(1, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(1, casSinkFunc.getAcquiredPermits());
             completableFuture.complete(null);
             latch.await();
-            Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(0, casSinkFunc.getAcquiredPermits());
         }
     }
 
@@ -212,7 +219,7 @@ public class CassandraSinkBaseTest {
             casSinkFunc.enqueueCompletableFuture(completableFuture);
 
             casSinkFunc.invoke("hello");
-            Assert.assertEquals(1, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(1, casSinkFunc.getAcquiredPermits());
 
             final CountDownLatch latch = new CountDownLatch(1);
             Thread t =
@@ -228,10 +235,10 @@ public class CassandraSinkBaseTest {
                 Thread.sleep(5);
             }
 
-            Assert.assertEquals(1, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(1, casSinkFunc.getAcquiredPermits());
             completableFuture.complete(null);
             latch.await();
-            Assert.assertEquals(0, casSinkFunc.getAcquiredPermits());
+            Assertions.assertEquals(0, casSinkFunc.getAcquiredPermits());
         }
     }
 
@@ -241,20 +248,20 @@ public class CassandraSinkBaseTest {
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
 
         try (TestCassandraSink testCassandraSink = createOpenedTestCassandraSink(config)) {
-            Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(1, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(0, testCassandraSink.getAcquiredPermits());
 
             CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
             testCassandraSink.enqueueCompletableFuture(completableFuture);
             testCassandraSink.invoke("N/A");
 
-            Assert.assertEquals(0, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(1, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(0, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(1, testCassandraSink.getAcquiredPermits());
 
             completableFuture.complete(null);
 
-            Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(1, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(0, testCassandraSink.getAcquiredPermits());
         }
     }
 
@@ -266,20 +273,20 @@ public class CassandraSinkBaseTest {
 
         try (TestCassandraSink testCassandraSink =
                 createOpenedTestCassandraSink(config, failureHandler)) {
-            Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(1, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(0, testCassandraSink.getAcquiredPermits());
 
             CompletableFuture<ResultSet> completableFuture = new CompletableFuture<>();
             testCassandraSink.enqueueCompletableFuture(completableFuture);
             testCassandraSink.invoke("N/A");
 
-            Assert.assertEquals(0, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(1, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(0, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(1, testCassandraSink.getAcquiredPermits());
 
             completableFuture.completeExceptionally(new RuntimeException());
 
-            Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
-            Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+            Assertions.assertEquals(1, testCassandraSink.getAvailablePermits());
+            Assertions.assertEquals(0, testCassandraSink.getAcquiredPermits());
         }
     }
 
@@ -328,9 +335,9 @@ public class CassandraSinkBaseTest {
 
             try {
                 testCassandraSink.invoke("Invoke #2");
-                Assert.fail("Sending value should have experienced a TimeoutException");
+                Assertions.fail("Sending value should have experienced a TimeoutException");
             } catch (Exception e) {
-                Assert.assertTrue(e instanceof TimeoutException);
+                Assertions.assertTrue(e instanceof TimeoutException);
             } finally {
                 completableFuture.complete(null);
             }

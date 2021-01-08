@@ -32,11 +32,7 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.dag.TempMode;
-import org.apache.flink.optimizer.plan.DualInputPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plan.SourcePlanNode;
-import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
+import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
@@ -44,9 +40,12 @@ import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** */
 @SuppressWarnings("serial")
@@ -95,59 +94,60 @@ public class ConnectedComponentsCoGroupTest extends CompilerTestBase {
         // --------------------------------------------------------------------
 
         // test all drivers
-        Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.NONE, vertexSource.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.NONE, edgesSource.getDriverStrategy());
 
-        Assert.assertEquals(DriverStrategy.INNER_MERGE, neighborsJoin.getDriverStrategy());
-        Assert.assertEquals(set0, neighborsJoin.getKeysForInput1());
-        Assert.assertEquals(set0, neighborsJoin.getKeysForInput2());
+        Assertions.assertEquals(DriverStrategy.INNER_MERGE, neighborsJoin.getDriverStrategy());
+        Assertions.assertEquals(set0, neighborsJoin.getKeysForInput1());
+        Assertions.assertEquals(set0, neighborsJoin.getKeysForInput2());
 
-        Assert.assertEquals(DriverStrategy.CO_GROUP, cogroup.getDriverStrategy());
-        Assert.assertEquals(set0, cogroup.getKeysForInput1());
-        Assert.assertEquals(set0, cogroup.getKeysForInput2());
+        Assertions.assertEquals(DriverStrategy.CO_GROUP, cogroup.getDriverStrategy());
+        Assertions.assertEquals(set0, cogroup.getKeysForInput1());
+        Assertions.assertEquals(set0, cogroup.getKeysForInput2());
 
         // test all the shipping strategies
-        Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH,
                 iter.getInitialSolutionSetInput().getShipStrategy());
-        Assert.assertEquals(set0, iter.getInitialSolutionSetInput().getShipStrategyKeys());
-        Assert.assertEquals(
+        Assertions.assertEquals(set0, iter.getInitialSolutionSetInput().getShipStrategyKeys());
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH, iter.getInitialWorksetInput().getShipStrategy());
-        Assert.assertEquals(set0, iter.getInitialWorksetInput().getShipStrategyKeys());
+        Assertions.assertEquals(set0, iter.getInitialWorksetInput().getShipStrategyKeys());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShipStrategyType.FORWARD, neighborsJoin.getInput1().getShipStrategy()); // workset
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH,
                 neighborsJoin.getInput2().getShipStrategy()); // edges
-        Assert.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
-        Assert.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
+        Assertions.assertEquals(set0, neighborsJoin.getInput2().getShipStrategyKeys());
+        Assertions.assertTrue(neighborsJoin.getInput2().getTempMode().isCached());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH, cogroup.getInput1().getShipStrategy()); // min id
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 ShipStrategyType.FORWARD, cogroup.getInput2().getShipStrategy()); // solution set
 
         // test all the local strategies
-        Assert.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(LocalStrategy.NONE, sink.getInput().getLocalStrategy());
+        Assertions.assertEquals(
                 LocalStrategy.NONE, iter.getInitialSolutionSetInput().getLocalStrategy());
 
         // the sort for the neighbor join in the first iteration is pushed out of the loop
-        Assert.assertEquals(LocalStrategy.SORT, iter.getInitialWorksetInput().getLocalStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(
+                LocalStrategy.SORT, iter.getInitialWorksetInput().getLocalStrategy());
+        Assertions.assertEquals(
                 LocalStrategy.NONE, neighborsJoin.getInput1().getLocalStrategy()); // workset
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 LocalStrategy.SORT, neighborsJoin.getInput2().getLocalStrategy()); // edges
 
-        Assert.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
-        Assert.assertEquals(
+        Assertions.assertEquals(LocalStrategy.SORT, cogroup.getInput1().getLocalStrategy());
+        Assertions.assertEquals(
                 LocalStrategy.NONE, cogroup.getInput2().getLocalStrategy()); // solution set
 
         // check the caches
-        Assert.assertTrue(TempMode.CACHED == neighborsJoin.getInput2().getTempMode());
+        Assertions.assertTrue(TempMode.CACHED == neighborsJoin.getInput2().getTempMode());
 
         JobGraphGenerator jgg = new JobGraphGenerator();
         jgg.compileJobGraph(optPlan);

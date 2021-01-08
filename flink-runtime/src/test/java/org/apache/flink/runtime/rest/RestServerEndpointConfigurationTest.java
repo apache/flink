@@ -24,9 +24,12 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 import static org.hamcrest.CoreMatchers.containsString;
@@ -52,11 +55,11 @@ public class RestServerEndpointConfigurationTest extends TestLogger {
 
         final RestServerEndpointConfiguration result =
                 RestServerEndpointConfiguration.fromConfiguration(originalConfig);
-        Assert.assertEquals(ADDRESS, result.getRestAddress());
-        Assert.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
-        Assert.assertEquals(BIND_PORT, result.getRestBindPortRange());
-        Assert.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
-        Assert.assertThat(
+        Assertions.assertEquals(ADDRESS, result.getRestAddress());
+        Assertions.assertEquals(BIND_ADDRESS, result.getRestBindAddress());
+        Assertions.assertEquals(BIND_PORT, result.getRestBindPortRange());
+        Assertions.assertEquals(CONTENT_LENGTH, result.getMaxContentLength());
+        MatcherAssert.assertThat(
                 result.getUploadDir().toAbsolutePath().toString(),
                 containsString(temporaryFolder.getRoot().getAbsolutePath()));
     }

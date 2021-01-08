@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.{Types => ScalaTypes}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.typeutils.TypeCheckUtils.validateEqualsHashCode
-import org.junit.Assert.{assertFalse, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
 
 class TypeCheckUtilsTest {

@@ -30,9 +30,13 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,7 +53,7 @@ public class StreamTaskExecutionDecorationTest {
     @Test
     public void testAbortCheckpointOnBarrierIsDecorated() throws Exception {
         task.abortCheckpointOnBarrier(1, null);
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        Assertions.assertTrue(decorator.wasCalled(), "execution decorator was not called");
     }
 
     @Test
@@ -60,7 +64,7 @@ public class StreamTaskExecutionDecorationTest {
                         CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {1})),
                 null);
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        Assertions.assertTrue(decorator.wasCalled(), "execution decorator was not called");
     }
 
     @Test
@@ -71,8 +75,8 @@ public class StreamTaskExecutionDecorationTest {
                         CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {1})),
                 false);
-        Assert.assertTrue("mailbox is empty", mailbox.hasMail());
-        Assert.assertFalse("execution decorator was called preliminary", decorator.wasCalled());
+        Assertions.assertTrue(mailbox.hasMail(), "mailbox is empty");
+        Assertions.assertFalse(decorator.wasCalled(), "execution decorator was called preliminary");
         mailbox.drain()
                 .forEach(
                         m -> {
@@ -82,7 +86,7 @@ public class StreamTaskExecutionDecorationTest {
                                 throw new RuntimeException(e);
                             }
                         });
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        Assertions.assertTrue(decorator.wasCalled(), "execution decorator was not called");
     }
 
     @Test
@@ -91,7 +95,7 @@ public class StreamTaskExecutionDecorationTest {
                 .getMainMailboxExecutor()
                 .execute(() -> task.mailboxProcessor.allActionsCompleted(), "");
         task.mailboxProcessor.runMailboxLoop();
-        Assert.assertTrue("execution decorator was not called", decorator.wasCalled());
+        Assertions.assertTrue(decorator.wasCalled(), "execution decorator was not called");
     }
 
     @Before

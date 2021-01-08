@@ -21,24 +21,13 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 
-import org.junit.Assert;
-
-import java.util.ArrayDeque;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -98,7 +87,9 @@ enum CompatibilityRoutines {
                     QueryParameterContainer.class,
                     header -> {
                         List<QueryParameterContainer.QueryParameter> pathParameters =
-                                header.getUnresolvedMessageParameters().getQueryParameters()
+                                header
+                                        .getUnresolvedMessageParameters()
+                                        .getQueryParameters()
                                         .stream()
                                         .map(
                                                 param ->
@@ -144,7 +135,8 @@ enum CompatibilityRoutines {
             final PathParameterContainer old, final PathParameterContainer cur) {
         for (final PathParameterContainer.PathParameter oldParam : old.pathParameters) {
             if (cur.pathParameters.stream().noneMatch(param -> param.key.equals(oldParam.key))) {
-                Assert.fail(String.format("Existing Path parameter %s was removed.", oldParam.key));
+                Assertions.fail(
+                        String.format("Existing Path parameter %s was removed.", oldParam.key));
             }
         }
         // contrary to other routines path parameters must be completely identical between versions,
@@ -152,7 +144,7 @@ enum CompatibilityRoutines {
         // check both directions
         for (final PathParameterContainer.PathParameter curParam : cur.pathParameters) {
             if (old.pathParameters.stream().noneMatch(param -> param.key.equals(curParam.key))) {
-                Assert.fail(String.format("New path parameter %s was added.", curParam.key));
+                Assertions.fail(String.format("New path parameter %s was added.", curParam.key));
             }
         }
     }
@@ -168,13 +160,13 @@ enum CompatibilityRoutines {
             if (matchingParameter.isPresent()) {
                 final QueryParameterContainer.QueryParameter newParam = matchingParameter.get();
                 if (!oldParam.mandatory && newParam.mandatory) {
-                    Assert.fail(
+                    Assertions.fail(
                             String.format(
                                     "Previously optional query parameter %s is now mandatory.",
                                     oldParam.key));
                 }
             } else {
-                Assert.fail(String.format("Query parameter %s was removed.", oldParam.key));
+                Assertions.fail(String.format("Query parameter %s was removed.", oldParam.key));
             }
         }
     }
@@ -203,7 +195,7 @@ enum CompatibilityRoutines {
             final JsonNode oldProperty = propertyPair.f0;
             final JsonNode curProperty = propertyPair.f1;
 
-            Assert.assertNotNull("Field " + oldProperty + " was removed.", curProperty);
+            Assertions.assertNotNull(curProperty, "Field " + oldProperty + " was removed.");
 
             final String oldType = oldProperty.get("type").asText();
             final String curType = curProperty.get("type").asText();
@@ -212,7 +204,7 @@ enum CompatibilityRoutines {
             // removing this custom code (and thus improving the schema) should be possible
             // hence we only check equality for other types
             if (!oldType.equals("any")) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         String.format(
                                 "Type of field was changed from '%s' to '%s'.", oldType, curType),
                         oldType,
@@ -242,7 +234,7 @@ enum CompatibilityRoutines {
                 // enum
                 JsonNode oldEnumValues = oldProperty.get("enum");
                 JsonNode curEnumValues = curProperty.get("enum");
-                Assert.assertEquals(oldEnumValues, curEnumValues);
+                Assertions.assertEquals(oldEnumValues, curEnumValues);
             } // else assume basic types
         }
     }

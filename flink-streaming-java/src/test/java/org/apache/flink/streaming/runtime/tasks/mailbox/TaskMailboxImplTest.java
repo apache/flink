@@ -22,18 +22,16 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClose
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -41,7 +39,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MAX_PRIORITY;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit tests for {@link TaskMailboxImpl}. */
 public class TaskMailboxImplTest {
@@ -74,24 +72,24 @@ public class TaskMailboxImplTest {
         taskMailbox.put(mailD);
         taskMailbox.putFirst(mailA);
 
-        Assert.assertSame(mailA, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailB, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailC, taskMailbox.take(DEFAULT_PRIORITY));
-        Assert.assertSame(mailD, taskMailbox.take(DEFAULT_PRIORITY));
+        Assertions.assertSame(mailA, taskMailbox.take(DEFAULT_PRIORITY));
+        Assertions.assertSame(mailB, taskMailbox.take(DEFAULT_PRIORITY));
+        Assertions.assertSame(mailC, taskMailbox.take(DEFAULT_PRIORITY));
+        Assertions.assertSame(mailD, taskMailbox.take(DEFAULT_PRIORITY));
 
-        Assert.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
+        Assertions.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
     }
 
     @Test
     public void testContracts() throws InterruptedException {
         final Queue<Mail> testObjects = new LinkedList<>();
-        Assert.assertFalse(taskMailbox.hasMail());
+        Assertions.assertFalse(taskMailbox.hasMail());
 
         for (int i = 0; i < 10; ++i) {
             final Mail mail = new Mail(NO_OP, DEFAULT_PRIORITY, "mail, DEFAULT_PRIORITY");
             testObjects.add(mail);
             taskMailbox.put(mail);
-            Assert.assertTrue(taskMailbox.hasMail());
+            Assertions.assertTrue(taskMailbox.hasMail());
         }
 
         while (!testObjects.isEmpty()) {
@@ -138,8 +136,8 @@ public class TaskMailboxImplTest {
         taskMailbox.quiesce();
         testLifecyclePuttingInternal();
         taskMailbox.take(DEFAULT_PRIORITY);
-        Assert.assertTrue(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
-        Assert.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
+        Assertions.assertTrue(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
+        Assertions.assertFalse(taskMailbox.tryTake(DEFAULT_PRIORITY).isPresent());
     }
 
     @Test
@@ -149,13 +147,13 @@ public class TaskMailboxImplTest {
 
         try {
             taskMailbox.take(DEFAULT_PRIORITY);
-            Assert.fail();
+            Assertions.fail();
         } catch (MailboxClosedException ignore) {
         }
 
         try {
             taskMailbox.tryTake(DEFAULT_PRIORITY);
-            Assert.fail();
+            Assertions.fail();
         } catch (MailboxClosedException ignore) {
         }
     }
@@ -163,12 +161,12 @@ public class TaskMailboxImplTest {
     private void testLifecyclePuttingInternal() {
         try {
             taskMailbox.put(new Mail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"));
-            Assert.fail();
+            Assertions.fail();
         } catch (MailboxClosedException ignore) {
         }
         try {
             taskMailbox.putFirst(new Mail(NO_OP, MAX_PRIORITY, "NO_OP"));
-            Assert.fail();
+            Assertions.fail();
         } catch (MailboxClosedException ignore) {
         }
     }
@@ -285,14 +283,14 @@ public class TaskMailboxImplTest {
         taskMailbox.put(mailD);
         taskMailbox.putFirst(mailA);
 
-        Assert.assertSame(mailA, taskMailbox.take(2));
-        Assert.assertSame(mailB, taskMailbox.take(2));
-        Assert.assertFalse(taskMailbox.tryTake(2).isPresent());
+        Assertions.assertSame(mailA, taskMailbox.take(2));
+        Assertions.assertSame(mailB, taskMailbox.take(2));
+        Assertions.assertFalse(taskMailbox.tryTake(2).isPresent());
 
-        Assert.assertSame(mailC, taskMailbox.take(1));
-        Assert.assertSame(mailD, taskMailbox.take(1));
+        Assertions.assertSame(mailC, taskMailbox.take(1));
+        Assertions.assertSame(mailD, taskMailbox.take(1));
 
-        Assert.assertFalse(taskMailbox.tryTake(1).isPresent());
+        Assertions.assertFalse(taskMailbox.tryTake(1).isPresent());
     }
 
     @Test
@@ -309,10 +307,10 @@ public class TaskMailboxImplTest {
         taskMailbox.putFirst(mailA);
 
         // same order for non-priority and priority on top
-        Assert.assertSame(mailA, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailC, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailB, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
-        Assert.assertSame(mailD, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+        Assertions.assertSame(mailA, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+        Assertions.assertSame(mailC, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+        Assertions.assertSame(mailB, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
+        Assertions.assertSame(mailD, taskMailbox.take(TaskMailbox.MIN_PRIORITY));
     }
 
     /**
@@ -333,7 +331,7 @@ public class TaskMailboxImplTest {
 
         // create a batch with 3 mails
         mails.subList(0, 3).forEach(taskMailbox::put);
-        Assert.assertTrue(taskMailbox.createBatch());
+        Assertions.assertTrue(taskMailbox.createBatch());
         // add 3 more mails after the batch
         mails.subList(3, 6).forEach(taskMailbox::put);
 
@@ -358,7 +356,7 @@ public class TaskMailboxImplTest {
         Mail mailB = new Mail(() -> {}, MAX_PRIORITY, "mailB");
 
         taskMailbox.put(mailA);
-        Assert.assertTrue(taskMailbox.createBatch());
+        Assertions.assertTrue(taskMailbox.createBatch());
         taskMailbox.put(mailB);
 
         assertEquals(Arrays.asList(mailA, mailB), taskMailbox.drain());
@@ -371,7 +369,7 @@ public class TaskMailboxImplTest {
         Mail mailB = new Mail(() -> {}, 2, "mailB");
 
         taskMailbox.put(mailA);
-        Assert.assertTrue(taskMailbox.createBatch());
+        Assertions.assertTrue(taskMailbox.createBatch());
         taskMailbox.put(mailB);
 
         assertEquals(mailB, taskMailbox.take(2));

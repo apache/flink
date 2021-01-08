@@ -19,30 +19,23 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.catalog.stats.*;
 import org.apache.flink.table.functions.TestGenericUDF;
 import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.utils.TableEnvironmentMock;
-
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test for GenericInMemoryCatalog. */
 public class GenericInMemoryCatalogTest extends CatalogTestBase {

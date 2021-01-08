@@ -19,28 +19,21 @@ limitations under the License.
 package org.apache.flink.connector.testutils.source.reader;
 
 import org.apache.flink.api.common.eventtime.Watermark;
-import org.apache.flink.api.connector.source.Boundedness;
-import org.apache.flink.api.connector.source.ReaderOutput;
-import org.apache.flink.api.connector.source.SourceOutput;
-import org.apache.flink.api.connector.source.SourceReader;
-import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.*;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 
 /**
  * An abstract test class for all the unit tests of {@link SourceReader} to inherit.
@@ -120,7 +113,7 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         // Consumer all the records in the split.
         try (SourceReader<Integer, SplitT> reader = createReader()) {
             CompletableFuture<?> future = reader.isAvailable();
-            assertFalse("There should be no records ready for poll.", future.isDone());
+            assertFalse(future.isDone(), "There should be no records ready for poll.");
             // Add a split to the reader so there are more records to be read.
             reader.addSplits(
                     Collections.singletonList(

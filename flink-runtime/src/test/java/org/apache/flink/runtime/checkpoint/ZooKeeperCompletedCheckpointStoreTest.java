@@ -29,18 +29,20 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriConsumer;
-
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -49,8 +51,8 @@ import java.util.stream.IntStream;
 import static org.apache.flink.runtime.checkpoint.CompletedCheckpointStoreTest.createCheckpoint;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link DefaultCompletedCheckpointStore} with {@link ZooKeeperStateHandleStore}. */
 public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
@@ -71,24 +73,26 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
 
     @Test
     public void testRecoverFailsIfDownloadFails() throws Exception {
-        Assertions.assertThrows(ExpectedTestException.class, () -> {
+        assertThrows(
+                ExpectedTestException.class,
+                () -> {
                     testDownloadInternal(
-                (store, checkpointsInZk, sharedStateRegistry) -> {
-                    try {
-                        checkpointsInZk.add(
-                                createHandle(
-                                        1,
-                                        id -> {
-                                            throw new ExpectedTestException();
-                                        }));
-                        store.recover();
-                    } catch (Exception exception) {
-                        findThrowable(exception, ExpectedTestException.class)
-                                .ifPresent(ExceptionUtils::rethrow);
-                        rethrow(exception);
-                    }
+                            (store, checkpointsInZk, sharedStateRegistry) -> {
+                                try {
+                                    checkpointsInZk.add(
+                                            createHandle(
+                                                    1,
+                                                    id -> {
+                                                        throw new ExpectedTestException();
+                                                    }));
+                                    store.recover();
+                                } catch (Exception exception) {
+                                    findThrowable(exception, ExpectedTestException.class)
+                                            .ifPresent(ExceptionUtils::rethrow);
+                                    rethrow(exception);
+                                }
+                            });
                 });
-        });
     }
 
     @Test

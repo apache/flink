@@ -20,8 +20,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.DoubleValue;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 /** Tests for {@link ValueSummaryAggregator.DoubleValueSummaryAggregator}. */
 public class DoubleValueSummaryAggregatorTest extends DoubleSummaryAggregatorTest {
@@ -49,11 +48,11 @@ public class DoubleValueSummaryAggregatorTest extends DoubleSummaryAggregatorTes
             @Override
             protected void compareResults(
                     NumericColumnSummary<Double> result1, NumericColumnSummary<Double> result2) {
-                Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0);
-                Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0);
-                Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
-                Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-                Assert.assertEquals(
+                Assertions.assertEquals(result1.getMin(), result2.getMin(), 0.0);
+                Assertions.assertEquals(result1.getMax(), result2.getMax(), 0.0);
+                Assertions.assertEquals(result1.getMean(), result2.getMean(), 1e-12d);
+                Assertions.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
+                Assertions.assertEquals(
                         result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-12d);
             }
         }.summarize(doubleValues);

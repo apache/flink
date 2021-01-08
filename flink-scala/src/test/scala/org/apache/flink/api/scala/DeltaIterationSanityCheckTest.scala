@@ -57,7 +57,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectJoinWithSolution1(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
@@ -73,7 +73,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectJoinWithSolution2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
@@ -89,7 +89,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectJoinWithSolution3(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
@@ -133,7 +133,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectCoGroupWithSolution1(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
@@ -149,7 +149,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectCoGroupWithSolution2(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))
@@ -165,7 +165,7 @@ class DeltaIterationSanityCheckTest extends Serializable {
 
   @Test
   def testIncorrectCoGroupWithSolution3(): Unit = {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val solutionInput = env.fromElements((1, "1"))
     val worksetInput = env.fromElements((2, "2"))

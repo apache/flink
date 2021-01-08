@@ -18,6 +18,8 @@
 
 package org.apache.flink.formats.parquet.protobuf;
 
+import com.google.protobuf.Message;
+import com.google.protobuf.MessageOrBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,13 +27,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.util.AbstractTestBase;
-
-import com.google.protobuf.Message;
-import com.google.protobuf.MessageOrBuilder;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.proto.ProtoParquetReader;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
 import java.io.File;
@@ -42,9 +46,7 @@ import java.util.List;
 
 import static com.google.protobuf.Message.Builder;
 import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.SimpleProtoRecord;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}

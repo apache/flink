@@ -29,11 +29,14 @@ import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
@@ -140,17 +143,17 @@ public class StreamingKafkaITCase extends TestLogger {
                 final List<String> bees = filterMessages(messages, "bee");
 
                 // check all keys
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         Arrays.asList("elephant,5,45218", "elephant,14,54867"), elephants);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         Arrays.asList("squirrel,12,46213", "squirrel,34,52444"), squirrels);
-                Assert.assertEquals(Arrays.asList("bee,3,51348", "bee,13,53412"), bees);
+                Assertions.assertEquals(Arrays.asList("bee,3,51348", "bee,13,53412"), bees);
             }
 
             // now, we add a new partition to the topic
             LOG.info("Repartitioning Kafka topic [{}] ...", inputTopic);
             kafka.setNumPartitions(2, inputTopic);
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Failed adding a partition to input topic.",
                     2,
                     kafka.getNumPartitions(inputTopic));
@@ -167,7 +170,7 @@ public class StreamingKafkaITCase extends TestLogger {
 
             // verify that our assumption that the new partition actually has written messages is
             // correct
-            Assert.assertNotEquals(
+            Assertions.assertNotEquals(
                     "The newly created partition does not have any new messages, and therefore partition discovery cannot be verified.",
                     0L,
                     kafka.getPartitionOffset(inputTopic, 1));
@@ -181,19 +184,19 @@ public class StreamingKafkaITCase extends TestLogger {
                 final List<String> bees = filterMessages(messages, "bee");
                 final List<String> giraffes = filterMessages(messages, "giraffe");
 
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("elephant,27,64213"),
                         elephants);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("squirrel,52,66413"),
                         squirrels);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("bee,18,65647"),
                         bees);
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("giraffe,9,65555"),
                         giraffes);

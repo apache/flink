@@ -40,21 +40,23 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
-
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests to verify JMX reporter functionality on the JobManager. */
 public class JMXJobManagerMetricTest extends TestLogger {
@@ -125,7 +127,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
                             new ObjectName(
                                     "org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"),
                             null);
-            Assert.assertEquals(1, nameSet.size());
+            Assertions.assertEquals(1, nameSet.size());
             assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
 
             BlockingInvokable.unblock();

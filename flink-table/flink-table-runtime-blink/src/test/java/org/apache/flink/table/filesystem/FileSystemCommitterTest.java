@@ -20,11 +20,14 @@ package org.apache.flink.table.filesystem;
 
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -74,23 +77,23 @@ public class FileSystemCommitterTest {
         createFile("cp-1/task-2/p1=0/p2=0/", "f3");
         createFile("cp-1/task-2/p1=0/p2=1/", "f4");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f4").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=1/f4").exists());
 
         createFile("cp-1/task-2/p1=0/p2=1/", "f5");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f1").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f2").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=0/f3").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
 
         committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 2);
         createFile("cp-1/task-2/p1=0/p2=1/", "f6");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
-        Assert.assertTrue(new File(outputFile, "p1=0/p2=1/f6").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=1/f5").exists());
+        Assertions.assertTrue(new File(outputFile, "p1=0/p2=1/f6").exists());
     }
 
     @Test
@@ -101,19 +104,19 @@ public class FileSystemCommitterTest {
         createFile("cp-1/task-1/", "f1", "f2");
         createFile("cp-1/task-2/", "f3");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "f1").exists());
-        Assert.assertTrue(new File(outputFile, "f2").exists());
-        Assert.assertTrue(new File(outputFile, "f3").exists());
+        Assertions.assertTrue(new File(outputFile, "f1").exists());
+        Assertions.assertTrue(new File(outputFile, "f2").exists());
+        Assertions.assertTrue(new File(outputFile, "f3").exists());
 
         createFile("cp-1/task-2/", "f4");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "f4").exists());
+        Assertions.assertTrue(new File(outputFile, "f4").exists());
 
         committer = new FileSystemCommitter(fileSystemFactory, metaStoreFactory, false, tmpPath, 0);
         createFile("cp-1/task-2/", "f5");
         committer.commitUpToCheckpoint(1);
-        Assert.assertTrue(new File(outputFile, "f4").exists());
-        Assert.assertTrue(new File(outputFile, "f5").exists());
+        Assertions.assertTrue(new File(outputFile, "f4").exists());
+        Assertions.assertTrue(new File(outputFile, "f5").exists());
     }
 
     static class TestMetaStoreFactory implements TableMetaStoreFactory {

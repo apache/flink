@@ -23,7 +23,7 @@ import org.apache.flink.table.expressions.Expression
 import org.apache.flink.types.Row
 
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 
 /**

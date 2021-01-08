@@ -20,24 +20,23 @@ package org.apache.flink.orc;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
 import org.apache.flink.types.Row;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 /** ITCase for {@link OrcFileFormatFactory}. */
@@ -73,15 +72,15 @@ public class OrcFileSystemITCase extends BatchFileSystemITCaseBase {
         File directory = new File(URI.create(resultPath()).getPath());
         File[] files =
                 directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
-        Assert.assertNotNull(files);
+        Assertions.assertNotNull(files);
         Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
         try {
             Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(new Configuration()));
             if (configure) {
-                Assert.assertEquals("SNAPPY", reader.getCompressionKind().toString());
+                Assertions.assertEquals("SNAPPY", reader.getCompressionKind().toString());
             } else {
-                Assert.assertEquals("ZLIB", reader.getCompressionKind().toString());
+                Assertions.assertEquals("ZLIB", reader.getCompressionKind().toString());
             }
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -39,7 +39,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.AssumptionViolatedException;
 import org.junit.Before;
 
@@ -55,8 +54,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test checkpointing while sourcing a continuous file processor. */
 public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleranceTestBase {
@@ -136,10 +135,10 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
         fc.join();
 
         Map<Integer, Set<String>> collected = actualCollectedContent;
-        Assert.assertEquals(collected.size(), fc.getFileContent().size());
+        Assertions.assertEquals(collected.size(), fc.getFileContent().size());
 
         for (Integer fileIdx : fc.getFileContent().keySet()) {
-            Assert.assertTrue(collected.keySet().contains(fileIdx));
+            Assertions.assertTrue(collected.keySet().contains(fileIdx));
 
             List<String> cntnt = new ArrayList<>(collected.get(fileIdx));
             Collections.sort(
@@ -155,7 +154,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
             for (String line : cntnt) {
                 cntntStr.append(line);
             }
-            Assert.assertEquals(fc.getFileContent().get(fileIdx), cntntStr.toString());
+            Assertions.assertEquals(fc.getFileContent().get(fileIdx), cntntStr.toString());
         }
 
         collected.clear();
@@ -315,7 +314,7 @@ public class ContinuousFileProcessingCheckpointITCase extends StreamFaultToleran
                     org.apache.hadoop.fs.Path file =
                             new org.apache.hadoop.fs.Path(localFsURI + "/file" + i);
                     localFs.rename(tmpFile.f0, file);
-                    Assert.assertTrue(localFs.exists(file));
+                    Assertions.assertTrue(localFs.exists(file));
 
                     filesCreated.add(file);
                     fileContents.put(i, tmpFile.f1);

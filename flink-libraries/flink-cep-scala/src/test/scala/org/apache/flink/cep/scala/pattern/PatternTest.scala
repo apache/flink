@@ -18,7 +18,7 @@
 package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent

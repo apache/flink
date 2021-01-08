@@ -21,16 +21,21 @@ package org.apache.flink.configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class verifies that the Unmodifiable Configuration class overrides all setter methods in
@@ -81,7 +86,7 @@ public class UnmodifiableConfigurationTest extends TestLogger {
                     Object key = keyClass == String.class ? "key" : rawOption;
 
                     Object parameter = parameters.get(parameterClass);
-                    assertNotNull("method " + m + " not covered by test", parameter);
+                    assertNotNull(parameter, "method " + m + " not covered by test");
 
                     try {
                         m.invoke(config, key, parameter);

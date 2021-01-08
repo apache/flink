@@ -26,9 +26,12 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.StateSnapshot;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -87,7 +90,7 @@ public class CopyOnWriteStateTableTest {
         for (int group = 0; group < numberOfKeyGroups; group++) {
             snapshot.writeStateInKeyGroup(dataOutputView, group);
             // resource used by one key group should be released after the snapshot is successful
-            Assert.assertTrue(isResourceReleasedForKeyGroup(table, group));
+            Assertions.assertTrue(isResourceReleasedForKeyGroup(table, group));
         }
         snapshot.release();
         verifyResourceIsReleasedForAllKeyGroup(table, 1);
@@ -109,10 +112,10 @@ public class CopyOnWriteStateTableTest {
         // only snapshot part of key groups to simulate a failed snapshot
         for (int group = 0; group < numberOfKeyGroups / 2; group++) {
             snapshot.writeStateInKeyGroup(dataOutputView, group);
-            Assert.assertTrue(isResourceReleasedForKeyGroup(table, group));
+            Assertions.assertTrue(isResourceReleasedForKeyGroup(table, group));
         }
         for (int group = numberOfKeyGroups / 2; group < numberOfKeyGroups; group++) {
-            Assert.assertFalse(isResourceReleasedForKeyGroup(table, group));
+            Assertions.assertFalse(isResourceReleasedForKeyGroup(table, group));
         }
         snapshot.release();
         verifyResourceIsReleasedForAllKeyGroup(table, 2);
@@ -145,7 +148,7 @@ public class CopyOnWriteStateTableTest {
             CopyOnWriteStateTable table, int snapshotVersion) {
         StateMap[] stateMaps = table.getState();
         for (StateMap map : stateMaps) {
-            Assert.assertFalse(
+            Assertions.assertFalse(
                     ((CopyOnWriteStateMap) map).getSnapshotVersions().contains(snapshotVersion));
         }
     }

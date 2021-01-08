@@ -22,7 +22,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.Assert.{assertFalse, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
 
 /**

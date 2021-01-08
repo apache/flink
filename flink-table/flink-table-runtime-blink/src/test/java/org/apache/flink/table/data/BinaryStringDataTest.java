@@ -24,8 +24,12 @@ import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.sort.SortUtil;
 import org.apache.flink.table.runtime.util.StringUtf8Utils;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -39,28 +43,8 @@ import java.util.Random;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.flink.table.data.binary.BinaryStringData.blankString;
 import static org.apache.flink.table.data.binary.BinaryStringData.fromBytes;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.EMPTY_STRING_ARRAY;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.concat;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.concatWs;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.keyValue;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.reverse;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.splitByWholeSeparatorPreserveAllTokens;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.substringSQL;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toByte;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toDecimal;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toInt;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toLong;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.toShort;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.trim;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.trimLeft;
-import static org.apache.flink.table.data.binary.BinaryStringDataUtil.trimRight;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.data.binary.BinaryStringDataUtil.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test of {@link BinaryStringData}.

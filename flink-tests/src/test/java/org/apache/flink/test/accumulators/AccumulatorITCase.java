@@ -19,11 +19,7 @@
 package org.apache.flink.test.accumulators;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.accumulators.Accumulator;
-import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.accumulators.DoubleCounter;
-import org.apache.flink.api.common.accumulators.Histogram;
-import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.accumulators.*;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -34,8 +30,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,10 +69,10 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         JobExecutionResult res = this.result;
         System.out.println(AccumulatorHelper.getResultsFormatted(res.getAllAccumulatorResults()));
 
-        Assert.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
-        Assert.assertEquals(Integer.valueOf(3), res.getIntCounterResult("num-lines"));
+        Assertions.assertEquals(Integer.valueOf(3), res.getAccumulatorResult("num-lines"));
+        Assertions.assertEquals(Integer.valueOf(3), res.getIntCounterResult("num-lines"));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Double.valueOf(getParallelism()), res.getAccumulatorResult("open-close-counter"));
 
         // Test histogram (words per line distribution)
@@ -86,14 +80,14 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         dist.put(1, 1);
         dist.put(2, 1);
         dist.put(3, 1);
-        Assert.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
+        Assertions.assertEquals(dist, res.getAccumulatorResult("words-per-line"));
 
         // Test distinct words (custom accumulator)
         Set<StringValue> distinctWords = new HashSet<>();
         distinctWords.add(new StringValue("one"));
         distinctWords.add(new StringValue("two"));
         distinctWords.add(new StringValue("three"));
-        Assert.assertEquals(distinctWords, res.getAccumulatorResult("distinct-words"));
+        Assertions.assertEquals(distinctWords, res.getAccumulatorResult("distinct-words"));
     }
 
     @Override
@@ -138,11 +132,11 @@ public class AccumulatorITCase extends JavaProgramTestBase {
             // Create counter and test increment
             IntCounter simpleCounter = getRuntimeContext().getIntCounter("simple-counter");
             simpleCounter.add(1);
-            Assert.assertEquals(simpleCounter.getLocalValue().intValue(), 1);
+            Assertions.assertEquals(simpleCounter.getLocalValue().intValue(), 1);
 
             // Test if we get the same counter
             IntCounter simpleCounter2 = getRuntimeContext().getIntCounter("simple-counter");
-            Assert.assertEquals(simpleCounter.getLocalValue(), simpleCounter2.getLocalValue());
+            Assertions.assertEquals(simpleCounter.getLocalValue(), simpleCounter2.getLocalValue());
 
             // Should fail if we request it with different type
             try {
@@ -152,7 +146,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
                 // DoubleSumAggregator longAggregator3 = (DoubleSumAggregator)
                 // getRuntimeContext().getAggregator("custom",
                 // DoubleSumAggregator.class);
-                Assert.fail(
+                Assertions.fail(
                         "Should not be able to obtain previously created counter with different type");
             } catch (UnsupportedOperationException ex) {
                 // expected!
@@ -179,7 +173,7 @@ public class AccumulatorITCase extends JavaProgramTestBase {
         public void close() throws Exception {
             // Test counter used in open and close only
             this.openCloseCounter.add(0.5);
-            Assert.assertEquals(1, this.openCloseCounter.getLocalValue().intValue());
+            Assertions.assertEquals(1, this.openCloseCounter.getLocalValue().intValue());
         }
     }
 

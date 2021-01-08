@@ -22,14 +22,18 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.decodePathFromReference;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.encodePathAsReference;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for the encoding / decoding of storage location references. */
 public class FsStorageLocationReferenceTest extends TestLogger {
@@ -52,25 +56,34 @@ public class FsStorageLocationReferenceTest extends TestLogger {
 
     @Test
     public void testDecodingTooShortReference() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     decodePathFromReference(new CheckpointStorageLocationReference(new byte[2]));
-        });
+                });
     }
 
     @Test
     public void testDecodingGarbage() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final byte[] bytes =
-                new byte[] {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C};
-        decodePathFromReference(new CheckpointStorageLocationReference(bytes));
-        });
+                            new byte[] {
+                                0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+                                0x0C
+                            };
+                    decodePathFromReference(new CheckpointStorageLocationReference(bytes));
+                });
     }
 
     @Test
     public void testDecodingDefaultReference() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     decodePathFromReference(CheckpointStorageLocationReference.getDefault());
-        });
+                });
     }
 
     // ------------------------------------------------------------------------

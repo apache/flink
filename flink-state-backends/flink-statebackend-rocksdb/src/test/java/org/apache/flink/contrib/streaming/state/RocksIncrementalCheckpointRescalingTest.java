@@ -35,11 +35,15 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.List;
@@ -59,61 +63,61 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
     public void initRecords() throws Exception {
         records = new String[10];
         records[0] = "8";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 0,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[0]), maxParallelism)); // group 0
 
         records[1] = "5";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[1]), maxParallelism)); // group 1
 
         records[2] = "25";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 2,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[2]), maxParallelism)); // group 2
 
         records[3] = "13";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 3,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[3]), maxParallelism)); // group 3
 
         records[4] = "4";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 4,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[4]), maxParallelism)); // group 4
 
         records[5] = "7";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 5,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[5]), maxParallelism)); // group 5
 
         records[6] = "1";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 6,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[6]), maxParallelism)); // group 6
 
         records[7] = "6";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 7,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[7]), maxParallelism)); // group 7
 
         records[8] = "9";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 8,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[8]), maxParallelism)); // group 8
 
         records[9] = "3";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 9,
                 KeyGroupRangeAssignment.assignToKeyGroup(
                         keySelector.getKey(records[9]), maxParallelism)); // group 9
@@ -162,7 +166,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [0, 4]
             KeyGroupRange localKeyGroupRange20 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
+            Assertions.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
             harness2[0].setup();
@@ -171,7 +175,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [5, 9]
             KeyGroupRange localKeyGroupRange21 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
+            Assertions.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
             harness2[1].setup();
@@ -225,7 +229,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             // task's key-group [0, 3]
             // this will choose the state handle to harness2[0] to init the target db with clipping.
             KeyGroupRange localKeyGroupRange30 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
+            Assertions.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
             harness3[0].setup();
@@ -234,7 +238,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [4, 6]
             KeyGroupRange localKeyGroupRange31 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
+            Assertions.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
             harness3[1].setup();
@@ -243,7 +247,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [7, 9]
             KeyGroupRange localKeyGroupRange32 = keyGroupPartitions.get(2);
-            Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
+            Assertions.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
             harness3[2].setup();
@@ -305,21 +309,21 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
 
             // task's key-group [0, 3], this should trigger the condition to use clip
             KeyGroupRange localKeyGroupRange30 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
+            Assertions.assertEquals(new KeyGroupRange(0, 3), localKeyGroupRange30);
             harness3[0] = getHarnessTest(keySelector, maxParallelism, 3, 0);
             harness3[0].setStateBackend(getStateBackend());
             harness3[0].open();
 
             // task's key-group [4, 6]
             KeyGroupRange localKeyGroupRange31 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
+            Assertions.assertEquals(new KeyGroupRange(4, 6), localKeyGroupRange31);
             harness3[1] = getHarnessTest(keySelector, maxParallelism, 3, 1);
             harness3[1].setStateBackend(getStateBackend());
             harness3[1].open();
 
             // task's key-group [7, 9]
             KeyGroupRange localKeyGroupRange32 = keyGroupPartitions.get(2);
-            Assert.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
+            Assertions.assertEquals(new KeyGroupRange(7, 9), localKeyGroupRange32);
             harness3[2] = getHarnessTest(keySelector, maxParallelism, 3, 2);
             harness3[2].setStateBackend(getStateBackend());
             harness3[2].open();
@@ -364,7 +368,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             // this will choose the state handle generated by harness3[0] to init the target db
             // without any clipping.
             KeyGroupRange localKeyGroupRange20 = keyGroupPartitions.get(0);
-            Assert.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
+            Assertions.assertEquals(new KeyGroupRange(0, 4), localKeyGroupRange20);
             harness2[0] = getHarnessTest(keySelector, maxParallelism, 2, 0);
             harness2[0].setStateBackend(getStateBackend());
             harness2[0].setup();
@@ -374,7 +378,7 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
             // task's key-group [5, 9], this will open a empty db, and insert records from two state
             // handles.
             KeyGroupRange localKeyGroupRange21 = keyGroupPartitions.get(1);
-            Assert.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
+            Assertions.assertEquals(new KeyGroupRange(5, 9), localKeyGroupRange21);
             harness2[1] = getHarnessTest(keySelector, maxParallelism, 2, 1);
             harness2[1].setStateBackend(getStateBackend());
             harness2[1].setup();
@@ -440,8 +444,8 @@ public class RocksIncrementalCheckpointRescalingTest extends TestLogger {
         for (String record : records) {
             harness.processElement(new StreamRecord<>(record, 1));
             StreamRecord<Integer> outputRecord = (StreamRecord<Integer>) harness.getOutput().poll();
-            Assert.assertNotNull(outputRecord);
-            Assert.assertEquals(expectedValue, outputRecord.getValue());
+            Assertions.assertNotNull(outputRecord);
+            Assertions.assertEquals(expectedValue, outputRecord.getValue());
         }
     }
 

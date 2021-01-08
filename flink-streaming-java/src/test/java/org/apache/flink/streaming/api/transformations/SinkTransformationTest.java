@@ -25,6 +25,11 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +41,7 @@ public class SinkTransformationTest {
 
     @Test
     public void unSupportSetResource() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
 
@@ -47,7 +52,7 @@ public class SinkTransformationTest {
 
     @Test
     public void unSupportDeclareOperatorScopeManagedMemory() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
         sinkTransformation.declareManagedMemoryUseCaseAtOperatorScope(STATE_BACKEND, 1);
@@ -56,7 +61,7 @@ public class SinkTransformationTest {
 
     @Test
     public void unSupportDeclareSlotScopeManagedMemory() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
         sinkTransformation.declareManagedMemoryUseCaseAtSlotScope(STATE_BACKEND);

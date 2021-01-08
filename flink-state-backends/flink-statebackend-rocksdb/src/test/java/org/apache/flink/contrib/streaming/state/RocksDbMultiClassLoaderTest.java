@@ -19,9 +19,13 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDB;
 
@@ -29,7 +33,6 @@ import java.lang.reflect.Method;
 import java.net.URL;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.junit.Assert.assertNotEquals;
 
 /**
  * This test validates that the RocksDB JNI library loading works properly in the presence of the

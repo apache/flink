@@ -31,18 +31,16 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.utils.DataSetUtils;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.DoubleValue;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /** Integration tests for {@link DataSetUtils}. */
 @RunWith(Parameterized.class)
@@ -60,8 +58,8 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 
         DataSet<Tuple2<Integer, Long>> ds = DataSetUtils.countElementsPerPartition(numbers);
 
-        Assert.assertEquals(env.getParallelism(), ds.count());
-        Assert.assertEquals(expectedSize, ds.sum(1).collect().get(0).f1.longValue());
+        Assertions.assertEquals(env.getParallelism(), ds.count());
+        Assertions.assertEquals(expectedSize, ds.sum(1).collect().get(0).f1.longValue());
     }
 
     @Test
@@ -73,7 +71,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
         List<Tuple2<Long, Long>> result =
                 new ArrayList<>(DataSetUtils.zipWithIndex(numbers).collect());
 
-        Assert.assertEquals(expectedSize, result.size());
+        Assertions.assertEquals(expectedSize, result.size());
         // sort result by created index
         Collections.sort(
                 result,
@@ -85,7 +83,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
                 });
         // test if index is consecutive
         for (int i = 0; i < expectedSize; i++) {
-            Assert.assertEquals(i, result.get(i).f0.longValue());
+            Assertions.assertEquals(i, result.get(i).f0.longValue());
         }
     }
 
@@ -107,7 +105,7 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
 
         Set<Long> result = new HashSet<>(ids.collect());
 
-        Assert.assertEquals(expectedSize, result.size());
+        Assertions.assertEquals(expectedSize, result.size());
     }
 
     @Test
@@ -117,8 +115,8 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
         DataSet<Integer> ds = CollectionDataSets.getIntegerDataSet(env);
 
         Utils.ChecksumHashCode checksum = DataSetUtils.checksumHashCode(ds);
-        Assert.assertEquals(checksum.getCount(), 15);
-        Assert.assertEquals(checksum.getChecksum(), 55);
+        Assertions.assertEquals(checksum.getCount(), 15);
+        Assertions.assertEquals(checksum.getChecksum(), 55);
     }
 
     @Test
@@ -186,59 +184,59 @@ public class DataSetUtilsITCase extends MultipleProgramsTestBase {
         // call method under test
         Tuple results = DataSetUtils.summarize(ds);
 
-        Assert.assertEquals(8, results.getArity());
+        Assertions.assertEquals(8, results.getArity());
 
         NumericColumnSummary<Short> col0Summary = results.getField(0);
-        Assert.assertEquals(8, col0Summary.getNonMissingCount());
-        Assert.assertEquals(1, col0Summary.getMin().shortValue());
-        Assert.assertEquals(10, col0Summary.getMax().shortValue());
-        Assert.assertEquals(5.375, col0Summary.getMean().doubleValue(), 0.0);
+        Assertions.assertEquals(8, col0Summary.getNonMissingCount());
+        Assertions.assertEquals(1, col0Summary.getMin().shortValue());
+        Assertions.assertEquals(10, col0Summary.getMax().shortValue());
+        Assertions.assertEquals(5.375, col0Summary.getMean().doubleValue(), 0.0);
 
         NumericColumnSummary<Integer> col1Summary = results.getField(1);
-        Assert.assertEquals(1, col1Summary.getMin().intValue());
-        Assert.assertEquals(10, col1Summary.getMax().intValue());
-        Assert.assertEquals(5.375, col1Summary.getMean().doubleValue(), 0.0);
+        Assertions.assertEquals(1, col1Summary.getMin().intValue());
+        Assertions.assertEquals(10, col1Summary.getMax().intValue());
+        Assertions.assertEquals(5.375, col1Summary.getMean().doubleValue(), 0.0);
 
         NumericColumnSummary<Long> col2Summary = results.getField(2);
-        Assert.assertEquals(-100L, col2Summary.getMin().longValue());
-        Assert.assertEquals(10000L, col2Summary.getMax().longValue());
+        Assertions.assertEquals(-100L, col2Summary.getMin().longValue());
+        Assertions.assertEquals(10000L, col2Summary.getMax().longValue());
 
         NumericColumnSummary<Float> col3Summary = results.getField(3);
-        Assert.assertEquals(8, col3Summary.getTotalCount());
-        Assert.assertEquals(0.001000, col3Summary.getMin().doubleValue(), 0.0000001);
-        Assert.assertEquals(0.89999999, col3Summary.getMax().doubleValue(), 0.0000001);
-        Assert.assertEquals(
+        Assertions.assertEquals(8, col3Summary.getTotalCount());
+        Assertions.assertEquals(0.001000, col3Summary.getMin().doubleValue(), 0.0000001);
+        Assertions.assertEquals(0.89999999, col3Summary.getMax().doubleValue(), 0.0000001);
+        Assertions.assertEquals(
                 0.2376249988883501, col3Summary.getMean().doubleValue(), 0.000000000001);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 0.0768965488108089, col3Summary.getVariance().doubleValue(), 0.00000001);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 0.27730226975415995,
                 col3Summary.getStandardDeviation().doubleValue(),
                 0.000000000001);
 
         NumericColumnSummary<Double> col4Summary = results.getField(4);
-        Assert.assertEquals(6, col4Summary.getNonMissingCount());
-        Assert.assertEquals(2, col4Summary.getMissingCount());
-        Assert.assertEquals(0.0000000000023, col4Summary.getMin().doubleValue(), 0.0);
-        Assert.assertEquals(79.5, col4Summary.getMax().doubleValue(), 0.000000000001);
+        Assertions.assertEquals(6, col4Summary.getNonMissingCount());
+        Assertions.assertEquals(2, col4Summary.getMissingCount());
+        Assertions.assertEquals(0.0000000000023, col4Summary.getMin().doubleValue(), 0.0);
+        Assertions.assertEquals(79.5, col4Summary.getMax().doubleValue(), 0.000000000001);
 
         StringColumnSummary col5Summary = results.getField(5);
-        Assert.assertEquals(8, col5Summary.getTotalCount());
-        Assert.assertEquals(0, col5Summary.getNullCount());
-        Assert.assertEquals(8, col5Summary.getNonNullCount());
-        Assert.assertEquals(2, col5Summary.getEmptyCount());
-        Assert.assertEquals(0, col5Summary.getMinLength().intValue());
-        Assert.assertEquals(16, col5Summary.getMaxLength().intValue());
-        Assert.assertEquals(5.0, col5Summary.getMeanLength().doubleValue(), 0.0001);
+        Assertions.assertEquals(8, col5Summary.getTotalCount());
+        Assertions.assertEquals(0, col5Summary.getNullCount());
+        Assertions.assertEquals(8, col5Summary.getNonNullCount());
+        Assertions.assertEquals(2, col5Summary.getEmptyCount());
+        Assertions.assertEquals(0, col5Summary.getMinLength().intValue());
+        Assertions.assertEquals(16, col5Summary.getMaxLength().intValue());
+        Assertions.assertEquals(5.0, col5Summary.getMeanLength().doubleValue(), 0.0001);
 
         BooleanColumnSummary col6Summary = results.getField(6);
-        Assert.assertEquals(8, col6Summary.getTotalCount());
-        Assert.assertEquals(2, col6Summary.getFalseCount());
-        Assert.assertEquals(6, col6Summary.getTrueCount());
-        Assert.assertEquals(0, col6Summary.getNullCount());
+        Assertions.assertEquals(8, col6Summary.getTotalCount());
+        Assertions.assertEquals(2, col6Summary.getFalseCount());
+        Assertions.assertEquals(6, col6Summary.getTrueCount());
+        Assertions.assertEquals(0, col6Summary.getNullCount());
 
         NumericColumnSummary<Double> col7Summary = results.getField(7);
-        Assert.assertEquals(100.0, col7Summary.getMax().doubleValue(), 0.00001);
-        Assert.assertEquals(50.0, col7Summary.getMin().doubleValue(), 0.00001);
+        Assertions.assertEquals(100.0, col7Summary.getMax().doubleValue(), 0.00001);
+        Assertions.assertEquals(50.0, col7Summary.getMin().doubleValue(), 0.00001);
     }
 }

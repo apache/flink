@@ -29,10 +29,14 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for field accessors. */
 public class FieldAccessorTest {
@@ -103,13 +107,15 @@ public class FieldAccessorTest {
 
     @Test
     public void testIllegalFlatTuple() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
                     Tuple2<String, Integer> t = Tuple2.of("aa", 5);
-        TupleTypeInfo<Tuple2<String, Integer>> tpeInfo =
-                (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(t);
+                    TupleTypeInfo<Tuple2<String, Integer>> tpeInfo =
+                            (TupleTypeInfo<Tuple2<String, Integer>>) TypeExtractor.getForObject(t);
 
-        FieldAccessorFactory.getAccessor(tpeInfo, "illegal", null);
-        });
+                    FieldAccessorFactory.getAccessor(tpeInfo, "illegal", null);
+                });
     }
 
     @Test
@@ -163,10 +169,14 @@ public class FieldAccessorTest {
     @Test
     @SuppressWarnings("unchecked")
     public void testIllegalTupleField() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
                     FieldAccessorFactory.getAccessor(
-                TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class), 2, null);
-        });
+                            TupleTypeInfo.getBasicTupleTypeInfo(Integer.class, Integer.class),
+                            2,
+                            null);
+                });
     }
 
     /** POJO. */
@@ -226,13 +236,16 @@ public class FieldAccessorTest {
 
     @Test
     public void testIllegalTupleInPojoInTuple() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
-                    Tuple2<String, Foo> t = Tuple2.of("aa", new Foo(8, Tuple2.of("ddd", 9L), (short) 2));
-        TupleTypeInfo<Tuple2<String, Foo>> tpeInfo =
-                (TupleTypeInfo<Tuple2<String, Foo>>) TypeExtractor.getForObject(t);
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
+                    Tuple2<String, Foo> t =
+                            Tuple2.of("aa", new Foo(8, Tuple2.of("ddd", 9L), (short) 2));
+                    TupleTypeInfo<Tuple2<String, Foo>> tpeInfo =
+                            (TupleTypeInfo<Tuple2<String, Foo>>) TypeExtractor.getForObject(t);
 
-        FieldAccessorFactory.getAccessor(tpeInfo, "illegal.illegal.illegal", null);
-        });
+                    FieldAccessorFactory.getAccessor(tpeInfo, "illegal.illegal.illegal", null);
+                });
     }
 
     /** POJO for testing field access. */
@@ -386,37 +399,47 @@ public class FieldAccessorTest {
 
     @Test
     public void testIllegalBasicType1() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     Long x = 7L;
-        TypeInformation<Long> tpeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+                    TypeInformation<Long> tpeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
-        FieldAccessor<Long, Long> f = FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
-        });
+                    FieldAccessor<Long, Long> f =
+                            FieldAccessorFactory.getAccessor(tpeInfo, 1, null);
+                });
     }
 
     @Test
     public void testIllegalBasicType2() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     Long x = 7L;
-        TypeInformation<Long> tpeInfo = BasicTypeInfo.LONG_TYPE_INFO;
+                    TypeInformation<Long> tpeInfo = BasicTypeInfo.LONG_TYPE_INFO;
 
-        FieldAccessor<Long, Long> f = FieldAccessorFactory.getAccessor(tpeInfo, "foo", null);
-        });
+                    FieldAccessor<Long, Long> f =
+                            FieldAccessorFactory.getAccessor(tpeInfo, "foo", null);
+                });
     }
 
     /** Validates that no ClassCastException happens should not fail e.g. like in FLINK-8255. */
     @Test
     public void testRowTypeInfo() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
                     TypeInformation<?>[] typeList =
-                new TypeInformation<?>[] {
-                    new RowTypeInfo(BasicTypeInfo.SHORT_TYPE_INFO, BasicTypeInfo.BIG_DEC_TYPE_INFO)
-                };
+                            new TypeInformation<?>[] {
+                                new RowTypeInfo(
+                                        BasicTypeInfo.SHORT_TYPE_INFO,
+                                        BasicTypeInfo.BIG_DEC_TYPE_INFO)
+                            };
 
-        String[] fieldNames = new String[] {"row"};
-        RowTypeInfo rowTypeInfo = new RowTypeInfo(typeList, fieldNames);
+                    String[] fieldNames = new String[] {"row"};
+                    RowTypeInfo rowTypeInfo = new RowTypeInfo(typeList, fieldNames);
 
-        FieldAccessor f = FieldAccessorFactory.getAccessor(rowTypeInfo, "row.0", null);
-        });
+                    FieldAccessor f = FieldAccessorFactory.getAccessor(rowTypeInfo, "row.0", null);
+                });
     }
 }

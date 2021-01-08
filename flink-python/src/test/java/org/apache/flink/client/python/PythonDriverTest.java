@@ -18,8 +18,12 @@
 
 package org.apache.flink.client.python;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import py4j.GatewayServer;
 
 import java.io.IOException;
@@ -52,11 +56,11 @@ public class PythonDriverTest {
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions("xxx", null, args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         // verify the generated commands
-        Assert.assertEquals(4, commands.size());
-        Assert.assertEquals(commands.get(0), "-m");
-        Assert.assertEquals(commands.get(1), "xxx");
-        Assert.assertEquals(commands.get(2), "--input");
-        Assert.assertEquals(commands.get(3), "in.txt");
+        Assertions.assertEquals(4, commands.size());
+        Assertions.assertEquals(commands.get(0), "-m");
+        Assertions.assertEquals(commands.get(1), "xxx");
+        Assertions.assertEquals(commands.get(2), "--input");
+        Assertions.assertEquals(commands.get(3), "in.txt");
     }
 
     @Test
@@ -67,9 +71,9 @@ public class PythonDriverTest {
 
         PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
-        Assert.assertEquals(3, commands.size());
-        Assert.assertEquals(commands.get(0), "xxx");
-        Assert.assertEquals(commands.get(1), "--input");
-        Assert.assertEquals(commands.get(2), "in.txt");
+        Assertions.assertEquals(3, commands.size());
+        Assertions.assertEquals(commands.get(0), "xxx");
+        Assertions.assertEquals(commands.get(1), "--input");
+        Assertions.assertEquals(commands.get(2), "in.txt");
     }
 }

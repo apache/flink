@@ -56,8 +56,12 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.CloseableIterable;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 
@@ -115,12 +119,13 @@ public class StreamTaskStateInitializerImplTest {
         CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
                 stateContext.rawOperatorStateInputs();
 
-        Assert.assertFalse("Expected the context to NOT be restored", stateContext.isRestored());
-        Assert.assertNotNull(operatorStateBackend);
-        Assert.assertNotNull(keyedStateBackend);
-        Assert.assertNotNull(timeServiceManager);
-        Assert.assertNotNull(keyedStateInputs);
-        Assert.assertNotNull(operatorStateInputs);
+        Assertions.assertFalse(
+                "Expected the context to NOT be restored", stateContext.isRestored());
+        Assertions.assertNotNull(operatorStateBackend);
+        Assertions.assertNotNull(keyedStateBackend);
+        Assertions.assertNotNull(timeServiceManager);
+        Assertions.assertNotNull(keyedStateInputs);
+        Assertions.assertNotNull(operatorStateInputs);
 
         checkCloseablesRegistered(
                 closeableRegistry,
@@ -129,8 +134,8 @@ public class StreamTaskStateInitializerImplTest {
                 keyedStateInputs,
                 operatorStateInputs);
 
-        Assert.assertFalse(keyedStateInputs.iterator().hasNext());
-        Assert.assertFalse(operatorStateInputs.iterator().hasNext());
+        Assertions.assertFalse(keyedStateInputs.iterator().hasNext());
+        Assertions.assertFalse(operatorStateInputs.iterator().hasNext());
     }
 
     @SuppressWarnings("unchecked")
@@ -248,27 +253,27 @@ public class StreamTaskStateInitializerImplTest {
         CloseableIterable<StatePartitionStreamProvider> operatorStateInputs =
                 stateContext.rawOperatorStateInputs();
 
-        Assert.assertTrue("Expected the context to be restored", stateContext.isRestored());
+        Assertions.assertTrue(stateContext.isRestored(), "Expected the context to be restored");
 
-        Assert.assertNotNull(operatorStateBackend);
-        Assert.assertNotNull(keyedStateBackend);
+        Assertions.assertNotNull(operatorStateBackend);
+        Assertions.assertNotNull(keyedStateBackend);
         // this is deactivated on purpose so that it does not attempt to consume the raw keyed
         // state.
-        Assert.assertNull(timeServiceManager);
-        Assert.assertNotNull(keyedStateInputs);
-        Assert.assertNotNull(operatorStateInputs);
+        Assertions.assertNull(timeServiceManager);
+        Assertions.assertNotNull(keyedStateInputs);
+        Assertions.assertNotNull(operatorStateInputs);
 
         int count = 0;
         for (KeyGroupStatePartitionStreamProvider keyedStateInput : keyedStateInputs) {
             ++count;
         }
-        Assert.assertEquals(1, count);
+        Assertions.assertEquals(1, count);
 
         count = 0;
         for (StatePartitionStreamProvider operatorStateInput : operatorStateInputs) {
             ++count;
         }
-        Assert.assertEquals(3, count);
+        Assertions.assertEquals(3, count);
 
         checkCloseablesRegistered(
                 closeableRegistry,
@@ -281,7 +286,7 @@ public class StreamTaskStateInitializerImplTest {
     private static void checkCloseablesRegistered(
             CloseableRegistry closeableRegistry, Closeable... closeables) {
         for (Closeable closeable : closeables) {
-            Assert.assertTrue(closeableRegistry.unregisterCloseable(closeable));
+            Assertions.assertTrue(closeableRegistry.unregisterCloseable(closeable));
         }
     }
 

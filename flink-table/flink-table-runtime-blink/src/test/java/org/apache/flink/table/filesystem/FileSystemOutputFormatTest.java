@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.filesystem;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.java.io.TextOutputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
@@ -26,25 +27,24 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
-
-import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Test for {@link FileSystemOutputFormat}. */
 public class FileSystemOutputFormatTest {

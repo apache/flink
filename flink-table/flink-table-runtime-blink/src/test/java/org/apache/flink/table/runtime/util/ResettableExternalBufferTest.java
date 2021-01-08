@@ -30,6 +30,11 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
@@ -39,9 +44,9 @@ import java.util.List;
 import java.util.Random;
 
 import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link ResettableExternalBuffer}. */
 public class ResettableExternalBufferTest {
@@ -522,32 +527,46 @@ public class ResettableExternalBufferTest {
 
     @Test
     public void testUpdateIteratorFixedLengthLess() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    testUpdateIteratorLess(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
-        });
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    testUpdateIteratorLess(
+                            multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+                });
     }
 
     @Test
     public void testUpdateIteratorFixedLengthSpill() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    testUpdateIteratorSpill(multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
-        });
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    testUpdateIteratorSpill(
+                            multiColumnFixedLengthSerializer, FixedLengthRowData.class, true);
+                });
     }
 
     @Test
     public void testUpdateIteratorVariableLengthLess() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     testUpdateIteratorLess(
-                multiColumnVariableLengthSerializer, VariableLengthRowData.class, false);
-        });
+                            multiColumnVariableLengthSerializer,
+                            VariableLengthRowData.class,
+                            false);
+                });
     }
 
     @Test
     public void testUpdateIteratorVariableLengthSpill() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     testUpdateIteratorSpill(
-                multiColumnVariableLengthSerializer, VariableLengthRowData.class, false);
-        });
+                            multiColumnVariableLengthSerializer,
+                            VariableLengthRowData.class,
+                            false);
+                });
     }
 
     private <T extends RowData> void testMultiColumnRandomAccessLess(

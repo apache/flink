@@ -27,11 +27,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
-import org.apache.flink.runtime.metrics.groups.OperatorIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.metrics.groups.*;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.DriverStrategy;
 import org.apache.flink.runtime.operators.FlatMapDriver;
@@ -43,9 +39,12 @@ import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,7 +101,7 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
 
         testTask.invoke();
 
-        Assert.assertEquals(numRecords * 2 * 2, this.outList.size());
+        Assertions.assertEquals(numRecords * 2 * 2, this.outList.size());
 
         final TaskMetricGroup taskMetricGroup = mockEnv.getMetricGroup();
 
@@ -112,8 +111,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+            Assertions.assertEquals(numRecords, numRecordsInCounter.getCount());
+            Assertions.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
         }
 
         // verify head operator metrics
@@ -125,8 +124,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2, numRecordsOutCounter.getCount());
+            Assertions.assertEquals(numRecords, numRecordsInCounter.getCount());
+            Assertions.assertEquals(numRecords * 2, numRecordsOutCounter.getCount());
         }
 
         // verify chained operator metrics
@@ -138,8 +137,8 @@ public class ChainedOperatorsMetricTest extends TaskTestBase {
             final Counter numRecordsInCounter = ioMetricGroup.getNumRecordsInCounter();
             final Counter numRecordsOutCounter = ioMetricGroup.getNumRecordsOutCounter();
 
-            Assert.assertEquals(numRecords * 2, numRecordsInCounter.getCount());
-            Assert.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
+            Assertions.assertEquals(numRecords * 2, numRecordsInCounter.getCount());
+            Assertions.assertEquals(numRecords * 2 * 2, numRecordsOutCounter.getCount());
         }
     }
 

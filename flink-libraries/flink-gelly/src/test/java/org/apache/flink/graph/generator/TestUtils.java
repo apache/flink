@@ -33,8 +33,6 @@ import org.apache.flink.test.util.TestBaseUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
-
 /** Utility methods for testing graph algorithms. */
 public final class TestUtils {
 

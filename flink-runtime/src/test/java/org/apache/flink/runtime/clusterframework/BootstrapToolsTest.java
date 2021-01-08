@@ -18,15 +18,9 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import akka.actor.ActorSystem;
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -34,11 +28,13 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.CheckedSupplier;
-
-import akka.actor.ActorSystem;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,22 +49,14 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link BootstrapToolsTest}. */
 public class BootstrapToolsTest extends TestLogger {
@@ -587,10 +575,10 @@ public class BootstrapToolsTest extends TestLogger {
         Map<String, String> res =
                 ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
-        Assert.assertEquals(1, res.size());
+        Assertions.assertEquals(1, res.size());
         Map.Entry<String, String> entry = res.entrySet().iterator().next();
-        Assert.assertEquals("LD_LIBRARY_PATH", entry.getKey());
-        Assert.assertEquals("/usr/lib/native", entry.getValue());
+        Assertions.assertEquals("LD_LIBRARY_PATH", entry.getKey());
+        Assertions.assertEquals("/usr/lib/native", entry.getValue());
     }
 
     @Test
@@ -601,7 +589,7 @@ public class BootstrapToolsTest extends TestLogger {
         Map<String, String> res =
                 ConfigurationUtils.getPrefixedKeyValuePairs("containerized.master.env.", testConf);
 
-        Assert.assertEquals(0, res.size());
+        Assertions.assertEquals(0, res.size());
     }
 
     @Test

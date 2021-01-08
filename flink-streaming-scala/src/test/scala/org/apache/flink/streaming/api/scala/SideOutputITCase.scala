@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 /**

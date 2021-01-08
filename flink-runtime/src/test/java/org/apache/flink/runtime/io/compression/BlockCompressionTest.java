@@ -18,13 +18,17 @@
 
 package org.apache.flink.runtime.io.compression;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 
 import static org.apache.flink.runtime.io.compression.Lz4BlockCompressionFactory.HEADER_LENGTH;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for block compression. */
 public class BlockCompressionTest {
@@ -57,7 +61,7 @@ public class BlockCompressionTest {
         byte[] insufficientArray = new byte[compressedOff + HEADER_LENGTH + 1];
         try {
             compressor.compress(data, originalOff, originalLen, insufficientArray, compressedOff);
-            Assert.fail("expect exception here");
+            Assertions.fail("expect exception here");
         } catch (InsufficientBufferException ex) {
         }
 
@@ -78,7 +82,7 @@ public class BlockCompressionTest {
                     compressedLen,
                     insufficientArray,
                     decompressedOff);
-            Assert.fail("expect exception here");
+            Assertions.fail("expect exception here");
         } catch (InsufficientBufferException ex) {
         }
 

@@ -26,10 +26,15 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableReducingState}. */
 public class ImmutableReducingStateTest {
@@ -52,22 +57,26 @@ public class ImmutableReducingStateTest {
 
     @Test
     public void testUpdate() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     long value = reduceState.get();
-        assertEquals(42L, value);
+                    assertEquals(42L, value);
 
-        reduceState.add(54L);
-        });
+                    reduceState.add(54L);
+                });
     }
 
     @Test
     public void testClear() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     long value = reduceState.get();
-        assertEquals(42L, value);
+                    assertEquals(42L, value);
 
-        reduceState.clear();
-        });
+                    reduceState.clear();
+                });
     }
 
     /** Test {@link ReduceFunction} summing up its two arguments. */

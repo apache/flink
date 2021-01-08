@@ -22,10 +22,13 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -95,20 +98,20 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
         keyedStateHandles.add(keyedStateHandle3);
 
         // this should choose no one handle.
-        Assert.assertNull(
+        Assertions.assertNull(
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
                         keyedStateHandles, new KeyGroupRange(3, 5)));
 
         // this should choose keyedStateHandle2, because keyedStateHandle2's key-group range
         // satisfies the overlap fraction demand.
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 keyedStateHandle2,
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
                         keyedStateHandles, new KeyGroupRange(3, 6)));
 
         // both keyedStateHandle2 & keyedStateHandle3's key-group range satisfies the overlap
         // fraction, but keyedStateHandle3's overlap fraction is better.
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 keyedStateHandle3,
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
                         keyedStateHandles, new KeyGroupRange(5, 12)));
@@ -116,7 +119,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
         // both keyedStateHandle2 & keyedStateHandle3's key-group range are covered by [3, 12],
         // but this should choose the keyedStateHandle3, because keyedStateHandle3's key-group is
         // bigger than keyedStateHandle2.
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 keyedStateHandle3,
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
                         keyedStateHandles, new KeyGroupRange(3, 12)));
@@ -156,7 +159,7 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                     RocksDBKeySerializationUtils.writeKey(
                             j, IntSerializer.INSTANCE, outputView, false);
                     byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
-                    Assert.assertEquals(String.valueOf(j), new String(value));
+                    Assertions.assertEquals(String.valueOf(j), new String(value));
                 }
             }
 
@@ -176,9 +179,9 @@ public class RocksDBIncrementalCheckpointUtilsTest extends TestLogger {
                             j, IntSerializer.INSTANCE, outputView, false);
                     byte[] value = rocksDB.get(columnFamilyHandle, outputView.getCopyOfBuffer());
                     if (targetGroupRange.contains(i)) {
-                        Assert.assertEquals(String.valueOf(j), new String(value));
+                        Assertions.assertEquals(String.valueOf(j), new String(value));
                     } else {
-                        Assert.assertNull(value);
+                        Assertions.assertNull(value);
                     }
                 }
             }

@@ -32,11 +32,13 @@ import org.apache.flink.streaming.runtime.io.AlignedControllerTest.CheckpointExc
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -92,8 +94,8 @@ public class StreamTaskCancellationBarrierTest {
 
         // a cancellation barrier should be downstream
         Object result = testHarness.getOutput().poll();
-        assertNotNull("nothing emitted", result);
-        assertTrue("wrong type emitted", result instanceof CancelCheckpointMarker);
+        assertNotNull(result, "nothing emitted");
+        assertTrue(result instanceof CancelCheckpointMarker, "wrong type emitted");
         assertEquals(
                 "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
 
@@ -145,8 +147,8 @@ public class StreamTaskCancellationBarrierTest {
 
         // a cancellation barrier should be downstream
         Object result = testHarness.getOutput().poll();
-        assertNotNull("nothing emitted", result);
-        assertTrue("wrong type emitted", result instanceof CancelCheckpointMarker);
+        assertNotNull(result, "nothing emitted");
+        assertTrue(result instanceof CancelCheckpointMarker, "wrong type emitted");
         assertEquals(
                 "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
 

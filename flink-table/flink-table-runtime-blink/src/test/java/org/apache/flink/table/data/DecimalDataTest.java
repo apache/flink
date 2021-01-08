@@ -19,36 +19,16 @@
 package org.apache.flink.table.data;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 
-import static org.apache.flink.table.data.DecimalDataUtils.abs;
-import static org.apache.flink.table.data.DecimalDataUtils.add;
-import static org.apache.flink.table.data.DecimalDataUtils.castFrom;
-import static org.apache.flink.table.data.DecimalDataUtils.castToBoolean;
-import static org.apache.flink.table.data.DecimalDataUtils.castToDecimal;
-import static org.apache.flink.table.data.DecimalDataUtils.castToIntegral;
-import static org.apache.flink.table.data.DecimalDataUtils.castToTimestamp;
-import static org.apache.flink.table.data.DecimalDataUtils.ceil;
-import static org.apache.flink.table.data.DecimalDataUtils.compare;
-import static org.apache.flink.table.data.DecimalDataUtils.divide;
-import static org.apache.flink.table.data.DecimalDataUtils.divideToIntegralValue;
-import static org.apache.flink.table.data.DecimalDataUtils.doubleValue;
-import static org.apache.flink.table.data.DecimalDataUtils.floor;
-import static org.apache.flink.table.data.DecimalDataUtils.is32BitDecimal;
-import static org.apache.flink.table.data.DecimalDataUtils.is64BitDecimal;
-import static org.apache.flink.table.data.DecimalDataUtils.isByteArrayDecimal;
-import static org.apache.flink.table.data.DecimalDataUtils.mod;
-import static org.apache.flink.table.data.DecimalDataUtils.multiply;
-import static org.apache.flink.table.data.DecimalDataUtils.negate;
-import static org.apache.flink.table.data.DecimalDataUtils.sign;
-import static org.apache.flink.table.data.DecimalDataUtils.signum;
-import static org.apache.flink.table.data.DecimalDataUtils.sround;
-import static org.apache.flink.table.data.DecimalDataUtils.subtract;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.data.DecimalDataUtils.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test for {@link DecimalData}. */
 public class DecimalDataTest {

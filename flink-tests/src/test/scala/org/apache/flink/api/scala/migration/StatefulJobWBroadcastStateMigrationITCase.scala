@@ -426,22 +426,22 @@ class VerifyingBroadcastProcessFunction(
     import scala.collection.JavaConversions._
     for (entry <- ctx.getBroadcastState(firstBroadcastStateDesc).immutableEntries()) {
       val v = firstExpectedBroadcastState.get(entry.getKey).get
-      Assert.assertEquals(v, entry.getValue)
+      Assertions.assertEquals(v, entry.getValue)
       actualFirstState += (entry.getKey -> entry.getValue)
     }
 
-    Assert.assertEquals(firstExpectedBroadcastState, actualFirstState)
+    Assertions.assertEquals(firstExpectedBroadcastState, actualFirstState)
 
     var actualSecondState = Map[String, String]()
 
     import scala.collection.JavaConversions._
     for (entry <- ctx.getBroadcastState(secondBroadcastStateDesc).immutableEntries()) {
       val v = secondExpectedBroadcastState.get(entry.getKey).get
-      Assert.assertEquals(v, entry.getValue)
+      Assertions.assertEquals(v, entry.getValue)
       actualSecondState += (entry.getKey -> entry.getValue)
     }
 
-    Assert.assertEquals(secondExpectedBroadcastState, actualSecondState)
+    Assertions.assertEquals(secondExpectedBroadcastState, actualSecondState)
     out.collect(value)
   }
 

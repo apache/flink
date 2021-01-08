@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData.{data1, nullData4, 
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.util.ExceptionUtils
 
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.{Rule, Test}
 
 import java.lang.{Long => JLong}

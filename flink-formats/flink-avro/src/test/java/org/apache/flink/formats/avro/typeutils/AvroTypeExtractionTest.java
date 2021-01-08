@@ -32,12 +32,15 @@ import org.apache.flink.formats.avro.AvroRecordInputFormatTest;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -277,7 +280,7 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 
         // test if automatic registration of the Types worked
         ExecutionConfig ec = env.getConfig();
-        Assert.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
+        Assertions.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
 
         switch (fieldName) {
             case "name":
@@ -290,7 +293,7 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
                 expected = "123.45\n1.337\n";
                 break;
             default:
-                Assert.fail("Unknown field");
+                Assertions.fail("Unknown field");
                 break;
         }
 

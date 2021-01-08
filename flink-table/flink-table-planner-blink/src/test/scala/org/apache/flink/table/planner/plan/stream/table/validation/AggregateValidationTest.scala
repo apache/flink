@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertTrue, fail}
 import org.junit.jupiter.api.Test
 
 class AggregateValidationTest extends TableTestBase {
@@ -31,7 +31,7 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test
   def testGroupingOnNonExistentField(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val ds = table

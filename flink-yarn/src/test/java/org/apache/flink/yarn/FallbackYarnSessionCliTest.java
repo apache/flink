@@ -18,35 +18,40 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.cli.*;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.yarn.cli.FallbackYarnSessionCli;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Tests for the {@link FallbackYarnSessionCliTest}. */
 public class FallbackYarnSessionCliTest {
 
     @Test
     public void testExceptionWhenActiveWithYarnApplicationId() throws ParseException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     checkIfYarnFallbackCLIisActiveWithCLIArgs(
-                "run", "-yid", ApplicationId.newInstance(0L, 0).toString());
-        });
+                            "run", "-yid", ApplicationId.newInstance(0L, 0).toString());
+                });
     }
 
     @Test
     public void testExceptionWhenActiveWithExplicitClusterType() throws ParseException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    checkIfYarnFallbackCLIisActiveWithCLIArgs("run", "-m", FallbackYarnSessionCli.ID);
-        });
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    checkIfYarnFallbackCLIisActiveWithCLIArgs(
+                            "run", "-m", FallbackYarnSessionCli.ID);
+                });
     }
 
     @Test

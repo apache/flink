@@ -27,34 +27,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.TestingExecutionGraphBuilder;
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.OperatorInstanceID;
+import org.apache.flink.runtime.jobgraph.*;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -62,15 +50,12 @@ import java.util.stream.IntStream;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewKeyedStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewOperatorStateHandle;
-import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
+import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.*;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.RANGE;
 import static org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper.ROUND_ROBIN;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests to verify state assignment operation. */
 public class StateAssignmentOperationTest extends TestLogger {
@@ -310,20 +295,20 @@ public class StateAssignmentOperationTest extends TestLogger {
                         // -> each one will go to one task
                         stateOffsets
                                 .values()
-                                .forEach(length -> Assert.assertEquals(1, (int) length));
+                                .forEach(length -> Assertions.assertEquals(1, (int) length));
                     } else {
                         // SPLIT_DISTRIBUTE: when rescale down to 1 or not rescale, not
                         // re-distribute them.
                         stateOffsets
                                 .values()
-                                .forEach(length -> Assert.assertEquals(2, (int) length));
+                                .forEach(length -> Assertions.assertEquals(2, (int) length));
                     }
                 } else if (OperatorStateHandle.Mode.UNION.equals(mode)) {
                     // UNION: all to all
-                    stateOffsets.values().forEach(length -> Assert.assertEquals(2, (int) length));
+                    stateOffsets.values().forEach(length -> Assertions.assertEquals(2, (int) length));
                 } else {
                     // BROADCAST: so all to all
-                    stateOffsets.values().forEach(length -> Assert.assertEquals(3, (int) length));
+                    stateOffsets.values().forEach(length -> Assertions.assertEquals(3, (int) length));
                 }
             }
         }
@@ -352,32 +337,32 @@ public class StateAssignmentOperationTest extends TestLogger {
         verifyAndCollectStateInfo(
                 operatorState, operatorID, oldParallelism, newParallelism, stateInfoCounts);
 
-        Assert.assertEquals(2, stateInfoCounts.size());
+        Assertions.assertEquals(2, stateInfoCounts.size());
 
         // t-1 and t-2 are SPLIT_DISTRIBUTE state, when rescale up, they will be split to
         // re-distribute.
         if (stateInfoCounts.containsKey("t-1")) {
             if (oldParallelism < newParallelism) {
-                Assert.assertEquals(2, stateInfoCounts.get("t-1").intValue());
-                Assert.assertEquals(2, stateInfoCounts.get("t-2").intValue());
+                Assertions.assertEquals(2, stateInfoCounts.get("t-1").intValue());
+                Assertions.assertEquals(2, stateInfoCounts.get("t-2").intValue());
             } else {
-                Assert.assertEquals(1, stateInfoCounts.get("t-1").intValue());
-                Assert.assertEquals(1, stateInfoCounts.get("t-2").intValue());
+                Assertions.assertEquals(1, stateInfoCounts.get("t-1").intValue());
+                Assertions.assertEquals(1, stateInfoCounts.get("t-2").intValue());
             }
         }
 
         // t-3 and t-4 are UNION state.
         if (stateInfoCounts.containsKey("t-3")) {
             // original two sub-tasks both contain one "t-3" state
-            Assert.assertEquals(2 * newParallelism, stateInfoCounts.get("t-3").intValue());
+            Assertions.assertEquals(2 * newParallelism, stateInfoCounts.get("t-3").intValue());
             // only one original sub-task contains one "t-4" state
-            Assert.assertEquals(newParallelism, stateInfoCounts.get("t-4").intValue());
+            Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-4").intValue());
         }
 
         // t-5 and t-6 are BROADCAST state.
         if (stateInfoCounts.containsKey("t-5")) {
-            Assert.assertEquals(newParallelism, stateInfoCounts.get("t-5").intValue());
-            Assert.assertEquals(newParallelism, stateInfoCounts.get("t-6").intValue());
+            Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-5").intValue());
+            Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-6").intValue());
         }
     }
 
@@ -392,20 +377,20 @@ public class StateAssignmentOperationTest extends TestLogger {
         verifyAndCollectStateInfo(
                 operatorState, operatorID, oldParallelism, newParallelism, stateInfoCounts);
 
-        Assert.assertEquals(6, stateInfoCounts.size());
+        Assertions.assertEquals(6, stateInfoCounts.size());
         // t-1 is UNION state and original two sub-tasks both contains one.
-        Assert.assertEquals(2 * newParallelism, stateInfoCounts.get("t-1").intValue());
-        Assert.assertEquals(newParallelism, stateInfoCounts.get("t-2").intValue());
+        Assertions.assertEquals(2 * newParallelism, stateInfoCounts.get("t-1").intValue());
+        Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-2").intValue());
 
         // t-3 is SPLIT_DISTRIBUTE state, when rescale up, they will be split to re-distribute.
         if (oldParallelism < newParallelism) {
-            Assert.assertEquals(2, stateInfoCounts.get("t-3").intValue());
+            Assertions.assertEquals(2, stateInfoCounts.get("t-3").intValue());
         } else {
-            Assert.assertEquals(1, stateInfoCounts.get("t-3").intValue());
+            Assertions.assertEquals(1, stateInfoCounts.get("t-3").intValue());
         }
-        Assert.assertEquals(newParallelism, stateInfoCounts.get("t-4").intValue());
-        Assert.assertEquals(newParallelism, stateInfoCounts.get("t-5").intValue());
-        Assert.assertEquals(newParallelism, stateInfoCounts.get("t-6").intValue());
+        Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-4").intValue());
+        Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-5").intValue());
+        Assertions.assertEquals(newParallelism, stateInfoCounts.get("t-6").intValue());
     }
 
     /** Check that channel and operator states are assigned to the same tasks on recovery. */
@@ -424,7 +409,7 @@ public class StateAssignmentOperationTest extends TestLogger {
 
         for (OperatorID operatorId : operatorIds) {
             for (int subtaskIdx = 0; subtaskIdx < numSubTasks; subtaskIdx++) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         states.get(operatorId).getState(subtaskIdx),
                         getAssignedState(vertices.get(operatorId), operatorId, subtaskIdx));
             }
@@ -552,7 +537,7 @@ public class StateAssignmentOperationTest extends TestLogger {
         new StateAssignmentOperation(0, Collections.singleton(executionJobVertex), states, false)
                 .assignStates();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 states.get(userDefinedOperatorId).getState(0),
                 getAssignedState(executionJobVertex, operatorId, 0));
     }

@@ -29,17 +29,18 @@ import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.HttpTestClient;
 import org.apache.flink.runtime.webmonitor.utils.WebFrontendBootstrap;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
@@ -80,7 +81,7 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
             HttpTestClient.SimpleHttpResponse response =
                     httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
-            Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
+            Assertions.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
             // 2. with leader
             gatewayFuture.complete(gateway);
@@ -89,8 +90,8 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 
             response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
-            Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
-            Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());
+            Assertions.assertEquals(HttpResponseStatus.OK, response.getStatus());
+            Assertions.assertEquals(RESPONSE_MESSAGE, response.getContent());
 
         } finally {
             bootstrap.shutdown();
@@ -110,7 +111,7 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
                 RoutedRequest routedRequest,
                 RestfulGateway gateway)
                 throws Exception {
-            Assert.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
+            Assertions.assertTrue(channelHandlerContext.channel().eventLoop().inEventLoop());
             HttpResponse response =
                     HandlerRedirectUtils.getResponse(HttpResponseStatus.OK, RESPONSE_MESSAGE);
             KeepAliveWrite.flush(

@@ -22,7 +22,7 @@ import org.apache.flink.table.api.ImplicitExpressionConversions
 import org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi
 
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert.assertThat
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 
 import java.math.{BigDecimal => JBigDecimal}

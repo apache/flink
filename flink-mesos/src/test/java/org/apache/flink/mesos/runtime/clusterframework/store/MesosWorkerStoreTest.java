@@ -20,11 +20,15 @@ package org.apache.flink.mesos.runtime.clusterframework.store;
 
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.mesos.Protos;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link MesosWorkerStore}. */
 public class MesosWorkerStoreTest extends TestLogger {

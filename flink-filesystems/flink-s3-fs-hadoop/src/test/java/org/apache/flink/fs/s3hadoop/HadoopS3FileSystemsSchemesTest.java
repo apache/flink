@@ -19,12 +19,16 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.core.fs.FileSystemFactory;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ServiceLoader;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** This test validates that the S3 file system registers both under s3:// and s3a://. */
 public class HadoopS3FileSystemsSchemesTest {

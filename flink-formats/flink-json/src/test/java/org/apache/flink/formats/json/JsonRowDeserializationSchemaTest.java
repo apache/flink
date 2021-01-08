@@ -25,9 +25,13 @@ import org.apache.flink.types.Row;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
@@ -43,9 +47,9 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.formats.utils.DeserializationSchemaMatcher.whenDeserializedWith;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
@@ -261,7 +265,7 @@ public class JsonRowDeserializationSchemaTest {
             new JsonRowDeserializationSchema.Builder(
                             Types.ROW_NAMED(new String[] {"one", "two", "three"}, Types.LONG))
                     .build();
-            Assert.fail("Did not throw expected Exception");
+            Assertions.fail("Did not throw expected Exception");
         } catch (IllegalArgumentException ignored) {
             // Expected
         }

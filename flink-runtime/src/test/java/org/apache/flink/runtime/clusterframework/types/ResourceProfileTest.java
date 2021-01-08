@@ -24,25 +24,21 @@ import org.apache.flink.api.common.resources.GPUResource;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_CPU_CORE_NUMBER_TO_LOG;
 import static org.apache.flink.runtime.clusterframework.types.ResourceProfile.MAX_MEMORY_SIZE_TO_LOG;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.CoreMatchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link ResourceProfile}. */
 public class ResourceProfileTest extends TestLogger {
@@ -374,28 +370,30 @@ public class ResourceProfileTest extends TestLogger {
 
     @Test
     public void testSubtractWithInfValues() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     // Does not equals to ANY since it has extended resources.
-        final ResourceProfile rp1 =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(Double.MAX_VALUE)
-                        .setTaskHeapMemoryMB(Integer.MAX_VALUE)
-                        .setTaskOffHeapMemoryMB(Integer.MAX_VALUE)
-                        .setManagedMemoryMB(Integer.MAX_VALUE)
-                        .setNetworkMemoryMB(Integer.MAX_VALUE)
-                        .addExtendedResource("gpu", new GPUResource(4.0))
-                        .build();
-        final ResourceProfile rp2 =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(2.0)
-                        .setTaskHeapMemoryMB(200)
-                        .setTaskOffHeapMemoryMB(200)
-                        .setManagedMemoryMB(200)
-                        .setNetworkMemoryMB(200)
-                        .build();
+                    final ResourceProfile rp1 =
+                            ResourceProfile.newBuilder()
+                                    .setCpuCores(Double.MAX_VALUE)
+                                    .setTaskHeapMemoryMB(Integer.MAX_VALUE)
+                                    .setTaskOffHeapMemoryMB(Integer.MAX_VALUE)
+                                    .setManagedMemoryMB(Integer.MAX_VALUE)
+                                    .setNetworkMemoryMB(Integer.MAX_VALUE)
+                                    .addExtendedResource("gpu", new GPUResource(4.0))
+                                    .build();
+                    final ResourceProfile rp2 =
+                            ResourceProfile.newBuilder()
+                                    .setCpuCores(2.0)
+                                    .setTaskHeapMemoryMB(200)
+                                    .setTaskOffHeapMemoryMB(200)
+                                    .setManagedMemoryMB(200)
+                                    .setNetworkMemoryMB(200)
+                                    .build();
 
-        rp2.subtract(rp1);
-        });
+                    rp2.subtract(rp1);
+                });
     }
 
     @Test
@@ -421,18 +419,20 @@ public class ResourceProfileTest extends TestLogger {
 
     @Test
     public void testMultiplyNegative() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final ResourceProfile rp =
-                ResourceProfile.newBuilder()
-                        .setCpuCores(1.0)
-                        .setTaskHeapMemoryMB(100)
-                        .setTaskOffHeapMemoryMB(100)
-                        .setNetworkMemoryMB(100)
-                        .setManagedMemoryMB(100)
-                        .addExtendedResource("gpu", new GPUResource(1.0))
-                        .build();
-        rp.multiply(-2);
-        });
+                            ResourceProfile.newBuilder()
+                                    .setCpuCores(1.0)
+                                    .setTaskHeapMemoryMB(100)
+                                    .setTaskOffHeapMemoryMB(100)
+                                    .setNetworkMemoryMB(100)
+                                    .setManagedMemoryMB(100)
+                                    .addExtendedResource("gpu", new GPUResource(1.0))
+                                    .build();
+                    rp.multiply(-2);
+                });
     }
 
     @Test

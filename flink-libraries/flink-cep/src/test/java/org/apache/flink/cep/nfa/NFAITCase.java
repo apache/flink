@@ -30,31 +30,26 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.utils.NFATestHarness;
 import org.apache.flink.cep.utils.TestSharedBuffer;
 import org.apache.flink.cep.utils.TestTimerService;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
 import static org.apache.flink.cep.utils.NFATestUtilities.feedNFA;
 import static org.apache.flink.cep.utils.NFAUtils.compile;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Matchers.anyLong;
 
 /**
@@ -3822,14 +3817,14 @@ public class NFAITCase extends TestLogger {
         Collection<Map<String, List<Event>>> resultingPatterns =
                 nfaTestHarness.consumeRecords(inputEvents);
 
-        Assert.assertEquals(1L, resultingPatterns.size());
+        Assertions.assertEquals(1L, resultingPatterns.size());
 
         Map<String, List<Event>> match = resultingPatterns.iterator().next();
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 match.get("start").toArray(),
                 Lists.newArrayList(startEvent1, startEvent2, startEvent3, startEvent4).toArray());
 
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 match.get("middle").toArray(),
                 Lists.newArrayList(endEvent1, endEvent2, endEvent3).toArray());
     }
@@ -3899,7 +3894,7 @@ public class NFAITCase extends TestLogger {
         Collection<Map<String, List<Event>>> resultingPatterns =
                 nfaTestHarness.consumeRecords(inputEvents);
 
-        Assert.assertEquals(1L, resultingPatterns.size());
+        Assertions.assertEquals(1L, resultingPatterns.size());
 
         Map<String, List<Event>> match = resultingPatterns.iterator().next();
 
@@ -3909,7 +3904,7 @@ public class NFAITCase extends TestLogger {
             resultOrder.add(key);
         }
 
-        Assert.assertEquals(expectedOrder, resultOrder);
+        Assertions.assertEquals(expectedOrder, resultOrder);
     }
 
     @Test

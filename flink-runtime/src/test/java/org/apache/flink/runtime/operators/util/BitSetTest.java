@@ -19,15 +19,17 @@ package org.apache.flink.runtime.operators.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @RunWith(Parameterized.class)
 public class BitSetTest {
@@ -50,37 +52,47 @@ public class BitSetTest {
 
     @Test
     public void verifyBitSetSize1() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     bitSet.setMemorySegment(memorySegment, 1);
-        });
+                });
     }
 
     @Test
     public void verifyBitSetSize2() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     bitSet.setMemorySegment(null, 1);
-        });
+                });
     }
 
     @Test
     public void verifyBitSetSize3() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     bitSet.setMemorySegment(memorySegment, -1);
-        });
+                });
     }
 
     @Test
     public void verifyInputIndex1() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     bitSet.set(8 * byteSize + 1);
-        });
+                });
     }
 
     @Test
     public void verifyInputIndex2() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     bitSet.set(-1);
-        });
+                });
     }
 
     @Test

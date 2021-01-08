@@ -35,14 +35,7 @@ import org.apache.flink.runtime.operators.sort.Sorter;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.Random;
 
 /** Test {@link ExternalSorter} on a large set of {@code String}. */
@@ -123,8 +116,8 @@ public class MassiveStringSorting {
                 while ((next = verifyReader.readLine()) != null) {
                     String nextFromStratoSort = sortedData.next("");
 
-                    Assert.assertNotNull(nextFromStratoSort);
-                    Assert.assertEquals(next, nextFromStratoSort);
+                    Assertions.assertNotNull(nextFromStratoSort);
+                    Assertions.assertEquals(next, nextFromStratoSort);
                 }
             } finally {
                 if (reader != null) {
@@ -143,7 +136,7 @@ public class MassiveStringSorting {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         } finally {
             if (input != null) {
                 input.delete();
@@ -264,14 +257,14 @@ public class MassiveStringSorting {
                     num++;
 
                     nextFromStratoSort = sortedData.next(nextFromStratoSort);
-                    Assert.assertNotNull(nextFromStratoSort);
+                    Assertions.assertNotNull(nextFromStratoSort);
 
-                    Assert.assertEquals(next.f0, nextFromStratoSort.f0);
-                    Assert.assertArrayEquals(next.f1, nextFromStratoSort.f1);
+                    Assertions.assertEquals(next.f0, nextFromStratoSort.f0);
+                    Assertions.assertArrayEquals(next.f1, nextFromStratoSort.f1);
                 }
 
-                Assert.assertNull(sortedData.next(nextFromStratoSort));
-                Assert.assertEquals(numStrings, num);
+                Assertions.assertNull(sortedData.next(nextFromStratoSort));
+                Assertions.assertEquals(numStrings, num);
 
             } finally {
                 if (reader != null) {
@@ -290,7 +283,7 @@ public class MassiveStringSorting {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         } finally {
             if (input != null) {
                 input.delete();

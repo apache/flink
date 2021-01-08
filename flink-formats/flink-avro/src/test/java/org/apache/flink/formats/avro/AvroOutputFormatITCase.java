@@ -18,6 +18,10 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -27,12 +31,6 @@ import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.test.util.JavaProgramTestBase;
-
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.junit.Assert;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -99,7 +97,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             output1 = file1.listFiles();
             // check for avro ext in dir.
             for (File avroOutput : Objects.requireNonNull(output1)) {
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "Expect extension '.avro'", avroOutput.toString().endsWith(".avro"));
             }
         } else {
@@ -122,7 +120,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             }
         }
         for (String expectedResult : userData.split("\n")) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "expected user " + expectedResult + " not found.",
                     result1.contains(expectedResult));
         }
@@ -152,7 +150,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             }
         }
         for (String expectedResult : userData.split("\n")) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "expected user " + expectedResult + " not found.",
                     result2.contains(expectedResult));
         }

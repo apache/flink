@@ -22,25 +22,22 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MailboxClosedException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link MailboxExecutorImpl}. */
 public class MailboxExecutorImplTest {
@@ -110,7 +107,7 @@ public class MailboxExecutorImplTest {
                 .get();
 
         mailbox.take(DEFAULT_PRIORITY).run();
-        Assert.assertTrue(wasExecuted.get());
+        Assertions.assertTrue(wasExecuted.get());
     }
 
     @Test
@@ -135,13 +132,13 @@ public class MailboxExecutorImplTest {
 
         try {
             mailboxExecutor.tryYield();
-            Assert.fail("yielding should not work after shutdown().");
+            Assertions.fail("yielding should not work after shutdown().");
         } catch (MailboxClosedException expected) {
         }
 
         try {
             mailboxExecutor.yield();
-            Assert.fail("yielding should not work after shutdown().");
+            Assertions.fail("yielding should not work after shutdown().");
         } catch (MailboxClosedException expected) {
         }
     }
@@ -155,7 +152,7 @@ public class MailboxExecutorImplTest {
                 .get();
         assertTrue(mailboxExecutor.tryYield());
         assertFalse(mailboxExecutor.tryYield());
-        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+        Assertions.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
     }
 
     @Test
@@ -176,8 +173,8 @@ public class MailboxExecutorImplTest {
         mailboxExecutor.yield();
         submitThread.join();
 
-        Assert.assertNull(exceptionReference.get());
-        Assert.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
+        Assertions.assertNull(exceptionReference.get());
+        Assertions.assertEquals(Thread.currentThread(), testRunnable.wasExecutedBy());
     }
 
     /** Test {@link Runnable} that tracks execution. */

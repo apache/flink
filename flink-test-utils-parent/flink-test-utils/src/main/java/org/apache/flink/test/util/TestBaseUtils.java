@@ -29,7 +29,6 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,9 +64,9 @@ import scala.concurrent.ExecutionContext$;
 import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Utility class containing various methods for testing purposes. */
 public class TestBaseUtils extends TestLogger {
@@ -97,7 +96,7 @@ public class TestBaseUtils extends TestLogger {
 
     private static void verifyJvmOptions() {
         long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Insufficient java heap space "
                         + heap
                         + "mb - set JVM option: -Xmx"
@@ -253,11 +252,11 @@ public class TestBaseUtils extends TestLogger {
 
         String[] expected = expectedResultStr.split("\n");
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Different number of lines in expected and obtained result.",
                 expected.length,
                 result.length);
-        Assert.assertArrayEquals(expected, result);
+        Assertions.assertArrayEquals(expected, result);
     }
 
     public static void checkLinesAgainstRegexp(String resultPath, String regexp) {
@@ -268,14 +267,14 @@ public class TestBaseUtils extends TestLogger {
         try {
             readAllResultLines(list, resultPath, new String[] {}, false);
         } catch (IOException e1) {
-            Assert.fail("Error reading the result");
+            Assertions.fail("Error reading the result");
         }
 
         for (String line : list) {
             matcher.reset(line);
             if (!matcher.find()) {
                 String msg = "Line is not well-formed: " + line;
-                Assert.fail(msg);
+                Assertions.fail(msg);
             }
         }
     }
@@ -300,7 +299,7 @@ public class TestBaseUtils extends TestLogger {
         String[] result = list.toArray(new String[list.size()]);
         String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
 
-        Assert.assertEquals("Wrong number of result lines.", expected.length, result.length);
+        Assertions.assertEquals("Wrong number of result lines.", expected.length, result.length);
 
         Arrays.sort(result);
         Arrays.sort(expected);
@@ -312,7 +311,7 @@ public class TestBaseUtils extends TestLogger {
             double expectedPayLoad = Double.parseDouble(expectedFields[1]);
             double resultPayLoad = Double.parseDouble(resultFields[1]);
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Values differ by more than the permissible delta",
                     Math.abs(expectedPayLoad - resultPayLoad) < maxDelta);
         }
@@ -320,19 +319,19 @@ public class TestBaseUtils extends TestLogger {
 
     public static <X> void compareResultCollections(
             List<X> expected, List<X> actual, Comparator<X> comparator) {
-        Assert.assertEquals(expected.size(), actual.size());
+        Assertions.assertEquals(expected.size(), actual.size());
 
         Collections.sort(expected, comparator);
         Collections.sort(actual, comparator);
 
         for (int i = 0; i < expected.size(); i++) {
-            Assert.assertEquals(expected.get(i), actual.get(i));
+            Assertions.assertEquals(expected.get(i), actual.get(i));
         }
     }
 
     private static File[] getAllInvolvedFiles(String resultPath, final String[] excludePrefixes) {
         final File result = asFile(resultPath);
-        assertTrue("Result file was not written", result.exists());
+        assertTrue(result.exists(), "Result file was not written");
 
         if (result.isDirectory()) {
             return result.listFiles(

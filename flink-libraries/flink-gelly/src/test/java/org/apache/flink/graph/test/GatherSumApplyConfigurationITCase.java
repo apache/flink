@@ -26,17 +26,15 @@ import org.apache.flink.graph.Edge;
 import org.apache.flink.graph.EdgeDirection;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.Vertex;
-import org.apache.flink.graph.gsa.ApplyFunction;
-import org.apache.flink.graph.gsa.GSAConfiguration;
-import org.apache.flink.graph.gsa.GatherFunction;
-import org.apache.flink.graph.gsa.GatherSumApplyIteration;
-import org.apache.flink.graph.gsa.Neighbor;
-import org.apache.flink.graph.gsa.SumFunction;
+import org.apache.flink.graph.gsa.*;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.LongValue;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -110,9 +108,10 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
 
         iteration.configure(parameters);
 
-        Assert.assertEquals("gelly iteration", iteration.getIterationConfiguration().getName(""));
-        Assert.assertEquals(2, iteration.getIterationConfiguration().getParallelism());
-        Assert.assertEquals(
+        Assertions.assertEquals(
+                "gelly iteration", iteration.getIterationConfiguration().getName(""));
+        Assertions.assertEquals(2, iteration.getIterationConfiguration().getParallelism());
+        Assertions.assertEquals(
                 true, iteration.getIterationConfiguration().isSolutionSetUnmanagedMemory());
 
         DataSet<Vertex<Long, Long>> data =
@@ -259,9 +258,9 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
             // test bcast variable
             @SuppressWarnings("unchecked")
             List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("gatherBcastSet");
-            Assert.assertEquals(1, bcastSet.get(0).intValue());
-            Assert.assertEquals(2, bcastSet.get(1).intValue());
-            Assert.assertEquals(3, bcastSet.get(2).intValue());
+            Assertions.assertEquals(1, bcastSet.get(0).intValue());
+            Assertions.assertEquals(2, bcastSet.get(1).intValue());
+            Assertions.assertEquals(3, bcastSet.get(2).intValue());
 
             // test aggregator
             if (getSuperstepNumber() == 2) {
@@ -269,11 +268,11 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
                         ((LongValue) getPreviousIterationAggregate("superstepAggregator"))
                                 .getValue();
 
-                Assert.assertEquals(7, aggrValue);
+                Assertions.assertEquals(7, aggrValue);
             }
 
             // test number of vertices
-            Assert.assertEquals(5, getNumberOfVertices());
+            Assertions.assertEquals(5, getNumberOfVertices());
         }
 
         public Long gather(Neighbor<Long, Long> neighbor) {
@@ -292,15 +291,15 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
             // test bcast variable
             @SuppressWarnings("unchecked")
             List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("sumBcastSet");
-            Assert.assertEquals(4, bcastSet.get(0).intValue());
-            Assert.assertEquals(5, bcastSet.get(1).intValue());
-            Assert.assertEquals(6, bcastSet.get(2).intValue());
+            Assertions.assertEquals(4, bcastSet.get(0).intValue());
+            Assertions.assertEquals(5, bcastSet.get(1).intValue());
+            Assertions.assertEquals(6, bcastSet.get(2).intValue());
 
             // test aggregator
             aggregator = getIterationAggregator("superstepAggregator");
 
             // test number of vertices
-            Assert.assertEquals(5, getNumberOfVertices());
+            Assertions.assertEquals(5, getNumberOfVertices());
         }
 
         public Long sum(Long newValue, Long currentValue) {
@@ -321,15 +320,15 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
             // test bcast variable
             @SuppressWarnings("unchecked")
             List<Integer> bcastSet = (List<Integer>) (List<?>) getBroadcastSet("applyBcastSet");
-            Assert.assertEquals(7, bcastSet.get(0).intValue());
-            Assert.assertEquals(8, bcastSet.get(1).intValue());
-            Assert.assertEquals(9, bcastSet.get(2).intValue());
+            Assertions.assertEquals(7, bcastSet.get(0).intValue());
+            Assertions.assertEquals(8, bcastSet.get(1).intValue());
+            Assertions.assertEquals(9, bcastSet.get(2).intValue());
 
             // test aggregator
             aggregator = getIterationAggregator("superstepAggregator");
 
             // test number of vertices
-            Assert.assertEquals(5, getNumberOfVertices());
+            Assertions.assertEquals(5, getNumberOfVertices());
         }
 
         public void apply(Long summedValue, Long origValue) {
@@ -346,7 +345,7 @@ public class GatherSumApplyConfigurationITCase extends MultipleProgramsTestBase 
         public void preSuperstep() {
             // test number of vertices
             // when the numVertices option is not set, -1 is returned
-            Assert.assertEquals(-1, getNumberOfVertices());
+            Assertions.assertEquals(-1, getNumberOfVertices());
         }
 
         public Long gather(Neighbor<Long, Long> neighbor) {

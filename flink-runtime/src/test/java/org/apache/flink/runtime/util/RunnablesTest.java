@@ -19,16 +19,14 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class RunnablesTest {
@@ -53,7 +51,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Expected handler to be called.",
                 handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }
@@ -73,7 +71,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertFalse(
+        Assertions.assertFalse(
                 "Expected handler not to be called.",
                 handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
     }
@@ -120,11 +118,11 @@ public class RunnablesTest {
                             handlerCalled.countDown();
                         });
         scheduledExecutorService.execute(guardedRunnable);
-        Assert.assertTrue(handlerCalled.await(100, TimeUnit.MILLISECONDS));
-        Assert.assertNotNull(thread.get());
-        Assert.assertNotNull(throwable.get());
-        Assert.assertEquals("ueh-test-0", thread.get().getName());
-        Assert.assertEquals(expected.getClass(), throwable.get().getClass());
-        Assert.assertEquals("foo", throwable.get().getMessage());
+        Assertions.assertTrue(handlerCalled.await(100, TimeUnit.MILLISECONDS));
+        Assertions.assertNotNull(thread.get());
+        Assertions.assertNotNull(throwable.get());
+        Assertions.assertEquals("ueh-test-0", thread.get().getName());
+        Assertions.assertEquals(expected.getClass(), throwable.get().getClass());
+        Assertions.assertEquals("foo", throwable.get().getMessage());
     }
 }

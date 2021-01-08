@@ -30,7 +30,7 @@ import org.apache.flink.api.java.typeutils.{EitherTypeInfo => JavaEitherTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TypeInfoFactoryTest._
 import org.apache.flink.util.TestLogger
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 import org.scalatest.junit.JUnitSuiteLike
 

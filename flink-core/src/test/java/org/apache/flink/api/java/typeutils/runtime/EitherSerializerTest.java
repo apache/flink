@@ -40,8 +40,8 @@ import java.io.IOException;
 import static junit.framework.TestCase.assertSame;
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class EitherSerializerTest {
 
@@ -240,10 +240,10 @@ public class EitherSerializerTest {
                 TypeSerializer<T> serializer = getSerializer();
 
                 T instance = serializer.createInstance();
-                assertNotNull("The created instance must not be null.", instance);
+                assertNotNull(instance, "The created instance must not be null.");
 
                 Class<T> type = getTypeClass();
-                assertNotNull("The test is corrupt: type class is null.", type);
+                assertNotNull(type, "The test is corrupt: type class is null.");
             } catch (Exception e) {
                 System.err.println(e.getMessage());
                 e.printStackTrace();

@@ -72,9 +72,13 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.SerializedValue;
 
 import org.hamcrest.collection.IsMapContaining;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayDeque;
@@ -90,8 +94,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link MultipleInputStreamTask}. Theses tests implicitly also test the {@link
@@ -882,7 +886,7 @@ public class MultipleInputStreamTaskTest {
         public void open() throws Exception {
             super.open();
             if (closeCalled) {
-                Assert.fail("Close called before open.");
+                Assertions.fail("Close called before open.");
             }
             openCalled = true;
         }
@@ -891,7 +895,7 @@ public class MultipleInputStreamTaskTest {
         public void close() throws Exception {
             super.close();
             if (!openCalled) {
-                Assert.fail("Open was not called before close.");
+                Assertions.fail("Open was not called before close.");
             }
             closeCalled = true;
         }
@@ -919,7 +923,7 @@ public class MultipleInputStreamTaskTest {
             @Override
             public void processElement(StreamRecord<T> element) throws Exception {
                 if (!openCalled) {
-                    Assert.fail("Open was not called before run.");
+                    Assertions.fail("Open was not called before run.");
                 }
                 if (element.hasTimestamp()) {
                     output.collect(

@@ -24,6 +24,11 @@ import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
@@ -35,21 +40,21 @@ public class RecoveredInputChannelTest {
 
     @Test
     public void testConversionOnlyPossibleAfterConsumed() throws IOException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     buildChannel().toInputChannel();
         });
     }
 
     @Test
     public void testRequestPartitionsImpossible() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     buildChannel().requestSubpartition(0);
         });
     }
 
     @Test
     public void testCheckpointStartImpossible() throws CheckpointException {
-        Assertions.assertThrows(CheckpointException.class, () -> {
+        assertThrows(CheckpointException.class, () -> {
                     buildChannel().checkpointStarted(new CheckpointBarrier(0L, 0L, unaligned(getDefault())));
         });
     }

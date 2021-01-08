@@ -29,6 +29,11 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matcher;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,8 +44,8 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * A test base for testing {@link TypeSerializer} upgrades.

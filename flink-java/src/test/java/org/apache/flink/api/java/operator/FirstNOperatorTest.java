@@ -25,9 +25,12 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,34 +62,34 @@ public class FirstNOperatorTest {
         try {
             tupleDs.first(1);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should work
         try {
             tupleDs.first(10);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == 0
         try {
             tupleDs.first(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == -1
         try {
             tupleDs.first(-1);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -101,34 +104,34 @@ public class FirstNOperatorTest {
         try {
             tupleDs.groupBy(2).first(1);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should work
         try {
             tupleDs.groupBy(1, 3).first(10);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == 0
         try {
             tupleDs.groupBy(0).first(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == -1
         try {
             tupleDs.groupBy(2).first(-1);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -143,34 +146,34 @@ public class FirstNOperatorTest {
         try {
             tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(1);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should work
         try {
             tupleDs.groupBy(1, 3).sortGroup(4, Order.ASCENDING).first(10);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == 0
         try {
             tupleDs.groupBy(0).sortGroup(4, Order.ASCENDING).first(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work n == -1
         try {
             tupleDs.groupBy(2).sortGroup(4, Order.ASCENDING).first(-1);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException ipe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 }

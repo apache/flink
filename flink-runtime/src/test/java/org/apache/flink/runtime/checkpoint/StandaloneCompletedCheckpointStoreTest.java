@@ -22,8 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.state.SharedStateRegistry;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -33,12 +37,8 @@ import java.util.concurrent.Executor;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.doThrow;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.powermock.api.mockito.PowerMockito.*;
 
 /** Tests for basic {@link CompletedCheckpointStore} contract. */
 public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointStoreTest {

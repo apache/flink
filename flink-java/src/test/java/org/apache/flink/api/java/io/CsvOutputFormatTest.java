@@ -22,11 +22,14 @@ import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,7 +38,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link CsvOutputFormat}. */
 public class CsvOutputFormatTest {
@@ -62,10 +65,10 @@ public class CsvOutputFormatTest {
         }
 
         java.nio.file.Path p = Paths.get(path);
-        Assert.assertTrue(Files.exists(p));
+        Assertions.assertTrue(Files.exists(p));
         List<String> lines = Files.readAllLines(Paths.get(path), StandardCharsets.UTF_8);
-        Assert.assertEquals(1, lines.size());
-        Assert.assertEquals("One,,8", lines.get(0));
+        Assertions.assertEquals(1, lines.size());
+        Assertions.assertEquals("One,,8", lines.get(0));
     }
 
     @Test

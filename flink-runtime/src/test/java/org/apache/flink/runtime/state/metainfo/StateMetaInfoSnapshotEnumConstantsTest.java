@@ -17,8 +17,12 @@
  */
 package org.apache.flink.runtime.state.metainfo;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This test fixes the enum constants in {@link StateMetaInfoSnapshot} because any changes can break
@@ -28,31 +32,33 @@ public class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
     public void testFixedBackendStateTypeEnumConstants() {
-        Assert.assertEquals(4, StateMetaInfoSnapshot.BackendStateType.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal());
-        Assert.assertEquals(1, StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal());
-        Assert.assertEquals(2, StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal());
-        Assert.assertEquals(3, StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(4, StateMetaInfoSnapshot.BackendStateType.values().length);
+        Assertions.assertEquals(0, StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.ordinal());
+        Assertions.assertEquals(1, StateMetaInfoSnapshot.BackendStateType.OPERATOR.ordinal());
+        Assertions.assertEquals(2, StateMetaInfoSnapshot.BackendStateType.BROADCAST.ordinal());
+        Assertions.assertEquals(3, StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.ordinal());
+        Assertions.assertEquals(
                 "KEY_VALUE", StateMetaInfoSnapshot.BackendStateType.KEY_VALUE.toString());
-        Assert.assertEquals("OPERATOR", StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
+                "OPERATOR", StateMetaInfoSnapshot.BackendStateType.OPERATOR.toString());
+        Assertions.assertEquals(
                 "BROADCAST", StateMetaInfoSnapshot.BackendStateType.BROADCAST.toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "PRIORITY_QUEUE", StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE.toString());
     }
 
     @Test
     public void testFixedOptionsEnumConstants() {
-        Assert.assertEquals(2, StateMetaInfoSnapshot.CommonOptionsKeys.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(2, StateMetaInfoSnapshot.CommonOptionsKeys.values().length);
+        Assertions.assertEquals(
+                0, StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.ordinal());
+        Assertions.assertEquals(
                 1,
                 StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "KEYED_STATE_TYPE",
                 StateMetaInfoSnapshot.CommonOptionsKeys.KEYED_STATE_TYPE.toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "OPERATOR_STATE_DISTRIBUTION_MODE",
                 StateMetaInfoSnapshot.CommonOptionsKeys.OPERATOR_STATE_DISTRIBUTION_MODE
                         .toString());
@@ -60,19 +66,20 @@ public class StateMetaInfoSnapshotEnumConstantsTest {
 
     @Test
     public void testFixedSerializerEnumConstants() {
-        Assert.assertEquals(3, StateMetaInfoSnapshot.CommonSerializerKeys.values().length);
-        Assert.assertEquals(0, StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(3, StateMetaInfoSnapshot.CommonSerializerKeys.values().length);
+        Assertions.assertEquals(
+                0, StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.ordinal());
+        Assertions.assertEquals(
                 1, StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 2, StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.ordinal());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "KEY_SERIALIZER",
                 StateMetaInfoSnapshot.CommonSerializerKeys.KEY_SERIALIZER.toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "NAMESPACE_SERIALIZER",
                 StateMetaInfoSnapshot.CommonSerializerKeys.NAMESPACE_SERIALIZER.toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "VALUE_SERIALIZER",
                 StateMetaInfoSnapshot.CommonSerializerKeys.VALUE_SERIALIZER.toString());
     }

@@ -27,7 +27,7 @@ import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
 import org.apache.commons.lang3.StringUtils
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 
 import java.lang.{Long => JLong}
 import java.sql.{Date, Time, Timestamp}
@@ -172,21 +172,21 @@ class RichFunc0 extends ScalarFunction {
   override def open(context: FunctionContext): Unit = {
     super.open(context)
     if (openCalled) {
-      Assert.fail("Open called more than once.")
+      Assertions.fail("Open called more than once.")
     } else {
       openCalled = true
     }
     if (closeCalled) {
-      Assert.fail("Close called before open.")
+      Assertions.fail("Close called before open.")
     }
   }
 
   def eval(index: Int): Int = {
     if (!openCalled) {
-      Assert.fail("Open was not called before eval.")
+      Assertions.fail("Open was not called before eval.")
     }
     if (closeCalled) {
-      Assert.fail("Close called before eval.")
+      Assertions.fail("Close called before eval.")
     }
 
     index + 1
@@ -195,12 +195,12 @@ class RichFunc0 extends ScalarFunction {
   override def close(): Unit = {
     super.close()
     if (closeCalled) {
-      Assert.fail("Close called more than once.")
+      Assertions.fail("Close called more than once.")
     } else {
       closeCalled = true
     }
     if (!openCalled) {
-      Assert.fail("Open was not called before close.")
+      Assertions.fail("Open was not called before close.")
     }
   }
 }

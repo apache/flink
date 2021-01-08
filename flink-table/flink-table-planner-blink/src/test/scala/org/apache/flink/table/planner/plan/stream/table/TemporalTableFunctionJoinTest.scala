@@ -27,7 +27,7 @@ import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataTy
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
 
 import org.hamcrest.Matchers.{equalTo, startsWith}
-import org.junit.Assert.{assertEquals, assertThat}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertThat}
 import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp

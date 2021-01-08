@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingR
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.{Before, Test}
 
 /**

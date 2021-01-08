@@ -22,8 +22,11 @@ import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -60,7 +63,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             }
 
             // the election service should still be running
-            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+            MatcherAssert.assertThat(embeddedLeaderService.isShutdown(), is(false));
         } finally {
             embeddedLeaderService.shutdown();
         }
@@ -98,7 +101,7 @@ public class EmbeddedLeaderServiceTest extends TestLogger {
             }
 
             // the election service should still be running
-            Assert.assertThat(embeddedLeaderService.isShutdown(), is(false));
+            MatcherAssert.assertThat(embeddedLeaderService.isShutdown(), is(false));
         } finally {
             embeddedLeaderService.shutdown();
         }

@@ -49,8 +49,12 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 
@@ -74,11 +78,10 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests verify that the RichFunction methods are called (in correct order). And that
@@ -102,11 +105,11 @@ public class SourceStreamTaskTest {
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
-        assertTrue("RichFunction methods where not called.", OpenCloseTestSource.closeCalled);
+        assertTrue(OpenCloseTestSource.closeCalled, "RichFunction methods where not called.");
 
         List<String> resultElements =
                 TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-        Assert.assertEquals(10, resultElements.size());
+        Assertions.assertEquals(10, resultElements.size());
     }
 
     @Test(timeout = 60_000)
@@ -220,7 +223,7 @@ public class SourceStreamTaskTest {
 
             List<Tuple2<Long, Integer>> resultElements =
                     TestHarnessUtil.getRawElementsFromOutput(testHarness.getOutput());
-            Assert.assertEquals(numElements, resultElements.size());
+            Assertions.assertEquals(numElements, resultElements.size());
         } finally {
             executor.shutdown();
         }
@@ -586,7 +589,7 @@ public class SourceStreamTaskTest {
         public List<Serializable> snapshotState(long checkpointId, long timestamp)
                 throws Exception {
             if (!semaphore.tryAcquire()) {
-                Assert.fail("Concurrent invocation of snapshotState.");
+                Assertions.fail("Concurrent invocation of snapshotState.");
             }
             int startCount = count;
             lastCheckpointId = checkpointId;
@@ -599,7 +602,7 @@ public class SourceStreamTaskTest {
             if (startCount != count) {
                 semaphore.release();
                 // This means that next() was invoked while the snapshot was ongoing
-                Assert.fail("Count is different at start end end of snapshot.");
+                Assertions.fail("Count is different at start end end of snapshot.");
             }
             semaphore.release();
             return Collections.singletonList(sum);
@@ -691,7 +694,7 @@ public class SourceStreamTaskTest {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             if (closeCalled) {
-                Assert.fail("Close called before open.");
+                Assertions.fail("Close called before open.");
             }
             openCalled = true;
         }
@@ -700,7 +703,7 @@ public class SourceStreamTaskTest {
         public void close() throws Exception {
             super.close();
             if (!openCalled) {
-                Assert.fail("Open was not called before close.");
+                Assertions.fail("Open was not called before close.");
             }
             closeCalled = true;
         }
@@ -708,7 +711,7 @@ public class SourceStreamTaskTest {
         @Override
         public void run(SourceContext<String> ctx) throws Exception {
             if (!openCalled) {
-                Assert.fail("Open was not called before run.");
+                Assertions.fail("Open was not called before run.");
             }
             for (int i = 0; i < 10; i++) {
                 ctx.collect("Hello" + i);

@@ -27,24 +27,25 @@ import org.apache.flink.mesos.util.MesosResourceAllocation;
 import org.apache.flink.mesos.util.MesosUtils;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.mesos.Protos;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import scala.Option;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import scala.Option;
-
 import static org.apache.flink.mesos.Utils.ports;
 import static org.apache.flink.mesos.Utils.range;
 import static org.apache.flink.mesos.configuration.MesosOptions.PORT_ASSIGNMENTS;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test that mesos config are extracted correctly from the configuration. */
 public class LaunchableMesosWorkerTest extends TestLogger {

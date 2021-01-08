@@ -25,8 +25,12 @@ import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 import org.apache.flink.testutils.serialization.types.SerializationTestTypeFactory;
 import org.apache.flink.testutils.serialization.types.Util;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -34,10 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link AbstractPagedInputView} and {@link AbstractPagedOutputView}. */
 public class PagedViewsTest {
@@ -265,7 +266,7 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertTrue("EOFException should have occurred.", eofException);
+        assertTrue(eofException, "EOFException should have occurred.");
 
         int bytesRead = 0;
 
@@ -333,7 +334,7 @@ public class PagedViewsTest {
             fail("Unexpected exception: Could not read TestInputView.");
         }
 
-        assertTrue("EOFException expected.", eofException);
+        assertTrue(eofException, "EOFException expected.");
     }
 
     private static void testSequenceOfTypes(

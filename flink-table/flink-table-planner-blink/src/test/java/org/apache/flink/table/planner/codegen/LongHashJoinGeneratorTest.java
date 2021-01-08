@@ -27,9 +27,12 @@ import org.apache.flink.table.runtime.operators.join.HashJoinType;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link LongHashJoinGenerator}. */
 public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
@@ -37,7 +40,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
     @Override
     public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
         RowType keyType = RowType.of(new IntType());
-        Assert.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
+        Assertions.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
         return LongHashJoinGenerator.gen(
                 new TableConfig(),
                 type,

@@ -20,10 +20,13 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.graph.drivers.parameter.Simplify.Ordering;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link Simplify}. */
 public class SimplifyTest extends ParameterTestBase {
@@ -40,18 +43,18 @@ public class SimplifyTest extends ParameterTestBase {
     @Test
     public void testWithDirected() {
         parameter.configure(ParameterTool.fromArgs(new String[] {"--simplify", "directed"}));
-        Assert.assertEquals(Ordering.DIRECTED, parameter.getValue());
+        Assertions.assertEquals(Ordering.DIRECTED, parameter.getValue());
     }
 
     @Test
     public void testWithUndirected() {
         parameter.configure(ParameterTool.fromArgs(new String[] {"--simplify", "undirected"}));
-        Assert.assertEquals(Ordering.UNDIRECTED, parameter.getValue());
+        Assertions.assertEquals(Ordering.UNDIRECTED, parameter.getValue());
     }
 
     @Test
     public void testWithNoParameter() {
         parameter.configure(ParameterTool.fromArgs(new String[] {}));
-        Assert.assertEquals(Ordering.NONE, parameter.getValue());
+        Assertions.assertEquals(Ordering.NONE, parameter.getValue());
     }
 }

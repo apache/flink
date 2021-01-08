@@ -38,6 +38,11 @@ import org.apache.orc.impl.RecordReaderImpl;
 import org.apache.orc.impl.SchemaEvolution;
 import org.junit.After;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,12 +55,12 @@ import java.util.List;
 
 import static org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField;
 import static org.apache.flink.orc.shim.OrcShimV200.getOffsetAndLengthForSplit;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -153,35 +158,42 @@ public class OrcRowInputFormatTest {
 
     @Test
     public void testInvalidPath() throws IOException {
-        Assertions.assertThrows(FileNotFoundException.class, () -> {
+        assertThrows(
+                FileNotFoundException.class,
+                () -> {
                     rowOrcInputFormat =
-                new OrcRowInputFormat("/does/not/exist", TEST_SCHEMA_FLAT, new Configuration());
-        rowOrcInputFormat.openInputFormat();
-        FileInputSplit[] inputSplits = rowOrcInputFormat.createInputSplits(1);
-        rowOrcInputFormat.open(inputSplits[0]);
-        });
+                            new OrcRowInputFormat(
+                                    "/does/not/exist", TEST_SCHEMA_FLAT, new Configuration());
+                    rowOrcInputFormat.openInputFormat();
+                    FileInputSplit[] inputSplits = rowOrcInputFormat.createInputSplits(1);
+                    rowOrcInputFormat.open(inputSplits[0]);
+                });
     }
 
     @Test
     public void testInvalidProjection1() throws IOException {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
                     rowOrcInputFormat =
-                new OrcRowInputFormat(
-                        getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
-        int[] projectionMask = {1, 2, 3, -1};
-        rowOrcInputFormat.selectFields(projectionMask);
-        });
+                            new OrcRowInputFormat(
+                                    getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
+                    int[] projectionMask = {1, 2, 3, -1};
+                    rowOrcInputFormat.selectFields(projectionMask);
+                });
     }
 
     @Test
     public void testInvalidProjection2() throws IOException {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
                     rowOrcInputFormat =
-                new OrcRowInputFormat(
-                        getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
-        int[] projectionMask = {1, 2, 3, 9};
-        rowOrcInputFormat.selectFields(projectionMask);
-        });
+                            new OrcRowInputFormat(
+                                    getPath(TEST_FILE_FLAT), TEST_SCHEMA_FLAT, new Configuration());
+                    int[] projectionMask = {1, 2, 3, 9};
+                    rowOrcInputFormat.selectFields(projectionMask);
+                });
     }
 
     @Test
@@ -560,14 +572,18 @@ public class OrcRowInputFormatTest {
 
     @Test
     public void testPredicateWithInvalidColumn() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     rowOrcInputFormat =
-                new OrcRowInputFormat(
-                        getPath(TEST_FILE_NESTED), TEST_SCHEMA_NESTED, new Configuration());
+                            new OrcRowInputFormat(
+                                    getPath(TEST_FILE_NESTED),
+                                    TEST_SCHEMA_NESTED,
+                                    new Configuration());
 
-        rowOrcInputFormat.addPredicate(
-                new OrcFilters.Equals("unknown", PredicateLeaf.Type.LONG, 42));
-        });
+                    rowOrcInputFormat.addPredicate(
+                            new OrcFilters.Equals("unknown", PredicateLeaf.Type.LONG, 42));
+                });
     }
 
     @Test

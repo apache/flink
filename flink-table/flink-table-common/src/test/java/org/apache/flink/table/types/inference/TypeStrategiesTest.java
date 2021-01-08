@@ -30,9 +30,12 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.StructuredType;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -315,7 +318,8 @@ public class TypeStrategiesTest {
         }
         TypeInferenceUtil.Result result = runTypeInference();
         if (testSpec.expectedDataType != null) {
-            Assert.assertThat(result.getOutputDataType(), equalTo(testSpec.expectedDataType));
+            MatcherAssert.assertThat(
+                    result.getOutputDataType(), equalTo(testSpec.expectedDataType));
         }
     }
 

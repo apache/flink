@@ -22,13 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
-import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.disk.iomanager.*;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -38,11 +32,14 @@ import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Random;
@@ -78,7 +75,8 @@ public class FixedLengthRecordSorterTest {
     @After
     public void afterTest() throws Exception {
         if (!this.memoryManager.verifyEmpty()) {
-            Assert.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+            Assertions.fail(
+                    "Memory Leak: Some memory has not been returned to the memory manager.");
         }
 
         if (this.ioManager != null) {
@@ -133,10 +131,10 @@ public class FixedLengthRecordSorterTest {
             int gv = record.getValue();
 
             if (gk != rk) {
-                Assert.fail("The re-read key is wrong " + i);
+                Assertions.fail("The re-read key is wrong " + i);
             }
             if (gv != rv) {
-                Assert.fail("The re-read value is wrong");
+                Assertions.fail("The re-read value is wrong");
             }
         }
         //		System.out.println("READ TIME " + (System.currentTimeMillis() - startTime));
@@ -182,11 +180,11 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
-        Assert.assertEquals("Incorrect number of records", num, count);
+        Assertions.assertEquals("Incorrect number of records", num, count);
 
         // release the memory occupied by the buffers
         sorter.dispose();
@@ -223,7 +221,7 @@ public class FixedLengthRecordSorterTest {
             num2++;
         } while (sorter.write(record) && num2 < 3354624);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "The number of records written after the reset was not the same as before.",
                 num,
                 num2);
@@ -243,8 +241,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -294,8 +292,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assert.assertEquals("The re-read key is wrong", gk, rk);
-            Assert.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals("The re-read key is wrong", gk, rk);
+            Assertions.assertEquals("The re-read value is wrong", gv, rv);
         }
 
         // release the memory occupied by the buffers
@@ -333,9 +331,9 @@ public class FixedLengthRecordSorterTest {
             int cmp = sorter.compare(pos1, pos2);
 
             if (pos1 < pos2) {
-                Assert.assertTrue(cmp <= 0);
+                Assertions.assertTrue(cmp <= 0);
             } else {
-                Assert.assertTrue(cmp >= 0);
+                Assertions.assertTrue(cmp >= 0);
             }
         }
 
@@ -379,7 +377,7 @@ public class FixedLengthRecordSorterTest {
 
             final int cmp = last - current;
             if (cmp > 0) {
-                Assert.fail("Next key is not larger or equal to previous key.");
+                Assertions.fail("Next key is not larger or equal to previous key.");
             }
             last = current;
         }
@@ -435,12 +433,12 @@ public class FixedLengthRecordSorterTest {
         record = iterator.next(record);
         int i = 0;
         while (record != null) {
-            Assert.assertEquals(i, record.getKey());
+            Assertions.assertEquals(i, record.getKey());
             record = iterator.next(record);
             i++;
         }
 
-        Assert.assertEquals(NUM_RECORDS, i);
+        Assertions.assertEquals(NUM_RECORDS, i);
 
         this.memoryManager.release(dataBuffer);
         // release the memory occupied by the buffers
@@ -494,12 +492,12 @@ public class FixedLengthRecordSorterTest {
         record = iterator.next(record);
         int i = 1;
         while (record != null) {
-            Assert.assertEquals(i, record.getKey());
+            Assertions.assertEquals(i, record.getKey());
             record = iterator.next(record);
             i++;
         }
 
-        Assert.assertEquals(NUM_RECORDS, i);
+        Assertions.assertEquals(NUM_RECORDS, i);
 
         this.memoryManager.release(dataBuffer);
         // release the memory occupied by the buffers

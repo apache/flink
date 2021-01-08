@@ -18,8 +18,12 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
@@ -33,25 +37,25 @@ public class DataInputDeserializerTest {
 
         bytes = new byte[] {};
         dis = new DataInputDeserializer(bytes, 0, bytes.length);
-        Assert.assertEquals(bytes.length, dis.available());
+        Assertions.assertEquals(bytes.length, dis.available());
 
         bytes = new byte[] {1, 2, 3};
         dis = new DataInputDeserializer(bytes, 0, bytes.length);
-        Assert.assertEquals(bytes.length, dis.available());
+        Assertions.assertEquals(bytes.length, dis.available());
 
         dis.readByte();
-        Assert.assertEquals(2, dis.available());
+        Assertions.assertEquals(2, dis.available());
         dis.readByte();
-        Assert.assertEquals(1, dis.available());
+        Assertions.assertEquals(1, dis.available());
         dis.readByte();
-        Assert.assertEquals(0, dis.available());
+        Assertions.assertEquals(0, dis.available());
 
         try {
             dis.readByte();
-            Assert.fail("Did not throw expected IOException");
+            Assertions.fail("Did not throw expected IOException");
         } catch (IOException e) {
             // ignore
         }
-        Assert.assertEquals(0, dis.available());
+        Assertions.assertEquals(0, dis.available());
     }
 }

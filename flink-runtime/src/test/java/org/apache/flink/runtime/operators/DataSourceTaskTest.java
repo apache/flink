@@ -27,10 +27,13 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
@@ -38,11 +41,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class DataSourceTaskTest extends TaskTestBase {
 
@@ -76,27 +75,27 @@ public class DataSourceTaskTest extends TaskTestBase {
             testTask.invoke();
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
         try {
             Field formatField = DataSourceTask.class.getDeclaredField("format");
             formatField.setAccessible(true);
             MockInputFormat inputFormat = (MockInputFormat) formatField.get(testTask);
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Invalid status of the input format. Expected for opened: true, Actual: "
                             + inputFormat.opened,
                     inputFormat.opened);
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Invalid status of the input format. Expected for closed: true, Actual: "
                             + inputFormat.closed,
                     inputFormat.closed);
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Reflection error while trying to validate inputFormat status.");
+            Assertions.fail("Reflection error while trying to validate inputFormat status.");
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Invalid output size. Expected: "
                         + (keyCnt * valCnt)
                         + " Actual: "
@@ -116,7 +115,7 @@ public class DataSourceTaskTest extends TaskTestBase {
             keyValueCountMap.get(key).add(val);
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Invalid key count in out file. Expected: "
                         + keyCnt
                         + " Actual: "
@@ -124,7 +123,7 @@ public class DataSourceTaskTest extends TaskTestBase {
                 keyValueCountMap.keySet().size() == keyCnt);
 
         for (Integer mapKey : keyValueCountMap.keySet()) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Invalid value count for key: "
                             + mapKey
                             + ". Expected: "
@@ -160,10 +159,10 @@ public class DataSourceTaskTest extends TaskTestBase {
         } catch (Exception e) {
             stubFailed = true;
         }
-        Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+        Assertions.assertTrue(stubFailed, "Function exception was not forwarded.");
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        Assertions.assertTrue(tempTestFile.exists(), "Temp output file does not exist");
     }
 
     @Test
@@ -190,7 +189,8 @@ public class DataSourceTaskTest extends TaskTestBase {
                             testTask.invoke();
                         } catch (Exception ie) {
                             ie.printStackTrace();
-                            Assert.fail("Task threw exception although it was properly canceled");
+                            Assertions.fail(
+                                    "Task threw exception although it was properly canceled");
                         }
                     }
                 };
@@ -203,11 +203,11 @@ public class DataSourceTaskTest extends TaskTestBase {
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        Assertions.assertTrue(tempTestFile.exists(), "Temp output file does not exist");
     }
 
     public static class InputFilePreparator {
@@ -265,7 +265,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 
         public void openInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
+            Assertions.assertFalse(
                     "Invalid status of the input format. Expected for opened: false, Actual: "
                             + opened,
                     opened);
@@ -274,7 +274,7 @@ public class DataSourceTaskTest extends TaskTestBase {
 
         public void closeInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
+            Assertions.assertFalse(
                     "Invalid status of the input format. Expected for closed: false, Actual: "
                             + closed,
                     closed);

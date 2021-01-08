@@ -25,11 +25,16 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.runtime.state.heap.SkipListUtils.MAX_LEVEL;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link SkipListUtils}. */
 public class SkipListUtilsTest extends TestLogger {

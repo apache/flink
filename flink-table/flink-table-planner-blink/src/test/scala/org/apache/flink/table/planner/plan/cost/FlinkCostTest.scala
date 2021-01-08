@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.cost
 
 import org.apache.calcite.plan.RelOptCostImpl
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 class FlinkCostTest {

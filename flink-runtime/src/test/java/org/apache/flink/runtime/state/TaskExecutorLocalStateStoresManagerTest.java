@@ -33,9 +33,13 @@ import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -80,15 +84,16 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             String[] split = rootDirString.split(",");
             File[] rootDirectories = taskStateManager.getLocalStateRootDirectories();
             for (int i = 0; i < split.length; ++i) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         new File(split[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
                         rootDirectories[i]);
             }
 
             // verify local recovery mode
-            Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
+            Assertions.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 
-            Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
+            Assertions.assertEquals(
+                    "localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
             for (File rootDirectory : rootDirectories) {
                 FileUtils.deleteFileOrDirectory(rootDirectory);
             }
@@ -120,13 +125,13 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
             File[] localStateRootDirectories = taskStateManager.getLocalStateRootDirectories();
 
             for (int i = 0; i < tmpDirPaths.length; ++i) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         new File(
                                 tmpDirPaths[i], TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT),
                         localStateRootDirectories[i]);
             }
 
-            Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
+            Assertions.assertFalse(taskStateManager.isLocalRecoveryEnabled());
         } finally {
             taskManagerServices.shutDown();
         }
@@ -159,7 +164,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                 taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider();
 
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new File(
                             rootDirs[(i & Integer.MAX_VALUE) % rootDirs.length],
                             storesManager.allocationSubDirString(allocationID)),
@@ -170,7 +175,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         File allocBaseDirChk42 = directoryProvider.allocationBaseDirectory(chkId);
         File subtaskSpecificCheckpointDirectory =
                 directoryProvider.subtaskSpecificCheckpointDirectory(chkId);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new File(
                         allocBaseDirChk42,
                         "jid_"
@@ -186,17 +191,17 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                                 + chkId),
                 subtaskSpecificCheckpointDirectory);
 
-        Assert.assertTrue(subtaskSpecificCheckpointDirectory.mkdirs());
+        Assertions.assertTrue(subtaskSpecificCheckpointDirectory.mkdirs());
 
         File testFile = new File(subtaskSpecificCheckpointDirectory, "test");
-        Assert.assertTrue(testFile.createNewFile());
+        Assertions.assertTrue(testFile.createNewFile());
 
         // test that local recovery mode is forwarded to the created store
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 storesManager.isLocalRecoveryEnabled(),
                 taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
 
-        Assert.assertTrue(testFile.exists());
+        Assertions.assertTrue(testFile.exists());
 
         // check cleanup after releasing allocation id
         storesManager.releaseLocalStateForAllocationId(allocationID);
@@ -212,9 +217,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
                 taskLocalStateStore.getLocalRecoveryConfig().getLocalStateDirectoryProvider();
 
         File chkDir = directoryProvider.subtaskSpecificCheckpointDirectory(23L);
-        Assert.assertTrue(chkDir.mkdirs());
+        Assertions.assertTrue(chkDir.mkdirs());
         testFile = new File(chkDir, "test");
-        Assert.assertTrue(testFile.createNewFile());
+        Assertions.assertTrue(testFile.createNewFile());
 
         // check cleanup after shutdown
         storesManager.shutdown();
@@ -225,7 +230,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
         for (File rootDir : rootDirs) {
             File[] files = rootDir.listFiles();
             if (files != null) {
-                Assert.assertArrayEquals(new File[0], files);
+                Assertions.assertArrayEquals(new File[0], files);
             }
         }
     }

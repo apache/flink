@@ -24,34 +24,29 @@ import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.io.network.netty.NettyTestUtil.NettyServerAndClient;
 import org.apache.flink.runtime.net.SSLUtilsTest;
-import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringDecoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncoder;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
-
-import org.junit.Assert;
+import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import javax.net.ssl.SSLSessionContext;
-
 import java.net.InetAddress;
 import java.util.List;
 
-import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
-import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT;
-import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE;
-import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_TIMEOUT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.configuration.SecurityOptions.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the SSL connection between Netty Server and Client used for the data plane. */
 @RunWith(Parameterized.class)
@@ -136,7 +131,7 @@ public class NettyClientServerSslTest extends TestLogger {
                 serverSslHandler[0].getCloseNotifyFlushTimeoutMillis());
         SSLSessionContext sessionContext =
                 serverSslHandler[0].engine().getSession().getSessionContext();
-        assertNotNull("bug in unit test setup: session context not available", sessionContext);
+        assertNotNull(sessionContext, "bug in unit test setup: session context not available");
         // note: can't verify session cache setting at the client - delegate to server instead (with
         // our own channel initializer)
         assertEqualsOrDefault(
@@ -180,7 +175,7 @@ public class NettyClientServerSslTest extends TestLogger {
         NettyTestUtil.NettyServerAndClient serverAndClient = null;
         try {
             serverAndClient = NettyTestUtil.initServerAndClient(protocol, nettyConfig);
-            Assert.fail("Created server and client from invalid configuration");
+            Assertions.fail("Created server and client from invalid configuration");
         } catch (Exception e) {
             // Exception should be thrown as expected
         }

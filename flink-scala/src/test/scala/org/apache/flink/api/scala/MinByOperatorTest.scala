@@ -20,7 +20,7 @@ package org.apache.flink.api.scala
 import org.apache.flink.api.common.InvalidProgramException
 
 import org.junit.jupiter.api.Test
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 
 class MinByOperatorTest {
   private val emptyTupleData = List[(Int, Long, String, Long, Int)]()
@@ -33,7 +33,7 @@ class MinByOperatorTest {
     try {
       collection.minBy(4, 0, 1, 2, 3)
     } catch {
-      case e : Exception => Assert.fail();
+      case e : Exception => Assertions.fail();
     }
   }
 
@@ -43,7 +43,7 @@ class MinByOperatorTest {
     */
   @Test
   def testOutOfTupleBoundsDataset1() {
-        Assertions.assertThrows(classOf[IndexOutOfBoundsException], () -> {
+        assertThrows(classOf[IndexOutOfBoundsException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val collection = env.fromCollection(emptyTupleData)
@@ -106,7 +106,7 @@ class MinByOperatorTest {
       groupDs.minBy(4, 0, 1, 2, 3)
         });
     } catch {
-      case e : Exception => Assert.fail()
+      case e : Exception => Assertions.fail()
     }
   }
 
@@ -116,7 +116,7 @@ class MinByOperatorTest {
     */
   @Test
   def testCustomKeyFieldsGrouping() {
-        Assertions.assertThrows(classOf[InvalidProgramException], () -> {
+        assertThrows(classOf[InvalidProgramException], () -> {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val groupDs: GroupedDataSet[CustomType] = env.fromCollection(customTypeData).groupBy(0)

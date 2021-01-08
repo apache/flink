@@ -27,11 +27,14 @@ import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
 import java.io.File;
@@ -42,8 +45,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.apache.flink.table.filesystem.stream.compact.CompactOperator.COMPACTED_PREFIX;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Streaming sink File Compaction ITCase base, test checkpoint. */
 public abstract class CompactionITCaseBase extends StreamingTestBase {
@@ -148,7 +150,7 @@ public abstract class CompactionITCaseBase extends StreamingTestBase {
             }
         }
         if (containSuccess) {
-            Assert.assertNotNull("Should contains success file", successFile);
+            Assertions.assertNotNull(successFile, "Should contains success file");
         }
     }
 }

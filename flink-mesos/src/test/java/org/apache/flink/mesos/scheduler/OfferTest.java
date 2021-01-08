@@ -18,28 +18,22 @@
 
 package org.apache.flink.mesos.scheduler;
 
-import org.apache.flink.util.TestLogger;
-
 import com.netflix.fenzo.VirtualMachineLease;
+import org.apache.flink.util.TestLogger;
 import org.apache.mesos.Protos;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
-import static org.apache.flink.mesos.Utils.cpus;
-import static org.apache.flink.mesos.Utils.disk;
-import static org.apache.flink.mesos.Utils.gpus;
-import static org.apache.flink.mesos.Utils.mem;
-import static org.apache.flink.mesos.Utils.network;
-import static org.apache.flink.mesos.Utils.ports;
-import static org.apache.flink.mesos.Utils.range;
-import static org.apache.flink.mesos.Utils.resources;
-import static org.apache.flink.mesos.Utils.scalar;
+import static org.apache.flink.mesos.Utils.*;
 
 /** Tests {@link Offer} which adapts a Mesos offer as a lease for use with Fenzo. */
 public class OfferTest extends TestLogger {
@@ -64,14 +58,14 @@ public class OfferTest extends TestLogger {
     @Test
     public void testResourceProperties() {
         Offer offer = new Offer(offer(resources(), attrs()));
-        Assert.assertNotNull(offer.getResources());
-        Assert.assertEquals(HOSTNAME, offer.hostname());
-        Assert.assertEquals(AGENT_ID.getValue(), offer.getVMID());
-        Assert.assertNotNull(offer.getOffer());
-        Assert.assertEquals(OFFER_ID.getValue(), offer.getId());
-        Assert.assertNotEquals(0L, offer.getOfferedTime());
-        Assert.assertNotNull(offer.getAttributeMap());
-        Assert.assertNotNull(offer.toString());
+        Assertions.assertNotNull(offer.getResources());
+        Assertions.assertEquals(HOSTNAME, offer.hostname());
+        Assertions.assertEquals(AGENT_ID.getValue(), offer.getVMID());
+        Assertions.assertNotNull(offer.getOffer());
+        Assertions.assertEquals(OFFER_ID.getValue(), offer.getId());
+        Assertions.assertNotEquals(0L, offer.getOfferedTime());
+        Assertions.assertNotNull(offer.getAttributeMap());
+        Assertions.assertNotNull(offer.toString());
     }
 
     /** Tests aggregation of resources in the presence of unreserved plus reserved resources. */
@@ -80,8 +74,8 @@ public class OfferTest extends TestLogger {
         Offer offer;
 
         offer = new Offer(offer(resources(), attrs()));
-        Assert.assertEquals(0.0, offer.cpuCores(), EPSILON);
-        Assert.assertEquals(Arrays.asList(), ranges(offer.portRanges()));
+        Assertions.assertEquals(0.0, offer.cpuCores(), EPSILON);
+        Assertions.assertEquals(Arrays.asList(), ranges(offer.portRanges()));
 
         offer =
                 new Offer(
@@ -93,8 +87,8 @@ public class OfferTest extends TestLogger {
                                         ports(UNRESERVED_ROLE, range(8080, 8081)),
                                         otherScalar(42.0)),
                                 attrs()));
-        Assert.assertEquals(2.0, offer.cpuCores(), EPSILON);
-        Assert.assertEquals(
+        Assertions.assertEquals(2.0, offer.cpuCores(), EPSILON);
+        Assertions.assertEquals(
                 Arrays.asList(range(80, 80), range(443, 444), range(8080, 8081)),
                 ranges(offer.portRanges()));
     }
@@ -102,37 +96,37 @@ public class OfferTest extends TestLogger {
     @Test
     public void testCpuCores() {
         Offer offer = new Offer(offer(resources(cpus(1.0)), attrs()));
-        Assert.assertEquals(1.0, offer.cpuCores(), EPSILON);
+        Assertions.assertEquals(1.0, offer.cpuCores(), EPSILON);
     }
 
     @Test
     public void testGPUs() {
         Offer offer = new Offer(offer(resources(gpus(1.0)), attrs()));
-        Assert.assertEquals(1.0, offer.gpus(), EPSILON);
+        Assertions.assertEquals(1.0, offer.gpus(), EPSILON);
     }
 
     @Test
     public void testMemoryMB() {
         Offer offer = new Offer(offer(resources(mem(1024.0)), attrs()));
-        Assert.assertEquals(1024.0, offer.memoryMB(), EPSILON);
+        Assertions.assertEquals(1024.0, offer.memoryMB(), EPSILON);
     }
 
     @Test
     public void testNetworkMbps() {
         Offer offer = new Offer(offer(resources(network(10.0)), attrs()));
-        Assert.assertEquals(10.0, offer.networkMbps(), EPSILON);
+        Assertions.assertEquals(10.0, offer.networkMbps(), EPSILON);
     }
 
     @Test
     public void testDiskMB() {
         Offer offer = new Offer(offer(resources(disk(1024.0)), attrs()));
-        Assert.assertEquals(1024.0, offer.diskMB(), EPSILON);
+        Assertions.assertEquals(1024.0, offer.diskMB(), EPSILON);
     }
 
     @Test
     public void testPortRanges() {
         Offer offer = new Offer(offer(resources(ports(range(8080, 8081))), attrs()));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Collections.singletonList(range(8080, 8081)), ranges(offer.portRanges()));
     }
 
@@ -143,7 +137,7 @@ public class OfferTest extends TestLogger {
     @Test
     public void testAttributeIndexing() {
         Offer offer = new Offer(offer(resources(), attrs(attr(ATTR_1, 42.0))));
-        Assert.assertEquals(attr(ATTR_1, 42.0), offer.getAttributeMap().get(ATTR_1));
+        Assertions.assertEquals(attr(ATTR_1, 42.0), offer.getAttributeMap().get(ATTR_1));
     }
 
     // endregion

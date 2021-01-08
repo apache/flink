@@ -20,9 +20,12 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -40,7 +43,7 @@ public class MessageParametersTest extends TestLogger {
 
         String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
 
-        Assert.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
+        Assertions.assertEquals("/jobs/" + pathJobID + "/state?jobid=" + queryJobID, resolvedUrl);
     }
 
     @Test
@@ -49,7 +52,7 @@ public class MessageParametersTest extends TestLogger {
         TestMessageParameters parameters = new TestMessageParameters();
         try {
             MessageParameters.resolveUrl(genericUrl, parameters);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalStateException expected) {
             // the mandatory jobid path parameter was not resolved
         }
@@ -57,7 +60,7 @@ public class MessageParametersTest extends TestLogger {
         parameters.pathParameter.resolve(jobID);
 
         String resolvedUrl = MessageParameters.resolveUrl(genericUrl, parameters);
-        Assert.assertEquals("/jobs/" + jobID + "/state", resolvedUrl);
+        Assertions.assertEquals("/jobs/" + jobID + "/state", resolvedUrl);
     }
 
     private static class TestMessageParameters extends MessageParameters {

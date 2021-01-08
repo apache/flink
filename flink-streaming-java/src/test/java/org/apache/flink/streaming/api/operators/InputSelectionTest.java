@@ -20,10 +20,15 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.streaming.api.operators.InputSelection.Builder;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link InputSelection}. */
 public class InputSelectionTest {
@@ -58,7 +63,7 @@ public class InputSelectionTest {
 
     @Test
     public void testInputSelectionNormalizationOverflow() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     new Builder().select(3).build(2);
         });
     }
@@ -135,7 +140,7 @@ public class InputSelectionTest {
 
     @Test
     public void testUnsupportedFairSelectNextIndexOutOf2() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(UnsupportedOperationException.class, () -> {
                     InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
         });
     }
@@ -154,7 +159,7 @@ public class InputSelectionTest {
 
         @Test
         public void testIllegalInputId1() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                         new Builder().select(-2);
         }
 

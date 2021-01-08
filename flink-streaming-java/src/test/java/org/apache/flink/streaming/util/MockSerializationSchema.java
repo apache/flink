@@ -23,7 +23,7 @@ import org.apache.flink.metrics.MetricGroup;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * A mocked {@link SerializationSchema} that verifies that {@link

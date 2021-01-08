@@ -19,8 +19,11 @@
 package org.apache.flink.formats.avro.typeutils;
 
 import org.junit.jupiter.api.Test;
-
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A test that validates that the concurrency checks in the Avro Serializer are not hard coded to

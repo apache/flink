@@ -19,10 +19,13 @@
 package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link BooleanParameter}. */
 public class BooleanParameterTest extends ParameterTestBase {
@@ -38,17 +41,17 @@ public class BooleanParameterTest extends ParameterTestBase {
 
     @Test
     public void testTrue() {
-        Assert.assertEquals("[--test]", parameter.getUsage());
+        Assertions.assertEquals("[--test]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test"}));
-        Assert.assertEquals(true, parameter.getValue());
+        Assertions.assertEquals(true, parameter.getValue());
     }
 
     @Test
     public void testFalse() {
-        Assert.assertEquals("[--test]", parameter.getUsage());
+        Assertions.assertEquals("[--test]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {}));
-        Assert.assertEquals(false, parameter.getValue());
+        Assertions.assertEquals(false, parameter.getValue());
     }
 }

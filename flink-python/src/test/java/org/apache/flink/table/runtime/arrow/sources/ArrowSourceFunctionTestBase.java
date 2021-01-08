@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.runtime.arrow.sources;
 
+import org.apache.arrow.vector.VectorSchemaRoot;
+import org.apache.arrow.vector.ipc.ArrowStreamWriter;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -33,13 +36,12 @@ import org.apache.flink.table.runtime.arrow.ArrowWriter;
 import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import org.apache.arrow.vector.VectorSchemaRoot;
-import org.apache.arrow.vector.ipc.ArrowStreamWriter;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
@@ -52,7 +54,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Abstract test base for the Arrow source function processing. */
 public abstract class ArrowSourceFunctionTestBase<T> {
@@ -169,8 +171,8 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         }
         runner2.join();
 
-        Assert.assertNull(error[0]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        Assertions.assertNull(error[0]);
+        Assertions.assertEquals(testData.f0.size(), numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
@@ -250,9 +252,9 @@ public abstract class ArrowSourceFunctionTestBase<T> {
         testHarness.close();
         testHarness2.close();
 
-        Assert.assertNull(error[0]);
-        Assert.assertNull(error[1]);
-        Assert.assertEquals(testData.f0.size(), numOfEmittedElements.get());
+        Assertions.assertNull(error[0]);
+        Assertions.assertNull(error[1]);
+        Assertions.assertEquals(testData.f0.size(), numOfEmittedElements.get());
         checkElementsEquals(results, testData.f0);
     }
 
@@ -263,7 +265,7 @@ public abstract class ArrowSourceFunctionTestBase<T> {
     public abstract AbstractArrowSourceFunction<T> createArrowSourceFunction(byte[][] arrowData);
 
     private void checkElementsEquals(List<T> actual, List<T> expected) {
-        Assert.assertEquals(actual.size(), expected.size());
+        Assertions.assertEquals(actual.size(), expected.size());
         actual.sort(comparator);
         expected.sort(comparator);
         for (int i = 0; i < expected.size(); i++) {

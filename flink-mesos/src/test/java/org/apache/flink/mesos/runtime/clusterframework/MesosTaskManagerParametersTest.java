@@ -18,25 +18,28 @@
 
 package org.apache.flink.mesos.runtime.clusterframework;
 
+import com.netflix.fenzo.ConstraintEvaluator;
+import com.netflix.fenzo.functions.Func1;
+import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
-
-import com.netflix.fenzo.ConstraintEvaluator;
-import com.netflix.fenzo.functions.Func1;
-import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.mesos.Protos;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import scala.Option;
 
 import java.util.List;
 
-import scala.Option;
-
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link MesosTaskManagerParameters}. */
 public class MesosTaskManagerParametersTest extends TestLogger {
@@ -69,16 +72,21 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
     @Test
     public void testBuildVolumesBadMode() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:RF"));
-        });
+                });
     }
 
     @Test
     public void testBuildVolumesMalformed() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-                    MesosTaskManagerParameters.buildVolumes(Option.<String>apply("/hp:/cp:ro:extra"));
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MesosTaskManagerParameters.buildVolumes(
+                            Option.<String>apply("/hp:/cp:ro:extra"));
+                });
     }
 
     @Test
@@ -129,12 +137,15 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
     @Test
     public void testContainerDockerParametersMalformed() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     Configuration config = getConfiguration();
-        config.setString(
-                MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS, "badParam");
-        MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
-        });
+                    config.setString(
+                            MesosTaskManagerParameters.MESOS_RM_CONTAINER_DOCKER_PARAMETERS,
+                            "badParam");
+                    MesosTaskManagerParameters params = MesosTaskManagerParameters.create(config);
+                });
     }
 
     @Test
@@ -259,9 +270,11 @@ public class MesosTaskManagerParametersTest extends TestLogger {
 
     @Test
     public void testNegativeNumberOfGPUs() throws Exception {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     MesosTaskManagerParameters.create(withGPUConfiguration(-1));
-        });
+                });
     }
 
     @Test

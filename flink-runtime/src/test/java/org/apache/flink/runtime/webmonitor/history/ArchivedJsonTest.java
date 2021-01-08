@@ -18,8 +18,12 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link ArchivedJson}. */
 public class ArchivedJsonTest {
@@ -31,10 +35,10 @@ public class ArchivedJsonTest {
         ArchivedJson identicalPath = new ArchivedJson("path", "hello");
         ArchivedJson identicalJson = new ArchivedJson("hello", "json");
 
-        Assert.assertEquals(original, original);
-        Assert.assertEquals(original, twin);
-        Assert.assertNotEquals(original, identicalPath);
-        Assert.assertNotEquals(original, identicalJson);
+        Assertions.assertEquals(original, original);
+        Assertions.assertEquals(original, twin);
+        Assertions.assertNotEquals(original, identicalPath);
+        Assertions.assertNotEquals(original, identicalJson);
     }
 
     @Test
@@ -42,8 +46,8 @@ public class ArchivedJsonTest {
         ArchivedJson original = new ArchivedJson("path", "json");
         ArchivedJson twin = new ArchivedJson("path", "json");
 
-        Assert.assertEquals(original, original);
-        Assert.assertEquals(original, twin);
-        Assert.assertEquals(original.hashCode(), twin.hashCode());
+        Assertions.assertEquals(original, original);
+        Assertions.assertEquals(original, twin);
+        Assertions.assertEquals(original.hashCode(), twin.hashCode());
     }
 }

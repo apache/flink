@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet;
 
+import org.apache.avro.specific.SpecificRecord;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
@@ -30,16 +31,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.parquet.utils.TestUtil;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.EqualTo;
-import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.GetCompositeField;
-import org.apache.flink.table.expressions.GreaterThan;
-import org.apache.flink.table.expressions.ItemAt;
-import org.apache.flink.table.expressions.Literal;
-import org.apache.flink.table.expressions.PlannerResolvedFieldReference;
+import org.apache.flink.table.expressions.*;
 import org.apache.flink.types.Row;
-
-import org.apache.avro.specific.SpecificRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.parquet.avro.AvroSchemaConverter;
 import org.apache.parquet.filter2.predicate.FilterApi;
@@ -48,19 +41,18 @@ import org.apache.parquet.schema.MessageType;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test cases for {@link ParquetTableSource}. */
 public class ParquetTableSourceTest {

@@ -19,8 +19,7 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.StringColumnSummary;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link StringSummaryAggregator}. */
@@ -30,37 +29,37 @@ public class StringSummaryAggregatorTest {
     public void testMixedGroup() {
         StringColumnSummary summary =
                 summarize("abc", "", null, "  ", "defghi", "foo", null, null, "", " ");
-        Assert.assertEquals(10, summary.getTotalCount());
-        Assert.assertEquals(3, summary.getNullCount());
-        Assert.assertEquals(7, summary.getNonNullCount());
-        Assert.assertEquals(2, summary.getEmptyCount());
-        Assert.assertEquals(0, summary.getMinLength().intValue());
-        Assert.assertEquals(6, summary.getMaxLength().intValue());
-        Assert.assertEquals(2.142857, summary.getMeanLength().doubleValue(), 0.001);
+        Assertions.assertEquals(10, summary.getTotalCount());
+        Assertions.assertEquals(3, summary.getNullCount());
+        Assertions.assertEquals(7, summary.getNonNullCount());
+        Assertions.assertEquals(2, summary.getEmptyCount());
+        Assertions.assertEquals(0, summary.getMinLength().intValue());
+        Assertions.assertEquals(6, summary.getMaxLength().intValue());
+        Assertions.assertEquals(2.142857, summary.getMeanLength().doubleValue(), 0.001);
     }
 
     @Test
     public void testAllNullStrings() {
         StringColumnSummary summary = summarize(null, null, null, null);
-        Assert.assertEquals(4, summary.getTotalCount());
-        Assert.assertEquals(4, summary.getNullCount());
-        Assert.assertEquals(0, summary.getNonNullCount());
-        Assert.assertEquals(0, summary.getEmptyCount());
-        Assert.assertNull(summary.getMinLength());
-        Assert.assertNull(summary.getMaxLength());
-        Assert.assertNull(summary.getMeanLength());
+        Assertions.assertEquals(4, summary.getTotalCount());
+        Assertions.assertEquals(4, summary.getNullCount());
+        Assertions.assertEquals(0, summary.getNonNullCount());
+        Assertions.assertEquals(0, summary.getEmptyCount());
+        Assertions.assertNull(summary.getMinLength());
+        Assertions.assertNull(summary.getMaxLength());
+        Assertions.assertNull(summary.getMeanLength());
     }
 
     @Test
     public void testAllWithValues() {
         StringColumnSummary summary = summarize("cat", "hat", "dog", "frog");
-        Assert.assertEquals(4, summary.getTotalCount());
-        Assert.assertEquals(0, summary.getNullCount());
-        Assert.assertEquals(4, summary.getNonNullCount());
-        Assert.assertEquals(0, summary.getEmptyCount());
-        Assert.assertEquals(3, summary.getMinLength().intValue());
-        Assert.assertEquals(4, summary.getMaxLength().intValue());
-        Assert.assertEquals(3.25, summary.getMeanLength().doubleValue(), 0.0);
+        Assertions.assertEquals(4, summary.getTotalCount());
+        Assertions.assertEquals(0, summary.getNullCount());
+        Assertions.assertEquals(4, summary.getNonNullCount());
+        Assertions.assertEquals(0, summary.getEmptyCount());
+        Assertions.assertEquals(3, summary.getMinLength().intValue());
+        Assertions.assertEquals(4, summary.getMaxLength().intValue());
+        Assertions.assertEquals(3.25, summary.getMeanLength().doubleValue(), 0.0);
     }
 
     /**
@@ -76,19 +75,19 @@ public class StringSummaryAggregatorTest {
             @Override
             protected void compareResults(
                     StringColumnSummary result1, StringColumnSummary result2) {
-                Assert.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
-                Assert.assertEquals(result1.getMaxLength(), result2.getMaxLength());
-                Assert.assertEquals(result1.getMinLength(), result2.getMinLength());
+                Assertions.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
+                Assertions.assertEquals(result1.getMaxLength(), result2.getMaxLength());
+                Assertions.assertEquals(result1.getMinLength(), result2.getMinLength());
                 if (result1.getMeanLength() == null) {
-                    Assert.assertEquals(result1.getMeanLength(), result2.getMeanLength());
+                    Assertions.assertEquals(result1.getMeanLength(), result2.getMeanLength());
                 } else {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             result1.getMeanLength().doubleValue(),
                             result2.getMeanLength().doubleValue(),
                             1e-5d);
                 }
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
+                Assertions.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assertions.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
             }
         }.summarize(values);
     }

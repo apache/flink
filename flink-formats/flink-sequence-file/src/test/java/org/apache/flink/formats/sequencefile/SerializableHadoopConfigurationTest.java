@@ -21,9 +21,12 @@ package org.apache.flink.formats.sequencefile;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -55,7 +58,7 @@ public class SerializableHadoopConfigurationTest {
         final SerializableHadoopConfiguration deserializableConfigUnderTest =
                 deserializeAndGetConfiguration(serializedConfigUnderTest);
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 deserializableConfigUnderTest.get(), hasTheSamePropertiesAs(configuration));
     }
 

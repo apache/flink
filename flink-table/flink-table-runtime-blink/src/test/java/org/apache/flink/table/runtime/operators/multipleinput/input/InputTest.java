@@ -29,12 +29,16 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingOneInputStreamOperator;
 import org.apache.flink.table.runtime.operators.multipleinput.TestingTwoInputStreamOperator;
-
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Test for the sub-classes of {@link Input}. */
 public class InputTest extends MultipleInputTestBase {

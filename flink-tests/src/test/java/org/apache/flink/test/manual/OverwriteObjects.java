@@ -28,17 +28,11 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.IntValue;
-
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 import static org.hamcrest.Matchers.is;
 
@@ -103,10 +97,10 @@ public class OverwriteObjects {
         Tuple2<IntValue, IntValue> disabledResult =
                 getDataSet(env).reduce(new OverwriteObjectsReduce(false)).collect().get(0);
 
-        Assert.assertEquals(NUMBER_OF_ELEMENTS, enabledResult.f1.getValue());
-        Assert.assertEquals(NUMBER_OF_ELEMENTS, disabledResult.f1.getValue());
+        Assertions.assertEquals(NUMBER_OF_ELEMENTS, enabledResult.f1.getValue());
+        Assertions.assertEquals(NUMBER_OF_ELEMENTS, disabledResult.f1.getValue());
 
-        Assert.assertEquals(disabledResult, enabledResult);
+        Assertions.assertEquals(disabledResult, enabledResult);
     }
 
     public void testGroupedReduce(ExecutionEnvironment env) throws Exception {
@@ -130,7 +124,7 @@ public class OverwriteObjects {
 
         Collections.sort(disabledResult, comparator);
 
-        Assert.assertThat(disabledResult, is(enabledResult));
+        MatcherAssert.assertThat(disabledResult, is(enabledResult));
     }
 
     private class OverwriteObjectsReduce implements ReduceFunction<Tuple2<IntValue, IntValue>> {
@@ -191,7 +185,7 @@ public class OverwriteObjects {
 
             Collections.sort(disabledResult, comparator);
 
-            Assert.assertEquals("JoinHint=" + joinHint, disabledResult, enabledResult);
+            Assertions.assertEquals("JoinHint=" + joinHint, disabledResult, enabledResult);
 
             // Left outer join
 
@@ -222,7 +216,7 @@ public class OverwriteObjects {
 
                 Collections.sort(disabledResult, comparator);
 
-                Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
+                MatcherAssert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
             }
 
             // Right outer join
@@ -254,7 +248,7 @@ public class OverwriteObjects {
 
                 Collections.sort(disabledResult, comparator);
 
-                Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
+                MatcherAssert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
             }
 
             // Full outer join
@@ -287,7 +281,7 @@ public class OverwriteObjects {
 
                 Collections.sort(disabledResult, comparator);
 
-                Assert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
+                MatcherAssert.assertThat("JoinHint=" + joinHint, disabledResult, is(enabledResult));
             }
         }
     }
@@ -329,7 +323,7 @@ public class OverwriteObjects {
         List<Tuple2<IntValue, IntValue>> enabledResultWithTiny =
                 small.crossWithTiny(large).with(new OverwriteObjectsCross()).collect();
 
-        Assert.assertThat(enabledResultWithHuge, is(enabledResultWithTiny));
+        MatcherAssert.assertThat(enabledResultWithHuge, is(enabledResultWithTiny));
 
         // test NESTEDLOOP_BLOCKED_OUTER_FIRST and NESTEDLOOP_BLOCKED_OUTER_SECOND with object reuse
         // disabled
@@ -342,11 +336,11 @@ public class OverwriteObjects {
         List<Tuple2<IntValue, IntValue>> disabledResultWithTiny =
                 small.crossWithTiny(large).with(new OverwriteObjectsCross()).collect();
 
-        Assert.assertThat(disabledResultWithHuge, is(disabledResultWithTiny));
+        MatcherAssert.assertThat(disabledResultWithHuge, is(disabledResultWithTiny));
 
         // verify match between object reuse enabled and disabled
-        Assert.assertThat(disabledResultWithHuge, is(enabledResultWithHuge));
-        Assert.assertThat(disabledResultWithTiny, is(enabledResultWithTiny));
+        MatcherAssert.assertThat(disabledResultWithHuge, is(enabledResultWithHuge));
+        MatcherAssert.assertThat(disabledResultWithTiny, is(enabledResultWithTiny));
     }
 
     private class OverwriteObjectsCross

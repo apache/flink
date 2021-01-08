@@ -18,8 +18,10 @@
 
 package org.apache.flink.configuration;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.function.Function;
 
@@ -46,19 +48,20 @@ public class CoreOptionsTest {
             ConfigOption<String> patternOption,
             ConfigOption<String> additionalOption) {
         Configuration config = new Configuration();
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 patternOption.defaultValue().split(";"), patternGetter.apply(config));
 
         config.setString(patternOption, "hello;world");
 
-        Assert.assertArrayEquals("hello;world".split(";"), patternGetter.apply(config));
+        Assertions.assertArrayEquals("hello;world".split(";"), patternGetter.apply(config));
 
         config.setString(additionalOption, "how;are;you");
 
-        Assert.assertArrayEquals("hello;world;how;are;you".split(";"), patternGetter.apply(config));
+        Assertions.assertArrayEquals(
+                "hello;world;how;are;you".split(";"), patternGetter.apply(config));
 
         config.setString(patternOption, "");
 
-        Assert.assertArrayEquals("how;are;you".split(";"), patternGetter.apply(config));
+        Assertions.assertArrayEquals("how;are;you".split(";"), patternGetter.apply(config));
     }
 }

@@ -23,10 +23,15 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BloomFilterTest {
 
@@ -46,30 +51,38 @@ public class BloomFilterTest {
 
     @Test
     public void testBloomFilterArguments1() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new BloomFilter(-1, 128);
-        });
+                });
     }
 
     @Test
     public void testBloomFilterArguments2() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new BloomFilter(0, 128);
-        });
+                });
     }
 
     @Test
     public void testBloomFilterArguments3() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new BloomFilter(1024, -1);
-        });
+                });
     }
 
     @Test
     public void testBloomFilterArguments4() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     new BloomFilter(1024, 0);
-        });
+                });
     }
 
     @Test

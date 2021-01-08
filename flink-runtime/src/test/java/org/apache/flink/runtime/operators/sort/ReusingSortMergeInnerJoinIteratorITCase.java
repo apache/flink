@@ -34,28 +34,23 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-import org.apache.flink.runtime.operators.testutils.Match;
-import org.apache.flink.runtime.operators.testutils.MatchRemovingJoiner;
-import org.apache.flink.runtime.operators.testutils.TestData;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 @SuppressWarnings("deprecation")
@@ -128,7 +123,7 @@ public class ReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Memory Leak: Not all memory has been returned to the memory manager.",
                     this.memoryManager.verifyEmpty());
             this.memoryManager.shutdown();
@@ -193,19 +188,20 @@ public class ReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(joinFunction, collector)) ;
+            while (iterator.callWithNextKey(joinFunction, collector))
+                ;
 
             iterator.close();
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "Collection for key " + entry.getKey() + " is not empty",
                         entry.getValue().isEmpty());
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -312,19 +308,20 @@ public class ReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    Assertions.fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

@@ -37,9 +37,12 @@ import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.api.watermark.Watermark;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -74,24 +77,24 @@ public class InputFormatSourceFunctionTest {
 
             reader.setRuntimeContext(new MockRuntimeContext(format, noOfSplits, environment));
 
-            Assert.assertTrue(!format.isConfigured);
-            Assert.assertTrue(!format.isInputFormatOpen);
-            Assert.assertTrue(!format.isSplitOpen);
+            Assertions.assertTrue(!format.isConfigured);
+            Assertions.assertTrue(!format.isInputFormatOpen);
+            Assertions.assertTrue(!format.isSplitOpen);
 
             reader.open(new Configuration());
-            Assert.assertTrue(format.isConfigured);
+            Assertions.assertTrue(format.isConfigured);
 
             TestSourceContext ctx = new TestSourceContext(reader, format, midCancel, cancelAt);
             reader.run(ctx);
 
             int splitsSeen = ctx.getSplitsSeen();
-            Assert.assertTrue(midCancel ? splitsSeen == cancelAt : splitsSeen == noOfSplits);
+            Assertions.assertTrue(midCancel ? splitsSeen == cancelAt : splitsSeen == noOfSplits);
 
             // we have exhausted the splits so the
             // format and splits should be closed by now
 
-            Assert.assertTrue(!format.isSplitOpen);
-            Assert.assertTrue(!format.isInputFormatOpen);
+            Assertions.assertTrue(!format.isSplitOpen);
+            Assertions.assertTrue(!format.isInputFormatOpen);
         }
     }
 
@@ -112,21 +115,21 @@ public class InputFormatSourceFunctionTest {
 
         @Override
         public void openInputFormat() {
-            Assert.assertTrue(isConfigured);
-            Assert.assertTrue(!isInputFormatOpen);
-            Assert.assertTrue(!isSplitOpen);
+            Assertions.assertTrue(isConfigured);
+            Assertions.assertTrue(!isInputFormatOpen);
+            Assertions.assertTrue(!isSplitOpen);
             this.isInputFormatOpen = true;
         }
 
         @Override
         public void closeInputFormat() {
-            Assert.assertTrue(!isSplitOpen);
+            Assertions.assertTrue(!isSplitOpen);
             this.isInputFormatOpen = false;
         }
 
         @Override
         public void configure(Configuration parameters) {
-            Assert.assertTrue(!isConfigured);
+            Assertions.assertTrue(!isConfigured);
             this.isConfigured = true;
         }
 
@@ -137,7 +140,7 @@ public class InputFormatSourceFunctionTest {
 
         @Override
         public InputSplit[] createInputSplits(int minNumSplits) throws IOException {
-            Assert.assertTrue(isConfigured);
+            Assertions.assertTrue(isConfigured);
             InputSplit[] splits = new InputSplit[minNumSplits];
             for (int i = 0; i < minNumSplits; i++) {
                 final int idx = i;
@@ -163,9 +166,9 @@ public class InputFormatSourceFunctionTest {
         public void open(InputSplit split) throws IOException {
             // whenever a new split opens,
             // the previous should have been closed
-            Assert.assertTrue(isInputFormatOpen);
-            Assert.assertTrue(isConfigured);
-            Assert.assertTrue(!isSplitOpen);
+            Assertions.assertTrue(isInputFormatOpen);
+            Assertions.assertTrue(isConfigured);
+            Assertions.assertTrue(!isSplitOpen);
 
             isSplitOpen = true;
             eos = false;
@@ -173,9 +176,9 @@ public class InputFormatSourceFunctionTest {
 
         @Override
         public boolean reachedEnd() throws IOException {
-            Assert.assertTrue(isInputFormatOpen);
-            Assert.assertTrue(isConfigured);
-            Assert.assertTrue(isSplitOpen);
+            Assertions.assertTrue(isInputFormatOpen);
+            Assertions.assertTrue(isConfigured);
+            Assertions.assertTrue(isSplitOpen);
 
             if (!eos) {
                 reachedEndCalls++;
@@ -185,11 +188,11 @@ public class InputFormatSourceFunctionTest {
 
         @Override
         public Integer nextRecord(Integer reuse) throws IOException {
-            Assert.assertTrue(isInputFormatOpen);
-            Assert.assertTrue(isConfigured);
-            Assert.assertTrue(isSplitOpen);
+            Assertions.assertTrue(isInputFormatOpen);
+            Assertions.assertTrue(isConfigured);
+            Assertions.assertTrue(isSplitOpen);
 
-            Assert.assertTrue(reachedEndCalls == ++nextRecordCalls);
+            Assertions.assertTrue(reachedEndCalls == ++nextRecordCalls);
 
             eos = true;
             return splitCounter++;
@@ -223,8 +226,8 @@ public class InputFormatSourceFunctionTest {
 
         @Override
         public void collect(Integer element) {
-            Assert.assertTrue(format.isSplitOpen);
-            Assert.assertTrue(splitIdx == element);
+            Assertions.assertTrue(format.isSplitOpen);
+            Assertions.assertTrue(splitIdx == element);
             if (shouldCancel && splitIdx == cancelAt) {
                 reader.cancel();
             } else {
@@ -290,7 +293,7 @@ public class InputFormatSourceFunctionTest {
         public InputSplitProvider getInputSplitProvider() {
             try {
                 this.inputSplits = format.createInputSplits(noOfSplits);
-                Assert.assertTrue(inputSplits.length == noOfSplits);
+                Assertions.assertTrue(inputSplits.length == noOfSplits);
             } catch (IOException e) {
                 e.printStackTrace();
             }

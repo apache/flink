@@ -19,7 +19,7 @@ package org.apache.flink.api.common.typeutils.base.array;
 
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 
-import org.junit.Assert;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class FloatPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorTestBase<float[]> {
     public FloatPrimitiveArrayComparatorTest() {
@@ -28,7 +28,7 @@ public class FloatPrimitiveArrayComparatorTest extends PrimitiveArrayComparatorT
 
     @Override
     protected void deepEquals(String message, float[] should, float[] is) {
-        Assert.assertArrayEquals(message, should, is, (float) 0.00001);
+        assertArrayEquals(should, is, (float) 0.00001, message);
     }
 
     @Override

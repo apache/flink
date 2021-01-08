@@ -39,6 +39,11 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -79,7 +84,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
     @Test
     public void testLeftOuterJoin5() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
         });
     }
@@ -130,7 +135,7 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
     @Test
     public void testRightOuterJoin5() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
         });
     }
@@ -176,14 +181,14 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
 
     @Test
     public void testFullOuterJoin4() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
         });
     }
 
     @Test
     public void testFullOuterJoin5() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
         });
     }

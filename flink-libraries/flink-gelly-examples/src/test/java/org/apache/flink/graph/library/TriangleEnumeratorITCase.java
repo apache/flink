@@ -24,9 +24,12 @@ import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.examples.data.TriangleCountData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.NullValue;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -52,9 +55,9 @@ public class TriangleEnumeratorITCase extends MultipleProgramsTestBase {
                 graph.run(new TriangleEnumerator<>()).collect();
         List<Tuple3<Long, Long, Long>> expectedResult = TriangleCountData.getListOfTriangles();
 
-        Assert.assertEquals(expectedResult.size(), actualOutput.size());
+        Assertions.assertEquals(expectedResult.size(), actualOutput.size());
         for (Tuple3<Long, Long, Long> resultTriangle : actualOutput) {
-            Assert.assertTrue(expectedResult.indexOf(resultTriangle) >= 0);
+            Assertions.assertTrue(expectedResult.indexOf(resultTriangle) >= 0);
         }
     }
 }

@@ -23,8 +23,13 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link LongValueToUnsignedIntValue}. */
 public class LongValueToUnsignedIntValueTest {
@@ -44,15 +49,19 @@ public class LongValueToUnsignedIntValueTest {
 
     @Test
     public void testUpperOutOfRange() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     translator.translate(new LongValue(1L << 32), reuse);
-        });
+                });
     }
 
     @Test
     public void testLowerOutOfRange() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     translator.translate(new LongValue(-1), reuse);
-        });
+                });
     }
 }

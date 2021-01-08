@@ -18,30 +18,28 @@
 
 package org.apache.flink.runtime.rpc;
 
+import akka.actor.ActorSystem;
+import akka.actor.Terminated;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.util.TestLogger;
-
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the RpcEndpoint and its self gateways. */
 public class RpcEndpointTest extends TestLogger {
@@ -96,21 +94,24 @@ public class RpcEndpointTest extends TestLogger {
      */
     @Test
     public void testWrongSelfGateway() throws Exception {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     int expectedValue = 1337;
-        BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
+                    BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
 
-        try {
-            baseEndpoint.start();
+                    try {
+                        baseEndpoint.start();
 
-            DifferentGateway differentGateway = baseEndpoint.getSelfGateway(DifferentGateway.class);
+                        DifferentGateway differentGateway =
+                                baseEndpoint.getSelfGateway(DifferentGateway.class);
 
-            fail(
-                    "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
-        } finally {
-            RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
-        }
-        });
+                        fail(
+                                "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
+                    } finally {
+                        RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+                    }
+                });
     }
 
     /**

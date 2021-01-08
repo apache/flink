@@ -43,6 +43,11 @@ import org.apache.flink.types.Row;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -53,7 +58,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests for {@link BatchTableEnvironment}. */
 @RunWith(Parameterized.class)
@@ -70,28 +75,34 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
     @Test
     public void testIllegalEmptyName() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-        Table t = tableEnv.fromDataSet(ds);
-        // Must fail. Table is empty
-        tableEnv.createTemporaryView("", t);
-        });
+                    DataSet<Tuple3<Integer, Long, String>> ds =
+                            CollectionDataSets.get3TupleDataSet(env);
+                    Table t = tableEnv.fromDataSet(ds);
+                    // Must fail. Table is empty
+                    tableEnv.createTemporaryView("", t);
+                });
     }
 
     @Test
     public void testIllegalWhitespaceOnlyName() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-        Table t = tableEnv.fromDataSet(ds);
-        // Must fail. Table is empty
-        tableEnv.createTemporaryView("     ", t);
-        });
+                    DataSet<Tuple3<Integer, Long, String>> ds =
+                            CollectionDataSets.get3TupleDataSet(env);
+                    Table t = tableEnv.fromDataSet(ds);
+                    // Must fail. Table is empty
+                    tableEnv.createTemporaryView("     ", t);
+                });
     }
 
     @Test
@@ -156,28 +167,33 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
     @Test
     public void testRegisterExistingDatasetTable() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-        tableEnv.createTemporaryView("MyTable", ds);
-        DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 =
-                CollectionDataSets.getSmall5TupleDataSet(env);
-        // Must fail. Name is already used for different table.
-        tableEnv.createTemporaryView("MyTable", ds2);
-        });
+                    DataSet<Tuple3<Integer, Long, String>> ds =
+                            CollectionDataSets.get3TupleDataSet(env);
+                    tableEnv.createTemporaryView("MyTable", ds);
+                    DataSet<Tuple5<Integer, Long, Integer, String, Long>> ds2 =
+                            CollectionDataSets.getSmall5TupleDataSet(env);
+                    // Must fail. Name is already used for different table.
+                    tableEnv.createTemporaryView("MyTable", ds2);
+                });
     }
 
     @Test
     public void testScanUnregisteredTable() throws Exception {
-        Assertions.assertThrows(TableException.class, () -> {
+        assertThrows(
+                TableException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail. No table registered under that name.
-        tableEnv.from("nonRegisteredTable");
-        });
+                    // Must fail. No table registered under that name.
+                    tableEnv.from("nonRegisteredTable");
+                });
     }
 
     @Test
@@ -202,15 +218,17 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
     @Test
     public void testRegisterTableFromOtherEnv() throws Exception {
-        Assertions.assertThrows(TableException.class, () -> {
+        assertThrows(
+                TableException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv1 = BatchTableEnvironment.create(env, config());
-        BatchTableEnvironment tableEnv2 = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv1 = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv2 = BatchTableEnvironment.create(env, config());
 
-        Table t = tableEnv1.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
-        // Must fail. Table is bound to different TableEnvironment.
-        tableEnv2.createTemporaryView("MyTable", t);
-        });
+                    Table t = tableEnv1.fromDataSet(CollectionDataSets.get3TupleDataSet(env));
+                    // Must fail. Table is bound to different TableEnvironment.
+                    tableEnv2.createTemporaryView("MyTable", t);
+                });
     }
 
     @Test
@@ -551,123 +569,153 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 
     @Test
     public void testGenericRow() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // use null value the enforce GenericType
-        DataSet<Row> dataSet = env.fromElements(Row.of(1, 2L, "Hello", null));
-        assertTrue(dataSet.getType() instanceof GenericTypeInfo);
-        assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+                    // use null value the enforce GenericType
+                    DataSet<Row> dataSet = env.fromElements(Row.of(1, 2L, "Hello", null));
+                    assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+                    assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
 
-        // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
-        tableEnv.fromDataSet(dataSet);
-        });
+                    // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+                    tableEnv.fromDataSet(dataSet);
+                });
     }
 
     @Test
     public void testGenericRowWithAlias() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // use null value the enforce GenericType
-        DataSet<Row> dataSet = env.fromElements(Row.of((Integer) null));
-        assertTrue(dataSet.getType() instanceof GenericTypeInfo);
-        assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
+                    // use null value the enforce GenericType
+                    DataSet<Row> dataSet = env.fromElements(Row.of((Integer) null));
+                    assertTrue(dataSet.getType() instanceof GenericTypeInfo);
+                    assertTrue(dataSet.getType().getTypeClass().equals(Row.class));
 
-        // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
-        tableEnv.fromDataSet(dataSet, $("nullField"));
-        });
+                    // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
+                    tableEnv.fromDataSet(dataSet, $("nullField"));
+                });
     }
 
     @Test
     public void testAsWithTooManyFields() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail. Too many field names specified.
-        tableEnv.fromDataSet(
-                CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("c"), $("d"));
-        });
+                    // Must fail. Too many field names specified.
+                    tableEnv.fromDataSet(
+                            CollectionDataSets.get3TupleDataSet(env),
+                            $("a"),
+                            $("b"),
+                            $("c"),
+                            $("d"));
+                });
     }
 
     @Test
     public void testAsWithAmbiguousFields() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail. Specified field names are not unique.
-        tableEnv.fromDataSet(CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("b"));
-        });
+                    // Must fail. Specified field names are not unique.
+                    tableEnv.fromDataSet(
+                            CollectionDataSets.get3TupleDataSet(env), $("a"), $("b"), $("b"));
+                });
     }
 
     @Test
     public void testAsWithNonFieldReference1() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail. as() does only allow field name expressions
-        tableEnv.fromDataSet(
-                CollectionDataSets.get3TupleDataSet(env), $("a").plus(1), $("b"), $("c"));
-        });
+                    // Must fail. as() does only allow field name expressions
+                    tableEnv.fromDataSet(
+                            CollectionDataSets.get3TupleDataSet(env),
+                            $("a").plus(1),
+                            $("b"),
+                            $("c"));
+                });
     }
 
     @Test
     public void testAsWithNonFieldReference2() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail. as() does only allow field name expressions
-        tableEnv.fromDataSet(
-                CollectionDataSets.get3TupleDataSet(env), $("a").as("foo"), $("b"), $("c"));
-        });
+                    // Must fail. as() does only allow field name expressions
+                    tableEnv.fromDataSet(
+                            CollectionDataSets.get3TupleDataSet(env),
+                            $("a").as("foo"),
+                            $("b"),
+                            $("c"));
+                });
     }
 
     @Test
     public void testNonStaticClassInput() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail since class is not static
-        tableEnv.fromDataSet(env.fromElements(new MyNonStatic()), $("name"));
-        });
+                    // Must fail since class is not static
+                    tableEnv.fromDataSet(env.fromElements(new MyNonStatic()), $("name"));
+                });
     }
 
     @Test
     public void testNonStaticClassOutput() throws Exception {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(
+                ValidationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        // Must fail since class is not static
-        Table t = tableEnv.fromDataSet(env.fromElements(1, 2, 3), $("number"));
-        tableEnv.toDataSet(t, MyNonStatic.class);
-        });
+                    // Must fail since class is not static
+                    Table t = tableEnv.fromDataSet(env.fromElements(1, 2, 3), $("number"));
+                    tableEnv.toDataSet(t, MyNonStatic.class);
+                });
     }
 
     @Test
     public void testCustomCalciteConfig() {
-        Assertions.assertThrows(TableException.class, () -> {
+        assertThrows(
+                TableException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
+                    BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());
 
-        PlannerConfig cc =
-                new CalciteConfigBuilder()
-                        .replaceLogicalOptRuleSet(RuleSets.ofList())
-                        .replacePhysicalOptRuleSet(RuleSets.ofList())
-                        .build();
-        tableEnv.getConfig().setPlannerConfig(cc);
+                    PlannerConfig cc =
+                            new CalciteConfigBuilder()
+                                    .replaceLogicalOptRuleSet(RuleSets.ofList())
+                                    .replacePhysicalOptRuleSet(RuleSets.ofList())
+                                    .build();
+                    tableEnv.getConfig().setPlannerConfig(cc);
 
-        DataSet<Tuple3<Integer, Long, String>> ds = CollectionDataSets.get3TupleDataSet(env);
-        Table t = tableEnv.fromDataSet(ds);
-        tableEnv.toDataSet(t, Row.class);
-        });
+                    DataSet<Tuple3<Integer, Long, String>> ds =
+                            CollectionDataSets.get3TupleDataSet(env);
+                    Table t = tableEnv.fromDataSet(ds);
+                    tableEnv.toDataSet(t, Row.class);
+                });
     }
 
     // --------------------------------------------------------------------------------------------

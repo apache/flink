@@ -24,6 +24,11 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -31,9 +36,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class IOManagerTest {
 
@@ -61,8 +64,8 @@ public class IOManagerTest {
 
                 File path = id.getPathFile();
 
-                assertTrue("Channel IDs must name an absolute path.", path.isAbsolute());
-                assertFalse("Channel IDs must name a file, not a directory.", path.isDirectory());
+                assertTrue(path.isAbsolute(), "Channel IDs must name an absolute path.");
+                assertFalse(path.isDirectory(), "Channel IDs must name a file, not a directory.");
 
                 assertTrue(
                         "Path is not in the temp directory.",

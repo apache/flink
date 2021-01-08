@@ -24,7 +24,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 class CalcValidationTest extends TableTestBase {
@@ -41,7 +41,7 @@ class CalcValidationTest extends TableTestBase {
 
   @Test
   def testSelectAmbiguousRenaming(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
       // must fail. 'a and 'b are both renamed to 'foo

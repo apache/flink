@@ -21,10 +21,13 @@ package org.apache.flink.ml.api.misc;
 import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
 import org.apache.flink.ml.api.misc.param.Params;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 /** Test for the behavior and validator of {@link Params}. */
@@ -87,14 +90,14 @@ public class ParamsTest {
                         .build();
 
         Params params = new Params();
-        Assert.assertNull(params.get(key));
+        Assertions.assertNull(params.get(key));
 
         String val = "3";
         params.set(key, val);
-        Assert.assertEquals(params.get(key), val);
+        Assertions.assertEquals(params.get(key), val);
 
         params.set(key, null);
-        Assert.assertNull(params.get(key));
+        Assertions.assertNull(params.get(key));
     }
 
     @Test
@@ -108,22 +111,22 @@ public class ParamsTest {
 
         try {
             String val = params.get(key);
-            Assert.fail("Should throw exception.");
+            Assertions.fail("Should throw exception.");
         } catch (IllegalArgumentException ex) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     ex.getMessage().startsWith("Cannot find default value for optional parameter"));
         }
 
-        Assert.assertFalse(params.contains(key));
+        Assertions.assertFalse(params.contains(key));
 
         String val = "3";
         params.set(key, val);
-        Assert.assertEquals(params.get(key), val);
+        Assertions.assertEquals(params.get(key), val);
 
-        Assert.assertTrue(params.contains(key));
+        Assertions.assertTrue(params.contains(key));
 
         params.set(key, null);
-        Assert.assertNull(params.get(key));
+        Assertions.assertNull(params.get(key));
     }
 
     @Test
@@ -136,17 +139,17 @@ public class ParamsTest {
         Params params = new Params();
         try {
             params.get(labelWithRequired);
-            Assert.fail("failure");
+            Assertions.fail("failure");
         } catch (IllegalArgumentException ex) {
-            Assert.assertTrue(ex.getMessage().startsWith("Missing non-optional parameter"));
+            Assertions.assertTrue(ex.getMessage().startsWith("Missing non-optional parameter"));
         }
 
         params.set(labelWithRequired, null);
-        Assert.assertNull(params.get(labelWithRequired));
+        Assertions.assertNull(params.get(labelWithRequired));
 
         String val = "3";
         params.set(labelWithRequired, val);
-        Assert.assertEquals(params.get(labelWithRequired), val);
+        Assertions.assertEquals(params.get(labelWithRequired), val);
     }
 
     @Test
@@ -160,7 +163,7 @@ public class ParamsTest {
 
         Params params = Params.fromJson("{\"predResultColName\":\"\\\"f0\\\"\"}");
 
-        Assert.assertEquals("f0", params.get(predResultColName));
+        Assertions.assertEquals("f0", params.get(predResultColName));
 
         params =
                 Params.fromJson(
@@ -168,9 +171,9 @@ public class ParamsTest {
 
         try {
             params.get(predResultColName);
-            Assert.fail("failure");
+            Assertions.fail("failure");
         } catch (IllegalArgumentException ex) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     ex.getMessage()
                             .startsWith(
                                     "Duplicate parameters of predResultColName and predColName"));

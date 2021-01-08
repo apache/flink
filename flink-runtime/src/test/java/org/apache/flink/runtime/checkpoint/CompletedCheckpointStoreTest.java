@@ -25,9 +25,13 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -37,9 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test for basic {@link CompletedCheckpointStore} contract. */
 public abstract class CompletedCheckpointStoreTest extends TestLogger {
@@ -59,9 +61,11 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /** Tests that at least one checkpoint needs to be retained. */
     @Test
     public void testExceptionOnNoRetainedCheckpoints() throws Exception {
-        Assertions.assertThrows(Exception.class, () -> {
+        assertThrows(
+                Exception.class,
+                () -> {
                     createCompletedCheckpoints(0);
-        });
+                });
     }
 
     /** Tests adding and getting a checkpoint. */
@@ -231,7 +235,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             Collection<OperatorState> operatorStates, SharedStateRegistry registry) {
         for (OperatorState operatorState : operatorStates) {
             for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-                Assert.assertTrue(((TestOperatorSubtaskState) subtaskState).registered);
+                Assertions.assertTrue(((TestOperatorSubtaskState) subtaskState).registered);
             }
         }
     }
@@ -244,7 +248,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     protected static void verifyCheckpointDiscarded(Collection<OperatorState> operatorStates) {
         for (OperatorState operatorState : operatorStates) {
             for (OperatorSubtaskState subtaskState : operatorState.getStates()) {
-                Assert.assertTrue(((TestOperatorSubtaskState) subtaskState).discarded);
+                Assertions.assertTrue(((TestOperatorSubtaskState) subtaskState).discarded);
             }
         }
     }
@@ -367,7 +371,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         @Override
         public void discardState() {
             super.discardState();
-            Assert.assertFalse(discarded);
+            Assertions.assertFalse(discarded);
             discarded = true;
             registered = false;
         }
@@ -375,7 +379,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
         @Override
         public void registerSharedStates(SharedStateRegistry sharedStateRegistry) {
             super.registerSharedStates(sharedStateRegistry);
-            Assert.assertFalse(discarded);
+            Assertions.assertFalse(discarded);
             registered = true;
         }
 

@@ -33,9 +33,12 @@ import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -56,10 +59,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Additional tests for {@link PipelinedSubpartition} which require an availability listener and a
@@ -98,11 +102,13 @@ public class PipelinedSubpartitionWithReadViewTest {
 
     @Test
     public void testAddTwoNonFinishedBuffer() throws IOException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     subpartition.add(createBufferBuilder().createBufferConsumer());
-        subpartition.add(createBufferBuilder().createBufferConsumer());
-        assertNull(readView.getNextBuffer());
-        });
+                    subpartition.add(createBufferBuilder().createBufferConsumer());
+                    assertNull(readView.getNextBuffer());
+                });
     }
 
     @Test
@@ -610,7 +616,7 @@ public class PipelinedSubpartitionWithReadViewTest {
                     bufferAndBacklog.buffer().readableBytes());
             assertEquals("buffer or event", expectedIsBuffer, bufferAndBacklog.buffer().isBuffer());
             if (expectedEventClass != null) {
-                Assert.assertThat(
+                MatcherAssert.assertThat(
                         EventSerializer.fromBuffer(
                                 bufferAndBacklog.buffer(), ClassLoader.getSystemClassLoader()),
                         instanceOf(expectedEventClass));
@@ -628,7 +634,7 @@ public class PipelinedSubpartitionWithReadViewTest {
                     bufferAndBacklog.isEventAvailable());
             assertEquals("event available", expectedIsEventAvailable, readView.isAvailable(0));
 
-            assertFalse("not recycled", bufferAndBacklog.buffer().isRecycled());
+            assertFalse(bufferAndBacklog.buffer().isRecycled(), "not recycled");
         } finally {
             bufferAndBacklog.buffer().recycleBuffer();
         }

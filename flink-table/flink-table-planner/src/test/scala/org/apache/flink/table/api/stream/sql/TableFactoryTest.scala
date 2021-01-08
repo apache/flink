@@ -70,7 +70,7 @@ class TableFactoryTest extends TableTestBase {
     util.tableEnv.sqlUpdate(query)
     // trigger translating
     util.tableEnv.execute("job name")
-    Assert.assertTrue(factory.hasInvokedSource)
-    Assert.assertTrue(factory.hasInvokedSink)
+    Assertions.assertTrue(factory.hasInvokedSource)
+    Assertions.assertTrue(factory.hasInvokedSink)
   }
 }

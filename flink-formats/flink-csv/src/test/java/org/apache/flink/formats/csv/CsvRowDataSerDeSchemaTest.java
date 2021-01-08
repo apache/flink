@@ -29,6 +29,11 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -56,10 +61,10 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.data.StringData.fromString;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link CsvRowDataDeserializationSchema} and {@link CsvRowDataSerializationSchema}. */
 public class CsvRowDataSerDeSchemaTest {
@@ -263,18 +268,26 @@ public class CsvRowDataSerDeSchemaTest {
 
     @Test
     public void testInvalidNesting() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     testNullableField(
-                ROW(FIELD("f0", ROW(FIELD("f0", STRING())))), "FAIL", Row.of(Row.of("FAIL")));
-        });
+                            ROW(FIELD("f0", ROW(FIELD("f0", STRING())))),
+                            "FAIL",
+                            Row.of(Row.of("FAIL")));
+                });
     }
 
     @Test
     public void testInvalidType() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     testNullableField(
-                RAW(TypeExtractor.getForClass(java.util.Date.class)), "FAIL", new java.util.Date());
-        });
+                            RAW(TypeExtractor.getForClass(java.util.Date.class)),
+                            "FAIL",
+                            new java.util.Date());
+                });
     }
 
     @Test

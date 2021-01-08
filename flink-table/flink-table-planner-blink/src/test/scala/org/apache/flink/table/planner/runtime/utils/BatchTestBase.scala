@@ -45,7 +45,7 @@ import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.apache.flink.table.runtime.util.RowDataTestUtil
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{After, Assert, Before}
 
 import _root_.java.lang.{Iterable => JIterable}
@@ -139,7 +139,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkFunc(result).foreach { results =>
       val plan = explainLogical(table)
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match for query:
            |  $sqlQuery
@@ -155,7 +155,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkFunc(result).foreach { results =>
       val plan = explainLogical(table)
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match:
            |$results
@@ -284,7 +284,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     val result = executeQuery(table)
 
     checkEmpty(result).foreach { results =>
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match for query:
            |$results

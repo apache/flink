@@ -24,14 +24,13 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.test.util.SuccessException;
 
 import javax.annotation.Nonnull;
-
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Generalized sink for validation of window checkpointing IT cases. */
 public class ValidatingSink<T> extends RichSinkFunction<T>

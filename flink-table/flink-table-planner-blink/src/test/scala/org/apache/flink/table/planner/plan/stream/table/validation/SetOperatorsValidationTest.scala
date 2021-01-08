@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class SetOperatorsValidationTest extends TableTestBase {

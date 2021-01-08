@@ -25,17 +25,17 @@ class FlinkRelMdUtilTest {
 
   @Test
   def testNumDistinctValsWithSmallInputs(): Unit = {
-    Assert.assertEquals(
+    Assertions.assertEquals(
       RelMdUtil.numDistinctVals(1e5, 1e4),
       FlinkRelMdUtil.numDistinctVals(1e5, 1e4))
   }
 
   @Test
   def testNumDistinctValsWithLargeInputs(): Unit = {
-    Assert.assertNotEquals(0.0, FlinkRelMdUtil.numDistinctVals(1e18, 1e10))
+    Assertions.assertNotEquals(0.0, FlinkRelMdUtil.numDistinctVals(1e18, 1e10))
     // this test will fail once CALCITE-4351 is fixed
     // in that case FlinkRelMdUtil#numDistinctVals should be removed
     // see FLINK-19780
-    Assert.assertEquals(0.0, RelMdUtil.numDistinctVals(1e18, 1e10))
+    Assertions.assertEquals(0.0, RelMdUtil.numDistinctVals(1e18, 1e10))
   }
 }

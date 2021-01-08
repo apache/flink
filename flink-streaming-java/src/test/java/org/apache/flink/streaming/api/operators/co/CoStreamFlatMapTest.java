@@ -25,9 +25,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -123,10 +126,10 @@ public class CoStreamFlatMapTest implements Serializable {
 
         testHarness.close();
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "RichFunction methods where not called.",
                 TestOpenCloseCoFlatMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        Assertions.assertTrue(testHarness.getOutput().size() > 0, "Output contains no elements.");
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -142,7 +145,7 @@ public class CoStreamFlatMapTest implements Serializable {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             if (closeCalled) {
-                Assert.fail("Close called before open.");
+                Assertions.fail("Close called before open.");
             }
             openCalled = true;
         }
@@ -151,7 +154,7 @@ public class CoStreamFlatMapTest implements Serializable {
         public void close() throws Exception {
             super.close();
             if (!openCalled) {
-                Assert.fail("Open was not called before close.");
+                Assertions.fail("Open was not called before close.");
             }
             closeCalled = true;
         }
@@ -159,7 +162,7 @@ public class CoStreamFlatMapTest implements Serializable {
         @Override
         public void flatMap1(String value, Collector<String> out) throws Exception {
             if (!openCalled) {
-                Assert.fail("Open was not called before run.");
+                Assertions.fail("Open was not called before run.");
             }
             out.collect(value);
         }
@@ -167,7 +170,7 @@ public class CoStreamFlatMapTest implements Serializable {
         @Override
         public void flatMap2(Integer value, Collector<String> out) throws Exception {
             if (!openCalled) {
-                Assert.fail("Open was not called before run.");
+                Assertions.fail("Open was not called before run.");
             }
             out.collect(value.toString());
         }

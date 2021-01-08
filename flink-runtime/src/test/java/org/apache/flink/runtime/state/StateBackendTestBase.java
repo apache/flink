@@ -89,6 +89,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.io.Serializable;
@@ -120,19 +125,19 @@ import static java.util.Arrays.asList;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.isA;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -356,7 +361,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
                             Set<Integer> keys =
                                     keysByNamespace.computeIfAbsent(entry.f1, k -> new HashSet<>());
-                            assertTrue("Duplicate key for namespace", keys.add(entry.f0));
+                            assertTrue(keys.add(entry.f0), "Duplicate key for namespace");
                         });
             }
         } finally {
@@ -4216,7 +4221,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
             int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
             StateTable stateTable = ((AbstractHeapState) kvState).getStateTable();
-            assertNotNull("State not set", stateTable.get(keyGroupIndex));
+            assertNotNull(stateTable.get(keyGroupIndex), "State not set");
             checkConcurrentStateTable(stateTable, numberOfKeyGroups);
         }
 
@@ -4224,7 +4229,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
     }
 
     private void checkConcurrentStateTable(StateTable<?, ?, ?> stateTable, int numberOfKeyGroups) {
-        assertNotNull("State not set", stateTable);
+        assertNotNull(stateTable, "State not set");
         if (stateTable instanceof NestedMapsStateTable) {
             int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
             NestedMapsStateTable<?, ?, ?> nestedMapsStateTable =

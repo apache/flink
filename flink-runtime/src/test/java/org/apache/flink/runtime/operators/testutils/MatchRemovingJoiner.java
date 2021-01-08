@@ -22,8 +22,6 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-
 import java.util.Collection;
 import java.util.Map;
 
@@ -50,12 +48,13 @@ public final class MatchRemovingJoiner
 
         Collection<Match> matches = this.toRemoveFrom.get(key);
         if (matches == null) {
-            Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
+            Assertions.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
         }
 
         boolean contained = matches.remove(new Match(value1, value2));
         if (!contained) {
-            Assert.fail("Produced match was not contained: " + key + " - " + value1 + ":" + value2);
+            Assertions.fail(
+                    "Produced match was not contained: " + key + " - " + value1 + ":" + value2);
         }
         if (matches.isEmpty()) {
             this.toRemoveFrom.remove(key);

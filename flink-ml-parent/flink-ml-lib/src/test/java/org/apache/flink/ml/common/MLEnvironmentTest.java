@@ -24,21 +24,22 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test cases for MLEnvironment. */
 public class MLEnvironmentTest {
     @Test
     public void testDefaultConstructor() {
         MLEnvironment mlEnvironment = new MLEnvironment();
-        Assert.assertNotNull(mlEnvironment.getExecutionEnvironment());
-        Assert.assertNotNull(mlEnvironment.getBatchTableEnvironment());
-        Assert.assertNotNull(mlEnvironment.getStreamExecutionEnvironment());
-        Assert.assertNotNull(mlEnvironment.getStreamTableEnvironment());
+        Assertions.assertNotNull(mlEnvironment.getExecutionEnvironment());
+        Assertions.assertNotNull(mlEnvironment.getBatchTableEnvironment());
+        Assertions.assertNotNull(mlEnvironment.getStreamExecutionEnvironment());
+        Assertions.assertNotNull(mlEnvironment.getStreamTableEnvironment());
     }
 
     @Test
@@ -50,8 +51,8 @@ public class MLEnvironmentTest {
         MLEnvironment mlEnvironment =
                 new MLEnvironment(executionEnvironment, batchTableEnvironment);
 
-        Assert.assertSame(mlEnvironment.getExecutionEnvironment(), executionEnvironment);
-        Assert.assertSame(mlEnvironment.getBatchTableEnvironment(), batchTableEnvironment);
+        Assertions.assertSame(mlEnvironment.getExecutionEnvironment(), executionEnvironment);
+        Assertions.assertSame(mlEnvironment.getBatchTableEnvironment(), batchTableEnvironment);
     }
 
     @Test
@@ -66,9 +67,9 @@ public class MLEnvironmentTest {
         MLEnvironment mlEnvironment =
                 new MLEnvironment(streamExecutionEnvironment, streamTableEnvironment);
 
-        Assert.assertSame(
+        Assertions.assertSame(
                 mlEnvironment.getStreamExecutionEnvironment(), streamExecutionEnvironment);
-        Assert.assertSame(mlEnvironment.getStreamTableEnvironment(), streamTableEnvironment);
+        Assertions.assertSame(mlEnvironment.getStreamTableEnvironment(), streamTableEnvironment);
     }
 
     @Test

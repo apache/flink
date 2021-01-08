@@ -30,9 +30,13 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -124,14 +128,14 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
                 submitJobAndWaitForResult(
                         cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
             } catch (Exception e) {
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
             }
 
             postSubmit();
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 

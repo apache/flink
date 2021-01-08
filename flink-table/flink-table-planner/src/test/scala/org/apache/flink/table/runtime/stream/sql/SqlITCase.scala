@@ -36,7 +36,7 @@ import org.apache.flink.table.runtime.utils.{JavaUserDefinedTableFunctions, Stre
 import org.apache.flink.table.utils.{InMemoryTableFactory, MemoryTableSourceSinkUtil}
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 import scala.collection.mutable

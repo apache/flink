@@ -35,8 +35,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This test suite try to verify whether all the random samplers work as we expected, which mainly
@@ -93,16 +94,20 @@ public class RandomSamplerTest {
 
     @Test
     public void testBernoulliSamplerWithUnexpectedFraction1() {
-        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
                     verifySamplerFraction(-1, false);
-        });
+                });
     }
 
     @Test
     public void testBernoulliSamplerWithUnexpectedFraction2() {
-        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
                     verifySamplerFraction(2, false);
-        });
+                });
     }
 
     @Test
@@ -127,9 +132,11 @@ public class RandomSamplerTest {
 
     @Test
     public void testPoissonSamplerWithUnexpectedFraction1() {
-        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
                     verifySamplerFraction(-1, true);
-        });
+                });
     }
 
     @Test
@@ -146,16 +153,20 @@ public class RandomSamplerTest {
 
     @Test
     public void testReservoirSamplerUnexpectedSize1() {
-        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
                     verifySamplerFixedSampleSize(-1, true);
-        });
+                });
     }
 
     @Test
     public void testReservoirSamplerUnexpectedSize2() {
-        Assertions.assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
                     verifySamplerFixedSampleSize(-1, false);
-        });
+                });
     }
 
     @Test
@@ -199,8 +210,8 @@ public class RandomSamplerTest {
         RandomSampler<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(20000);
         Iterator<Double> sampled = sampler.sample(source.iterator());
         assertTrue(
-                "ReservoirSamplerWithoutReplacement sampled output size should not beyond the source size.",
-                getSize(sampled) == SOURCE_SIZE);
+                getSize(sampled) == SOURCE_SIZE,
+                "ReservoirSamplerWithoutReplacement sampled output size should not beyond the source size.");
     }
 
     @Test
@@ -284,9 +295,9 @@ public class RandomSamplerTest {
         }
         double resultFraction = totalSampledSize / ((double) SOURCE_SIZE * sampleCount);
         assertTrue(
+                Math.abs((resultFraction - fraction) / fraction) < 0.2,
                 String.format(
-                        "expected fraction: %f, result fraction: %f", fraction, resultFraction),
-                Math.abs((resultFraction - fraction) / fraction) < 0.2);
+                        "expected fraction: %f, result fraction: %f", fraction, resultFraction));
     }
 
     /*
@@ -298,7 +309,7 @@ public class RandomSamplerTest {
         while (values.hasNext()) {
             double next = values.next();
             assertTrue(
-                    "Sampler returned duplicate element (" + next + "). Set=" + set, set.add(next));
+                    set.add(next), "Sampler returned duplicate element (" + next + "). Set=" + set);
         }
     }
 
@@ -393,12 +404,12 @@ public class RandomSamplerTest {
         double dValue = getDValue(sampled.length, defaultSampler.length);
         if (expectSuccess) {
             assertTrue(
-                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue),
-                    pValue <= dValue);
+                    pValue <= dValue,
+                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue));
         } else {
             assertTrue(
-                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue),
-                    pValue > dValue);
+                    pValue > dValue,
+                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue));
         }
     }
 

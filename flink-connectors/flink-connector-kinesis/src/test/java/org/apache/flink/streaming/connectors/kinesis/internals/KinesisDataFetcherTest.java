@@ -50,8 +50,13 @@ import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.powermock.reflect.Whitebox;
 
 import java.util.ArrayList;
@@ -74,11 +79,11 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -88,30 +93,35 @@ public class KinesisDataFetcherTest extends TestLogger {
 
     @Test
     public void testIfNoShardsAreFoundShouldThrowException() throws Exception {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     List<String> fakeStreams = new LinkedList<>();
-        fakeStreams.add("fakeStream1");
-        fakeStreams.add("fakeStream2");
+                    fakeStreams.add("fakeStream1");
+                    fakeStreams.add("fakeStream2");
 
-        HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
-                KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(
-                        fakeStreams);
+                    HashMap<String, String> subscribedStreamsToLastSeenShardIdsUnderTest =
+                            KinesisDataFetcher
+                                    .createInitialSubscribedStreamsToLastDiscoveredShardsState(
+                                            fakeStreams);
 
-        TestableKinesisDataFetcher<String> fetcher =
-                new TestableKinesisDataFetcher<>(
-                        fakeStreams,
-                        new TestSourceContext<>(),
-                        TestUtils.getStandardProperties(),
-                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
-                        10,
-                        2,
-                        new AtomicReference<>(),
-                        new LinkedList<>(),
-                        subscribedStreamsToLastSeenShardIdsUnderTest,
-                        FakeKinesisBehavioursFactory.noShardsFoundForRequestedStreamsBehaviour());
+                    TestableKinesisDataFetcher<String> fetcher =
+                            new TestableKinesisDataFetcher<>(
+                                    fakeStreams,
+                                    new TestSourceContext<>(),
+                                    TestUtils.getStandardProperties(),
+                                    new KinesisDeserializationSchemaWrapper<>(
+                                            new SimpleStringSchema()),
+                                    10,
+                                    2,
+                                    new AtomicReference<>(),
+                                    new LinkedList<>(),
+                                    subscribedStreamsToLastSeenShardIdsUnderTest,
+                                    FakeKinesisBehavioursFactory
+                                            .noShardsFoundForRequestedStreamsBehaviour());
 
-        fetcher.runFetcher(); // this should throw RuntimeException
-        });
+                    fetcher.runFetcher(); // this should throw RuntimeException
+                });
     }
 
     @Test
@@ -885,34 +895,35 @@ public class KinesisDataFetcherTest extends TestLogger {
                 new StreamRecord<>(String.valueOf(Long.MIN_VALUE), Long.MIN_VALUE);
         fetcher.emitRecordAndUpdateState(
                 record1.getValue(), record1.getTimestamp(), shardIndex, seq);
-        Assert.assertEquals(record1, sourceContext.getCollectedOutputs().poll());
+        Assertions.assertEquals(record1, sourceContext.getCollectedOutputs().poll());
 
         fetcher.emitWatermark();
-        Assert.assertTrue("potential watermark equals previous watermark", watermarks.isEmpty());
+        Assertions.assertTrue(
+                watermarks.isEmpty(), "potential watermark equals previous watermark");
 
         StreamRecord<String> record2 = new StreamRecord<>(String.valueOf(1), 1);
         fetcher.emitRecordAndUpdateState(
                 record2.getValue(), record2.getTimestamp(), shardIndex, seq);
-        Assert.assertEquals(record2, sourceContext.getCollectedOutputs().poll());
+        Assertions.assertEquals(record2, sourceContext.getCollectedOutputs().poll());
 
         fetcher.emitWatermark();
-        Assert.assertFalse("watermark advanced", watermarks.isEmpty());
-        Assert.assertEquals(new Watermark(record2.getTimestamp()), watermarks.remove(0));
-        Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
+        Assertions.assertFalse(watermarks.isEmpty(), "watermark advanced");
+        Assertions.assertEquals(new Watermark(record2.getTimestamp()), watermarks.remove(0));
+        Assertions.assertFalse(isTemporaryIdle.booleanValue(), "not idle");
 
         // test idle timeout
         long idleTimeout = 10;
         // advance clock idleTimeout
         clock.add(idleTimeout + 1);
         fetcher.emitWatermark();
-        Assert.assertFalse("not idle", isTemporaryIdle.booleanValue());
-        Assert.assertTrue("not idle, no new watermark", watermarks.isEmpty());
+        Assertions.assertFalse(isTemporaryIdle.booleanValue(), "not idle");
+        Assertions.assertTrue(watermarks.isEmpty(), "not idle, no new watermark");
 
         // activate idle timeout
         Whitebox.setInternalState(fetcher, "shardIdleIntervalMillis", idleTimeout);
         fetcher.emitWatermark();
-        Assert.assertTrue("idle", isTemporaryIdle.booleanValue());
-        Assert.assertTrue("idle, no watermark", watermarks.isEmpty());
+        Assertions.assertTrue(isTemporaryIdle.booleanValue(), "idle");
+        Assertions.assertTrue(watermarks.isEmpty(), "idle, no watermark");
     }
 
     @Test

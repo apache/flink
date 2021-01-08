@@ -21,9 +21,13 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -52,7 +56,7 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 0);
         // for uncheckpointed buffer, results can be instantly seen by user
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
 
         expected = Arrays.asList(4, 5);
@@ -62,9 +66,9 @@ public class CollectResultBufferTest {
                         version, 0, createSerializedResults(Arrays.asList(3, 4, 5)));
         buffer.dealWithResponse(response, 2);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
     }
 
     @Test
@@ -82,7 +86,7 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
 
         // version changed, job restarted
@@ -94,34 +98,38 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
     }
 
     @Test
     public void testUncheckpointedNotFaultTolerance() throws Exception {
-        Assertions.assertThrows(RuntimeException.class, () -> {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
                     String version = "version";
-        AbstractCollectResultBuffer<Integer> buffer =
-                new UncheckpointedCollectResultBuffer<>(serializer, false);
+                    AbstractCollectResultBuffer<Integer> buffer =
+                            new UncheckpointedCollectResultBuffer<>(serializer, false);
 
-        // first response to sync version, no data
-        CollectCoordinationResponse response =
-                new CollectCoordinationResponse(version, 0, Collections.emptyList());
-        buffer.dealWithResponse(response, 0);
+                    // first response to sync version, no data
+                    CollectCoordinationResponse response =
+                            new CollectCoordinationResponse(version, 0, Collections.emptyList());
+                    buffer.dealWithResponse(response, 0);
 
-        List<Integer> expected = Arrays.asList(1, 2, 3);
-        response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
-        buffer.dealWithResponse(response, 0);
-        for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
-        }
+                    List<Integer> expected = Arrays.asList(1, 2, 3);
+                    response =
+                            new CollectCoordinationResponse(
+                                    version, 0, createSerializedResults(expected));
+                    buffer.dealWithResponse(response, 0);
+                    for (Integer expectedValue : expected) {
+                        Assertions.assertEquals(expectedValue, buffer.next());
+                    }
 
-        // version changed, job restarted
-        version = "another";
-        response = new CollectCoordinationResponse(version, 0, Collections.emptyList());
-        buffer.dealWithResponse(response, 0);
-        });
+                    // version changed, job restarted
+                    version = "another";
+                    response = new CollectCoordinationResponse(version, 0, Collections.emptyList());
+                    buffer.dealWithResponse(response, 0);
+                });
     }
 
     @Test
@@ -139,7 +147,7 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         // for checkpointed buffer, results can only be seen after a checkpoint
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
 
         response =
                 new CollectCoordinationResponse(
@@ -147,7 +155,7 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 3);
         // results before checkpoint can be seen now
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
 
         expected = Arrays.asList(4, 5, 6);
@@ -158,12 +166,12 @@ public class CollectResultBufferTest {
         buffer.dealWithResponse(response, 5);
         // results before checkpoint can be seen now
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
 
         buffer.complete();
-        Assert.assertEquals((Integer) 7, buffer.next());
-        Assert.assertNull(buffer.next());
+        Assertions.assertEquals((Integer) 7, buffer.next());
+        Assertions.assertNull(buffer.next());
     }
 
     @Test
@@ -182,7 +190,7 @@ public class CollectResultBufferTest {
                         version, 0, createSerializedResults(Arrays.asList(1, 2, 3)));
         buffer.dealWithResponse(response, 0);
         // for checkpointed buffer, results can only be seen after a checkpoint
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
 
         // version changed, job restarted
         version = "another";
@@ -194,15 +202,15 @@ public class CollectResultBufferTest {
         response = new CollectCoordinationResponse(version, 0, createSerializedResults(expected));
         buffer.dealWithResponse(response, 0);
         // checkpoint still not done
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
 
         // checkpoint completed
         response = new CollectCoordinationResponse(version, 3, Collections.emptyList());
         buffer.dealWithResponse(response, 0);
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
     }
 
     @Test
@@ -220,9 +228,9 @@ public class CollectResultBufferTest {
         buffer.complete();
 
         for (Integer expectedValue : expected) {
-            Assert.assertEquals(expectedValue, buffer.next());
+            Assertions.assertEquals(expectedValue, buffer.next());
         }
-        Assert.assertNull(buffer.next());
+        Assertions.assertNull(buffer.next());
     }
 
     private List<byte[]> createSerializedResults(List<Integer> values) throws Exception {

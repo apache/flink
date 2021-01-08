@@ -18,18 +18,21 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
-
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
@@ -66,7 +69,7 @@ public class KryoClearedBufferTest {
 
         try {
             kryoSerializer.serialize(testRecord, target);
-            Assert.fail("Expected an EOFException.");
+            Assertions.fail("Expected an EOFException.");
         } catch (EOFException eofException) {
             // expected exception
             // now the Kryo Output should have been cleared
@@ -77,7 +80,7 @@ public class KryoClearedBufferTest {
                         new DataInputViewStreamWrapper(
                                 new ByteArrayInputStream(target.getBuffer())));
 
-        Assert.assertEquals(testRecord, actualRecord);
+        Assertions.assertEquals(testRecord, actualRecord);
 
         target.clear();
 
@@ -95,7 +98,7 @@ public class KryoClearedBufferTest {
             }
         }
 
-        Assert.assertEquals(size, counter);
+        Assertions.assertEquals(size, counter);
     }
 
     public static class TestRecord {

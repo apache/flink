@@ -18,14 +18,18 @@
 
 package org.apache.flink.streaming.api.functions.sink;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.commons.io.IOUtils;
 import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -33,16 +37,10 @@ import java.io.InputStreamReader;
 import java.net.BindException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link org.apache.flink.streaming.api.functions.sink.SocketClientSink}. */
 @SuppressWarnings("serial")
@@ -194,7 +192,7 @@ public class SocketClientSinkTest extends TestLogger {
                 }
             } catch (IOException e) {
                 // check whether throw a exception that reconnect failed.
-                assertTrue("Wrong exception", e.getMessage().contains(EXCEPTION_MESSGAE));
+                assertTrue(e.getMessage().contains(EXCEPTION_MESSGAE), "Wrong exception");
             } catch (Exception e) {
                 fail("wrong exception: " + e.getClass().getName() + " - " + e.getMessage());
             }

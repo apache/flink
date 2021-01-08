@@ -19,8 +19,7 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /** Tests for {@link BooleanSummaryAggregator}. */
@@ -30,41 +29,41 @@ public class BooleanSummaryAggregatorTest {
     public void testMixedGroup() {
         BooleanColumnSummary summary =
                 summarize(true, false, null, true, true, true, false, null, true, false, true);
-        Assert.assertEquals(11, summary.getTotalCount());
-        Assert.assertEquals(2, summary.getNullCount());
-        Assert.assertEquals(9, summary.getNonNullCount());
-        Assert.assertEquals(6, summary.getTrueCount());
-        Assert.assertEquals(3, summary.getFalseCount());
+        Assertions.assertEquals(11, summary.getTotalCount());
+        Assertions.assertEquals(2, summary.getNullCount());
+        Assertions.assertEquals(9, summary.getNonNullCount());
+        Assertions.assertEquals(6, summary.getTrueCount());
+        Assertions.assertEquals(3, summary.getFalseCount());
     }
 
     @Test
     public void testAllNullBooleans() {
         BooleanColumnSummary summary = summarize(null, null, null, null);
-        Assert.assertEquals(4, summary.getTotalCount());
-        Assert.assertEquals(4, summary.getNullCount());
-        Assert.assertEquals(0, summary.getNonNullCount());
-        Assert.assertEquals(0, summary.getTrueCount());
-        Assert.assertEquals(0, summary.getFalseCount());
+        Assertions.assertEquals(4, summary.getTotalCount());
+        Assertions.assertEquals(4, summary.getNullCount());
+        Assertions.assertEquals(0, summary.getNonNullCount());
+        Assertions.assertEquals(0, summary.getTrueCount());
+        Assertions.assertEquals(0, summary.getFalseCount());
     }
 
     @Test
     public void testAllTrue() {
         BooleanColumnSummary summary = summarize(true, true, true, true, true, true);
-        Assert.assertEquals(6, summary.getTotalCount());
-        Assert.assertEquals(0, summary.getNullCount());
-        Assert.assertEquals(6, summary.getNonNullCount());
-        Assert.assertEquals(6, summary.getTrueCount());
-        Assert.assertEquals(0, summary.getFalseCount());
+        Assertions.assertEquals(6, summary.getTotalCount());
+        Assertions.assertEquals(0, summary.getNullCount());
+        Assertions.assertEquals(6, summary.getNonNullCount());
+        Assertions.assertEquals(6, summary.getTrueCount());
+        Assertions.assertEquals(0, summary.getFalseCount());
     }
 
     @Test
     public void testAllFalse() {
         BooleanColumnSummary summary = summarize(false, false, false);
-        Assert.assertEquals(3, summary.getTotalCount());
-        Assert.assertEquals(0, summary.getNullCount());
-        Assert.assertEquals(3, summary.getNonNullCount());
-        Assert.assertEquals(0, summary.getTrueCount());
-        Assert.assertEquals(3, summary.getFalseCount());
+        Assertions.assertEquals(3, summary.getTotalCount());
+        Assertions.assertEquals(0, summary.getNullCount());
+        Assertions.assertEquals(3, summary.getNonNullCount());
+        Assertions.assertEquals(0, summary.getTrueCount());
+        Assertions.assertEquals(3, summary.getFalseCount());
     }
 
     /**
@@ -79,10 +78,10 @@ public class BooleanSummaryAggregatorTest {
             @Override
             protected void compareResults(
                     BooleanColumnSummary result1, BooleanColumnSummary result2) {
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-                Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
-                Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
+                Assertions.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assertions.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
+                Assertions.assertEquals(result1.getTrueCount(), result2.getTrueCount());
+                Assertions.assertEquals(result1.getFalseCount(), result2.getFalseCount());
             }
         }.summarize(values);
     }

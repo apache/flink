@@ -23,12 +23,16 @@ import org.apache.flink.table.descriptors.GenericInMemoryCatalogDescriptor;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link GenericInMemoryCatalog} created by {@link GenericInMemoryCatalogFactory}. */
 public class GenericInMemoryCatalogFactoryTest extends TestLogger {

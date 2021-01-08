@@ -40,31 +40,27 @@ import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.*;
 import org.apache.flink.streaming.api.windowing.evictors.CountEvictor;
 import org.apache.flink.streaming.api.windowing.evictors.TimeEvictor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.EventTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
-import org.apache.flink.streaming.api.windowing.triggers.Trigger;
-import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
+import org.apache.flink.streaming.api.windowing.triggers.*;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * These tests verify that the api calls on {@link WindowedStream} instantiate the correct window
@@ -86,29 +82,34 @@ public class WindowTranslationTest {
      */
     @Test
     public void testReduceWithRichReducerFails() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                    DataStream<Tuple2<String, Integer>> source =
+                            env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
-        source.keyBy(0)
-                .window(
-                        SlidingEventTimeWindows.of(
-                                Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
-                .reduce(
-                        new RichReduceFunction<Tuple2<String, Integer>>() {
+                    source.keyBy(0)
+                            .window(
+                                    SlidingEventTimeWindows.of(
+                                            Time.of(1, TimeUnit.SECONDS),
+                                            Time.of(100, TimeUnit.MILLISECONDS)))
+                            .reduce(
+                                    new RichReduceFunction<Tuple2<String, Integer>>() {
 
-                            @Override
-                            public Tuple2<String, Integer> reduce(
-                                    Tuple2<String, Integer> value1, Tuple2<String, Integer> value2)
-                                    throws Exception {
-                                return null;
-                            }
-                        });
+                                        @Override
+                                        public Tuple2<String, Integer> reduce(
+                                                Tuple2<String, Integer> value1,
+                                                Tuple2<String, Integer> value2)
+                                                throws Exception {
+                                            return null;
+                                        }
+                                    });
 
-        fail("exception was not thrown");
-        });
+                    fail("exception was not thrown");
+                });
     }
 
     /**
@@ -117,20 +118,24 @@ public class WindowTranslationTest {
      */
     @Test
     public void testAggregateWithRichFunctionFails() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<String, Integer>> source =
-                env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
+                    DataStream<Tuple2<String, Integer>> source =
+                            env.fromElements(Tuple2.of("hello", 1), Tuple2.of("hello", 2));
 
-        source.keyBy(0)
-                .window(
-                        SlidingEventTimeWindows.of(
-                                Time.of(1, TimeUnit.SECONDS), Time.of(100, TimeUnit.MILLISECONDS)))
-                .aggregate(new DummyRichAggregationFunction<Tuple2<String, Integer>>());
+                    source.keyBy(0)
+                            .window(
+                                    SlidingEventTimeWindows.of(
+                                            Time.of(1, TimeUnit.SECONDS),
+                                            Time.of(100, TimeUnit.MILLISECONDS)))
+                            .aggregate(new DummyRichAggregationFunction<Tuple2<String, Integer>>());
 
-        fail("exception was not thrown");
-        });
+                    fail("exception was not thrown");
+                });
     }
 
     // ------------------------------------------------------------------------
@@ -223,12 +228,12 @@ public class WindowTranslationTest {
         final OneInputTransformation<Integer, String> transform =
                 (OneInputTransformation<Integer, String>) window1.getTransformation();
         final OneInputStreamOperator<Integer, String> operator = transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Integer, ?, ?, ?> winOperator =
                 (WindowOperator<String, Integer, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof EventTimeSessionWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof EventTimeSessionWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator, winOperator.getKeySelector(), BasicTypeInfo.STRING_TYPE_INFO, 1);
@@ -259,12 +264,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -294,12 +299,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -348,12 +353,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -400,12 +405,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -454,12 +459,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -506,12 +511,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -561,12 +566,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -617,12 +622,12 @@ public class WindowTranslationTest {
                         window.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple3<String, String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -657,13 +662,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, Integer> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -694,13 +699,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, Integer> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -730,13 +735,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, String> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -764,13 +769,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, String> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -798,13 +803,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, String> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -832,13 +837,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, String> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof AggregatingStateDescriptor);
 
         processElementAndEnsureOutput(
                 operator,
@@ -888,12 +893,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -939,12 +944,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -990,12 +995,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1041,12 +1046,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof ProcessingTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingProcessingTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1079,12 +1084,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ReducingStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1131,12 +1136,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1183,12 +1188,12 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple2<String, Integer>, ?, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1221,13 +1226,13 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof EvictingWindowOperator);
+        Assertions.assertTrue(operator instanceof EvictingWindowOperator);
         EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
                 (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getEvictor() instanceof CountEvictor);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getEvictor() instanceof CountEvictor);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1278,13 +1283,13 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof EvictingWindowOperator);
+        Assertions.assertTrue(operator instanceof EvictingWindowOperator);
         EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
                 (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getEvictor() instanceof CountEvictor);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getEvictor() instanceof CountEvictor);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1316,13 +1321,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, Integer> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1354,13 +1359,13 @@ public class WindowTranslationTest {
         final OneInputStreamOperator<Tuple3<String, String, Integer>, String> operator =
                 transform.getOperator();
 
-        Assert.assertTrue(operator instanceof WindowOperator);
+        Assertions.assertTrue(operator instanceof WindowOperator);
         WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?> winOperator =
                 (WindowOperator<String, Tuple3<String, String, Integer>, ?, ?, ?>) operator;
 
-        Assert.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof EventTimeTrigger);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof SlidingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1408,13 +1413,13 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof EvictingWindowOperator);
+        Assertions.assertTrue(operator instanceof EvictingWindowOperator);
         EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
                 (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
-        Assert.assertTrue(winOperator.getEvictor() instanceof TimeEvictor);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
+        Assertions.assertTrue(winOperator.getEvictor() instanceof TimeEvictor);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,
@@ -1462,13 +1467,13 @@ public class WindowTranslationTest {
                         window1.getTransformation();
         OneInputStreamOperator<Tuple2<String, Integer>, Tuple2<String, Integer>> operator =
                 transform.getOperator();
-        Assert.assertTrue(operator instanceof EvictingWindowOperator);
+        Assertions.assertTrue(operator instanceof EvictingWindowOperator);
         EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?> winOperator =
                 (EvictingWindowOperator<String, Tuple2<String, Integer>, ?, ?>) operator;
-        Assert.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
-        Assert.assertTrue(winOperator.getEvictor() instanceof TimeEvictor);
-        Assert.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
-        Assert.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
+        Assertions.assertTrue(winOperator.getTrigger() instanceof CountTrigger);
+        Assertions.assertTrue(winOperator.getEvictor() instanceof TimeEvictor);
+        Assertions.assertTrue(winOperator.getWindowAssigner() instanceof TumblingEventTimeWindows);
+        Assertions.assertTrue(winOperator.getStateDescriptor() instanceof ListStateDescriptor);
 
         processElementAndEnsureOutput(
                 winOperator,

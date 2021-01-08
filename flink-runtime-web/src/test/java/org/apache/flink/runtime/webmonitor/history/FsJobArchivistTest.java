@@ -22,9 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.history.FsJobArchivist;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.ArrayList;
@@ -49,6 +52,6 @@ public class FsJobArchivistTest {
         final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
         final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
 
-        Assert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
+        MatcherAssert.assertThat(restored, containsInAnyOrder(toArchive.toArray()));
     }
 }

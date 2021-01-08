@@ -39,6 +39,11 @@ import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,8 +54,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests for {@link MapPartitionFunction}. */
 @RunWith(Parameterized.class)
@@ -482,40 +487,44 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
     @Test
     public void testRangePartitionInIteration() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
 
-        // does not apply for collection execution
-        if (super.mode == TestExecutionMode.COLLECTION) {
-            throw new InvalidProgramException("Does not apply for collection execution");
-        }
+                    // does not apply for collection execution
+                    if (super.mode == TestExecutionMode.COLLECTION) {
+                        throw new InvalidProgramException(
+                                "Does not apply for collection execution");
+                    }
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSource<Long> source = env.generateSequence(0, 10000);
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSource<Long> source = env.generateSequence(0, 10000);
 
-        DataSet<Tuple2<Long, String>> tuples =
-                source.map(
-                        new MapFunction<Long, Tuple2<Long, String>>() {
-                            @Override
-                            public Tuple2<Long, String> map(Long v) throws Exception {
-                                return new Tuple2<>(v, Long.toString(v));
-                            }
-                        });
+                    DataSet<Tuple2<Long, String>> tuples =
+                            source.map(
+                                    new MapFunction<Long, Tuple2<Long, String>>() {
+                                        @Override
+                                        public Tuple2<Long, String> map(Long v) throws Exception {
+                                            return new Tuple2<>(v, Long.toString(v));
+                                        }
+                                    });
 
-        DeltaIteration<Tuple2<Long, String>, Tuple2<Long, String>> it =
-                tuples.iterateDelta(tuples, 10, 0);
-        DataSet<Tuple2<Long, String>> body =
-                it.getWorkset()
-                        .partitionByRange(
-                                1) // Verify that range partition is not allowed in iteration
-                        .join(it.getSolutionSet())
-                        .where(0)
-                        .equalTo(0)
-                        .projectFirst(0)
-                        .projectSecond(1);
-        DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
+                    DeltaIteration<Tuple2<Long, String>, Tuple2<Long, String>> it =
+                            tuples.iterateDelta(tuples, 10, 0);
+                    DataSet<Tuple2<Long, String>> body =
+                            it.getWorkset()
+                                    .partitionByRange(
+                                            1) // Verify that range partition is not allowed in
+                                               // iteration
+                                    .join(it.getSolutionSet())
+                                    .where(0)
+                                    .equalTo(0)
+                                    .projectFirst(0)
+                                    .projectSecond(1);
+                    DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
 
-        result.collect(); // should fail
-        });
+                    result.collect(); // should fail
+                });
     }
 
     @Test

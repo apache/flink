@@ -35,14 +35,19 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 
 import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.checkAndExtractLambda;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests the type extractor for lambda functions. Many tests only work if the compiler supports
@@ -353,9 +358,11 @@ public class LambdaExtractionTest {
 
     @Test
     public void getSingleAbstractMethodMultipleMethods() {
-        Assertions.assertThrows(InvalidTypesException.class, () -> {
+        assertThrows(
+                InvalidTypesException.class,
+                () -> {
                     TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithMultipleMethods.class);
-        });
+                });
     }
 
     private interface InterfaceWithoutAbstractMethod {
@@ -364,9 +371,12 @@ public class LambdaExtractionTest {
 
     @Test
     public void testSingleAbstractMethodNoAbstractMethods() {
-        Assertions.assertThrows(InvalidTypesException.class, () -> {
-                    TypeExtractionUtils.getSingleAbstractMethod(InterfaceWithoutAbstractMethod.class);
-        });
+        assertThrows(
+                InvalidTypesException.class,
+                () -> {
+                    TypeExtractionUtils.getSingleAbstractMethod(
+                            InterfaceWithoutAbstractMethod.class);
+                });
     }
 
     private abstract class AbstractClassWithSingleAbstractMethod {
@@ -375,8 +385,11 @@ public class LambdaExtractionTest {
 
     @Test
     public void testSingleAbstractMethodNotAnInterface() {
-        Assertions.assertThrows(InvalidTypesException.class, () -> {
-                    TypeExtractionUtils.getSingleAbstractMethod(AbstractClassWithSingleAbstractMethod.class);
-        });
+        assertThrows(
+                InvalidTypesException.class,
+                () -> {
+                    TypeExtractionUtils.getSingleAbstractMethod(
+                            AbstractClassWithSingleAbstractMethod.class);
+                });
     }
 }

@@ -44,8 +44,11 @@ import org.apache.flink.streaming.runtime.operators.windowing.TimestampedValue;
 import org.apache.flink.util.Collector;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.util.List;
 
@@ -92,7 +95,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -134,7 +137,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -174,7 +177,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -216,7 +219,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -256,7 +259,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -298,7 +301,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -338,7 +341,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -380,7 +383,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                         .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from keyed state",
                 results,
                 Matchers.containsInAnyOrder(numbers));
@@ -423,7 +426,7 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                                 Types.LONG)
                         .collect();
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "Unexpected results from trigger state", results, Matchers.contains(1L, 1L, 1L));
     }
 
@@ -459,8 +462,8 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
                 Iterable<Integer> elements,
                 Collector<Integer> out)
                 throws Exception {
-            Assert.assertEquals("Unexpected window", new TimeWindow(0, 10), context.window());
-            Assert.assertThat(
+            Assertions.assertEquals("Unexpected window", new TimeWindow(0, 10), context.window());
+            MatcherAssert.assertThat(
                     "Unexpected registered timers",
                     context.registeredEventTimeTimers(),
                     Matchers.contains(9L));

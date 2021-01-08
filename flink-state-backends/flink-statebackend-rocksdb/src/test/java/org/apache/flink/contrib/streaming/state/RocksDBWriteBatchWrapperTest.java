@@ -19,10 +19,13 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.java.tuple.Tuple2;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -34,7 +37,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOptions.WRITE_BATCH_SIZE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests to guard {@link RocksDBWriteBatchWrapper}. */
 public class RocksDBWriteBatchWrapperTest {
@@ -65,7 +68,7 @@ public class RocksDBWriteBatchWrapperTest {
 
             // valid result
             for (Tuple2<byte[], byte[]> item : data) {
-                Assert.assertArrayEquals(item.f1, db.get(handle, item.f0));
+                Assertions.assertArrayEquals(item.f1, db.get(handle, item.f0));
             }
         }
     }

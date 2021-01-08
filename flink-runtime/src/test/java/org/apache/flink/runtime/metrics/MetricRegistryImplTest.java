@@ -22,11 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Metric;
-import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.*;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -41,12 +37,14 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
-
-import org.junit.Assert;
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -57,8 +55,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link MetricRegistryImpl}. */
 public class MetricRegistryImplTest extends TestLogger {
@@ -71,11 +69,11 @@ public class MetricRegistryImplTest extends TestLogger {
                 new MetricRegistryImpl(
                         MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
-        Assert.assertFalse(metricRegistry.isShutdown());
+        Assertions.assertFalse(metricRegistry.isShutdown());
 
         metricRegistry.shutdown().get();
 
-        Assert.assertTrue(metricRegistry.isShutdown());
+        Assertions.assertTrue(metricRegistry.isShutdown());
     }
 
     /** Reporter that exposes whether open() was called. */
@@ -94,13 +92,13 @@ public class MetricRegistryImplTest extends TestLogger {
                 new MetricRegistryImpl(
                         MetricRegistryConfiguration.defaultMetricRegistryConfiguration());
 
-        Assert.assertNull(metricRegistry.getMetricQueryServiceGatewayRpcAddress());
+        Assertions.assertNull(metricRegistry.getMetricQueryServiceGatewayRpcAddress());
 
         metricRegistry.startQueryService(new TestingRpcService(), new ResourceID("mqs"));
 
         MetricQueryServiceGateway metricQueryServiceGateway =
                 metricRegistry.getMetricQueryServiceGateway();
-        Assert.assertNotNull(metricQueryServiceGateway);
+        Assertions.assertNotNull(metricQueryServiceGateway);
 
         metricRegistry.register(
                 new SimpleCounter(),
@@ -120,7 +118,7 @@ public class MetricRegistryImplTest extends TestLogger {
                 Thread.sleep(50);
             }
         }
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "metrics query did not return expected result", metricsSuccessfullyQueried);
     }
 
@@ -168,9 +166,10 @@ public class MetricRegistryImplTest extends TestLogger {
              * reports ends before or after T=50.
              */
             long maxAllowedReports = (curT - start) / 50 + 2;
-            Assert.assertTrue("Too many reports were triggered.", maxAllowedReports >= reportCount);
+            Assertions.assertTrue(
+                    "Too many reports were triggered.", maxAllowedReports >= reportCount);
         }
-        Assert.assertTrue("No report was triggered.", TestReporter3.reportCount > 0);
+        Assertions.assertTrue(TestReporter3.reportCount > 0, "No report was triggered.");
 
         registry.shutdown().get();
     }
@@ -195,7 +194,7 @@ public class MetricRegistryImplTest extends TestLogger {
             Collection<ScheduledFuture<?>> scheduledTasks =
                     manuallyTriggeredScheduledExecutorService.getScheduledTasks();
             ScheduledFuture<?> reportTask = Iterators.getOnlyElement(scheduledTasks.iterator());
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     MetricOptions.REPORTER_INTERVAL.defaultValue().getSeconds(),
                     reportTask.getDelay(TimeUnit.SECONDS));
         } finally {

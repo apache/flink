@@ -42,9 +42,13 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -56,10 +60,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
-import static org.apache.flink.configuration.CheckpointingOptions.INCREMENTAL_CHECKPOINTS;
-import static org.apache.flink.configuration.CheckpointingOptions.STATE_BACKEND;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.configuration.CheckpointingOptions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for StatefulOperatorChainedTaskTest. */
 public class StatefulOperatorChainedTaskTest {

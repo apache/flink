@@ -31,13 +31,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
-import org.apache.flink.runtime.jobmanager.Tasks.AgnosticBinaryReceiver;
-import org.apache.flink.runtime.jobmanager.Tasks.AgnosticReceiver;
-import org.apache.flink.runtime.jobmanager.Tasks.AgnosticTertiaryReceiver;
-import org.apache.flink.runtime.jobmanager.Tasks.ExceptionReceiver;
-import org.apache.flink.runtime.jobmanager.Tasks.ExceptionSender;
-import org.apache.flink.runtime.jobmanager.Tasks.Forwarder;
-import org.apache.flink.runtime.jobmanager.Tasks.InstantiationErrorSender;
+import org.apache.flink.runtime.jobmanager.Tasks.*;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -47,8 +41,12 @@ import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testtasks.WaitingNoOpInvokable;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -58,9 +56,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Integration test cases for the {@link MiniCluster}. */
 public class MiniClusterITCase extends TestLogger {

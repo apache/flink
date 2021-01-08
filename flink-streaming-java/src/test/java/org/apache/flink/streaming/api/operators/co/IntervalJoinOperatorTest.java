@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -34,12 +36,13 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -400,7 +403,7 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(left.ts, ctx.getLeftTimestamp());
+                                Assertions.assertEquals(left.ts, ctx.getLeftTimestamp());
                             }
                         });
 
@@ -439,7 +442,7 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(
+                                Assertions.assertEquals(
                                         Math.max(left.ts, right.ts), ctx.getTimestamp());
                             }
                         });
@@ -477,7 +480,7 @@ public class IntervalJoinOperatorTest {
                                     Context ctx,
                                     Collector<Tuple2<TestElem, TestElem>> out)
                                     throws Exception {
-                                Assert.assertEquals(right.ts, ctx.getRightTimestamp());
+                                Assertions.assertEquals(right.ts, ctx.getRightTimestamp());
                             }
                         });
 
@@ -497,29 +500,33 @@ public class IntervalJoinOperatorTest {
 
     @Test
     public void testFailsWithNoTimestampsLeft() throws Exception {
-        Assertions.assertThrows(FlinkException.class, () -> {
+        assertThrows(
+                FlinkException.class,
+                () -> {
                     TestHarness newTestHarness = createTestHarness(0L, true, 0L, true);
 
-        newTestHarness.setup();
-        newTestHarness.open();
+                    newTestHarness.setup();
+                    newTestHarness.open();
 
-        // note that the StreamRecord has no timestamp in constructor
-        newTestHarness.processElement1(new StreamRecord<>(new TestElem(0, "lhs")));
-        });
+                    // note that the StreamRecord has no timestamp in constructor
+                    newTestHarness.processElement1(new StreamRecord<>(new TestElem(0, "lhs")));
+                });
     }
 
     @Test
     public void testFailsWithNoTimestampsRight() throws Exception {
-        Assertions.assertThrows(FlinkException.class, () -> {
+        assertThrows(
+                FlinkException.class,
+                () -> {
                     try (TestHarness newTestHarness = createTestHarness(0L, true, 0L, true)) {
 
-            newTestHarness.setup();
-            newTestHarness.open();
+                        newTestHarness.setup();
+                        newTestHarness.open();
 
-            // note that the StreamRecord has no timestamp in constructor
-            newTestHarness.processElement2(new StreamRecord<>(new TestElem(0, "rhs")));
-        }
-        });
+                        // note that the StreamRecord has no timestamp in constructor
+                        newTestHarness.processElement2(new StreamRecord<>(new TestElem(0, "rhs")));
+                    }
+                });
     }
 
     @Test
@@ -558,7 +565,7 @@ public class IntervalJoinOperatorTest {
 
     private void assertEmpty(MapState<Long, ?> state) throws Exception {
         boolean stateIsEmpty = Iterables.size(state.keys()) == 0;
-        Assert.assertTrue("state not empty", stateIsEmpty);
+        Assertions.assertTrue(stateIsEmpty, "state not empty");
     }
 
     private void assertContainsOnly(MapState<Long, ?> state, long... ts) throws Exception {
@@ -568,7 +575,7 @@ public class IntervalJoinOperatorTest {
                             + Arrays.toString(ts)
                             + "\n Actual:   "
                             + state.keys();
-            Assert.assertTrue(message, state.contains(t));
+            Assertions.assertTrue(message, state.contains(t));
         }
 
         String message =
@@ -576,7 +583,7 @@ public class IntervalJoinOperatorTest {
                         + Arrays.toString(ts)
                         + "\n Actual:   "
                         + state.keys();
-        Assert.assertEquals(message, ts.length, Iterables.size(state.keys()));
+        Assertions.assertEquals(message, ts.length, Iterables.size(state.keys()));
     }
 
     private void assertOutput(
@@ -591,11 +598,11 @@ public class IntervalJoinOperatorTest {
 
         int expectedSize = Iterables.size(expectedOutput);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Expected and actual size of stream records different", expectedSize, actualSize);
 
         for (StreamRecord<Tuple2<TestElem, TestElem>> record : expectedOutput) {
-            Assert.assertTrue(actualOutput.contains(record));
+            Assertions.assertTrue(actualOutput.contains(record));
         }
     }
 

@@ -44,11 +44,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DelimitedInputFormatTest {
 
@@ -503,9 +503,9 @@ public class DelimitedInputFormatTest {
         FileInputFormat.FileBaseStatistics stats = format.getStatistics(null);
         assertNotNull(stats);
         assertEquals(
-                "The file size from the statistics is wrong.",
                 totalSize,
-                stats.getTotalInputSize());
+                stats.getTotalInputSize(),
+                "The file size from the statistics is wrong.");
     }
 
     @Test
@@ -515,7 +515,7 @@ public class DelimitedInputFormatTest {
                 "file:///path/does/not/really/exist", "file:///another/path/that/does/not/exist");
 
         FileBaseStatistics stats = format.getStatistics(null);
-        assertNull("The file statistics should be null.", stats);
+        assertNull(stats, "The file statistics should be null.");
     }
 
     @Test
@@ -532,14 +532,14 @@ public class DelimitedInputFormatTest {
         FileBaseStatistics stats = format.getStatistics(null);
         assertNotNull(stats);
         assertEquals(
-                "The file size from the statistics is wrong.", size, stats.getTotalInputSize());
+                size, stats.getTotalInputSize(), "The file size from the statistics is wrong.");
 
         format = new MyTextInputFormat();
         format.setFilePath(tempFile);
         format.configure(new Configuration());
 
         FileBaseStatistics newStats = format.getStatistics(stats);
-        assertEquals("Statistics object was changed.", newStats, stats);
+        assertEquals(newStats, stats, "Statistics object was changed.");
 
         // insert fake stats with the correct modification time. the call should return the fake
         // stats
@@ -554,9 +554,9 @@ public class DelimitedInputFormatTest {
                         BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
         BaseStatistics latest = format.getStatistics(fakeStats);
         assertEquals(
-                "The file size from the statistics is wrong.",
                 fakeSize,
-                latest.getTotalInputSize());
+                latest.getTotalInputSize(),
+                "The file size from the statistics is wrong.");
 
         // insert fake stats with the expired modification time. the call should return new accurate
         // stats
@@ -571,9 +571,9 @@ public class DelimitedInputFormatTest {
                         BaseStatistics.AVG_RECORD_BYTES_UNKNOWN);
         BaseStatistics reGathered = format.getStatistics(outDatedFakeStats);
         assertEquals(
-                "The file size from the statistics is wrong.",
                 size,
-                reGathered.getTotalInputSize());
+                reGathered.getTotalInputSize(),
+                "The file size from the statistics is wrong.");
     }
 
     static FileInputSplit createTempFile(String contents) throws IOException {

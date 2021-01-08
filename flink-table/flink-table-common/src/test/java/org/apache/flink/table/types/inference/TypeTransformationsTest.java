@@ -27,20 +27,20 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.types.utils.TypeConversions;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.List;
 
-import static org.apache.flink.table.types.inference.TypeTransformations.TO_INTERNAL_CLASS;
-import static org.apache.flink.table.types.inference.TypeTransformations.legacyDecimalToDefaultDecimal;
-import static org.apache.flink.table.types.inference.TypeTransformations.legacyRawToTypeInfoRaw;
-import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
-import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.table.types.inference.TypeTransformations.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for built-in {@link TypeTransformations}. */
 public class TypeTransformationsTest {

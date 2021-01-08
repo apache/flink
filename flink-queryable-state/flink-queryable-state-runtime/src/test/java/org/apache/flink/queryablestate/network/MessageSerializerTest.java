@@ -30,6 +30,11 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -37,8 +42,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link MessageSerializer}. */
 @RunWith(Parameterized.class)
@@ -114,9 +119,11 @@ public class MessageSerializerTest {
      */
     @Test
     public void testNullPointerExceptionOnNullSerializedKeyAndNamepsace() throws Exception {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(
+                NullPointerException.class,
+                () -> {
                     new KvStateInternalRequest(new KvStateID(), null);
-        });
+                });
     }
 
     /** Tests response serialization. */
@@ -172,9 +179,11 @@ public class MessageSerializerTest {
      */
     @Test
     public void testNullPointerExceptionOnNullSerializedResult() throws Exception {
-        Assertions.assertThrows(NullPointerException.class, () -> {
+        assertThrows(
+                NullPointerException.class,
+                () -> {
                     new KvStateResponse((byte[]) null);
-        });
+                });
     }
 
     /** Tests request failure serialization. */

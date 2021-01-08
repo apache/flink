@@ -19,20 +19,19 @@
 package org.apache.flink.mesos.util;
 
 import org.apache.flink.util.TestLogger;
-
 import org.apache.mesos.Protos;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static org.apache.flink.mesos.Utils.UNRESERVED_ROLE;
-import static org.apache.flink.mesos.Utils.cpus;
-import static org.apache.flink.mesos.Utils.ports;
-import static org.apache.flink.mesos.Utils.range;
-import static org.apache.flink.mesos.Utils.resources;
+import static org.apache.flink.mesos.Utils.*;
 
 /** Tests {@link MesosResourceAllocation}. */
 public class MesosResourceAllocationTest extends TestLogger {
@@ -54,7 +53,7 @@ public class MesosResourceAllocationTest extends TestLogger {
                 new MesosResourceAllocation(
                         resources(
                                 cpus(ROLE_A, 1.0), cpus(UNRESERVED_ROLE, 1.0), cpus(ROLE_B, 1.0)));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(cpus(ROLE_A, 1.0), cpus(ROLE_B, 1.0), cpus(UNRESERVED_ROLE, 1.0)),
                 allocation.getRemaining());
     }
@@ -69,20 +68,20 @@ public class MesosResourceAllocationTest extends TestLogger {
                 new MesosResourceAllocation(
                         resources(
                                 cpus(UNRESERVED_ROLE, 1.0), ports(UNRESERVED_ROLE, range(80, 80))));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(cpus(UNRESERVED_ROLE, 1.0)),
                 allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(UNRESERVED_ROLE, range(80, 80))),
                 allocation.takeRanges("ports", 1, AS_NO_ROLE));
         allocation =
                 new MesosResourceAllocation(
                         resources(
                                 cpus(UNRESERVED_ROLE, 1.0), ports(UNRESERVED_ROLE, range(80, 80))));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(cpus(UNRESERVED_ROLE, 1.0)),
                 allocation.takeScalar("cpus", 1.0, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(UNRESERVED_ROLE, range(80, 80))),
                 allocation.takeRanges("ports", 1, AS_ROLE_A));
 
@@ -90,11 +89,11 @@ public class MesosResourceAllocationTest extends TestLogger {
         allocation =
                 new MesosResourceAllocation(
                         resources(cpus(ROLE_A, 1.0), ports(ROLE_A, range(80, 80))));
-        Assert.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_NO_ROLE));
-        Assert.assertEquals(
+        Assertions.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_NO_ROLE));
+        Assertions.assertEquals(
                 resources(cpus(ROLE_A, 1.0)), allocation.takeScalar("cpus", 1.0, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(ROLE_A, range(80, 80))),
                 allocation.takeRanges("ports", 1, AS_ROLE_A));
 
@@ -102,10 +101,10 @@ public class MesosResourceAllocationTest extends TestLogger {
         allocation =
                 new MesosResourceAllocation(
                         resources(cpus(ROLE_B, 1.0), ports(ROLE_B, range(80, 80))));
-        Assert.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_ROLE_A));
-        Assert.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_ROLE_A));
+        Assertions.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeScalar("cpus", 1.0, AS_ROLE_A));
+        Assertions.assertEquals(resources(), allocation.takeRanges("ports", 1, AS_ROLE_A));
     }
 
     // endregion
@@ -119,15 +118,16 @@ public class MesosResourceAllocationTest extends TestLogger {
                 new MesosResourceAllocation(resources(cpus(1.0), ports(range(80, 80))));
 
         // mismatched name
-        Assert.assertEquals(resources(), allocation.takeScalar("other", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.takeRanges("other", 1, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeScalar("other", 1.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeRanges("other", 1, AS_NO_ROLE));
 
         // mismatched type
-        Assert.assertEquals(resources(), allocation.takeScalar("ports", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.takeRanges("cpus", 1, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeScalar("ports", 1.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.takeRanges("cpus", 1, AS_NO_ROLE));
 
         // nothing lost
-        Assert.assertEquals(resources(cpus(1.0), ports(range(80, 80))), allocation.getRemaining());
+        Assertions.assertEquals(
+                resources(cpus(1.0), ports(range(80, 80))), allocation.getRemaining());
     }
 
     // endregion
@@ -141,30 +141,33 @@ public class MesosResourceAllocationTest extends TestLogger {
 
         // take part of a resource
         allocation = new MesosResourceAllocation(resources(cpus(1.0)));
-        Assert.assertEquals(resources(cpus(0.25)), allocation.takeScalar("cpus", 0.25, AS_NO_ROLE));
-        Assert.assertEquals(resources(cpus(0.75)), allocation.getRemaining());
+        Assertions.assertEquals(
+                resources(cpus(0.25)), allocation.takeScalar("cpus", 0.25, AS_NO_ROLE));
+        Assertions.assertEquals(resources(cpus(0.75)), allocation.getRemaining());
 
         // take a whole resource
         allocation = new MesosResourceAllocation(resources(cpus(1.0)));
-        Assert.assertEquals(resources(cpus(1.0)), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.getRemaining());
+        Assertions.assertEquals(
+                resources(cpus(1.0)), allocation.takeScalar("cpus", 1.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.getRemaining());
 
         // take multiple resources
         allocation =
                 new MesosResourceAllocation(
                         resources(cpus(ROLE_A, 1.0), cpus(UNRESERVED_ROLE, 1.0)));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(cpus(ROLE_A, 1.0), cpus(UNRESERVED_ROLE, 0.25)),
                 allocation.takeScalar("cpus", 1.25, AS_ROLE_A));
-        Assert.assertEquals(resources(cpus(UNRESERVED_ROLE, 0.75)), allocation.getRemaining());
+        Assertions.assertEquals(resources(cpus(UNRESERVED_ROLE, 0.75)), allocation.getRemaining());
     }
 
     /** Tests scalar resource exhaustion (i.e. insufficient resources). */
     @Test
     public void testScalarResourceExhaustion() {
         MesosResourceAllocation allocation = new MesosResourceAllocation(resources(cpus(1.0)));
-        Assert.assertEquals(resources(cpus(1.0)), allocation.takeScalar("cpus", 2.0, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.getRemaining());
+        Assertions.assertEquals(
+                resources(cpus(1.0)), allocation.takeScalar("cpus", 2.0, AS_NO_ROLE));
+        Assertions.assertEquals(resources(), allocation.getRemaining());
     }
 
     // endregion
@@ -182,10 +185,10 @@ public class MesosResourceAllocationTest extends TestLogger {
 
         // take a partial range of one resource
         allocation = new MesosResourceAllocation(ports);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(ROLE_A, range(80, 80))),
                 allocation.takeRanges("ports", 1, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(
                         ports(ROLE_A, range(81, 81), range(443, 444)),
                         ports(UNRESERVED_ROLE, range(1024, 1025), range(8080, 8081))),
@@ -193,10 +196,10 @@ public class MesosResourceAllocationTest extends TestLogger {
 
         // take a whole range of one resource
         allocation = new MesosResourceAllocation(ports);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(ROLE_A, range(80, 81))),
                 allocation.takeRanges("ports", 2, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(
                         ports(ROLE_A, range(443, 444)),
                         ports(UNRESERVED_ROLE, range(1024, 1025), range(8080, 8081))),
@@ -204,10 +207,10 @@ public class MesosResourceAllocationTest extends TestLogger {
 
         // take numerous ranges of one resource
         allocation = new MesosResourceAllocation(ports);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(ROLE_A, range(80, 81), range(443, 443))),
                 allocation.takeRanges("ports", 3, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(
                         ports(ROLE_A, range(444, 444)),
                         ports(UNRESERVED_ROLE, range(1024, 1025), range(8080, 8081))),
@@ -215,21 +218,21 @@ public class MesosResourceAllocationTest extends TestLogger {
 
         // take a whole resource
         allocation = new MesosResourceAllocation(ports);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(ROLE_A, range(80, 81), range(443, 444))),
                 allocation.takeRanges("ports", 4, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(UNRESERVED_ROLE, range(1024, 1025), range(8080, 8081))),
                 allocation.getRemaining());
 
         // take numerous resources
         allocation = new MesosResourceAllocation(ports);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(
                         ports(ROLE_A, range(80, 81), range(443, 444)),
                         ports(UNRESERVED_ROLE, range(1024, 1024))),
                 allocation.takeRanges("ports", 5, AS_ROLE_A));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(UNRESERVED_ROLE, range(1025, 1025), range(8080, 8081))),
                 allocation.getRemaining());
     }
@@ -239,9 +242,9 @@ public class MesosResourceAllocationTest extends TestLogger {
     public void testRangeResourceExhaustion() {
         MesosResourceAllocation allocation =
                 new MesosResourceAllocation(resources(ports(range(80, 80))));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 resources(ports(range(80, 80))), allocation.takeRanges("ports", 2, AS_NO_ROLE));
-        Assert.assertEquals(resources(), allocation.getRemaining());
+        Assertions.assertEquals(resources(), allocation.getRemaining());
     }
 
     // endregion

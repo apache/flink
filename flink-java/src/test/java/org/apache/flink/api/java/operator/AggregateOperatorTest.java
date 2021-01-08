@@ -26,9 +26,12 @@ import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -64,28 +67,28 @@ public class AggregateOperatorTest {
         try {
             tupleDs.aggregate(Aggregations.SUM, 1);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work: index out of bounds
         try {
             tupleDs.aggregate(Aggregations.SUM, 10);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException iae) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
 
         // should not work: not applied to tuple dataset
         DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
         try {
             longDs.aggregate(Aggregations.MIN, 1);
-            Assert.fail();
+            Assertions.fail();
         } catch (InvalidProgramException uoe) {
             // we're good here
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -105,14 +108,14 @@ public class AggregateOperatorTest {
             // should not work: average on string
             try {
                 tupleDs.aggregate(Aggregations.SUM, 2);
-                Assert.fail();
+                Assertions.fail();
             } catch (UnsupportedAggregationTypeException iae) {
                 // we're good here
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 }

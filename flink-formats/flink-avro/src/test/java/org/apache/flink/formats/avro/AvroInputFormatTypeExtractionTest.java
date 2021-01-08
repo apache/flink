@@ -25,9 +25,12 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the type extraction of the {@link AvroInputFormat}. */
 public class AvroInputFormatTypeExtractionTest {
@@ -45,14 +48,14 @@ public class AvroInputFormatTypeExtractionTest {
             DataSet<MyAvroType> input = env.createInput(format);
             TypeInformation<?> typeInfoDataSet = input.getType();
 
-            Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
-            Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
+            Assertions.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
+            Assertions.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
 
-            Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
-            Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
+            Assertions.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
+            Assertions.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 

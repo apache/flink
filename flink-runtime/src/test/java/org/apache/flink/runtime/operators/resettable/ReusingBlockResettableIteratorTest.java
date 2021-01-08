@@ -26,11 +26,14 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializer;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -71,7 +74,7 @@ public class ReusingBlockResettableIteratorTest {
 
         // check that the memory manager got all segments back
         if (!this.memman.verifyEmpty()) {
-            Assert.fail(
+            Assertions.fail(
                     "A memory leak has occurred: Not all memory was properly returned to the memory manager.");
         }
 
@@ -99,7 +102,7 @@ public class ReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                Assertions.assertEquals(upper++, val);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -108,12 +111,12 @@ public class ReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    Assertions.assertEquals(lower + (count++), val);
                 }
-                Assert.assertEquals(upper - lower, count);
+                Assertions.assertEquals(upper - lower, count);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        Assertions.assertEquals(NUM_VALUES, upper);
         // close the iterator
         iterator.close();
     }
@@ -138,7 +141,7 @@ public class ReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                Assertions.assertEquals(upper++, val);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -147,12 +150,12 @@ public class ReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    Assertions.assertEquals(lower + (count++), val);
                 }
-                Assert.assertEquals(upper - lower, count);
+                Assertions.assertEquals(upper - lower, count);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        Assertions.assertEquals(NUM_VALUES, upper);
 
         // close the iterator
         iterator.close();
@@ -178,7 +181,7 @@ public class ReusingBlockResettableIteratorTest {
             while (iterator.hasNext()) {
                 Record target = iterator.next();
                 int val = target.getField(0, IntValue.class).getValue();
-                Assert.assertEquals(upper++, val);
+                Assertions.assertEquals(upper++, val);
             }
             // now reset the buffer a few times
             for (int i = 0; i < 5; ++i) {
@@ -187,12 +190,12 @@ public class ReusingBlockResettableIteratorTest {
                 while (iterator.hasNext()) {
                     Record target = iterator.next();
                     int val = target.getField(0, IntValue.class).getValue();
-                    Assert.assertEquals(lower + (count++), val);
+                    Assertions.assertEquals(lower + (count++), val);
                 }
-                Assert.assertEquals(upper - lower, count);
+                Assertions.assertEquals(upper - lower, count);
             }
         } while (iterator.nextBlock());
-        Assert.assertEquals(NUM_VALUES, upper);
+        Assertions.assertEquals(NUM_VALUES, upper);
 
         // close the iterator
         iterator.close();

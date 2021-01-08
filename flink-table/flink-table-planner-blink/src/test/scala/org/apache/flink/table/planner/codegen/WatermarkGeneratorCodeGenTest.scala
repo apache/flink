@@ -44,7 +44,7 @@ import java.util
 import java.util.Collections
 import java.util.function.{Function => JFunction, Supplier => JSupplier}
 
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.jupiter.api.Test

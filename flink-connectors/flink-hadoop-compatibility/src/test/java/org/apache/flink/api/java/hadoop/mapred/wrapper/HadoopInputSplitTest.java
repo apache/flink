@@ -19,16 +19,19 @@
 package org.apache.flink.api.java.hadoop.mapred.wrapper;
 
 import org.apache.flink.util.InstantiationUtil;
-
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -62,8 +65,8 @@ public class HadoopInputSplitTest {
         serializeSizeChecker.accept(bytes.length);
 
         split = InstantiationUtil.deserializeObject(bytes, split.getClass().getClassLoader());
-        Assert.assertEquals(5, split.getSplitNumber());
-        Assert.assertArrayEquals(new String[] {"host0"}, split.getHostnames());
+        Assertions.assertEquals(5, split.getSplitNumber());
+        Assertions.assertArrayEquals(new String[] {"host0"}, split.getHostnames());
         splitChecker.accept(split.getHadoopInputSplit());
     }
 
@@ -72,8 +75,8 @@ public class HadoopInputSplitTest {
         FileSplit fileSplit = new FileSplit(new Path("/test"), 0, 100, new String[] {"host0"});
         testInner(
                 fileSplit,
-                i -> Assert.assertTrue(i < 10000),
-                split -> Assert.assertEquals(fileSplit, split));
+                i -> Assertions.assertTrue(i < 10000),
+                split -> Assertions.assertEquals(fileSplit, split));
     }
 
     @Test
@@ -85,8 +88,8 @@ public class HadoopInputSplitTest {
                 i -> {},
                 inputSplit -> {
                     ConfigurableFileSplit split = (ConfigurableFileSplit) inputSplit;
-                    Assert.assertNotNull(split.getConf());
-                    Assert.assertEquals(fileSplit, split);
+                    Assertions.assertNotNull(split.getConf());
+                    Assertions.assertEquals(fileSplit, split);
                 });
     }
 
@@ -99,8 +102,8 @@ public class HadoopInputSplitTest {
                 i -> {},
                 inputSplit -> {
                     JobConfigurableFileSplit split = (JobConfigurableFileSplit) inputSplit;
-                    Assert.assertNotNull(split.getConf());
-                    Assert.assertEquals(fileSplit, split);
+                    Assertions.assertNotNull(split.getConf());
+                    Assertions.assertEquals(fileSplit, split);
                 });
     }
 

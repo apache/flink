@@ -24,6 +24,11 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -114,14 +119,14 @@ public class BufferCompressionTest {
 
     @Test
     public void testCompressEmptyBuffer() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     compress(compressor, bufferToCompress.readOnlySlice(0, 0), compressToOriginalBuffer);
         });
     }
 
     @Test
     public void testDecompressEmptyBuffer() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(0, 0);
         readOnlySlicedBuffer.setCompressed(true);
 
@@ -131,7 +136,7 @@ public class BufferCompressionTest {
 
     @Test
     public void testCompressBufferWithNonZeroReadOffset() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     bufferToCompress.setReaderIndex(1);
 
         compress(compressor, bufferToCompress, compressToOriginalBuffer);
@@ -140,7 +145,7 @@ public class BufferCompressionTest {
 
     @Test
     public void testDecompressBufferWithNonZeroReadOffset() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     bufferToCompress.setReaderIndex(1);
         bufferToCompress.setCompressed(true);
 
@@ -150,21 +155,21 @@ public class BufferCompressionTest {
 
     @Test
     public void testCompressNull() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     compress(compressor, null, compressToOriginalBuffer);
         });
     }
 
     @Test
     public void testDecompressNull() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     decompress(decompressor, null, decompressToOriginalBuffer);
         });
     }
 
     @Test
     public void testCompressCompressedBuffer() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     bufferToCompress.setCompressed(true);
 
         compress(compressor, bufferToCompress, compressToOriginalBuffer);
@@ -173,14 +178,14 @@ public class BufferCompressionTest {
 
     @Test
     public void testDecompressUncompressedBuffer() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
         });
     }
 
     @Test
     public void testCompressEvent() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     compress(
                 compressor,
                 EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
@@ -190,7 +195,7 @@ public class BufferCompressionTest {
 
     @Test
     public void testDecompressEvent() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     decompress(
                 decompressor,
                 EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),

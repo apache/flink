@@ -58,9 +58,13 @@ import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.util.LongArrayList;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -234,12 +238,12 @@ public class StateInitializationContextImplTest {
             if (0 == i % 4) {
                 ++i;
             }
-            Assert.assertNotNull(streamProvider);
+            Assertions.assertNotNull(streamProvider);
             try (InputStream is = streamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
 
                 int val = div.readInt();
-                Assert.assertEquals(i * NUM_HANDLES + s, val);
+                Assertions.assertEquals(i * NUM_HANDLES + s, val);
             }
 
             ++s;
@@ -258,17 +262,17 @@ public class StateInitializationContextImplTest {
         for (KeyGroupStatePartitionStreamProvider stateStreamProvider :
                 initializationContext.getRawKeyedStateInputs()) {
 
-            Assert.assertNotNull(stateStreamProvider);
+            Assertions.assertNotNull(stateStreamProvider);
 
             try (InputStream is = stateStreamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
                 int val = div.readInt();
                 ++readKeyGroupCount;
-                Assert.assertEquals(stateStreamProvider.getKeyGroupId(), val);
+                Assertions.assertEquals(stateStreamProvider.getKeyGroupId(), val);
             }
         }
 
-        Assert.assertEquals(writtenKeyGroups, readKeyGroupCount);
+        Assertions.assertEquals(writtenKeyGroups, readKeyGroupCount);
     }
 
     @Test
@@ -279,15 +283,15 @@ public class StateInitializationContextImplTest {
         for (StatePartitionStreamProvider statePartitionStreamProvider :
                 initializationContext.getRawOperatorStateInputs()) {
 
-            Assert.assertNotNull(statePartitionStreamProvider);
+            Assertions.assertNotNull(statePartitionStreamProvider);
 
             try (InputStream is = statePartitionStreamProvider.getStream()) {
                 DataInputView div = new DataInputViewStreamWrapper(is);
-                Assert.assertTrue(readStatesCount.add(div.readInt()));
+                Assertions.assertTrue(readStatesCount.add(div.readInt()));
             }
         }
 
-        Assert.assertEquals(writtenOperatorStates, readStatesCount);
+        Assertions.assertEquals(writtenOperatorStates, readStatesCount);
     }
 
     @Test
@@ -300,7 +304,7 @@ public class StateInitializationContextImplTest {
         try {
             for (KeyGroupStatePartitionStreamProvider stateStreamProvider :
                     initializationContext.getRawKeyedStateInputs()) {
-                Assert.assertNotNull(stateStreamProvider);
+                Assertions.assertNotNull(stateStreamProvider);
 
                 if (count == stopCount) {
                     closableRegistry.close();
@@ -311,9 +315,9 @@ public class StateInitializationContextImplTest {
                     DataInputView div = new DataInputViewStreamWrapper(is);
                     try {
                         int val = div.readInt();
-                        Assert.assertEquals(stateStreamProvider.getKeyGroupId(), val);
+                        Assertions.assertEquals(stateStreamProvider.getKeyGroupId(), val);
                         if (isClosed) {
-                            Assert.fail("Close was ignored: stream");
+                            Assertions.fail("Close was ignored: stream");
                         }
                         ++count;
                     } catch (IOException ioex) {
@@ -323,10 +327,10 @@ public class StateInitializationContextImplTest {
                     }
                 }
             }
-            Assert.fail("Close was ignored: registry");
+            Assertions.fail("Close was ignored: registry");
         } catch (IOException iex) {
-            Assert.assertTrue(isClosed);
-            Assert.assertEquals(stopCount, count);
+            Assertions.assertTrue(isClosed);
+            Assertions.assertEquals(stopCount, count);
         }
     }
 

@@ -19,30 +19,23 @@
 package org.apache.flink.runtime.clusterframework;
 
 import org.apache.flink.api.common.resources.CPUResource;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.util.config.memory.ProcessMemoryUtilsTestBase;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_LEGACY_HEAP_OPTIONS;
 import static org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils.TM_PROCESS_MEMORY_OPTIONS;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link TaskExecutorProcessUtils}. */
 public class TaskExecutorProcessUtilsTest
@@ -258,44 +251,59 @@ public class TaskExecutorProcessUtilsTest
 
     @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryLessThanMinFails() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     final Configuration configuration =
-                setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("900m"));
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("1000m"));
-        // internal validation should fail
-        TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-        });
+                            setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("900m"));
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("1000m"));
+                    // internal validation should fail
+                    TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+                });
     }
 
     @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryGreaterThanMaxFails() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     final Configuration configuration =
-                setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("150m"));
-        // internal validation should fail
-        TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-        });
+                            setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(500);
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("150m"));
+                    // internal validation should fail
+                    TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+                });
     }
 
     @Test
     public void testConsistencyCheckOfDerivedNetworkMemoryDoesNotMatchLegacyConfigFails() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     final int numberOfNetworkBuffers = 10;
-        final int pageSizeMb = 16;
-        // derive network memory which is bigger than the number of legacy network buffers
-        final int networkMemorySizeMbToDerive = pageSizeMb * (numberOfNetworkBuffers + 1);
-        final Configuration configuration =
-                setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(networkMemorySizeMbToDerive);
-        configuration.set(
-                TaskManagerOptions.MEMORY_SEGMENT_SIZE, MemorySize.ofMebiBytes(pageSizeMb));
-        configuration.setInteger(
-                NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, numberOfNetworkBuffers);
-        // internal validation should fail
-        TaskExecutorProcessUtils.processSpecFromConfig(configuration);
-        });
+                    final int pageSizeMb = 16;
+                    // derive network memory which is bigger than the number of legacy network
+                    // buffers
+                    final int networkMemorySizeMbToDerive =
+                            pageSizeMb * (numberOfNetworkBuffers + 1);
+                    final Configuration configuration =
+                            setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(
+                                    networkMemorySizeMbToDerive);
+                    configuration.set(
+                            TaskManagerOptions.MEMORY_SEGMENT_SIZE,
+                            MemorySize.ofMebiBytes(pageSizeMb));
+                    configuration.setInteger(
+                            NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS,
+                            numberOfNetworkBuffers);
+                    // internal validation should fail
+                    TaskExecutorProcessUtils.processSpecFromConfig(configuration);
+                });
     }
 
     private static Configuration setupConfigWithFlinkAndTaskHeapToDeriveGivenNetworkMem(

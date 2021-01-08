@@ -26,10 +26,7 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 
-import org.junit.Assert;
-
 import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.util.Objects;
 
@@ -136,9 +133,9 @@ public class TestType
         @Override
         public TestType deserialize(DataInputView source) throws IOException {
             String key = source.readUTF();
-            Assert.assertEquals(RANDOM_PAYLOAD, source.readUTF());
+            Assertions.assertEquals(RANDOM_PAYLOAD, source.readUTF());
             int value = source.readInt();
-            Assert.assertTrue(source.readBoolean());
+            Assertions.assertTrue(source.readBoolean());
 
             return new TestType(key, value);
         }

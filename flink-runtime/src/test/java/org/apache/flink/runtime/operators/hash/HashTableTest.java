@@ -38,8 +38,13 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.types.ByteValue;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
 import java.io.File;
@@ -48,7 +53,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class HashTableTest {
 
@@ -260,7 +265,7 @@ public class HashTableTest {
                 }
 
                 // check that we retrieve all our elements
-                Assert.assertEquals(numElements, counter);
+                Assertions.assertEquals(numElements, counter);
             }
 
             table.close();

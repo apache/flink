@@ -19,21 +19,20 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.PositionedReadable;
 import org.apache.hadoop.fs.Seekable;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
 import static org.mockito.Matchers.anyLong;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 /** Tests for the {@link HadoopDataInputStream}. */
 public class HadoopDataInputStreamTest {
@@ -61,19 +60,19 @@ public class HadoopDataInputStreamTest {
 
         try {
             seekAndAssert(-1);
-            Assert.fail();
+            Assertions.fail();
         } catch (Exception ignore) {
         }
 
         try {
             seekAndAssert(-HadoopDataInputStream.MIN_SKIP_BYTES - 1);
-            Assert.fail();
+            Assertions.fail();
         } catch (Exception ignore) {
         }
     }
 
     private void seekAndAssert(long seekPos) throws IOException {
-        Assert.assertEquals(verifyInputStream.getPos(), testInputStream.getPos());
+        Assertions.assertEquals(verifyInputStream.getPos(), testInputStream.getPos());
         long delta = seekPos - testInputStream.getPos();
         testInputStream.seek(seekPos);
 
@@ -88,7 +87,7 @@ public class HadoopDataInputStreamTest {
             verify(verifyInputStream, never()).skip(anyLong());
         }
 
-        Assert.assertEquals(seekPos, verifyInputStream.getPos());
+        Assertions.assertEquals(seekPos, verifyInputStream.getPos());
         reset(verifyInputStream);
     }
 

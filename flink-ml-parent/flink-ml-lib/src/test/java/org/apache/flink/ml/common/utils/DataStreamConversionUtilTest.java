@@ -29,10 +29,13 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.Iterator;
@@ -56,7 +59,7 @@ public class DataStreamConversionUtilTest {
                         input,
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -78,7 +81,7 @@ public class DataStreamConversionUtilTest {
                         new TableSchema(
                                 new String[] {"word"},
                                 new TypeInformation[] {TypeInformation.of(Integer.class)}));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -107,7 +110,7 @@ public class DataStreamConversionUtilTest {
                         MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
                         input,
                         new String[] {"word"});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(String.class)}),
@@ -116,8 +119,8 @@ public class DataStreamConversionUtilTest {
                 DataStreamConversionUtil.fromTable(
                         MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1);
         Iterator<Row> result = DataStreamUtils.collect(rowDataStream);
-        Assert.assertEquals(Row.of("a"), result.next());
-        Assert.assertFalse(result.hasNext());
+        Assertions.assertEquals(Row.of("a"), result.next());
+        Assertions.assertFalse(result.hasNext());
     }
 
     @Test
@@ -132,7 +135,7 @@ public class DataStreamConversionUtilTest {
                         MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
                         input,
                         new String[] {"word"});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(String.class)}),
@@ -148,7 +151,7 @@ public class DataStreamConversionUtilTest {
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)});
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -165,7 +168,7 @@ public class DataStreamConversionUtilTest {
                                 new String[] {"word"},
                                 new TypeInformation[] {TypeInformation.of(Integer.class)}));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),

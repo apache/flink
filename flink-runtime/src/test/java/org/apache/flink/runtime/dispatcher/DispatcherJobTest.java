@@ -34,15 +34,19 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.StringContains.containsString;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for the {@link DispatcherJob} class. */
 public class DispatcherJobTest extends TestLogger {
@@ -252,11 +256,13 @@ public class DispatcherJobTest extends TestLogger {
 
     @Test
     public void testUnavailableJobMasterGateway() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     TestContext testContext = createTestContext();
-        DispatcherJob dispatcherJob = testContext.getDispatcherJob();
-        dispatcherJob.getJobMasterGateway();
-        });
+                    DispatcherJob dispatcherJob = testContext.getDispatcherJob();
+                    dispatcherJob.getJobMasterGateway();
+                });
     }
 
     private TestContext createTestContext() {

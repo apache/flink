@@ -36,7 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.util.Collector
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 

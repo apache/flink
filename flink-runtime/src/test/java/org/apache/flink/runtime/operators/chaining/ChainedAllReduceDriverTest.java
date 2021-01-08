@@ -34,9 +34,12 @@ import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -103,8 +106,9 @@ public class ChainedAllReduceDriverTest extends TaskTestBase {
 
         int sumTotal = valCnt * keyCnt * (keyCnt - 1) / 2;
 
-        Assert.assertEquals(1, this.outList.size());
-        Assert.assertEquals(sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
+        Assertions.assertEquals(1, this.outList.size());
+        Assertions.assertEquals(
+                sumTotal, this.outList.get(0).getField(0, IntValue.class).getValue());
     }
 
     public static class MockReduceStub implements ReduceFunction<Record> {

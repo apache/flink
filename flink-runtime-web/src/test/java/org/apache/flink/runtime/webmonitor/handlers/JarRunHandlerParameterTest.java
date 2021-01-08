@@ -35,34 +35,27 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
-import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
-
-import org.junit.Assert;
+import org.apache.flink.util.ExceptionUtils;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the parameter handling of the {@link JarRunHandler}. */
 public class JarRunHandlerParameterTest
@@ -237,7 +230,7 @@ public class JarRunHandlerParameterTest
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
         assertFalse(savepointRestoreSettings.allowNonRestoredState());
-        Assert.assertNull(savepointRestoreSettings.getRestorePath());
+        Assertions.assertNull(savepointRestoreSettings.getRestorePath());
         return jobGraph;
     }
 
@@ -246,7 +239,7 @@ public class JarRunHandlerParameterTest
         JobGraph jobGraph = super.validateGraph();
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        Assert.assertTrue(savepointRestoreSettings.allowNonRestoredState());
+        Assertions.assertTrue(savepointRestoreSettings.allowNonRestoredState());
         assertEquals(RESTORE_PATH, savepointRestoreSettings.getRestorePath());
         return jobGraph;
     }

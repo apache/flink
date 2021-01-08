@@ -21,19 +21,19 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.Random;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test reading and writing primitive types to {@link MemorySegment}. */
 public class MemorySegmentSimpleTest {
@@ -73,7 +73,7 @@ public class MemorySegmentSimpleTest {
         this.segment = null;
 
         if (!this.manager.verifyEmpty()) {
-            Assert.fail("Not all memory has been properly released.");
+            Assertions.fail("Not all memory has been properly released.");
         }
         this.manager = null;
     }
@@ -571,7 +571,7 @@ public class MemorySegmentSimpleTest {
             assertEquals(1024, buf3.remaining());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 }

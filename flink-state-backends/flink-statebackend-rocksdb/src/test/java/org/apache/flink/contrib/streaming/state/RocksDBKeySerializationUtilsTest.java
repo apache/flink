@@ -19,27 +19,24 @@ package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputDeserializer;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
-import org.junit.Assert;
+import org.apache.flink.core.memory.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for guarding {@link RocksDBKeySerializationUtils}. */
 public class RocksDBKeySerializationUtilsTest {
 
     @Test
     public void testIsAmbiguousKeyPossible() {
-        Assert.assertFalse(
+        Assertions.assertFalse(
                 RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
                         IntSerializer.INSTANCE, StringSerializer.INSTANCE));
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
                         StringSerializer.INSTANCE, StringSerializer.INSTANCE));
     }
@@ -60,7 +57,7 @@ public class RocksDBKeySerializationUtilsTest {
                                 new DataInputViewStreamWrapper(
                                         new ByteArrayInputStreamWithPos(
                                                 outputStream.toByteArray())));
-                Assert.assertEquals(orgKeyGroup, deserializedKeyGroup);
+                Assertions.assertEquals(orgKeyGroup, deserializedKeyGroup);
             }
         }
     }
@@ -78,13 +75,13 @@ public class RocksDBKeySerializationUtilsTest {
             inputView.setBuffer(outputView.getCopyOfBuffer());
             int deserializedKey =
                     RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, false);
-            Assert.assertEquals(orgKey, deserializedKey);
+            Assertions.assertEquals(orgKey, deserializedKey);
 
             RocksDBKeySerializationUtils.writeKey(orgKey, IntSerializer.INSTANCE, outputView, true);
             inputView.setBuffer(outputView.getCopyOfBuffer());
             deserializedKey =
                     RocksDBKeySerializationUtils.readKey(IntSerializer.INSTANCE, inputView, true);
-            Assert.assertEquals(orgKey, deserializedKey);
+            Assertions.assertEquals(orgKey, deserializedKey);
         }
     }
 
@@ -101,7 +98,7 @@ public class RocksDBKeySerializationUtilsTest {
             int deserializedNamepsace =
                     RocksDBKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, false);
-            Assert.assertEquals(orgNamespace, deserializedNamepsace);
+            Assertions.assertEquals(orgNamespace, deserializedNamepsace);
 
             RocksDBKeySerializationUtils.writeNameSpace(
                     orgNamespace, IntSerializer.INSTANCE, outputView, true);
@@ -109,7 +106,7 @@ public class RocksDBKeySerializationUtilsTest {
             deserializedNamepsace =
                     RocksDBKeySerializationUtils.readNamespace(
                             IntSerializer.INSTANCE, inputView, true);
-            Assert.assertEquals(orgNamespace, deserializedNamepsace);
+            Assertions.assertEquals(orgNamespace, deserializedNamepsace);
         }
     }
 }

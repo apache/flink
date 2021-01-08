@@ -35,28 +35,24 @@ import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
-
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * IT cases for the {@link ContinuousFileMonitoringFunction} and {@link
@@ -137,7 +133,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 
         // the monitor has always DOP 1
         DataStream<TimestampedFileInputSplit> splits = env.addSource(monitoringFunction);
-        Assert.assertEquals(1, splits.getParallelism());
+        Assertions.assertEquals(1, splits.getParallelism());
 
         TypeInformation<String> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
@@ -147,7 +143,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
                         "FileSplitReader",
                         typeInfo,
                         new ContinuousFileReaderOperatorFactory<>(format));
-        Assert.assertEquals(PARALLELISM, content.getParallelism());
+        Assertions.assertEquals(PARALLELISM, content.getParallelism());
 
         // finally for the sink we set the parallelism to 1 so that we can verify the output
         TestingSinkFunction sink = new TestingSinkFunction();
@@ -200,7 +196,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
 
             org.apache.hadoop.fs.Path file = new org.apache.hadoop.fs.Path(hdfsURI + "/file" + i);
             hdfs.rename(tmpFile.f0, file);
-            Assert.assertTrue(hdfs.exists(file));
+            Assertions.assertTrue(hdfs.exists(file));
         }
 
         jobFuture.get();
@@ -238,7 +234,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
             }
 
             if (!content.add(value + "\n")) {
-                Assert.fail("Duplicate line: " + value);
+                Assertions.fail("Duplicate line: " + value);
                 System.exit(0);
             }
 
@@ -251,9 +247,9 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
         @Override
         public void close() {
             // check if the data that we collected are the ones they are supposed to be.
-            Assert.assertEquals(expectedContents.size(), actualContent.size());
+            Assertions.assertEquals(expectedContents.size(), actualContent.size());
             for (Integer fileIdx : expectedContents.keySet()) {
-                Assert.assertTrue(actualContent.keySet().contains(fileIdx));
+                Assertions.assertTrue(actualContent.keySet().contains(fileIdx));
 
                 List<String> cntnt = new ArrayList<>(actualContent.get(fileIdx));
                 Collections.sort(cntnt, comparator);
@@ -262,7 +258,7 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
                 for (String line : cntnt) {
                     cntntStr.append(line);
                 }
-                Assert.assertEquals(expectedContents.get(fileIdx), cntntStr.toString());
+                Assertions.assertEquals(expectedContents.get(fileIdx), cntntStr.toString());
             }
             expectedContents.clear();
         }

@@ -19,9 +19,12 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.configuration.Configuration;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test all native metrics can be set using configuration. */
 public class RocksDBNativeMetricOptionsTest {
@@ -33,13 +36,13 @@ public class RocksDBNativeMetricOptionsTest {
 
             RocksDBNativeMetricOptions options = RocksDBNativeMetricOptions.fromConfig(config);
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     String.format(
                             "Failed to enable native metrics with property %s",
                             property.getConfigKey()),
                     options.isEnabled());
 
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     String.format(
                             "Failed to enable native metric %s using config",
                             property.getConfigKey()),

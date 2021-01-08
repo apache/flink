@@ -18,28 +18,18 @@
 
 package org.apache.flink.table.planner.catalog;
 
+import org.apache.calcite.avatica.util.DateTimeUtils;
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.CatalogPartitionImpl;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
-import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.*;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.catalog.stats.*;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
@@ -48,12 +38,13 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.planner.utils.TestPartitionableSourceFactory;
 import org.apache.flink.table.planner.utils.TestTableSource;
 import org.apache.flink.table.types.DataType;
-
-import org.apache.calcite.avatica.util.DateTimeUtils;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -61,9 +52,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test for Catalog Statistics. */
 public class CatalogStatisticsTest {

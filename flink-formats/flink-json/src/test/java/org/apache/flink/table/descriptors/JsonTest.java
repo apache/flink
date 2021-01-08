@@ -23,6 +23,11 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,14 +59,14 @@ public class JsonTest extends DescriptorTestBase {
 
     @Test
     public void testInvalidMissingField() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(ValidationException.class, () -> {
                     addPropertyAndVerify(descriptors().get(0), "format.fail-on-missing-field", "DDD");
         });
     }
 
     @Test
     public void testDuplicateSchema() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(ValidationException.class, () -> {
                     // we add an additional non-json schema
         addPropertyAndVerify(descriptors().get(0), "format.schema", "DDD");
         });
@@ -69,7 +74,7 @@ public class JsonTest extends DescriptorTestBase {
 
     @Test
     public void testInvalidIgnoreParseErrors() {
-        Assertions.assertThrows(ValidationException.class, () -> {
+        assertThrows(ValidationException.class, () -> {
                     addPropertyAndVerify(descriptors().get(0), "format.ignore-parse-errors", "DDD");
         });
     }

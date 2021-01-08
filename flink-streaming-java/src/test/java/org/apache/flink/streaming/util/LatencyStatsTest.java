@@ -30,8 +30,12 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,12 +57,12 @@ public class LatencyStatsTest extends TestLogger {
         testLatencyStats(
                 LatencyStats.Granularity.SINGLE,
                 registrations -> {
-                    Assert.assertEquals(1, registrations.size());
+                    Assertions.assertEquals(1, registrations.size());
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(0);
                         assertName(registration.f0);
-                        Assert.assertEquals(5, registration.f1.getCount());
+                        Assertions.assertEquals(5, registration.f1.getCount());
                     }
                 });
     }
@@ -68,18 +72,18 @@ public class LatencyStatsTest extends TestLogger {
         testLatencyStats(
                 LatencyStats.Granularity.OPERATOR,
                 registrations -> {
-                    Assert.assertEquals(2, registrations.size());
+                    Assertions.assertEquals(2, registrations.size());
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(0);
                         assertName(registration.f0, SOURCE_ID_1);
-                        Assert.assertEquals(3, registration.f1.getCount());
+                        Assertions.assertEquals(3, registration.f1.getCount());
                     }
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(1);
                         assertName(registration.f0, SOURCE_ID_2);
-                        Assert.assertEquals(2, registration.f1.getCount());
+                        Assertions.assertEquals(2, registration.f1.getCount());
                     }
                 });
     }
@@ -89,30 +93,30 @@ public class LatencyStatsTest extends TestLogger {
         testLatencyStats(
                 LatencyStats.Granularity.SUBTASK,
                 registrations -> {
-                    Assert.assertEquals(4, registrations.size());
+                    Assertions.assertEquals(4, registrations.size());
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(0);
                         assertName(registration.f0, SOURCE_ID_1, 0);
-                        Assert.assertEquals(2, registration.f1.getCount());
+                        Assertions.assertEquals(2, registration.f1.getCount());
                     }
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(1);
                         assertName(registration.f0, SOURCE_ID_1, 1);
-                        Assert.assertEquals(1, registration.f1.getCount());
+                        Assertions.assertEquals(1, registration.f1.getCount());
                     }
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(2);
                         assertName(registration.f0, SOURCE_ID_2, 2);
-                        Assert.assertEquals(1, registration.f1.getCount());
+                        Assertions.assertEquals(1, registration.f1.getCount());
                     }
 
                     {
                         final Tuple2<String, Histogram> registration = registrations.get(3);
                         assertName(registration.f0, SOURCE_ID_2, 3);
-                        Assert.assertEquals(1, registration.f1.getCount());
+                        Assertions.assertEquals(1, registration.f1.getCount());
                     }
                 });
     }
@@ -165,7 +169,7 @@ public class LatencyStatsTest extends TestLogger {
 
     private static void assertName(final String registrationName) {
         final String sanitizedName = sanitizeName(registrationName);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "operator_id."
                         + OPERATOR_ID
                         + ".operator_subtask_index."
@@ -176,7 +180,7 @@ public class LatencyStatsTest extends TestLogger {
 
     private static void assertName(final String registrationName, final OperatorID sourceId) {
         final String sanitizedName = sanitizeName(registrationName);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "source_id."
                         + sourceId
                         + ".operator_id."
@@ -190,7 +194,7 @@ public class LatencyStatsTest extends TestLogger {
     private static void assertName(
             final String registrationName, final OperatorID sourceId, final int sourceIndex) {
         final String sanitizedName = sanitizeName(registrationName);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "source_id."
                         + sourceId
                         + ".source_subtask_index."

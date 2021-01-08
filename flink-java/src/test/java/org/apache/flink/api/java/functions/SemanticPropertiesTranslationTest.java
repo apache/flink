@@ -38,10 +38,15 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This is a minimal test to verify that semantic annotations are evaluated against the type
@@ -252,28 +257,32 @@ public class SemanticPropertiesTranslationTest {
 
     @Test
     public void testUnaryForwardedOverwritingInLine1() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
-        input.map(new WildcardForwardedMapper<Tuple3<Long, Long, Long>>())
-                .withForwardedFields("0->1; 2");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
+                    input.map(new WildcardForwardedMapper<Tuple3<Long, Long, Long>>())
+                            .withForwardedFields("0->1; 2");
+                });
     }
 
     @Test
     public void testUnaryForwardedOverwritingInLine2() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
-        input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>())
-                .withForwardedFields("0->1; 2");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
+                    input.map(new AllForwardedExceptMapper<Tuple3<Long, Long, Long>>())
+                            .withForwardedFields("0->1; 2");
+                });
     }
 
     @Test
@@ -510,108 +519,128 @@ public class SemanticPropertiesTranslationTest {
 
     @Test
     public void testBinaryForwardedOverwritingInLine1() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3L, 2L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new ForwardedFirstAnnotationJoin<Long>())
-                .withForwardedFieldsFirst("0->1");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input1 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 4L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input2 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 2L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new ForwardedFirstAnnotationJoin<Long>())
+                            .withForwardedFieldsFirst("0->1");
+                });
     }
 
     @Test
     public void testBinaryForwardedOverwritingInLine2() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3L, 2L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new ForwardedSecondAnnotationJoin<Long>())
-                .withForwardedFieldsSecond("0->1");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input1 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 4L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input2 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 2L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new ForwardedSecondAnnotationJoin<Long>())
+                            .withForwardedFieldsSecond("0->1");
+                });
     }
 
     @Test
     public void testBinaryForwardedOverwritingInLine3() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3L, 2L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
-                .withForwardedFieldsFirst("0->1;");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input1 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 4L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input2 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 2L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
+                            .withForwardedFieldsFirst("0->1;");
+                });
     }
 
     @Test
     public void testBinaryForwardedOverwritingInLine4() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input1 = env.fromElements(new Tuple2<Long, Long>(3L, 4L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple2<Long, Long>> input2 = env.fromElements(new Tuple2<Long, Long>(3L, 2L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
-                .withForwardedFieldsSecond("0->1;");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input1 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 4L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple2<Long, Long>> input2 =
+                            env.fromElements(new Tuple2<Long, Long>(3L, 2L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new ForwardedBothAnnotationJoin<Long, Long, Long, Long>())
+                            .withForwardedFieldsSecond("0->1;");
+                });
     }
 
     @Test
     public void testBinaryForwardedOverwritingInLine5() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input1 =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 4L, 5L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input2 =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new AllForwardedExceptJoin<Long>())
-                .withForwardedFieldsFirst("0->1;");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input1 =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 4L, 5L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input2 =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new AllForwardedExceptJoin<Long>())
+                            .withForwardedFieldsFirst("0->1;");
+                });
     }
 
     @Test
     public void testBinaryForwardedOverwritingInLine6() {
-        Assertions.assertThrows(SemanticProperties.InvalidSemanticAnnotationException.class, () -> {
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input1 =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 4L, 5L));
-        @SuppressWarnings("unchecked")
-        DataSet<Tuple3<Long, Long, Long>> input2 =
-                env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
-        input1.join(input2)
-                .where(0)
-                .equalTo(0)
-                .with(new AllForwardedExceptJoin<Long>())
-                .withForwardedFieldsSecond("0->1;");
-        });
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input1 =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 4L, 5L));
+                    @SuppressWarnings("unchecked")
+                    DataSet<Tuple3<Long, Long, Long>> input2 =
+                            env.fromElements(new Tuple3<Long, Long, Long>(3L, 2L, 1L));
+                    input1.join(input2)
+                            .where(0)
+                            .equalTo(0)
+                            .with(new AllForwardedExceptJoin<Long>())
+                            .withForwardedFieldsSecond("0->1;");
+                });
     }
 
     // --------------------------------------------------------------------------------------------

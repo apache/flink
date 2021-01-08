@@ -21,7 +21,7 @@ package org.apache.flink.table.calcite
 import org.apache.flink.api.scala.typeutils.Types
 
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.junit.Assert.{assertFalse, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
 
 /** Test cases for [[FlinkTypeFactory]]. */
@@ -37,8 +37,8 @@ class FlinkTypeFactoryTest {
     val genericRelType3 = typeFactory
         .createTypeFromTypeInfo(Types.GENERIC(classOf[TestClass2]), isNullable = true)
 
-    assertTrue("The type expect to be canonized", genericRelType eq genericRelType2)
-    assertFalse("The type expect to be not canonized", genericRelType eq genericRelType3)
+    assertTrue(genericRelType eq genericRelType2, "The type expect to be canonized")
+    assertFalse(genericRelType eq genericRelType3, "The type expect to be not canonized")
     assertFalse("The type expect to be not canonized",
       typeFactory.builder().add("f0", genericRelType).build()
           eq typeFactory.builder().add("f0", genericRelType3).build())
@@ -49,8 +49,8 @@ class FlinkTypeFactoryTest {
     val arrayRelType = typeFactory.createArrayType(varchar20Type, 10)
     val arrayRelType2 = typeFactory.createArrayType(varchar20Type, 10)
     val arrayRelType3 = typeFactory.createArrayType(bigintType, 10)
-    assertTrue("The type expect to be canonized", arrayRelType eq arrayRelType2)
-    assertFalse("The type expect to be not canonized", arrayRelType eq arrayRelType3)
+    assertTrue(arrayRelType eq arrayRelType2, "The type expect to be canonized")
+    assertFalse(arrayRelType eq arrayRelType3, "The type expect to be not canonized")
     assertFalse("The type expect to be not canonized",
       typeFactory.builder().add("f0", arrayRelType).build()
           eq typeFactory.builder().add("f0", arrayRelType3).build())
@@ -58,8 +58,8 @@ class FlinkTypeFactoryTest {
     val multisetRelType = typeFactory.createMultisetType(varchar20Type, 10)
     val multisetRelType2 = typeFactory.createMultisetType(varchar20Type, 10)
     val multisetRelType3 = typeFactory.createMultisetType(bigintType, 10)
-    assertTrue("The type expect to be canonized", multisetRelType eq multisetRelType2)
-    assertFalse("The type expect to be not canonized", multisetRelType eq multisetRelType3)
+    assertTrue(multisetRelType eq multisetRelType2, "The type expect to be canonized")
+    assertFalse(multisetRelType eq multisetRelType3, "The type expect to be not canonized")
     assertFalse("The type expect to be not canonized",
       typeFactory.builder().add("f0", multisetRelType).build()
           eq typeFactory.builder().add("f0", multisetRelType3).build())

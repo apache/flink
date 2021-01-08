@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.catalog;
 
+import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -28,19 +31,19 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.types.DataType;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableSet;
-
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Test for Catalog constraints. */
 public class CatalogConstraintTest {

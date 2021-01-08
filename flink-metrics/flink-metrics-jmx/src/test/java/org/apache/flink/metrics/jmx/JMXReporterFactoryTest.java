@@ -22,8 +22,11 @@ import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.io.IOException;
 import java.util.Properties;
@@ -48,7 +51,7 @@ public class JMXReporterFactoryTest extends TestLogger {
         JMXReporter metricReporter = new JMXReporterFactory().createMetricReporter(properties);
         try {
 
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     metricReporter.getPort().get(),
                     allOf(greaterThanOrEqualTo(9000), lessThanOrEqualTo(9010)));
         } finally {
@@ -62,7 +65,7 @@ public class JMXReporterFactoryTest extends TestLogger {
                 new JMXReporterFactory().createMetricReporter(new Properties());
 
         try {
-            Assert.assertFalse(metricReporter.getPort().isPresent());
+            Assertions.assertFalse(metricReporter.getPort().isPresent());
         } finally {
             metricReporter.close();
         }

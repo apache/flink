@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics.influxdb;
 
+import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -27,29 +29,21 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
-
-import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.influxdb.InfluxDB;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.containing;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.verify;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.hamcrest.Matchers.hasEntry;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Integration test for {@link InfluxdbReporter}. */
 public class InfluxdbReporterTest extends TestLogger {
@@ -88,7 +82,7 @@ public class InfluxdbReporterTest extends TestLogger {
 
             InfluxdbReporter reporter = (InfluxdbReporter) metricRegistry.getReporters().get(0);
             MeasurementInfo measurementInfo = reporter.counters.get(counter);
-            assertNotNull("test metric must be registered in the reporter", measurementInfo);
+            assertNotNull(measurementInfo, "test metric must be registered in the reporter");
             assertEquals("taskmanager_" + metricName, measurementInfo.getName());
             assertThat(measurementInfo.getTags(), hasEntry("host", METRIC_HOSTNAME));
             assertThat(measurementInfo.getTags(), hasEntry("tm_id", METRIC_TM_ID));

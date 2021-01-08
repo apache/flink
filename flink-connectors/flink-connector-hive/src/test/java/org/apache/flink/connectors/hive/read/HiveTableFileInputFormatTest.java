@@ -23,9 +23,13 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.FileUtils;
 
 import org.apache.hadoop.mapred.FileSplit;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,6 +46,6 @@ public class HiveTableFileInputFormatTest {
         FileUtils.writeFileUtf8(file, "hahahahahahaha");
         FileInputSplit split = new FileInputSplit(0, new Path(file.getPath()), 0, -1, null);
         FileSplit fileSplit = HiveTableFileInputFormat.toHadoopFileSplit(split);
-        Assert.assertEquals(14, fileSplit.getLength());
+        Assertions.assertEquals(14, fileSplit.getLength());
     }
 }

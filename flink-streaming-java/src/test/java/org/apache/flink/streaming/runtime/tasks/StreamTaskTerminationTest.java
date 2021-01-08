@@ -82,9 +82,13 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.Timeout;
 
 import javax.annotation.Nonnull;
@@ -98,7 +102,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -251,7 +255,7 @@ public class StreamTaskTerminationTest extends TestLogger {
 
             // wait until all async checkpoint threads are terminated, so that no more exceptions
             // can be reported
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     getAsyncOperationsThreadPool().awaitTermination(30L, TimeUnit.SECONDS));
         }
     }

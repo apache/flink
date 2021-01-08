@@ -18,15 +18,13 @@
 
 package org.apache.flink.core.io;
 
-import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
-import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-
-import org.junit.Assert;
+import org.apache.flink.core.memory.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
@@ -49,7 +47,7 @@ public class VersionedIOWriteableTest {
             testWriteable.read(new DataInputViewStreamWrapper(in));
         }
 
-        Assert.assertEquals(payload, testWriteable.getData());
+        Assertions.assertEquals(payload, testWriteable.getData());
     }
 
     @Test
@@ -75,7 +73,7 @@ public class VersionedIOWriteableTest {
             testWriteable.read(new DataInputViewStreamWrapper(in));
         }
 
-        Assert.assertEquals(payload, testWriteable.getData());
+        Assertions.assertEquals(payload, testWriteable.getData());
     }
 
     @Test
@@ -93,12 +91,12 @@ public class VersionedIOWriteableTest {
         testWriteable = new TestWriteable(2);
         try (ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos(serialized)) {
             testWriteable.read(new DataInputViewStreamWrapper(in));
-            Assert.fail("Version mismatch expected.");
+            Assertions.fail("Version mismatch expected.");
         } catch (VersionMismatchException ignored) {
 
         }
 
-        Assert.assertEquals(null, testWriteable.getData());
+        Assertions.assertEquals(null, testWriteable.getData());
     }
 
     static class TestWriteable extends VersionedIOReadableWritable {

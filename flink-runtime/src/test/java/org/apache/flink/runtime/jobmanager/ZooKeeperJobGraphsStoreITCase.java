@@ -37,6 +37,11 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cac
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -50,10 +55,10 @@ import java.util.concurrent.CountDownLatch;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.doAnswer;
@@ -269,22 +274,24 @@ public class ZooKeeperJobGraphsStoreITCase extends TestLogger {
 
     @Test
     public void testUpdateJobGraphYouDidNotGetOrAdd() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     JobGraphStore jobGraphs =
-                createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
+                            createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
-        JobGraphStore otherJobGraphs =
-                createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
+                    JobGraphStore otherJobGraphs =
+                            createZooKeeperJobGraphStore("/testUpdateJobGraphYouDidNotGetOrAdd");
 
-        jobGraphs.start(NoOpJobGraphListener.INSTANCE);
-        otherJobGraphs.start(NoOpJobGraphListener.INSTANCE);
+                    jobGraphs.start(NoOpJobGraphListener.INSTANCE);
+                    otherJobGraphs.start(NoOpJobGraphListener.INSTANCE);
 
-        JobGraph jobGraph = createJobGraph(new JobID());
+                    JobGraph jobGraph = createJobGraph(new JobID());
 
-        jobGraphs.putJobGraph(jobGraph);
+                    jobGraphs.putJobGraph(jobGraph);
 
-        otherJobGraphs.putJobGraph(jobGraph);
-        });
+                    otherJobGraphs.putJobGraph(jobGraph);
+                });
     }
 
     /**

@@ -26,8 +26,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 
 import org.junit.jupiter.api.Test;
-
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link TupleTypeInfo}. */
 public class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>> {
@@ -75,6 +78,6 @@ public class TupleTypeInfoTest extends TypeInformationTestBase<TupleTypeInfo<?>>
         boolean tupleVsAnonymous = tupleTypeInfo.equals(anonymousTupleTypeInfo);
         boolean anonymousVsTuple = anonymousTupleTypeInfo.equals(tupleTypeInfo);
 
-        assertTrue("Equality relation should be symmetric", tupleVsAnonymous == anonymousVsTuple);
+        assertTrue(tupleVsAnonymous == anonymousVsTuple, "Equality relation should be symmetric");
     }
 }

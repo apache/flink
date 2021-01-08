@@ -18,55 +18,28 @@
 package org.apache.flink.streaming.connectors.kinesis.proxy;
 
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerRequest;
-import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryRequest;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
-import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
-import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerRequest;
-import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
+import software.amazon.awssdk.services.kinesis.model.*;
 
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import static java.util.Collections.emptyList;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEREGISTER_STREAM_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DESCRIBE_STREAM_CONSUMER_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_CONSUMER_NAME;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.REGISTER_STREAM_BACKOFF_MAX;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.*;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_BACKOFF_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_DESCRIBE_RETRIES;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_BASE;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_EXPONENTIAL_CONSTANT;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SUBSCRIBE_TO_SHARD_BACKOFF_MAX;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 /** Test for methods in the {@link KinesisProxyV2} class. */
 public class KinesisProxyV2Test {

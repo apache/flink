@@ -18,23 +18,26 @@
 
 package org.apache.flink.api.java.typeutils.runtime.kryo;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.CheckedThread;
-
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This tests that the {@link KryoSerializer} properly fails when accessed by two threads
@@ -83,11 +86,11 @@ public class KryoSerializerConcurrencyTest {
         String copyWithOriginal = original.copy(testString).content;
         String copyWithDuplicate = duplicate.copy(testString).content;
 
-        Assert.assertTrue(copyWithOriginal.startsWith(testString.content));
-        Assert.assertTrue(copyWithDuplicate.startsWith(testString.content));
+        Assertions.assertTrue(copyWithOriginal.startsWith(testString.content));
+        Assertions.assertTrue(copyWithDuplicate.startsWith(testString.content));
 
         // check that both serializer instances have appended a different identity hash
-        Assert.assertNotEquals(copyWithOriginal, copyWithDuplicate);
+        Assertions.assertNotEquals(copyWithOriginal, copyWithDuplicate);
     }
 
     @Test

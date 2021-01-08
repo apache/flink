@@ -29,6 +29,11 @@ import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -41,7 +46,7 @@ public class SavepointTest {
 
     @Test
     public void testNewSavepointEnforceUniqueUIDs() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
@@ -62,7 +67,7 @@ public class SavepointTest {
 
     @Test
     public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
@@ -87,7 +92,7 @@ public class SavepointTest {
 
     @Test
     public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 

@@ -71,6 +71,14 @@ public class CommonTestUtils {
         }
     }
 
+    public static void assertEquals(String str, Object o1, Object o2) {
+        Assertions.assertEquals(o1, o2, str);
+    }
+
+    public static void assertEquals(String str, int o1, int o2) {
+        Assertions.assertEquals(o1, o2, str);
+    }
+
     /**
      * Creates a temporary file that contains the given string. The file is written with the
      * platform's default encoding.

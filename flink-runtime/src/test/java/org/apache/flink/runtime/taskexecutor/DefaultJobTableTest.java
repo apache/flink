@@ -31,14 +31,19 @@ import org.apache.flink.util.function.SupplierWithException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CountDownLatch;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link DefaultJobTable}. */
 public class DefaultJobTableTest extends TestLogger {
@@ -127,12 +132,15 @@ public class DefaultJobTableTest extends TestLogger {
 
     @Test
     public void connectJob_Connected_Fails() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobTable.Job job =
+                            jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        connectJob(job, ResourceID.generate());
-        connectJob(job, ResourceID.generate());
-        });
+                    connectJob(job, ResourceID.generate());
+                    connectJob(job, ResourceID.generate());
+                });
     }
 
     @Test
@@ -150,37 +158,46 @@ public class DefaultJobTableTest extends TestLogger {
 
     @Test
     public void access_AfterBeingClosed_WillFail() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobTable.Job job =
+                            jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        job.close();
+                    job.close();
 
-        job.asConnection();
-        });
+                    job.asConnection();
+                });
     }
 
     @Test
     public void connectJob_AfterBeingClosed_WillFail() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobTable.Job job =
+                            jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        job.close();
+                    job.close();
 
-        connectJob(job, ResourceID.generate());
-        });
+                    connectJob(job, ResourceID.generate());
+                });
     }
 
     @Test
     public void accessJobManagerGateway_AfterBeingDisconnected_WillFail() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final JobTable.Job job = jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobTable.Job job =
+                            jobTable.getOrCreateJob(jobId, DEFAULT_JOB_SERVICES_SUPPLIER);
 
-        final JobTable.Connection connection = connectJob(job, ResourceID.generate());
+                    final JobTable.Connection connection = connectJob(job, ResourceID.generate());
 
-        connection.disconnect();
+                    connection.disconnect();
 
-        connection.getJobManagerGateway();
-        });
+                    connection.getJobManagerGateway();
+                });
     }
 
     @Test

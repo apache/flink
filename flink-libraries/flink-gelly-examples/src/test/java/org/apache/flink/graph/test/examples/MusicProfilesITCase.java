@@ -23,12 +23,15 @@ import org.apache.flink.graph.examples.data.MusicProfilesData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.FileUtils;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -96,17 +99,17 @@ public class MusicProfilesITCase extends MultipleProgramsTestBase {
         Arrays.sort(result);
 
         // check that user_1 and user_2 are in the same community
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "users 1 and 2 are not in the same community",
                 result[0].substring(7),
                 result[1].substring(7));
 
         // check that user_3, user_4 and user_5 are in the same community
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "users 3 and 4 are not in the same community",
                 result[2].substring(7),
                 result[3].substring(7));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "users 4 and 5 are not in the same community",
                 result[3].substring(7),
                 result[4].substring(7));

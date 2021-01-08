@@ -25,6 +25,11 @@ import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests for {@link org.apache.flink.api.java.io.TextOutputFormat}. */
 public class TextOutputFormatITCase extends AbstractTestBase {

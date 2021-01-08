@@ -30,9 +30,12 @@ import org.apache.flink.api.java.operators.translation.PlanFilterOperator;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -116,7 +119,7 @@ public class NamesTest implements Serializable {
                     @Override
                     public boolean preVisit(Operator<?> visitable) {
                         if (visitable instanceof InnerJoinOperatorBase) {
-                            Assert.assertEquals(
+                            Assertions.assertEquals(
                                     "Join at testJoinWith(NamesTest.java:101)",
                                     visitable.getName());
                         }
@@ -136,7 +139,7 @@ public class NamesTest implements Serializable {
                         if (visitable instanceof PlanFilterOperator<?>) {
                             // cast is actually not required. Its just a check for the right element
                             PlanFilterOperator<?> filterOp = (PlanFilterOperator<?>) visitable;
-                            Assert.assertEquals(expected, filterOp.getName());
+                            Assertions.assertEquals(expected, filterOp.getName());
                         }
                         return true;
                     }

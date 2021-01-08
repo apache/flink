@@ -24,7 +24,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.utils._
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{After, Before, Test}

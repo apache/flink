@@ -41,9 +41,12 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -118,7 +121,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         List<Integer> listResult = readListState(savepoint).collect();
         listResult.sort(Comparator.naturalOrder());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Unexpected elements read from list state",
                 SavepointSource.getElements(),
                 listResult);
@@ -129,7 +132,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         List<Integer> unionResult = readUnionState(savepoint).collect();
         unionResult.sort(Comparator.naturalOrder());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Unexpected elements read from union state",
                 SavepointSource.getElements(),
                 unionResult);
@@ -151,12 +154,12 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
                         .sorted(Comparator.naturalOrder())
                         .collect(Collectors.toList());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Unexpected element in broadcast state keys",
                 SavepointSource.getElements(),
                 broadcastStateKeys);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Unexpected element in broadcast state values",
                 SavepointSource.getElements().stream()
                         .map(Object::toString)
@@ -194,7 +197,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
             }
 
             if (!finished) {
-                Assert.fail("Failed to initialize state within deadline");
+                Assertions.fail("Failed to initialize state within deadline");
             }
 
             CompletableFuture<String> path = client.triggerSavepoint(jobID, dirPath);

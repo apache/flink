@@ -40,6 +40,11 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,10 +59,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link CoBroadcastWithKeyedOperator}. */
 public class CoBroadcastWithKeyedOperatorTest {
@@ -77,7 +82,7 @@ public class CoBroadcastWithKeyedOperatorTest {
             public void processElement(
                     Tuple2<Integer, String> value, ReadOnlyContext ctx, Collector<String> out)
                     throws Exception {
-                assertTrue("Did not get expected key.", ctx.getCurrentKey().equals(value.f0));
+                assertTrue(ctx.getCurrentKey().equals(value.f0), "Did not get expected key.");
 
                 // we check that we receive this output, to ensure that the assert was actually
                 // checked

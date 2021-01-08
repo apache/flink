@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, Stream
 import org.apache.flink.table.utils.CountMinMax
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.{Before, Test}
 
 import scala.collection.mutable

@@ -22,9 +22,13 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
@@ -33,15 +37,11 @@ import java.util.Map;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.apache.flink.table.api.Expressions.array;
-import static org.apache.flink.table.api.Expressions.lit;
-import static org.apache.flink.table.api.Expressions.map;
-import static org.apache.flink.table.api.Expressions.nullOf;
-import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.table.api.Expressions.*;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.objectToExpression;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unwrapFromApi;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for converting an object to a {@link Expression} via {@link

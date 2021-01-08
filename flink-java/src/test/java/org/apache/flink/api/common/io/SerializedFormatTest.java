@@ -25,8 +25,6 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.StringValue;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -95,10 +93,10 @@ public class SerializedFormatTest extends SequentialFormatTestBase<Record> {
 
     @Override
     protected void checkEquals(Record expected, Record actual) {
-        Assert.assertEquals(expected.getNumFields(), actual.getNumFields());
-        Assert.assertEquals(
+        Assertions.assertEquals(expected.getNumFields(), actual.getNumFields());
+        Assertions.assertEquals(
                 expected.getField(0, IntValue.class), actual.getField(0, IntValue.class));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.getField(1, StringValue.class), actual.getField(1, StringValue.class));
     }
 }

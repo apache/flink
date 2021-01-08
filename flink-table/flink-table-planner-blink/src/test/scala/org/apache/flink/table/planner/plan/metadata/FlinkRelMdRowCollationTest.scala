@@ -25,7 +25,7 @@ import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject, LogicalVal
 import org.apache.calcite.rel.{RelCollation, RelCollations, RelFieldCollation}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{LESS_THAN, PLUS}
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._

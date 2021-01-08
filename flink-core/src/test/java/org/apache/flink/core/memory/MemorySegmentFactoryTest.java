@@ -18,9 +18,14 @@
 package org.apache.flink.core.memory;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static java.lang.System.arraycopy;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** {@link MemorySegmentFactory} test. */
 public class MemorySegmentFactoryTest {
@@ -51,15 +56,19 @@ public class MemorySegmentFactoryTest {
 
     @Test
     public void testWrapCopyWrongStart() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
-        });
+                });
     }
 
     @Test
     public void testWrapCopyWrongEnd() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
-        });
+                });
     }
 }

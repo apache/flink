@@ -39,8 +39,12 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -161,7 +165,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        Assertions.assertEquals(expectedResult, testResults);
     }
 
     @Test
@@ -275,7 +279,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        Assertions.assertEquals(expectedResult, testResults);
     }
 
     @Test
@@ -370,7 +374,7 @@ public class CoGroupJoinITCase extends AbstractTestBase {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        Assertions.assertEquals(expectedResult, testResults);
     }
 
     /**

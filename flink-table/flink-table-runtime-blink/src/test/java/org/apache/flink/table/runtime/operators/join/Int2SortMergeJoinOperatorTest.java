@@ -24,23 +24,20 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.table.data.binary.BinaryRowData;
-import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
-import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
-import org.apache.flink.table.runtime.generated.GeneratedProjection;
-import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
-import org.apache.flink.table.runtime.generated.JoinCondition;
-import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
-import org.apache.flink.table.runtime.generated.Projection;
-import org.apache.flink.table.runtime.generated.RecordComparator;
+import org.apache.flink.table.runtime.generated.*;
 import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.MyProjection;
 import org.apache.flink.table.runtime.operators.sort.IntNormalizedKeyComputer;
 import org.apache.flink.table.runtime.operators.sort.IntRecordComparator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -48,7 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.joinAndAssert;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Random test for {@link SortMergeJoinOperator}. */
 @RunWith(Parameterized.class)

@@ -192,7 +192,7 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
 
   @Test
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
-        Assertions.assertThrows(classOf[RuntimeException], () -> {
+        assertThrows(classOf[RuntimeException], () -> {
                 // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
     val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)

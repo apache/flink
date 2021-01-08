@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingWithMiniBatchTestB
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.{Row, RowKind}
 
-import org.junit.Assert.{assertEquals, assertFalse}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.{Before, Rule, Test}

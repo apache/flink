@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link SimpleVersionedSerializerTypeSerializerProxy}. */
 public class SimpleVersionedSerializerTypeSerializerProxyTest extends SerializerTestBase<String> {

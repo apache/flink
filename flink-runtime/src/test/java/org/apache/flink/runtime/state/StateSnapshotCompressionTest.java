@@ -34,8 +34,12 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -55,7 +59,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
                 getStringHeapKeyedStateBackend(executionConfig);
 
         try {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     SnappyStreamCompressionDecorator.INSTANCE.equals(
                             stateBackend.getKeyGroupCompressionDecorator()));
 
@@ -70,7 +74,7 @@ public class StateSnapshotCompressionTest extends TestLogger {
         stateBackend = getStringHeapKeyedStateBackend(executionConfig);
 
         try {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     UncompressedStreamCompressionDecorator.INSTANCE.equals(
                             stateBackend.getKeyGroupCompressionDecorator()));
 
@@ -175,16 +179,16 @@ public class StateSnapshotCompressionTest extends TestLogger {
 
             stateBackend.setCurrentKey("A");
             state.setCurrentNamespace(VoidNamespace.INSTANCE);
-            Assert.assertEquals("42", state.value());
+            Assertions.assertEquals("42", state.value());
             stateBackend.setCurrentKey("B");
             state.setCurrentNamespace(VoidNamespace.INSTANCE);
-            Assert.assertEquals("43", state.value());
+            Assertions.assertEquals("43", state.value());
             stateBackend.setCurrentKey("C");
             state.setCurrentNamespace(VoidNamespace.INSTANCE);
-            Assert.assertEquals("44", state.value());
+            Assertions.assertEquals("44", state.value());
             stateBackend.setCurrentKey("D");
             state.setCurrentNamespace(VoidNamespace.INSTANCE);
-            Assert.assertEquals("45", state.value());
+            Assertions.assertEquals("45", state.value());
 
         } finally {
             IOUtils.closeQuietly(stateBackend);

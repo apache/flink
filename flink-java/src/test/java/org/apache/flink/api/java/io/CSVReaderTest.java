@@ -29,25 +29,20 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.types.BooleanValue;
-import org.apache.flink.types.ByteValue;
-import org.apache.flink.types.CharValue;
-import org.apache.flink.types.DoubleValue;
-import org.apache.flink.types.FloatValue;
-import org.apache.flink.types.IntValue;
-import org.apache.flink.types.LongValue;
-import org.apache.flink.types.ShortValue;
-import org.apache.flink.types.StringValue;
-import org.apache.flink.types.Value;
-
-import org.junit.Assert;
+import org.apache.flink.types.*;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /** Tests for the CSV reader builder. */
 public class CSVReaderTest {
@@ -56,15 +51,15 @@ public class CSVReaderTest {
     public void testIgnoreHeaderConfigure() {
         CsvReader reader = getCsvReader();
         reader.ignoreFirstLine();
-        Assert.assertTrue(reader.skipFirstLineAsHeader);
+        Assertions.assertTrue(reader.skipFirstLineAsHeader);
     }
 
     @Test
     public void testIgnoreInvalidLinesConfigure() {
         CsvReader reader = getCsvReader();
-        Assert.assertFalse(reader.ignoreInvalidLines);
+        Assertions.assertFalse(reader.ignoreInvalidLines);
         reader.ignoreInvalidLines();
-        Assert.assertTrue(reader.ignoreInvalidLines);
+        Assertions.assertTrue(reader.ignoreInvalidLines);
     }
 
     @Test
@@ -87,65 +82,65 @@ public class CSVReaderTest {
     public void testIncludeFieldsDense() {
         CsvReader reader = getCsvReader();
         reader.includeFields(true, true, true);
-        Assert.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
+        Assertions.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("ttt");
-        Assert.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
+        Assertions.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("TTT");
-        Assert.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
+        Assertions.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("111");
-        Assert.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
+        Assertions.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields(0x7L);
-        Assert.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
+        Assertions.assertTrue(Arrays.equals(new boolean[] {true, true, true}, reader.includedMask));
     }
 
     @Test
     public void testIncludeFieldsSparse() {
         CsvReader reader = getCsvReader();
         reader.includeFields(false, true, true, false, false, true, false, false);
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("fttfftff");
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("FTTFFTFF");
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("01100100");
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields("0t1f0TFF");
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
 
         reader = getCsvReader();
         reader.includeFields(0x26L);
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 Arrays.equals(
                         new boolean[] {false, true, true, false, false, true},
                         reader.includedMask));
@@ -157,7 +152,7 @@ public class CSVReaderTest {
 
         try {
             reader.includeFields("1t0Tfht");
-            Assert.fail("Reader accepted an invalid mask string");
+            Assertions.fail("Reader accepted an invalid mask string");
         } catch (IllegalArgumentException e) {
             // expected
         }
@@ -169,28 +164,28 @@ public class CSVReaderTest {
 
         try {
             reader.includeFields(false, false, false, false, false, false);
-            Assert.fail("The reader accepted a fields configuration that excludes all fields.");
+            Assertions.fail("The reader accepted a fields configuration that excludes all fields.");
         } catch (IllegalArgumentException e) {
             // all good
         }
 
         try {
             reader.includeFields(0);
-            Assert.fail("The reader accepted a fields configuration that excludes all fields.");
+            Assertions.fail("The reader accepted a fields configuration that excludes all fields.");
         } catch (IllegalArgumentException e) {
             // all good
         }
 
         try {
             reader.includeFields("ffffffffffffff");
-            Assert.fail("The reader accepted a fields configuration that excludes all fields.");
+            Assertions.fail("The reader accepted a fields configuration that excludes all fields.");
         } catch (IllegalArgumentException e) {
             // all good
         }
 
         try {
             reader.includeFields("00000000000000000");
-            Assert.fail("The reader accepted a fields configuration that excludes all fields.");
+            Assertions.fail("The reader accepted a fields configuration that excludes all fields.");
         } catch (IllegalArgumentException e) {
             // all good
         }
@@ -200,7 +195,7 @@ public class CSVReaderTest {
     public void testReturnType() throws Exception {
         CsvReader reader = getCsvReader();
         DataSource<Item> items = reader.tupleType(Item.class);
-        Assert.assertTrue(items.getType().getTypeClass() == Item.class);
+        Assertions.assertTrue(items.getType().getTypeClass() == Item.class);
     }
 
     @Test
@@ -210,17 +205,17 @@ public class CSVReaderTest {
 
         TypeInformation<?> info = items.getType();
         if (!info.isTupleType()) {
-            Assert.fail();
+            Assertions.fail();
         } else {
             TupleTypeInfo<?> tinfo = (TupleTypeInfo<?>) info;
-            Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
-            Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
-            Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
-            Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(3));
+            Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
+            Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
+            Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
+            Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(3));
         }
 
         CsvInputFormat<?> inputFormat = (CsvInputFormat<?>) items.getInputFormat();
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new Class<?>[] {Integer.class, String.class, Double.class, String.class},
                 inputFormat.getFieldTypes());
     }
@@ -231,19 +226,19 @@ public class CSVReaderTest {
         DataSource<SubItem> sitems = reader.tupleType(SubItem.class);
         TypeInformation<?> info = sitems.getType();
 
-        Assert.assertEquals(true, info.isTupleType());
-        Assert.assertEquals(SubItem.class, info.getTypeClass());
+        Assertions.assertEquals(true, info.isTupleType());
+        Assertions.assertEquals(SubItem.class, info.getTypeClass());
 
         @SuppressWarnings("unchecked")
         TupleTypeInfo<SubItem> tinfo = (TupleTypeInfo<SubItem>) info;
 
-        Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
-        Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
-        Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
-        Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(3));
+        Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
+        Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
+        Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
+        Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(3));
 
         CsvInputFormat<?> inputFormat = (CsvInputFormat<?>) sitems.getInputFormat();
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new Class<?>[] {Integer.class, String.class, Double.class, String.class},
                 inputFormat.getFieldTypes());
     }
@@ -254,24 +249,24 @@ public class CSVReaderTest {
         DataSource<FinalItem> sitems = reader.tupleType(FinalItem.class);
         TypeInformation<?> info = sitems.getType();
 
-        Assert.assertEquals(true, info.isTupleType());
-        Assert.assertEquals(FinalItem.class, info.getTypeClass());
+        Assertions.assertEquals(true, info.isTupleType());
+        Assertions.assertEquals(FinalItem.class, info.getTypeClass());
 
         @SuppressWarnings("unchecked")
         TupleTypeInfo<SubItem> tinfo = (TupleTypeInfo<SubItem>) info;
 
-        Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
-        Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
-        Assert.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
-        Assert.assertEquals(ValueTypeInfo.class, tinfo.getTypeAt(3).getClass());
-        Assert.assertEquals(ValueTypeInfo.class, tinfo.getTypeAt(4).getClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(BasicTypeInfo.INT_TYPE_INFO, tinfo.getTypeAt(0));
+        Assertions.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, tinfo.getTypeAt(1));
+        Assertions.assertEquals(BasicTypeInfo.DOUBLE_TYPE_INFO, tinfo.getTypeAt(2));
+        Assertions.assertEquals(ValueTypeInfo.class, tinfo.getTypeAt(3).getClass());
+        Assertions.assertEquals(ValueTypeInfo.class, tinfo.getTypeAt(4).getClass());
+        Assertions.assertEquals(
                 StringValue.class, ((ValueTypeInfo<?>) tinfo.getTypeAt(3)).getTypeClass());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 LongValue.class, ((ValueTypeInfo<?>) tinfo.getTypeAt(4)).getTypeClass());
 
         CsvInputFormat<?> inputFormat = (CsvInputFormat<?>) sitems.getInputFormat();
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new Class<?>[] {
                     Integer.class, String.class, Double.class, StringValue.class, LongValue.class
                 },
@@ -284,7 +279,7 @@ public class CSVReaderTest {
 
         try {
             reader.tupleType(PartialItem.class);
-            Assert.fail("tupleType() accepted an underspecified generic class.");
+            Assertions.fail("tupleType() accepted an underspecified generic class.");
         } catch (Exception e) {
             // okay.
         }
@@ -315,26 +310,30 @@ public class CSVReaderTest {
                                 DoubleValue.class);
         TypeInformation<?> info = items.getType();
 
-        Assert.assertEquals(true, info.isTupleType());
-        Assert.assertEquals(Tuple8.class, info.getTypeClass());
+        Assertions.assertEquals(true, info.isTupleType());
+        Assertions.assertEquals(Tuple8.class, info.getTypeClass());
     }
 
     @Test
     public void testWithInvalidValueType1() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     CsvReader reader = getCsvReader();
-        // CsvReader doesn't support CharValue
-        reader.types(CharValue.class);
-        });
+                    // CsvReader doesn't support CharValue
+                    reader.types(CharValue.class);
+                });
     }
 
     @Test
     public void testWithInvalidValueType2() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     CsvReader reader = getCsvReader();
-        // CsvReader doesn't support custom Value type
-        reader.types(ValueItem.class);
-        });
+                    // CsvReader doesn't support custom Value type
+                    reader.types(ValueItem.class);
+                });
     }
 
     private static CsvReader getCsvReader() {

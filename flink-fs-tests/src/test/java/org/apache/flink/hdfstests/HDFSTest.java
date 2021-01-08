@@ -18,6 +18,7 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.io.FileOutputFormat;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -30,30 +31,23 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.examples.java.wordcount.WordCount;
-import org.apache.flink.runtime.blob.BlobCacheCorruptionTest;
-import org.apache.flink.runtime.blob.BlobCacheRecoveryTest;
-import org.apache.flink.runtime.blob.BlobServerCorruptionTest;
-import org.apache.flink.runtime.blob.BlobServerRecoveryTest;
-import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.blob.BlobUtils;
+import org.apache.flink.runtime.blob.*;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.OperatingSystem;
-
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
+import org.junit.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
@@ -63,8 +57,8 @@ import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.UUID;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This test should logically be located in the 'flink-runtime' tests. However, this project has
@@ -116,7 +110,7 @@ public class HDFSTest {
 
         } catch (Throwable e) {
             e.printStackTrace();
-            Assert.fail("Test failed " + e.getMessage());
+            Assertions.fail("Test failed " + e.getMessage());
         }
     }
 
@@ -137,7 +131,7 @@ public class HDFSTest {
         org.apache.hadoop.fs.Path result = new org.apache.hadoop.fs.Path(hdfsURI + "/result");
         try {
             FileSystem fs = file.getFileSystem();
-            assertTrue("Must be HadoopFileSystem", fs instanceof HadoopFileSystem);
+            assertTrue(fs instanceof HadoopFileSystem, "Must be HadoopFileSystem");
 
             DopOneTestEnvironment.setAsContext();
             try {
@@ -148,12 +142,12 @@ public class HDFSTest {
                         });
             } catch (Throwable t) {
                 t.printStackTrace();
-                Assert.fail("Test failed with " + t.getMessage());
+                Assertions.fail("Test failed with " + t.getMessage());
             } finally {
                 DopOneTestEnvironment.unsetAsContext();
             }
 
-            assertTrue("No result file present", hdfs.exists(result));
+            assertTrue(hdfs.exists(result), "No result file present");
 
             // validate output:
             org.apache.hadoop.fs.FSDataInputStream inStream = hdfs.open(result);
@@ -161,12 +155,12 @@ public class HDFSTest {
             IOUtils.copy(inStream, writer);
             String resultString = writer.toString();
 
-            Assert.assertEquals("hdfs 10\n" + "hello 10\n", resultString);
+            Assertions.assertEquals("hdfs 10\n" + "hello 10\n", resultString);
             inStream.close();
 
         } catch (IOException e) {
             e.printStackTrace();
-            Assert.fail("Error in test: " + e.getMessage());
+            Assertions.fail("Error in test: " + e.getMessage());
         }
     }
 
@@ -190,9 +184,9 @@ public class HDFSTest {
             outputFormat.writeRecord(type);
             outputFormat.close();
 
-            assertTrue("No result file present", hdfs.exists(hdfsPath));
+            assertTrue(hdfs.exists(hdfsPath), "No result file present");
             FileStatus[] files = hdfs.listStatus(hdfsPath);
-            Assert.assertEquals(2, files.length);
+            Assertions.assertEquals(2, files.length);
             for (FileStatus file : files) {
                 assertTrue(
                         "1".equals(file.getPath().getName())
@@ -201,7 +195,7 @@ public class HDFSTest {
 
         } catch (IOException e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 

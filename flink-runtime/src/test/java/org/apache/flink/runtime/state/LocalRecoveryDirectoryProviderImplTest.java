@@ -23,10 +23,14 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -56,7 +60,7 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
     @Test
     public void allocationBaseDir() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     allocBaseFolders[i % allocBaseFolders.length],
                     directoryProvider.allocationBaseDirectory(i));
         }
@@ -65,20 +69,21 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
     @Test
     public void selectAllocationBaseDir() {
         for (int i = 0; i < allocBaseFolders.length; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     allocBaseFolders[i], directoryProvider.selectAllocationBaseDirectory(i));
         }
     }
 
     @Test
     public void allocationBaseDirectoriesCount() {
-        Assert.assertEquals(allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
+        Assertions.assertEquals(
+                allocBaseFolders.length, directoryProvider.allocationBaseDirsCount());
     }
 
     @Test
     public void subtaskSpecificDirectory() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new File(
                             directoryProvider.allocationBaseDirectory(i),
                             directoryProvider.subtaskDirString()),
@@ -89,7 +94,7 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
     @Test
     public void subtaskCheckpointSpecificDirectory() {
         for (int i = 0; i < 10; ++i) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new File(
                             directoryProvider.subtaskBaseDirectory(i),
                             directoryProvider.checkpointDirString(i)),
@@ -100,7 +105,7 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
     @Test
     public void testPathStringConstants() {
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 directoryProvider.subtaskDirString(),
                 "jid_"
                         + JOB_ID
@@ -111,7 +116,7 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
                         + SUBTASK_INDEX);
 
         final long checkpointId = 42;
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 directoryProvider.checkpointDirString(checkpointId), "chk_" + checkpointId);
     }
 
@@ -120,7 +125,7 @@ public class LocalRecoveryDirectoryProviderImplTest extends TestLogger {
         try {
             new LocalRecoveryDirectoryProviderImpl(
                     new File[] {null}, JOB_ID, JOB_VERTEX_ID, SUBTASK_INDEX);
-            Assert.fail();
+            Assertions.fail();
         } catch (NullPointerException ignore) {
         }
     }

@@ -20,11 +20,7 @@ package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
-import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.core.fs.*;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
 import org.apache.flink.fs.s3.common.writer.S3Recoverable;
@@ -32,14 +28,14 @@ import org.apache.flink.testutils.s3.S3TestCredentials;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
+import org.junit.*;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
@@ -159,9 +155,9 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         final java.nio.file.Path localTmpDir = Paths.get(defaultTmpDir);
 
         // delete local tmp dir.
-        Assert.assertTrue(Files.exists(localTmpDir));
+        Assertions.assertTrue(Files.exists(localTmpDir));
         try (Stream<java.nio.file.Path> files = Files.list(localTmpDir)) {
-            Assert.assertEquals(0L, files.count());
+            Assertions.assertEquals(0L, files.count());
         }
         Files.delete(localTmpDir);
 
@@ -197,7 +193,7 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         stream.write(bytesOf(testData1));
         stream.closeForCommit().commit();
 
-        Assert.assertEquals(testData1, getContentsOfFile(path));
+        Assertions.assertEquals(testData1, getContentsOfFile(path));
     }
 
     @Test
@@ -212,41 +208,44 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         stream.write(bytesOf(testData2));
         stream.closeForCommit().commit();
 
-        Assert.assertEquals(testData1 + testData2, getContentsOfFile(path));
+        Assertions.assertEquals(testData1 + testData2, getContentsOfFile(path));
     }
 
     @Test
     public void testCleanupRecoverableState() throws Exception {
-        Assertions.assertThrows(FileNotFoundException.class, () -> {
+        assertThrows(
+                FileNotFoundException.class,
+                () -> {
                     final RecoverableWriter writer = getRecoverableWriter();
-        final Path path = new Path(basePathForTest, "part-0");
+                    final Path path = new Path(basePathForTest, "part-0");
 
-        final RecoverableFsDataOutputStream stream = writer.open(path);
-        stream.write(bytesOf(testData1));
-        S3Recoverable recoverable = (S3Recoverable) stream.persist();
+                    final RecoverableFsDataOutputStream stream = writer.open(path);
+                    stream.write(bytesOf(testData1));
+                    S3Recoverable recoverable = (S3Recoverable) stream.persist();
 
-        stream.closeForCommit().commit();
+                    stream.closeForCommit().commit();
 
-        // still the data is there as we have not deleted them from the tmp object
-        final String content =
-                getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
-        Assert.assertEquals(testData1, content);
+                    // still the data is there as we have not deleted them from the tmp object
+                    final String content =
+                            getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+                    Assertions.assertEquals(testData1, content);
 
-        boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
-        Assert.assertTrue(successfullyDeletedState);
+                    boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
+                    Assertions.assertTrue(successfullyDeletedState);
 
-        int retryTimes = 10;
-        final long delayMs = 1000;
-        // Because the s3 is eventually consistency the s3 file might still be found after we delete
-        // it.
-        // So we try multi-times to verify that the file was deleted at last.
-        while (retryTimes > 0) {
-            // this should throw the exception as we deleted the file.
-            getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
-            retryTimes--;
-            Thread.sleep(delayMs);
-        }
-        });
+                    int retryTimes = 10;
+                    final long delayMs = 1000;
+                    // Because the s3 is eventually consistency the s3 file might still be found
+                    // after we delete
+                    // it.
+                    // So we try multi-times to verify that the file was deleted at last.
+                    while (retryTimes > 0) {
+                        // this should throw the exception as we deleted the file.
+                        getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
+                        retryTimes--;
+                        Thread.sleep(delayMs);
+                    }
+                });
     }
 
     @Test
@@ -263,13 +262,13 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         // still the data is there as we have not deleted them from the tmp object
         final String content =
                 getContentsOfFile(new Path('/' + recoverable.incompleteObjectName()));
-        Assert.assertEquals(testData1, content);
+        Assertions.assertEquals(testData1, content);
 
         boolean successfullyDeletedState = writer.cleanupRecoverableState(recoverable);
-        Assert.assertTrue(successfullyDeletedState);
+        Assertions.assertTrue(successfullyDeletedState);
 
         boolean unsuccessfulDeletion = writer.cleanupRecoverableState(recoverable);
-        Assert.assertFalse(unsuccessfulDeletion);
+        Assertions.assertFalse(unsuccessfulDeletion);
     }
 
     // ----------------------- Test Recovery -----------------------
@@ -308,7 +307,7 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
                 newWriter.recoverForCommit(recoveredRecoverable);
         committer.commitAfterRecovery();
 
-        Assert.assertEquals(testData1 + testData2, getContentsOfFile(path));
+        Assertions.assertEquals(testData1 + testData2, getContentsOfFile(path));
     }
 
     private static final String INIT_EMPTY_PERSIST = "EMPTY";
@@ -412,7 +411,7 @@ public class HadoopS3RecoverableWriterITCase extends TestLogger {
         recoveredStream.write(bytesOf(thirdItemToWrite));
         recoveredStream.closeForCommit().commit();
 
-        Assert.assertEquals(expectedFinalContents, getContentsOfFile(path));
+        Assertions.assertEquals(expectedFinalContents, getContentsOfFile(path));
     }
 
     // -------------------------- Test Utilities --------------------------

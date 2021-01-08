@@ -28,6 +28,11 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 
@@ -153,7 +158,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testHashPartitionByFieldOutOfRange() throws Exception {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(IndexOutOfBoundsException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -179,7 +184,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testHashPartitionByInvalidFieldName() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<CustomPojo> ds = getPojoDataSet(env);
@@ -205,7 +210,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionByInvalidFieldName() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<CustomPojo> ds = getPojoDataSet(env);
@@ -231,7 +236,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionWithEmptyIndicesKey() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSource<Tuple2<Tuple2<Integer, Integer>, Integer>> ds =
@@ -245,7 +250,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionByFieldOutOfRange() throws Exception {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(IndexOutOfBoundsException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -255,7 +260,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testHashPartitionWithOrders() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -265,7 +270,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRebalanceWithOrders() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(IllegalStateException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -283,7 +288,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionWithTooManyOrders() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -305,7 +310,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionByComplexKeyWithTooManyOrders() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSource<Tuple2<Tuple2<Integer, Integer>, Integer>> ds =
@@ -334,7 +339,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionBySelectorComplexKeyWithTooManyOrders() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<NestedPojo> ds = getNestedPojoDataSet(env);
@@ -366,7 +371,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionInvalidCustomPartitionerByFieldId() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<Tuple2<Integer, String>> ds = getTupleDataSet(env);
@@ -398,7 +403,7 @@ public class PartitionOperatorTest {
 
     @Test
     public void testRangePartitionInvalidCustomPartitionerByFieldName() throws Exception {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(InvalidProgramException.class, () -> {
                     final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         final DataSet<CustomPojo> ds = getPojoDataSet(env);

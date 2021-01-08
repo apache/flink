@@ -20,11 +20,14 @@ package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.client.program.ProgramParametrizationException;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link LongParameter}. */
@@ -70,34 +73,34 @@ public class LongParameterTest extends ParameterTestBase {
     @Test
     public void testWithDefaultWithParameter() {
         parameter.setDefaultValue(42);
-        Assert.assertEquals("[--test TEST]", parameter.getUsage());
+        Assertions.assertEquals("[--test TEST]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "54"}));
-        Assert.assertEquals(new Long(54), parameter.getValue());
+        Assertions.assertEquals(new Long(54), parameter.getValue());
     }
 
     @Test
     public void testWithDefaultWithoutParameter() {
         parameter.setDefaultValue(13);
-        Assert.assertEquals("[--test TEST]", parameter.getUsage());
+        Assertions.assertEquals("[--test TEST]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {}));
-        Assert.assertEquals(new Long(13), parameter.getValue());
+        Assertions.assertEquals(new Long(13), parameter.getValue());
     }
 
     // Without default
 
     @Test
     public void testWithoutDefaultWithParameter() {
-        Assert.assertEquals("--test TEST", parameter.getUsage());
+        Assertions.assertEquals("--test TEST", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "42"}));
-        Assert.assertEquals(new Long(42), parameter.getValue());
+        Assertions.assertEquals(new Long(42), parameter.getValue());
     }
 
     @Test
     public void testWithoutDefaultWithoutParameter() {
-        Assert.assertEquals("--test TEST", parameter.getUsage());
+        Assertions.assertEquals("--test TEST", parameter.getUsage());
 
         expectedException.expect(RuntimeException.class);
         expectedException.expectMessage("No data for required key 'test'");
@@ -111,7 +114,7 @@ public class LongParameterTest extends ParameterTestBase {
     public void testMinInRange() {
         parameter.setMinimumValue(0);
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "1"}));
-        Assert.assertEquals(new Long(1), parameter.getValue());
+        Assertions.assertEquals(new Long(1), parameter.getValue());
     }
 
     @Test
@@ -130,7 +133,7 @@ public class LongParameterTest extends ParameterTestBase {
     public void testMaxInRange() {
         parameter.setMaximumValue(0);
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "-1"}));
-        Assert.assertEquals(new Long(-1), parameter.getValue());
+        Assertions.assertEquals(new Long(-1), parameter.getValue());
     }
 
     @Test
@@ -161,7 +164,7 @@ public class LongParameterTest extends ParameterTestBase {
         parameter.setMinimumValue(-1);
         parameter.setMaximumValue(1);
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "0"}));
-        Assert.assertEquals(new Long(0), parameter.getValue());
+        Assertions.assertEquals(new Long(0), parameter.getValue());
     }
 
     @Test

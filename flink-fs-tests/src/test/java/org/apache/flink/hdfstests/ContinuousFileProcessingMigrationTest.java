@@ -18,6 +18,7 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -29,11 +30,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
-import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
-import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
-import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
+import org.apache.flink.streaming.api.functions.source.*;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -42,14 +39,16 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
-
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -205,10 +204,10 @@ public class ContinuousFileProcessingMigrationTest {
         // compare if the results contain what they should contain and also if
         // they are the same, as they should.
 
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+        Assertions.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
+        Assertions.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
+        Assertions.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
+        Assertions.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
     }
 
     /** Manually run this to write binary snapshot data. Remove @Ignore to run. */
@@ -319,7 +318,8 @@ public class ContinuousFileProcessingMigrationTest {
 
         testHarness.open();
 
-        Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
+        Assertions.assertEquals(
+                (long) expectedModTime, monitoringFunction.getGlobalModificationTime());
     }
 
     private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {
@@ -394,7 +394,7 @@ public class ContinuousFileProcessingMigrationTest {
             File base, String fileName, int fileIdx, String sampleLine) throws IOException {
 
         File file = new File(base, fileName + fileIdx);
-        Assert.assertFalse(file.exists());
+        Assertions.assertFalse(file.exists());
 
         File tmp = new File(base, "." + fileName + fileIdx);
         FileOutputStream stream = new FileOutputStream(tmp);
@@ -408,7 +408,7 @@ public class ContinuousFileProcessingMigrationTest {
 
         FileUtils.moveFile(tmp, file);
 
-        Assert.assertTrue("No result file present", file.exists());
+        Assertions.assertTrue(file.exists(), "No result file present");
         return new Tuple2<>(file, str.toString());
     }
 

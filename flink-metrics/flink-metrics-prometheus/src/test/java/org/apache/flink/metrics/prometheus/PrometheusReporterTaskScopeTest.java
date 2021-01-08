@@ -18,12 +18,10 @@
 
 package org.apache.flink.metrics.prometheus;
 
+import com.mashape.unirest.http.exceptions.UnirestException;
+import io.prometheus.client.CollectorRegistry;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.Gauge;
-import org.apache.flink.metrics.Histogram;
-import org.apache.flink.metrics.Meter;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.metrics.*;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -33,22 +31,22 @@ import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
-
-import com.mashape.unirest.http.exceptions.UnirestException;
-import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.createReporterSetup;
 import static org.apache.flink.metrics.prometheus.PrometheusReporterTest.pollMetrics;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Test for {@link PrometheusReporter} that registers several instances of the same metric for

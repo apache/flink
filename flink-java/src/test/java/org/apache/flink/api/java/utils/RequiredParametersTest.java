@@ -21,16 +21,19 @@ package org.apache.flink.api.java.utils;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for RequiredParameter class and its interactions with ParameterTool. */
 @Deprecated
@@ -129,8 +132,8 @@ public class RequiredParametersTest extends TestLogger {
         try {
             required.add(new Option("berlin").alt("b"));
             parameter = required.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
-            Assert.assertEquals(parameter.data.get("b"), "value");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("b"), "value");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -145,8 +148,8 @@ public class RequiredParametersTest extends TestLogger {
         try {
             required.add(new Option("berlin").alt("b").defaultValue("something"));
             parameter = required.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
-            Assert.assertEquals(parameter.data.get("b"), "value");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("b"), "value");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -172,7 +175,7 @@ public class RequiredParametersTest extends TestLogger {
         try {
             required.add(new Option("berlin"));
             parameter = required.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -185,7 +188,7 @@ public class RequiredParametersTest extends TestLogger {
         try {
             required.add(new Option("berlin").defaultValue("value"));
             parameter = required.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -198,8 +201,8 @@ public class RequiredParametersTest extends TestLogger {
         try {
             required.add(new Option("berlin").alt("b").defaultValue("value"));
             parameter = required.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
-            Assert.assertEquals(parameter.data.get("b"), "value");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("b"), "value");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -213,9 +216,9 @@ public class RequiredParametersTest extends TestLogger {
             rq.add("input");
             rq.add(new Option("parallelism").alt("p").defaultValue("1").type(OptionType.INTEGER));
             parameter = rq.applyTo(parameter);
-            Assert.assertEquals(parameter.data.get("parallelism"), "1");
-            Assert.assertEquals(parameter.data.get("p"), "1");
-            Assert.assertEquals(parameter.data.get("input"), "abc");
+            Assertions.assertEquals(parameter.data.get("parallelism"), "1");
+            Assertions.assertEquals(parameter.data.get("p"), "1");
+            Assertions.assertEquals(parameter.data.get("input"), "abc");
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
         }
@@ -232,10 +235,10 @@ public class RequiredParametersTest extends TestLogger {
 
             parameter = required.applyTo(parameter);
 
-            Assert.assertEquals(parameter.data.get("berlin"), "value");
-            Assert.assertEquals(parameter.data.get("count"), "15");
-            Assert.assertEquals(parameter.data.get("someFlag"), "true");
-            Assert.assertEquals(parameter.data.get("sf"), "true");
+            Assertions.assertEquals(parameter.data.get("berlin"), "value");
+            Assertions.assertEquals(parameter.data.get("count"), "15");
+            Assertions.assertEquals(parameter.data.get("someFlag"), "true");
+            Assertions.assertEquals(parameter.data.get("sf"), "true");
 
         } catch (RequiredParametersException e) {
             fail("Exception thrown " + e.getMessage());
@@ -254,7 +257,7 @@ public class RequiredParametersTest extends TestLogger {
                             .choices("some", "options"));
 
             String helpText = required.getHelp();
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     helpText,
                     CoreMatchers.allOf(
                             containsString("Required Parameters:"),
@@ -282,7 +285,7 @@ public class RequiredParametersTest extends TestLogger {
                             .type(OptionType.INTEGER));
 
             String helpText = required.getHelp();
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     helpText,
                     CoreMatchers.allOf(
                             containsString("Required Parameters:"),
@@ -291,7 +294,7 @@ public class RequiredParametersTest extends TestLogger {
                             containsString("-p, --parallelism"),
                             containsString("Set the parallelism for all operators")));
 
-            Assert.assertThat(
+            MatcherAssert.assertThat(
                     helpText,
                     CoreMatchers.allOf(
                             not(containsString("choices")), not(containsString("default"))));
@@ -305,7 +308,7 @@ public class RequiredParametersTest extends TestLogger {
         RequiredParameters required = new RequiredParameters();
 
         String helpText = required.getHelp(Arrays.asList("param1", "param2", "paramN"));
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 helpText,
                 CoreMatchers.allOf(
                         containsString("Missing arguments for:"),

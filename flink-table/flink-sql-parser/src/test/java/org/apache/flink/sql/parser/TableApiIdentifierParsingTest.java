@@ -18,15 +18,19 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
-import org.apache.flink.sql.parser.impl.ParseException;
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
-
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.util.SourceStringReader;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import org.apache.flink.sql.parser.impl.ParseException;
+import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -35,7 +39,7 @@ import java.util.List;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for parsing a Table API specific SqlIdentifier. */
 @RunWith(Parameterized.class)

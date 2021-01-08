@@ -343,7 +343,7 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
         out: Collector[CustomType]) =>
           for (p <- first) {
             for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+              Assertions.assertTrue(p.nestedPojo.longNumber == t._7)
               out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
             }
           }
@@ -369,7 +369,7 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
         out: Collector[CustomType]) =>
           for (p <- first) {
             for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+              Assertions.assertTrue(p.nestedPojo.longNumber == t._7)
               out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
             }
           }
@@ -395,7 +395,7 @@ class CoGroupITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
         out: Collector[CustomType]) =>
           for (p <- first) {
             for (t <- second) {
-              Assert.assertTrue(p.nestedPojo.longNumber == t._7)
+              Assertions.assertTrue(p.nestedPojo.longNumber == t._7)
               out.collect(new CustomType(-1, p.nestedPojo.longNumber, "Flink"))
             }
           }

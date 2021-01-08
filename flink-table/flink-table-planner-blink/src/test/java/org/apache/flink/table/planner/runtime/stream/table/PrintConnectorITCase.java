@@ -22,11 +22,14 @@ import org.apache.flink.table.factories.PrintTableSinkFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -93,7 +96,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
 
         String expectedLine1 = "test_print:1> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
         String expectedLine2 = "test_print:2> +I[" + /* 0 */ "1, " + /* 1 */ "1.1" + "]";
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 arrayOutputStream.toString().equals(expectedLine1 + "\n")
                         || arrayOutputStream.toString().equals(expectedLine2 + "\n"));
     }
@@ -166,7 +169,7 @@ public class PrintConnectorITCase extends StreamingTestBase {
                         +
                         /* 11 */ "+I[1, 1]"
                         + "]";
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expectedLine + "\n" + expectedLine + "\n",
                 standardError ? arrayErrorStream.toString() : arrayOutputStream.toString());
     }

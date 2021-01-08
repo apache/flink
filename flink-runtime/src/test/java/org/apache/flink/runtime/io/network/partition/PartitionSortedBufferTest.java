@@ -25,6 +25,11 @@ import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,9 +41,9 @@ import java.util.Queue;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.buffer.Buffer.DataType;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link PartitionSortedBuffer}. */
 public class PartitionSortedBufferTest {
@@ -199,40 +204,46 @@ public class PartitionSortedBufferTest {
 
     @Test
     public void testWriteEmptyData() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
 
-        ByteBuffer record = ByteBuffer.allocate(1);
-        record.position(1);
+                    ByteBuffer record = ByteBuffer.allocate(1);
+                    record.position(1);
 
-        sortBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
-        });
+                    sortBuffer.append(record, 0, Buffer.DataType.DATA_BUFFER);
+                });
     }
 
     @Test
     public void testWriteFinishedSortBuffer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.finish();
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    sortBuffer.finish();
 
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
-        });
+                    sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+                });
     }
 
     @Test
     public void testWriteReleasedSortBuffer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.release();
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    sortBuffer.release();
 
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
-        });
+                    sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+                });
     }
 
     @Test
@@ -280,45 +291,54 @@ public class PartitionSortedBufferTest {
 
     @Test
     public void testReadUnfinishedSortBuffer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
 
-        assertTrue(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
-        });
+                    assertTrue(sortBuffer.hasRemaining());
+                    sortBuffer.copyIntoSegment(
+                            MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+                });
     }
 
     @Test
     public void testReadReleasedSortBuffer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
-        sortBuffer.finish();
-        assertTrue(sortBuffer.hasRemaining());
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    sortBuffer.append(ByteBuffer.allocate(1), 0, Buffer.DataType.DATA_BUFFER);
+                    sortBuffer.finish();
+                    assertTrue(sortBuffer.hasRemaining());
 
-        sortBuffer.release();
-        assertFalse(sortBuffer.hasRemaining());
+                    sortBuffer.release();
+                    assertFalse(sortBuffer.hasRemaining());
 
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
-        });
+                    sortBuffer.copyIntoSegment(
+                            MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+                });
     }
 
     @Test
     public void testReadEmptySortBuffer() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     int bufferSize = 1024;
 
-        SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
-        sortBuffer.finish();
+                    SortBuffer sortBuffer = createSortBuffer(1, bufferSize, 1);
+                    sortBuffer.finish();
 
-        assertFalse(sortBuffer.hasRemaining());
-        sortBuffer.copyIntoSegment(MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
-        });
+                    assertFalse(sortBuffer.hasRemaining());
+                    sortBuffer.copyIntoSegment(
+                            MemorySegmentFactory.allocateUnpooledSegment(bufferSize));
+                });
     }
 
     @Test

@@ -21,18 +21,21 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link JobScopedResourceTracker}. */
 public class JobScopedResourceTrackerTest extends TestLogger {
@@ -57,7 +60,7 @@ public class JobScopedResourceTrackerTest extends TestLogger {
 
         try {
             tracker.notifyLostResource(ResourceProfile.UNKNOWN);
-            Assert.fail(
+            Assertions.fail(
                     "If no resource were acquired, then a loss of resource should fail with an exception.");
         } catch (IllegalStateException expected) {
         }

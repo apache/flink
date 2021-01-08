@@ -54,6 +54,11 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.net.URI;
@@ -63,9 +68,9 @@ import java.util.List;
 
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
 import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
@@ -225,7 +230,7 @@ public class HiveDialectITCase {
         CatalogTable catalogTable =
                 (CatalogTable) hiveCatalog.getTable(new ObjectPath("default", "tbl"));
         TableSchema tableSchema = catalogTable.getSchema();
-        assertTrue("PK not present", tableSchema.getPrimaryKey().isPresent());
+        assertTrue(tableSchema.getPrimaryKey().isPresent(), "PK not present");
         assertEquals("pk_name", tableSchema.getPrimaryKey().get().getName());
         assertFalse(
                 "PK cannot be null",

@@ -38,7 +38,7 @@ class RowtimeTest extends DescriptorTestBase {
 
   @Test
   def testInvalidWatermarkType(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
   }
 

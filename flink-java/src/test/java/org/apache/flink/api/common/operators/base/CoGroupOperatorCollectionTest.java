@@ -34,17 +34,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Future;
 
 /** Tests for {@link CoGroupOperatorBase} on collections. */
@@ -103,8 +101,8 @@ public class CoGroupOperatorCollectionTest implements Serializable {
                         getCoGroupOperator(udf2)
                                 .executeOnCollections(input1, input2, ctx, executionConfig);
 
-                Assert.assertTrue(udf1.isClosed);
-                Assert.assertTrue(udf2.isClosed);
+                Assertions.assertTrue(udf1.isClosed);
+                Assertions.assertTrue(udf2.isClosed);
 
                 Set<Tuple2<String, Integer>> expected =
                         new HashSet<Tuple2<String, Integer>>(
@@ -116,8 +114,9 @@ public class CoGroupOperatorCollectionTest implements Serializable {
                                                 .add("barfoo", 1)
                                                 .build()));
 
-                Assert.assertEquals(expected, new HashSet<Tuple2<String, Integer>>(resultSafe));
-                Assert.assertEquals(expected, new HashSet<Tuple2<String, Integer>>(resultRegular));
+                Assertions.assertEquals(expected, new HashSet<Tuple2<String, Integer>>(resultSafe));
+                Assertions.assertEquals(
+                        expected, new HashSet<Tuple2<String, Integer>>(resultRegular));
             }
 
             {
@@ -139,12 +138,12 @@ public class CoGroupOperatorCollectionTest implements Serializable {
                                         ctx,
                                         executionConfig);
 
-                Assert.assertEquals(0, resultSafe.size());
-                Assert.assertEquals(0, resultRegular.size());
+                Assertions.assertEquals(0, resultSafe.size());
+                Assertions.assertEquals(0, resultRegular.size());
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            Assert.fail(t.getMessage());
+            Assertions.fail(t.getMessage());
         }
     }
 
@@ -160,9 +159,9 @@ public class CoGroupOperatorCollectionTest implements Serializable {
             isOpened = true;
 
             RuntimeContext ctx = getRuntimeContext();
-            Assert.assertEquals("Test UDF", ctx.getTaskName());
-            Assert.assertEquals(4, ctx.getNumberOfParallelSubtasks());
-            Assert.assertEquals(0, ctx.getIndexOfThisSubtask());
+            Assertions.assertEquals("Test UDF", ctx.getTaskName());
+            Assertions.assertEquals(4, ctx.getNumberOfParallelSubtasks());
+            Assertions.assertEquals(0, ctx.getIndexOfThisSubtask());
         }
 
         @Override
@@ -172,8 +171,8 @@ public class CoGroupOperatorCollectionTest implements Serializable {
                 Collector<Tuple2<String, Integer>> out)
                 throws Exception {
 
-            Assert.assertTrue(isOpened);
-            Assert.assertFalse(isClosed);
+            Assertions.assertTrue(isOpened);
+            Assertions.assertFalse(isClosed);
 
             String f0 = null;
             int sumF1 = 0;

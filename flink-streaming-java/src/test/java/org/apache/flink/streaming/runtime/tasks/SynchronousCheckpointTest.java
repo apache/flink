@@ -30,6 +30,11 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -39,10 +44,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests the synchronous checkpoint execution at the {@link StreamTask}. */
 public class SynchronousCheckpointTest {

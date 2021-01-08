@@ -54,12 +54,14 @@ import org.apache.flink.streaming.runtime.operators.windowing.WindowOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -100,7 +102,7 @@ public class WindowReaderTest {
                                 Types.INT));
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        Assertions.assertEquals(Arrays.asList(1, 1), list);
     }
 
     @Test
@@ -126,7 +128,7 @@ public class WindowReaderTest {
                                 Types.INT));
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Collections.singletonList(2), list);
+        Assertions.assertEquals(Collections.singletonList(2), list);
     }
 
     @Test
@@ -152,7 +154,7 @@ public class WindowReaderTest {
                                 Types.INT));
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        Assertions.assertEquals(Arrays.asList(1, 1), list);
     }
 
     @Test
@@ -177,7 +179,7 @@ public class WindowReaderTest {
                                 Types.INT));
 
         List<Integer> list = readState(format);
-        Assert.assertEquals(Arrays.asList(1, 1), list);
+        Assertions.assertEquals(Arrays.asList(1, 1), list);
     }
 
     @Test
@@ -203,7 +205,7 @@ public class WindowReaderTest {
                                 Types.INT));
 
         List<Tuple2<Integer, Integer>> list = readState(format);
-        Assert.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), list);
+        Assertions.assertEquals(Arrays.asList(Tuple2.of(2, 1), Tuple2.of(2, 1)), list);
     }
 
     private static WindowOperator<Integer, Integer, ?, Void, ?> getWindowOperator(
@@ -251,14 +253,14 @@ public class WindowReaderTest {
             DataStream<T> dataStream) {
         Transformation<T> transformation = dataStream.getTransformation();
         if (!(transformation instanceof OneInputTransformation)) {
-            Assert.fail("This test only supports window operators");
+            Assertions.fail("This test only supports window operators");
         }
 
         OneInputTransformation<?, ?> oneInput = (OneInputTransformation<?, ?>) transformation;
         StreamOperator<?> operator = oneInput.getOperator();
 
         if (!(operator instanceof WindowOperator)) {
-            Assert.fail("This test only supports window operators");
+            Assertions.fail("This test only supports window operators");
         }
 
         return (WindowOperator<Integer, Integer, ?, Void, ?>) operator;

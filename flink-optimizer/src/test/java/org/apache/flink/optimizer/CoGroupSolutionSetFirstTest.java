@@ -26,18 +26,17 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.optimizer.plan.Channel;
-import org.apache.flink.optimizer.plan.DualInputPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.PlanNode;
-import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
+import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("serial")
 public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
@@ -83,7 +82,7 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
         try {
             oPlan = compileNoStats(plan);
         } catch (CompilerException e) {
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
 
         oPlan.accept(
@@ -102,15 +101,15 @@ public class CoGroupSolutionSetFirstTest extends CompilerTestBase {
                             Channel in1 = dpn.getInput1();
                             Channel in2 = dpn.getInput2();
 
-                            Assert.assertTrue(in1.getLocalProperties().getOrdering() == null);
-                            Assert.assertTrue(in2.getLocalProperties().getOrdering() != null);
-                            Assert.assertTrue(
+                            Assertions.assertTrue(in1.getLocalProperties().getOrdering() == null);
+                            Assertions.assertTrue(in2.getLocalProperties().getOrdering() != null);
+                            Assertions.assertTrue(
                                     in2.getLocalProperties()
                                             .getOrdering()
                                             .getInvolvedIndexes()
                                             .contains(0));
-                            Assert.assertTrue(in1.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assert.assertTrue(
+                            Assertions.assertTrue(in1.getShipStrategy() == ShipStrategyType.FORWARD);
+                            Assertions.assertTrue(
                                     in2.getShipStrategy() == ShipStrategyType.PARTITION_HASH);
                             return false;
                         }

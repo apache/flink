@@ -24,9 +24,12 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,8 +48,8 @@ public class EventWithAggregatorsTest {
         AllWorkersDoneEvent e = new AllWorkersDoneEvent();
         IterationEventWithAggregators deserialized = pipeThroughSerialization(e);
 
-        Assert.assertEquals(0, deserialized.getAggregatorNames().length);
-        Assert.assertEquals(0, deserialized.getAggregates(cl).length);
+        Assertions.assertEquals(0, deserialized.getAggregatorNames().length);
+        Assertions.assertEquals(0, deserialized.getAggregates(cl).length);
     }
 
     @Test
@@ -80,8 +83,8 @@ public class EventWithAggregatorsTest {
         String[] names = deserialized.getAggregatorNames();
         Value[] aggregates = deserialized.getAggregates(cl);
 
-        Assert.assertEquals(allNames.size(), names.length);
-        Assert.assertEquals(allVals.size(), aggregates.length);
+        Assertions.assertEquals(allNames.size(), names.length);
+        Assertions.assertEquals(allVals.size(), aggregates.length);
 
         // check that all the correct names and values are returned
         for (String s : names) {
@@ -91,8 +94,8 @@ public class EventWithAggregatorsTest {
             allVals.remove(v);
         }
 
-        Assert.assertTrue(allNames.isEmpty());
-        Assert.assertTrue(allVals.isEmpty());
+        Assertions.assertTrue(allNames.isEmpty());
+        Assertions.assertTrue(allVals.isEmpty());
     }
 
     private IterationEventWithAggregators pipeThroughSerialization(
@@ -114,7 +117,7 @@ public class EventWithAggregatorsTest {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Test threw an exception: " + e.getMessage());
+            Assertions.fail("Test threw an exception: " + e.getMessage());
             return null;
         }
     }

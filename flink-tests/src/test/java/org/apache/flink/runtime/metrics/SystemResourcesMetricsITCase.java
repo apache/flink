@@ -28,9 +28,13 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +47,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.REPORTERS_LIST;
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Integration tests for proper initialization of the system resource metrics. */
 public class SystemResourcesMetricsITCase extends TestLogger {

@@ -42,7 +42,7 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
 

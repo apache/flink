@@ -23,11 +23,14 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.description.Formatter;
 import org.apache.flink.configuration.description.HtmlFormatter;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -35,25 +38,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.COMMON_SECTION_FILE_NAME;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
-import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.*;
 
 /**
  * This test verifies that all {@link ConfigOption ConfigOptions} in the configured {@link
@@ -218,7 +208,7 @@ public class ConfigOptionsDocsCompletenessITCase {
                 sb.append("\t\t");
                 sb.append(problem);
             }
-            Assert.fail(sb.toString());
+            Assertions.fail(sb.toString());
         }
     }
 

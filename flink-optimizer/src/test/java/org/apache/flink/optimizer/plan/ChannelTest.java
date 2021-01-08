@@ -24,9 +24,12 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.io.TextInputFormat;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.dag.DataSourceNode;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ChannelTest {
 
@@ -40,14 +43,14 @@ public class ChannelTest {
         Channel channel = new Channel(planNode);
 
         // no estimates here
-        Assert.assertEquals(-1, channel.getEstimatedOutputSize());
-        Assert.assertEquals(-1, channel.getEstimatedNumRecords());
+        Assertions.assertEquals(-1, channel.getEstimatedOutputSize());
+        Assertions.assertEquals(-1, channel.getEstimatedNumRecords());
 
         // set estimates
         source.setEstimatedNumRecords(NUM_RECORD);
         source.setEstimatedOutputSize(SIZE);
-        Assert.assertEquals(SIZE, channel.getEstimatedOutputSize());
-        Assert.assertEquals(NUM_RECORD, channel.getEstimatedNumRecords());
+        Assertions.assertEquals(SIZE, channel.getEstimatedOutputSize());
+        Assertions.assertEquals(NUM_RECORD, channel.getEstimatedNumRecords());
     }
 
     @Test
@@ -63,14 +66,14 @@ public class ChannelTest {
         channel.setReplicationFactor(REPLICATION);
 
         // no estimates here
-        Assert.assertEquals(-1, channel.getEstimatedOutputSize());
-        Assert.assertEquals(-1, channel.getEstimatedNumRecords());
+        Assertions.assertEquals(-1, channel.getEstimatedOutputSize());
+        Assertions.assertEquals(-1, channel.getEstimatedNumRecords());
 
         // set estimates
         source.setEstimatedNumRecords(NUM_RECORD);
         source.setEstimatedOutputSize(SIZE);
-        Assert.assertEquals(SIZE * REPLICATION, channel.getEstimatedOutputSize());
-        Assert.assertEquals(NUM_RECORD * REPLICATION, channel.getEstimatedNumRecords());
+        Assertions.assertEquals(SIZE * REPLICATION, channel.getEstimatedOutputSize());
+        Assertions.assertEquals(NUM_RECORD * REPLICATION, channel.getEstimatedNumRecords());
     }
 
     //	private static final OptimizerNode getSingleInputNode() {

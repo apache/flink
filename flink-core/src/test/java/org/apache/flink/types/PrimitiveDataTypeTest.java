@@ -23,9 +23,10 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.io.PipedInputStream;
@@ -51,15 +52,15 @@ public class PrimitiveDataTypeTest {
     public void testIntValue() {
         IntValue int0 = new IntValue(10);
         // test value retrieval
-        Assert.assertEquals(10, int0.getValue());
+        Assertions.assertEquals(10, int0.getValue());
         // test value comparison
         IntValue int1 = new IntValue(10);
         IntValue int2 = new IntValue(-10);
         IntValue int3 = new IntValue(20);
-        Assert.assertEquals(int0.compareTo(int0), 0);
-        Assert.assertEquals(int0.compareTo(int1), 0);
-        Assert.assertEquals(int0.compareTo(int2), 1);
-        Assert.assertEquals(int0.compareTo(int3), -1);
+        Assertions.assertEquals(int0.compareTo(int0), 0);
+        Assertions.assertEquals(int0.compareTo(int1), 0);
+        Assertions.assertEquals(int0.compareTo(int2), 1);
+        Assertions.assertEquals(int0.compareTo(int3), -1);
         // test stream output and retrieval
         try {
             int0.write(mOut);
@@ -71,14 +72,14 @@ public class PrimitiveDataTypeTest {
             int1n.read(mIn);
             int2n.read(mIn);
             int3n.read(mIn);
-            Assert.assertEquals(int0.compareTo(int1n), 0);
-            Assert.assertEquals(int0.getValue(), int1n.getValue());
-            Assert.assertEquals(int2.compareTo(int2n), 0);
-            Assert.assertEquals(int2.getValue(), int2n.getValue());
-            Assert.assertEquals(int3.compareTo(int3n), 0);
-            Assert.assertEquals(int3.getValue(), int3n.getValue());
+            Assertions.assertEquals(int0.compareTo(int1n), 0);
+            Assertions.assertEquals(int0.getValue(), int1n.getValue());
+            Assertions.assertEquals(int2.compareTo(int2n), 0);
+            Assertions.assertEquals(int2.getValue(), int2n.getValue());
+            Assertions.assertEquals(int3.compareTo(int3n), 0);
+            Assertions.assertEquals(int3.getValue(), int3n.getValue());
         } catch (Exception e) {
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -86,15 +87,15 @@ public class PrimitiveDataTypeTest {
     public void testDoubleValue() {
         DoubleValue double0 = new DoubleValue(10.2);
         // test value retrieval
-        Assert.assertEquals(10.2, double0.getValue(), 0.0001);
+        Assertions.assertEquals(10.2, double0.getValue(), 0.0001);
         // test value comparison
         DoubleValue double1 = new DoubleValue(10.2);
         DoubleValue double2 = new DoubleValue(-10.5);
         DoubleValue double3 = new DoubleValue(20.2);
-        Assert.assertEquals(double0.compareTo(double0), 0);
-        Assert.assertEquals(double0.compareTo(double1), 0);
-        Assert.assertEquals(double0.compareTo(double2), 1);
-        Assert.assertEquals(double0.compareTo(double3), -1);
+        Assertions.assertEquals(double0.compareTo(double0), 0);
+        Assertions.assertEquals(double0.compareTo(double1), 0);
+        Assertions.assertEquals(double0.compareTo(double2), 1);
+        Assertions.assertEquals(double0.compareTo(double3), -1);
         // test stream output and retrieval
         try {
             double0.write(mOut);
@@ -106,14 +107,14 @@ public class PrimitiveDataTypeTest {
             double1n.read(mIn);
             double2n.read(mIn);
             double3n.read(mIn);
-            Assert.assertEquals(double0.compareTo(double1n), 0);
-            Assert.assertEquals(double0.getValue(), double1n.getValue(), 0.0001);
-            Assert.assertEquals(double2.compareTo(double2n), 0);
-            Assert.assertEquals(double2.getValue(), double2n.getValue(), 0.0001);
-            Assert.assertEquals(double3.compareTo(double3n), 0);
-            Assert.assertEquals(double3.getValue(), double3n.getValue(), 0.0001);
+            Assertions.assertEquals(double0.compareTo(double1n), 0);
+            Assertions.assertEquals(double0.getValue(), double1n.getValue(), 0.0001);
+            Assertions.assertEquals(double2.compareTo(double2n), 0);
+            Assertions.assertEquals(double2.getValue(), double2n.getValue(), 0.0001);
+            Assertions.assertEquals(double3.compareTo(double3n), 0);
+            Assertions.assertEquals(double3.getValue(), double3n.getValue(), 0.0001);
         } catch (Exception e) {
-            Assert.assertTrue(false);
+            Assertions.assertTrue(false);
         }
     }
 
@@ -123,7 +124,7 @@ public class PrimitiveDataTypeTest {
         StringValue stringThis = new StringValue("This");
         StringValue stringIsA = new StringValue("is a");
         // test value retrieval
-        Assert.assertEquals("This is a test", string0.toString());
+        Assertions.assertEquals("This is a test", string0.toString());
         // test value comparison
         StringValue string1 = new StringValue("This is a test");
         StringValue string2 = new StringValue("This is a tesa");
@@ -134,29 +135,29 @@ public class PrimitiveDataTypeTest {
         StringValue string6 = (StringValue) string0.subSequence(0, string0.length());
         StringValue string7 = (StringValue) string0.subSequence(5, 9);
         StringValue string8 = (StringValue) string0.subSequence(0, 0);
-        Assert.assertTrue(string0.compareTo(string0) == 0);
-        Assert.assertTrue(string0.compareTo(string1) == 0);
-        Assert.assertTrue(string0.compareTo(string2) > 0);
-        Assert.assertTrue(string0.compareTo(string3) < 0);
-        Assert.assertTrue(stringThis.equals(chars5));
-        Assert.assertTrue(stringThis.compareTo(string5) == 0);
-        Assert.assertTrue(string0.compareTo(string6) == 0);
-        Assert.assertTrue(stringIsA.compareTo(string7) == 0);
+        Assertions.assertTrue(string0.compareTo(string0) == 0);
+        Assertions.assertTrue(string0.compareTo(string1) == 0);
+        Assertions.assertTrue(string0.compareTo(string2) > 0);
+        Assertions.assertTrue(string0.compareTo(string3) < 0);
+        Assertions.assertTrue(stringThis.equals(chars5));
+        Assertions.assertTrue(stringThis.compareTo(string5) == 0);
+        Assertions.assertTrue(string0.compareTo(string6) == 0);
+        Assertions.assertTrue(stringIsA.compareTo(string7) == 0);
         string7.setValue("This is a test");
-        Assert.assertTrue(stringIsA.compareTo(string7) > 0);
-        Assert.assertTrue(string0.compareTo(string7) == 0);
+        Assertions.assertTrue(stringIsA.compareTo(string7) > 0);
+        Assertions.assertTrue(string0.compareTo(string7) == 0);
         string7.setValue("is a");
-        Assert.assertTrue(stringIsA.compareTo(string7) == 0);
-        Assert.assertTrue(string0.compareTo(string7) < 0);
-        Assert.assertEquals(stringIsA.hashCode(), string7.hashCode());
-        Assert.assertEquals(string7.length(), 4);
-        Assert.assertEquals("is a", string7.getValue());
-        Assert.assertEquals(string8.length(), 0);
-        Assert.assertEquals("", string8.getValue());
-        Assert.assertEquals('s', string7.charAt(1));
+        Assertions.assertTrue(stringIsA.compareTo(string7) == 0);
+        Assertions.assertTrue(string0.compareTo(string7) < 0);
+        Assertions.assertEquals(stringIsA.hashCode(), string7.hashCode());
+        Assertions.assertEquals(string7.length(), 4);
+        Assertions.assertEquals("is a", string7.getValue());
+        Assertions.assertEquals(string8.length(), 0);
+        Assertions.assertEquals("", string8.getValue());
+        Assertions.assertEquals('s', string7.charAt(1));
         try {
             string7.charAt(5);
-            Assert.fail(
+            Assertions.fail(
                     "Exception should have been thrown when accessing characters out of bounds.");
         } catch (IndexOutOfBoundsException iOOBE) {
             // expected
@@ -179,26 +180,26 @@ public class PrimitiveDataTypeTest {
             string2n.read(mIn);
             string3n.read(mIn);
             string7n.read(mIn);
-            Assert.assertEquals(string0.compareTo(string1n), 0);
-            Assert.assertEquals(string0.toString(), string1n.toString());
-            Assert.assertEquals(string4.compareTo(string4n), 0);
-            Assert.assertEquals(string4.toString(), string4n.toString());
-            Assert.assertEquals(string2.compareTo(string2n), 0);
-            Assert.assertEquals(string2.toString(), string2n.toString());
-            Assert.assertEquals(string3.compareTo(string3n), 0);
-            Assert.assertEquals(string3.toString(), string3n.toString());
-            Assert.assertEquals(string7.compareTo(string7n), 0);
-            Assert.assertEquals(string7.toString(), string7n.toString());
+            Assertions.assertEquals(string0.compareTo(string1n), 0);
+            Assertions.assertEquals(string0.toString(), string1n.toString());
+            Assertions.assertEquals(string4.compareTo(string4n), 0);
+            Assertions.assertEquals(string4.toString(), string4n.toString());
+            Assertions.assertEquals(string2.compareTo(string2n), 0);
+            Assertions.assertEquals(string2.toString(), string2n.toString());
+            Assertions.assertEquals(string3.compareTo(string3n), 0);
+            Assertions.assertEquals(string3.toString(), string3n.toString());
+            Assertions.assertEquals(string7.compareTo(string7n), 0);
+            Assertions.assertEquals(string7.toString(), string7n.toString());
             try {
                 string7n.charAt(5);
-                Assert.fail(
+                Assertions.fail(
                         "Exception should have been thrown when accessing characters out of bounds.");
             } catch (IndexOutOfBoundsException iOOBE) {
                 // expected
             }
 
         } catch (Exception e) {
-            Assert.assertTrue(false);
+            Assertions.assertTrue(false);
         }
     }
 
@@ -208,10 +209,10 @@ public class PrimitiveDataTypeTest {
         final NullValue pn1 = new NullValue();
         final NullValue pn2 = new NullValue();
 
-        Assert.assertEquals("PactNull not equal to other PactNulls.", pn1, pn2);
-        Assert.assertEquals("PactNull not equal to other PactNulls.", pn2, pn1);
+        Assertions.assertEquals(pn1, pn2, "PactNull not equal to other PactNulls.");
+        Assertions.assertEquals(pn2, pn1, "PactNull not equal to other PactNulls.");
 
-        Assert.assertFalse("PactNull equal to other null.", pn1.equals(null));
+        Assertions.assertFalse(pn1.equals(null), "PactNull equal to other null.");
 
         // test serialization
         final NullValue pn = new NullValue();
@@ -228,12 +229,12 @@ public class PrimitiveDataTypeTest {
                 pn.read(mIn);
             }
 
-            Assert.assertEquals(
-                    "Reading PactNull does not consume the same data as was written.",
+            Assertions.assertEquals(
                     0,
-                    in.available());
+                    in.available(),
+                    "Reading PactNull does not consume the same data as was written.");
         } catch (IOException ioex) {
-            Assert.fail("An exception occurred in the testcase: " + ioex.getMessage());
+            Assertions.fail("An exception occurred in the testcase: " + ioex.getMessage());
         }
     }
 }

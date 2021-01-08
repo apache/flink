@@ -40,16 +40,20 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link MetricGroup}. */
 public class MetricGroupTest extends TestLogger {
@@ -102,13 +106,13 @@ public class MetricGroupTest extends TestLogger {
         assertEquals(value, variableValue);
 
         String identifier = group.getMetricIdentifier("metric");
-        assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
-        assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+        assertTrue(identifier.contains("key"), "Key is missing from metric identifier.");
+        assertTrue(identifier.contains("value"), "Value is missing from metric identifier.");
 
         String logicalScope =
                 ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
-        assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
-        assertFalse("Value is present in logical scope.", logicalScope.contains(value));
+        assertTrue(logicalScope.contains(key), "Key is missing from logical scope.");
+        assertFalse(logicalScope.contains(value), "Value is present in logical scope.");
     }
 
     /**
@@ -133,15 +137,15 @@ public class MetricGroupTest extends TestLogger {
         assertNull(variableValue);
 
         String identifier = group.getMetricIdentifier("metric");
-        assertTrue("Key1 is missing from metric identifier.", identifier.contains("key1"));
-        assertTrue("Key2 is missing from metric identifier.", identifier.contains("key2"));
-        assertTrue("Value2 is missing from metric identifier.", identifier.contains("value2"));
+        assertTrue(identifier.contains("key1"), "Key1 is missing from metric identifier.");
+        assertTrue(identifier.contains("key2"), "Key2 is missing from metric identifier.");
+        assertTrue(identifier.contains("value2"), "Value2 is missing from metric identifier.");
 
         String logicalScope =
                 ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
-        assertTrue("Key1 is missing from logical scope.", logicalScope.contains(key1));
-        assertTrue("Key2 is missing from logical scope.", logicalScope.contains(key2));
-        assertTrue("Value2 is missing from logical scope.", logicalScope.contains(value2));
+        assertTrue(logicalScope.contains(key1), "Key1 is missing from logical scope.");
+        assertTrue(logicalScope.contains(key2), "Key2 is missing from logical scope.");
+        assertTrue(logicalScope.contains(value2), "Value2 is missing from logical scope.");
     }
 
     /**
@@ -164,13 +168,13 @@ public class MetricGroupTest extends TestLogger {
         assertNull(variableValue);
 
         String identifier = group.getMetricIdentifier("metric");
-        assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
-        assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+        assertTrue(identifier.contains("key"), "Key is missing from metric identifier.");
+        assertTrue(identifier.contains("value"), "Value is missing from metric identifier.");
 
         String logicalScope =
                 ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
-        assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
-        assertTrue("Value is missing from logical scope.", logicalScope.contains(value));
+        assertTrue(logicalScope.contains(key), "Key is missing from logical scope.");
+        assertTrue(logicalScope.contains(value), "Value is missing from logical scope.");
     }
 
     /**
@@ -193,13 +197,13 @@ public class MetricGroupTest extends TestLogger {
         assertNull(variableValue);
 
         String identifier = group.getMetricIdentifier("metric");
-        assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
-        assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+        assertTrue(identifier.contains("key"), "Key is missing from metric identifier.");
+        assertTrue(identifier.contains("value"), "Value is missing from metric identifier.");
 
         String logicalScope =
                 ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
-        assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
-        assertTrue("Value is missing from logical scope.", logicalScope.contains(value));
+        assertTrue(logicalScope.contains(key), "Key is missing from logical scope.");
+        assertTrue(logicalScope.contains(value), "Value is missing from logical scope.");
     }
 
     /**
@@ -222,13 +226,13 @@ public class MetricGroupTest extends TestLogger {
         assertEquals(value, variableValue);
 
         String identifier = group.getMetricIdentifier("metric");
-        assertTrue("Key is missing from metric identifier.", identifier.contains("key"));
-        assertTrue("Value is missing from metric identifier.", identifier.contains("value"));
+        assertTrue(identifier.contains("key"), "Key is missing from metric identifier.");
+        assertTrue(identifier.contains("value"), "Value is missing from metric identifier.");
 
         String logicalScope =
                 ((AbstractMetricGroup) group).getLogicalScope(new DummyCharacterFilter());
-        assertTrue("Key is missing from logical scope.", logicalScope.contains(key));
-        assertFalse("Value is present in logical scope.", logicalScope.contains(value));
+        assertTrue(logicalScope.contains(key), "Key is missing from logical scope.");
+        assertFalse(logicalScope.contains(value), "Value is present in logical scope.");
     }
 
     /**

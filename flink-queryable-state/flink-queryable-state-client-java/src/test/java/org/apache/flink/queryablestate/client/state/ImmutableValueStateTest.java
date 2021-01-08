@@ -25,11 +25,16 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableValueState}. */
 public class ImmutableValueStateTest {
@@ -52,21 +57,25 @@ public class ImmutableValueStateTest {
 
     @Test
     public void testUpdate() throws IOException {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     long value = valueState.value();
-        assertEquals(42L, value);
+                    assertEquals(42L, value);
 
-        valueState.update(54L);
-        });
+                    valueState.update(54L);
+                });
     }
 
     @Test
     public void testClear() throws IOException {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     long value = valueState.value();
-        assertEquals(42L, value);
+                    assertEquals(42L, value);
 
-        valueState.clear();
-        });
+                    valueState.clear();
+                });
     }
 }

@@ -62,10 +62,14 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,11 +95,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Integration test for triggering and resuming from savepoints. */
 @SuppressWarnings("serial")
@@ -226,7 +229,7 @@ public class SavepointITCase extends TestLogger {
             throws URISyntaxException {
         // Only one savepoint should exist
         File savepointDir = new File(new URI(savepointPath));
-        assertTrue("Savepoint directory does not exist.", savepointDir.exists());
+        assertTrue(savepointDir.exists(), "Savepoint directory does not exist.");
         assertTrue(
                 "Savepoint did not create self-contained directory.", savepointDir.isDirectory());
 
@@ -277,7 +280,7 @@ public class SavepointITCase extends TestLogger {
 
             client.disposeSavepoint(savepointPath).get();
 
-            assertFalse("Savepoint not properly cleaned up.", new File(savepointPath).exists());
+            assertFalse(new File(savepointPath).exists(), "Savepoint not properly cleaned up.");
         } finally {
             cluster.after();
             StatefulCounter.resetForTest(parallelism);
@@ -817,7 +820,7 @@ public class SavepointITCase extends TestLogger {
             if (!state.isEmpty()) {
                 this.emittedCount = state.get(0);
             }
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     iterTestCheckpointVerify[getRuntimeContext().getIndexOfThisSubtask()],
                     emittedCount);
             iterTestRestoreWait[getRuntimeContext().getIndexOfThisSubtask()].trigger();

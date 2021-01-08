@@ -23,6 +23,11 @@ import org.apache.flink.runtime.taskexecutor.ExecutionDeploymentReport;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +40,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.runtime.clusterframework.types.ResourceID.generate;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link DefaultExecutionDeploymentReconciler}. */
 public class DefaultExecutionDeploymentReconcilerTest extends TestLogger {

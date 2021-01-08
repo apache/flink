@@ -23,9 +23,12 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.data.binary.BinaryStringData;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -52,8 +55,8 @@ public class SortUtilTest {
                 byte[] rndBytes = new byte[20];
                 random.nextBytes(rndBytes);
                 segments[2].put(0, rndBytes);
-                Assert.assertTrue(segments[0].compare(segments[2], 0, 0, 20) <= 0);
-                Assert.assertTrue(segments[1].compare(segments[2], 0, 0, 20) >= 0);
+                Assertions.assertTrue(segments[0].compare(segments[2], 0, 0, 20) <= 0);
+                Assertions.assertTrue(segments[1].compare(segments[2], 0, 0, 20) >= 0);
             }
         }
 
@@ -70,7 +73,7 @@ public class SortUtilTest {
 
             Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));
             for (int i = 0; i < len; i++) {
-                Assert.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
+                Assertions.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
             }
         }
 
@@ -88,7 +91,7 @@ public class SortUtilTest {
 
             Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 4));
             for (int i = 0; i < len; i++) {
-                Assert.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 4));
+                Assertions.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 4));
             }
         }
 
@@ -106,7 +109,7 @@ public class SortUtilTest {
 
             Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));
             for (int i = 0; i < len; i++) {
-                Assert.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
+                Assertions.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
             }
         }
 
@@ -124,7 +127,7 @@ public class SortUtilTest {
 
             Arrays.sort(segments, (o1, o2) -> o1.compare(o2, 0, 0, 8));
             for (int i = 0; i < len; i++) {
-                Assert.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
+                Assertions.assertTrue(compareSegs[i].equalTo(segments[i], 0, 0, 8));
             }
         }
     }

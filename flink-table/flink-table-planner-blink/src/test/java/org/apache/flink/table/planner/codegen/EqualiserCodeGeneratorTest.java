@@ -30,9 +30,12 @@ import org.apache.flink.table.runtime.typeutils.RawValueDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationRawType;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.function.Function;
 
@@ -87,9 +90,13 @@ public class EqualiserCodeGeneratorTest {
             T o1,
             T o2,
             boolean bool) {
-        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), GenericRowData.of(o2)));
-        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), GenericRowData.of(o2)));
-        Assert.assertEquals(bool, equaliser.equals(GenericRowData.of(o1), toBinaryRow.apply(o2)));
-        Assert.assertEquals(bool, equaliser.equals(toBinaryRow.apply(o1), toBinaryRow.apply(o2)));
+        Assertions.assertEquals(
+                bool, equaliser.equals(GenericRowData.of(o1), GenericRowData.of(o2)));
+        Assertions.assertEquals(
+                bool, equaliser.equals(toBinaryRow.apply(o1), GenericRowData.of(o2)));
+        Assertions.assertEquals(
+                bool, equaliser.equals(GenericRowData.of(o1), toBinaryRow.apply(o2)));
+        Assertions.assertEquals(
+                bool, equaliser.equals(toBinaryRow.apply(o1), toBinaryRow.apply(o2)));
     }
 }

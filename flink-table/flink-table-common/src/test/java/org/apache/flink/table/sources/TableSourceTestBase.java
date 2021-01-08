@@ -20,14 +20,16 @@ package org.apache.flink.table.sources;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assume.assumeThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Collection of tests that verify assumptions that table sources should meet. */
 public abstract class TableSourceTestBase {

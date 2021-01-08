@@ -219,7 +219,7 @@ class MapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) 
       new RichMapFunction[(Int, Long, String), (Int, Long, String)] {
         override def open(config: Configuration): Unit = {
           val fromConfig = config.getInteger(testKey, -1)
-          Assert.assertEquals(testValue, fromConfig)
+          Assertions.assertEquals(testValue, fromConfig)
         }
         override def map(in: (Int, Long, String)): (Int, Long, String) = {
           in

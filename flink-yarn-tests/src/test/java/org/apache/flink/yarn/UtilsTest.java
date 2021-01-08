@@ -27,7 +27,6 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.configuration.YarnResourceManagerDriverConfiguration;
 import org.apache.flink.yarn.util.TestUtils;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
@@ -39,9 +38,13 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,15 +52,10 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for various utilities. */
 public class UtilsTest extends TestLogger {
@@ -68,15 +66,15 @@ public class UtilsTest extends TestLogger {
     @Test
     public void testUberjarLocator() {
         File dir = TestUtils.findFile("..", new TestUtils.RootDirFilenameFilter());
-        Assert.assertNotNull(dir);
-        Assert.assertTrue(dir.getName().endsWith(".jar"));
+        Assertions.assertNotNull(dir);
+        Assertions.assertTrue(dir.getName().endsWith(".jar"));
         dir = dir.getParentFile().getParentFile(); // from uberjar to lib to root
-        Assert.assertTrue(dir.exists());
-        Assert.assertTrue(dir.isDirectory());
+        Assertions.assertTrue(dir.exists());
+        Assertions.assertTrue(dir.isDirectory());
         List<String> files = Arrays.asList(dir.list());
-        Assert.assertTrue(files.contains("lib"));
-        Assert.assertTrue(files.contains("bin"));
-        Assert.assertTrue(files.contains("conf"));
+        Assertions.assertTrue(files.contains("lib"));
+        Assertions.assertTrue(files.contains("bin"));
+        Assertions.assertTrue(files.contains("conf"));
     }
 
     @Test

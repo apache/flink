@@ -35,6 +35,11 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -53,9 +58,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link DefaultAllocatedSlotPool}. */
 public class DefaultAllocatedSlotPoolTest extends TestLogger {
@@ -149,15 +154,17 @@ public class DefaultAllocatedSlotPoolTest extends TestLogger {
 
     @Test
     public void testReserveNonFreeSlotFails() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
                     final DefaultAllocatedSlotPool slotPool = new DefaultAllocatedSlotPool();
-        final AllocatedSlot slot = createAllocatedSlot(null);
+                    final AllocatedSlot slot = createAllocatedSlot(null);
 
-        slotPool.addSlots(Collections.singleton(slot), 0);
+                    slotPool.addSlots(Collections.singleton(slot), 0);
 
-        slotPool.reserveFreeSlot(slot.getAllocationId());
-        slotPool.reserveFreeSlot(slot.getAllocationId());
-        });
+                    slotPool.reserveFreeSlot(slot.getAllocationId());
+                    slotPool.reserveFreeSlot(slot.getAllocationId());
+                });
     }
 
     @Test

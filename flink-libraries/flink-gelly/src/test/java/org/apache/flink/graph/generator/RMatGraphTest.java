@@ -18,18 +18,22 @@
 
 package org.apache.flink.graph.generator;
 
+import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.graph.Graph;
 import org.apache.flink.graph.generator.random.JDKRandomGeneratorFactory;
 import org.apache.flink.graph.generator.random.RandomGenerableFactory;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
-
-import org.apache.commons.math3.random.JDKRandomGenerator;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link RMatGraph}. */
 public class RMatGraphTest extends GraphGeneratorTestBase {

@@ -25,6 +25,11 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -172,7 +177,7 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 
     @Test
     public void testInvalidStrategySpecifiedInClusterConfig() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(IllegalArgumentException.class, () -> {
                     final Configuration conf = new Configuration();
         conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
 

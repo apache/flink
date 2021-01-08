@@ -18,6 +18,7 @@
 
 package org.apache.flink.test.recovery;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
@@ -52,13 +53,16 @@ import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -72,9 +76,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Verify behaviour in case of JobManager process failure during job execution.
@@ -371,7 +373,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
                     deadline.timeLeft().toMillis());
 
             // check that the program really finished
-            assertFalse("The program did not finish in time", programTrigger.isAlive());
+            assertFalse(programTrigger.isAlive(), "The program did not finish in time");
 
             // check whether the program encountered an error
             if (errorRef[0] != null) {

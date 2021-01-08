@@ -36,7 +36,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.util.Collector
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 /**
@@ -58,7 +58,7 @@ class WindowTranslationTest {
     */
   @Test
   def testReduceWithRichReducerFails() {
-        Assertions.assertThrows(classOf[UnsupportedOperationException], () -> {
+        assertThrows(classOf[UnsupportedOperationException], () -> {
                 val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
 

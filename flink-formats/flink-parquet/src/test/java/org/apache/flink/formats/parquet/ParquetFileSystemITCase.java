@@ -19,11 +19,9 @@
 package org.apache.flink.formats.parquet;
 
 import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBase;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.junit.Assert;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -72,18 +70,18 @@ public class ParquetFileSystemITCase extends BatchFileSystemITCaseBase {
         File directory = new File(URI.create(resultPath()).getPath());
         File[] files =
                 directory.listFiles((dir, name) -> !name.startsWith(".") && !name.startsWith("_"));
-        Assert.assertNotNull(files);
+        Assertions.assertNotNull(files);
         Path path = new Path(URI.create(files[0].getAbsolutePath()));
 
         try {
             ParquetMetadata footer =
                     readFooter(new Configuration(), path, range(0, Long.MAX_VALUE));
             if (configure) {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "GZIP",
                         footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
             } else {
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         "UNCOMPRESSED",
                         footer.getBlocks().get(0).getColumns().get(0).getCodec().toString());
             }

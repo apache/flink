@@ -26,10 +26,13 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,7 +100,7 @@ public class BinaryMergeIteratorTest {
 
         int pos = 0;
         while ((row = iterator.next(row)) != null) {
-            Assert.assertEquals(expected[pos++], row.getInt(0));
+            Assertions.assertEquals(expected[pos++], row.getInt(0));
         }
     }
 
@@ -119,7 +122,7 @@ public class BinaryMergeIteratorTest {
 
         int pos = 0;
         while ((row = iterator.next(row)) != null) {
-            Assert.assertEquals(expected[pos++], row.getInt(0));
+            Assertions.assertEquals(expected[pos++], row.getInt(0));
         }
     }
 
@@ -157,7 +160,7 @@ public class BinaryMergeIteratorTest {
 
         int pre = 0;
         while ((row = iterator.next(row)) != null) {
-            Assert.assertTrue(comparator.compare(row.getInt(0), pre) >= 0);
+            Assertions.assertTrue(comparator.compare(row.getInt(0), pre) >= 0);
             pre = row.getInt(0);
         }
     }

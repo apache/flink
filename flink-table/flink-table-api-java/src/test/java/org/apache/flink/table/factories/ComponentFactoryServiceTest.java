@@ -22,16 +22,20 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.utils.TestPlannerFactory;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link ComponentFactoryService}. */
 public class ComponentFactoryServiceTest {

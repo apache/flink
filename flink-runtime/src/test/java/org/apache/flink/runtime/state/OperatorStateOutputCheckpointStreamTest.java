@@ -24,8 +24,12 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Map;
@@ -45,7 +49,7 @@ public class OperatorStateOutputCheckpointStreamTest {
 
         DataOutputView dov = new DataOutputViewStreamWrapper(stream);
         for (int i = 0; i < numPartitions; ++i) {
-            Assert.assertEquals(i, stream.getNumberOfPartitions());
+            Assertions.assertEquals(i, stream.getNumberOfPartitions());
             stream.startNewPartition();
             dov.writeInt(i);
         }
@@ -59,7 +63,7 @@ public class OperatorStateOutputCheckpointStreamTest {
         TestMemoryCheckpointOutputStream innerStream =
                 (TestMemoryCheckpointOutputStream) stream.getDelegate();
         stream.close();
-        Assert.assertFalse(innerStream.isClosed());
+        Assertions.assertFalse(innerStream.isClosed());
         innerStream.close();
     }
 
@@ -69,9 +73,9 @@ public class OperatorStateOutputCheckpointStreamTest {
         TestMemoryCheckpointOutputStream innerStream =
                 (TestMemoryCheckpointOutputStream) stream.getDelegate();
         OperatorStateHandle emptyHandle = stream.closeAndGetHandle();
-        Assert.assertTrue(innerStream.isClosed());
-        Assert.assertEquals(0, stream.getNumberOfPartitions());
-        Assert.assertEquals(null, emptyHandle);
+        Assertions.assertTrue(innerStream.isClosed());
+        Assertions.assertEquals(0, stream.getNumberOfPartitions());
+        Assertions.assertEquals(null, emptyHandle);
     }
 
     @Test
@@ -79,14 +83,14 @@ public class OperatorStateOutputCheckpointStreamTest {
         int numPartitions = 3;
         OperatorStateCheckpointOutputStream stream = createStream();
         OperatorStateHandle fullHandle = writeAllTestKeyGroups(stream, numPartitions);
-        Assert.assertNotNull(fullHandle);
+        Assertions.assertNotNull(fullHandle);
 
         Map<String, OperatorStateHandle.StateMetaInfo> stateNameToPartitionOffsets =
                 fullHandle.getStateNameToPartitionOffsets();
         for (Map.Entry<String, OperatorStateHandle.StateMetaInfo> entry :
                 stateNameToPartitionOffsets.entrySet()) {
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     OperatorStateHandle.Mode.SPLIT_DISTRIBUTE,
                     entry.getValue().getDistributionMode());
         }
@@ -104,16 +108,16 @@ public class OperatorStateOutputCheckpointStreamTest {
 
             long[] offsets = metaInfo.getOffsets();
 
-            Assert.assertNotNull(offsets);
+            Assertions.assertNotNull(offsets);
 
             DataInputView div = new DataInputViewStreamWrapper(in);
             for (int i = 0; i < numPartitions; ++i) {
                 in.seek(offsets[i]);
-                Assert.assertEquals(i, div.readInt());
+                Assertions.assertEquals(i, div.readInt());
                 ++count;
             }
         }
 
-        Assert.assertEquals(numPartitions, count);
+        Assertions.assertEquals(numPartitions, count);
     }
 }

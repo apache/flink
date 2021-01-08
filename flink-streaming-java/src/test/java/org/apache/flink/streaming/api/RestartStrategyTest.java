@@ -24,8 +24,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link RestartStrategies}. */
 public class RestartStrategyTest extends TestLogger {
@@ -49,8 +53,8 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
+        Assertions.assertNotNull(restartStrategy);
+        Assertions.assertTrue(
                 restartStrategy instanceof RestartStrategies.FallbackRestartStrategyConfiguration);
     }
 
@@ -75,8 +79,8 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
+        Assertions.assertNotNull(restartStrategy);
+        Assertions.assertTrue(
                 restartStrategy instanceof RestartStrategies.NoRestartStrategyConfiguration);
     }
 
@@ -102,15 +106,15 @@ public class RestartStrategyTest extends TestLogger {
                         .deserializeValue(getClass().getClassLoader())
                         .getRestartStrategy();
 
-        Assert.assertNotNull(restartStrategy);
-        Assert.assertTrue(
+        Assertions.assertNotNull(restartStrategy);
+        Assertions.assertTrue(
                 restartStrategy
                         instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 42,
                 ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy)
                         .getRestartAttempts());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1337,
                 ((RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategy)
                         .getDelayBetweenAttemptsInterval()

@@ -26,10 +26,14 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
-
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -71,7 +75,7 @@ public class DataSinkTest {
         try {
             tupleDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(0, Order.ANY);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -88,7 +92,7 @@ public class DataSinkTest {
                     .sortLocalOutput(0, Order.ASCENDING)
                     .sortLocalOutput(3, Order.DESCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -103,7 +107,7 @@ public class DataSinkTest {
         try {
             tupleDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("f0", Order.ANY);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -130,7 +134,7 @@ public class DataSinkTest {
                     .sortLocalOutput("f1", Order.ASCENDING)
                     .sortLocalOutput("f4", Order.DESCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -147,38 +151,40 @@ public class DataSinkTest {
                     .sortLocalOutput(4, Order.ASCENDING)
                     .sortLocalOutput("f2", Order.DESCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
     @Test
     public void testFailTupleIndexOutOfBounds() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
+                            env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-        // must not work
-        tupleDs.writeAsText("/tmp/willNotHappen")
-                .sortLocalOutput(3, Order.ASCENDING)
-                .sortLocalOutput(5, Order.DESCENDING);
-        });
+                    // must not work
+                    tupleDs.writeAsText("/tmp/willNotHappen")
+                            .sortLocalOutput(3, Order.ASCENDING)
+                            .sortLocalOutput(5, Order.DESCENDING);
+                });
     }
 
     @Test
     public void testFailTupleInv() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
+                            env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-        // must not work
-        tupleDs.writeAsText("/tmp/willNotHappen")
-                .sortLocalOutput("notThere", Order.ASCENDING)
-                .sortLocalOutput("f4", Order.DESCENDING);
-        });
+                    // must not work
+                    tupleDs.writeAsText("/tmp/willNotHappen")
+                            .sortLocalOutput("notThere", Order.ASCENDING)
+                            .sortLocalOutput("f4", Order.DESCENDING);
+                });
     }
 
     @Test
@@ -191,44 +197,48 @@ public class DataSinkTest {
         try {
             longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("*", Order.ASCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
     @Test
     public void testFailPrimitiveOrder1() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Long> longDs = env.generateSequence(0, 2);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Long> longDs = env.generateSequence(0, 2);
-
-        // must not work
-        longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(0, Order.ASCENDING);
-        });
+                    // must not work
+                    longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(0, Order.ASCENDING);
+                });
     }
 
     @Test
     public void testFailPrimitiveOrder2() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Long> longDs = env.generateSequence(0, 2);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Long> longDs = env.generateSequence(0, 2);
-
-        // must not work
-        longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("0", Order.ASCENDING);
-        });
+                    // must not work
+                    longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("0", Order.ASCENDING);
+                });
     }
 
     @Test
     public void testFailPrimitiveOrder3() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Long> longDs = env.generateSequence(0, 2);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Long> longDs = env.generateSequence(0, 2);
-
-        // must not work
-        longDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("nope", Order.ASCENDING);
-        });
+                    // must not work
+                    longDs.writeAsText("/tmp/willNotHappen")
+                            .sortLocalOutput("nope", Order.ASCENDING);
+                });
     }
 
     @Test
@@ -241,7 +251,7 @@ public class DataSinkTest {
         try {
             pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("myString", Order.ASCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -257,61 +267,65 @@ public class DataSinkTest {
                     .sortLocalOutput("myLong", Order.ASCENDING)
                     .sortLocalOutput("myString", Order.DESCENDING);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
     @Test
     public void testFailPojoIdx() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
-
-        // must not work
-        pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(1, Order.DESCENDING);
-        });
+                    // must not work
+                    pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput(1, Order.DESCENDING);
+                });
     }
 
     @Test
     public void testFailPojoInvalidField() {
-        Assertions.assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+        assertThrows(
+                CompositeType.InvalidFieldReferenceException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
-
-        // must not work
-        pojoDs.writeAsText("/tmp/willNotHappen")
-                .sortLocalOutput("myInt", Order.ASCENDING)
-                .sortLocalOutput("notThere", Order.DESCENDING);
-        });
+                    // must not work
+                    pojoDs.writeAsText("/tmp/willNotHappen")
+                            .sortLocalOutput("myInt", Order.ASCENDING)
+                            .sortLocalOutput("notThere", Order.DESCENDING);
+                });
     }
 
     @Test
     public void testPojoSingleOrderFull() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<CustomType> pojoDs = env.fromCollection(pojoData);
-
-        // must not work
-        pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("*", Order.ASCENDING);
-        });
+                    // must not work
+                    pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("*", Order.ASCENDING);
+                });
     }
 
     @Test
     public void testArrayOrderFull() {
-        Assertions.assertThrows(InvalidProgramException.class, () -> {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    List<Object[]> arrayData = new ArrayList<>();
+                    arrayData.add(new Object[0]);
 
-        List<Object[]> arrayData = new ArrayList<>();
-        arrayData.add(new Object[0]);
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Object[]> pojoDs = env.fromCollection(arrayData);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Object[]> pojoDs = env.fromCollection(arrayData);
-
-        // must not work
-        pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("*", Order.ASCENDING);
-        });
+                    // must not work
+                    pojoDs.writeAsText("/tmp/willNotHappen").sortLocalOutput("*", Order.ASCENDING);
+                });
     }
 
     /** Custom data type, for testing purposes. */

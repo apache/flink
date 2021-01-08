@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, TableFunction}
 import org.apache.flink.types.Row
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 
 import scala.annotation.varargs
 
@@ -206,17 +206,17 @@ class RichTableFunc0 extends TableFunction[String] {
   override def open(context: FunctionContext): Unit = {
     super.open(context)
     if (closeCalled) {
-      Assert.fail("Close called before open.")
+      Assertions.fail("Close called before open.")
     }
     openCalled = true
   }
 
   def eval(str: String): Unit = {
     if (!openCalled) {
-      Assert.fail("Open was not called before eval.")
+      Assertions.fail("Open was not called before eval.")
     }
     if (closeCalled) {
-      Assert.fail("Close called before eval.")
+      Assertions.fail("Close called before eval.")
     }
 
     if (!str.contains("#")) {
@@ -227,7 +227,7 @@ class RichTableFunc0 extends TableFunction[String] {
   override def close(): Unit = {
     super.close()
     if (!openCalled) {
-      Assert.fail("Open was not called before close.")
+      Assertions.fail("Open was not called before close.")
     }
     closeCalled = true
   }

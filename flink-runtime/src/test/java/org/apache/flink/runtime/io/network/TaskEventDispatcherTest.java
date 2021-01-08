@@ -27,12 +27,17 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Basic tests for {@link TaskEventDispatcher}. */
 public class TaskEventDispatcherTest extends TestLogger {
@@ -91,12 +96,12 @@ public class TaskEventDispatcherTest extends TestLogger {
         ted.subscribeToEvent(partitionId1, eventListener3, TerminationEvent.class);
 
         assertTrue(ted.publish(partitionId1, event1));
-        assertTrue("listener should have fired for AllWorkersDoneEvent", eventListener1a.fired);
-        assertFalse("listener should not have fired for AllWorkersDoneEvent", eventListener3.fired);
+        assertTrue(eventListener1a.fired, "listener should have fired for AllWorkersDoneEvent");
+        assertFalse(eventListener3.fired, "listener should not have fired for AllWorkersDoneEvent");
 
         // publish another event, verify that only the right subscriber is called
         assertTrue(ted.publish(partitionId1, event2));
-        assertTrue("listener should have fired for TerminationEvent", eventListener3.fired);
+        assertTrue(eventListener3.fired, "listener should have fired for TerminationEvent");
     }
 
     @Test
@@ -122,8 +127,8 @@ public class TaskEventDispatcherTest extends TestLogger {
 
         // publish something for partitionId1 triggering all according listeners
         assertTrue(ted.publish(partitionId1, event));
-        assertTrue("listener should have fired for AllWorkersDoneEvent", eventListener1a.fired);
-        assertTrue("listener should have fired for AllWorkersDoneEvent", eventListener2.fired);
+        assertTrue(eventListener1a.fired, "listener should have fired for AllWorkersDoneEvent");
+        assertTrue(eventListener2.fired, "listener should have fired for AllWorkersDoneEvent");
 
         // now publish something for partitionId2 which should not trigger any listeners
         assertFalse(ted.publish(partitionId2, event));

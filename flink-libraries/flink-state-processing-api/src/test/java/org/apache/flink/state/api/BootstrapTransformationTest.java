@@ -35,9 +35,12 @@ import org.apache.flink.state.api.output.TaggedOperatorSubtaskState;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.test.util.AbstractTestBase;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for bootstrap transformations. */
 @SuppressWarnings("serial")
@@ -62,7 +65,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Broadcast transformations should always be run at parallelism 1",
                 1,
                 getParallelism(result));
@@ -87,7 +90,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "The parallelism of a data set should not change when less than the max parallelism of the savepoint",
                 ExecutionConfig.PARALLELISM_DEFAULT,
                 getParallelism(result));
@@ -112,7 +115,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "The parallelism of a data set should be constrained my the savepoint max parallelism",
                 4,
                 getParallelism(result));
@@ -138,7 +141,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
                         new Path(),
                         maxParallelism);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "The parallelism of a data set should be constrained my the savepoint max parallelism",
                 1,
                 getParallelism(result));
@@ -160,7 +163,7 @@ public class BootstrapTransformationTest extends AbstractTestBase {
         KeySelector selector =
                 config.getStatePartitioner(0, Thread.currentThread().getContextClassLoader());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Incorrect key selector forwarded to stream operator",
                 CustomKeySelector.class,
                 selector.getClass());

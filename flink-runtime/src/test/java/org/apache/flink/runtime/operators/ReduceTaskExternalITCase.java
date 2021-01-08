@@ -32,9 +32,12 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,15 +80,15 @@ public class ReduceTaskExternalITCase
             testDriver(testTask, MockReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Exception in Test: " + e.getMessage());
+            Assertions.fail("Exception in Test: " + e.getMessage());
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
                 this.outList.size() == keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
                             == valCnt - record.getField(0, IntValue.class).getValue());
@@ -114,15 +117,15 @@ public class ReduceTaskExternalITCase
             testDriver(testTask, MockReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Exception in Test: " + e.getMessage());
+            Assertions.fail("Exception in Test: " + e.getMessage());
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
                 this.outList.size() == keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
                             == valCnt - record.getField(0, IntValue.class).getValue());
@@ -162,7 +165,7 @@ public class ReduceTaskExternalITCase
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Invoke method caused exception: " + e.getMessage());
+            Assertions.fail("Invoke method caused exception: " + e.getMessage());
         } finally {
             if (sorter != null) {
                 sorter.close();
@@ -174,12 +177,12 @@ public class ReduceTaskExternalITCase
             expSum += i;
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
                 this.outList.size() == keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
                             == expSum - record.getField(0, IntValue.class).getValue());
@@ -220,7 +223,7 @@ public class ReduceTaskExternalITCase
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Invoke method caused exception: " + e.getMessage());
+            Assertions.fail("Invoke method caused exception: " + e.getMessage());
         } finally {
             if (sorter != null) {
                 sorter.close();
@@ -232,12 +235,12 @@ public class ReduceTaskExternalITCase
             expSum += i;
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
                 this.outList.size() == keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
                             == expSum - record.getField(0, IntValue.class).getValue());

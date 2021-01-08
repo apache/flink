@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

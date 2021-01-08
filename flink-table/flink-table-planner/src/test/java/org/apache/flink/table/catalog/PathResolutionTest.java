@@ -21,30 +21,30 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.utils.StreamTableTestUtil;
 import org.apache.flink.util.Preconditions;
-
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
+import scala.Some;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import scala.Some;
-
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
-import static org.apache.flink.table.catalog.CatalogStructureBuilder.BUILTIN_CATALOG_NAME;
-import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
-import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
-import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
+import static org.apache.flink.table.catalog.CatalogStructureBuilder.*;
 import static org.apache.flink.table.catalog.PathResolutionTest.TestSpec.testSpec;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for path resolution in Table API & SQL. */
 @RunWith(Parameterized.class)

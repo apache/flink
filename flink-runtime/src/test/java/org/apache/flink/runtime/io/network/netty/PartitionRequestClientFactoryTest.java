@@ -33,6 +33,11 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOutboundHandlerAda
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelPromise;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
@@ -47,8 +52,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 /** {@link PartitionRequestClientFactory} test. */
@@ -140,38 +145,46 @@ public class PartitionRequestClientFactoryTest {
     // see https://issues.apache.org/jira/browse/FLINK-18821
     @Test
     public void testFailureReportedToSubsequentRequests() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     PartitionRequestClientFactory factory =
-                new PartitionRequestClientFactory(new FailingNettyClient(), 2);
-        try {
-            factory.createPartitionRequestClient(
-                    new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
-        } catch (Exception e) {
-            // expected
-        }
-        factory.createPartitionRequestClient(
-                new ConnectionID(new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
-        });
+                            new PartitionRequestClientFactory(new FailingNettyClient(), 2);
+                    try {
+                        factory.createPartitionRequestClient(
+                                new ConnectionID(
+                                        new InetSocketAddress(InetAddress.getLocalHost(), 8080),
+                                        0));
+                    } catch (Exception e) {
+                        // expected
+                    }
+                    factory.createPartitionRequestClient(
+                            new ConnectionID(
+                                    new InetSocketAddress(InetAddress.getLocalHost(), 8080), 0));
+                });
     }
 
     @Test
     public void testNettyClientConnectRetryFailure() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
-                    NettyTestUtil.NettyServerAndClient serverAndClient = createNettyServerAndClient();
-        UnstableNettyClient unstableNettyClient =
-                new UnstableNettyClient(serverAndClient.client(), 3);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    NettyTestUtil.NettyServerAndClient serverAndClient =
+                            createNettyServerAndClient();
+                    UnstableNettyClient unstableNettyClient =
+                            new UnstableNettyClient(serverAndClient.client(), 3);
 
-        try {
-            PartitionRequestClientFactory factory =
-                    new PartitionRequestClientFactory(unstableNettyClient, 2);
+                    try {
+                        PartitionRequestClientFactory factory =
+                                new PartitionRequestClientFactory(unstableNettyClient, 2);
 
-            factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
+                        factory.createPartitionRequestClient(serverAndClient.getConnectionID(0));
 
-        } finally {
-            serverAndClient.client().shutdown();
-            serverAndClient.server().shutdown();
-        }
-        });
+                    } finally {
+                        serverAndClient.client().shutdown();
+                        serverAndClient.server().shutdown();
+                    }
+                });
     }
 
     @Test

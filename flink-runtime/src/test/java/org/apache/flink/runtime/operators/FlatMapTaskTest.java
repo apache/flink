@@ -21,17 +21,15 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
-import org.apache.flink.runtime.operators.testutils.DriverTestBase;
-import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
-import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
-import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
-import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
+import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,10 +59,10 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             testDriver(testDriver, MockMapStub.class);
         } catch (Exception e) {
             LOG.debug("Exception while running the test driver.", e);
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Wrong result set size.", keyCnt * valCnt, this.output.getNumberOfRecords());
     }
 
@@ -79,12 +77,12 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
         final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
         try {
             testDriver(testTask, MockFailingMapStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException e) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Exception in test.");
+            Assertions.fail("Exception in test.");
         }
     }
 
@@ -118,10 +116,10 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 "Test threw an exception even though it was properly canceled.", success.get());
     }
 

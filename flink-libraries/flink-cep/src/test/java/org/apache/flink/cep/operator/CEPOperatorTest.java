@@ -42,6 +42,7 @@ import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.mock.Whitebox;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -50,34 +51,25 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 
 import static org.apache.flink.cep.utils.CepOperatorBuilder.createOperatorForNFA;
 import static org.apache.flink.cep.utils.EventBuilder.event;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.validateMockitoUsage;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 /** Tests for {@link CepOperator}. */
 public class CEPOperatorTest extends TestLogger {
@@ -806,7 +798,7 @@ public class CEPOperatorTest extends TestLogger {
             }
 
             List<Event> expected = Lists.newArrayList(middle1Event1, middle1Event2);
-            Assert.assertArrayEquals(expected.toArray(), late.toArray());
+            Assertions.assertArrayEquals(expected.toArray(), late.toArray());
         }
     }
 
@@ -1214,7 +1206,7 @@ public class CEPOperatorTest extends TestLogger {
     }
 
     private void compareMaps(List<List<Event>> actual, List<List<Event>> expected) {
-        Assert.assertEquals(expected.size(), actual.size());
+        Assertions.assertEquals(expected.size(), actual.size());
 
         for (List<Event> p : actual) {
             Collections.sort(p, new EventComparator());
@@ -1226,7 +1218,7 @@ public class CEPOperatorTest extends TestLogger {
 
         Collections.sort(actual, new ListEventComparator());
         Collections.sort(expected, new ListEventComparator());
-        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        Assertions.assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
     private class ListEventComparator implements Comparator<List<Event>> {

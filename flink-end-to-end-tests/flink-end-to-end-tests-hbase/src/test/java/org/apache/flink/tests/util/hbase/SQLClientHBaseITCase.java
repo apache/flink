@@ -23,22 +23,21 @@ import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.cache.DownloadCache;
 import org.apache.flink.tests.util.categories.PreCommit;
 import org.apache.flink.tests.util.categories.TravisGroup1;
-import org.apache.flink.tests.util.flink.ClusterController;
-import org.apache.flink.tests.util.flink.FlinkResource;
-import org.apache.flink.tests.util.flink.FlinkResourceSetup;
-import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.tests.util.flink.*;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -53,17 +52,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End-to-end test for the HBase connectors. */
 @RunWith(Parameterized.class)
@@ -207,7 +201,7 @@ public class SQLClientHBaseITCase extends TestLogger {
             }
             Thread.sleep(500);
         }
-        Assert.assertTrue("Did not get expected results before timeout.", success);
+        Assertions.assertTrue(success, "Did not get expected results before timeout.");
     }
 
     private List<String> initializeSqlLines(Map<String, String> vars) throws IOException {

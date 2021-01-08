@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._

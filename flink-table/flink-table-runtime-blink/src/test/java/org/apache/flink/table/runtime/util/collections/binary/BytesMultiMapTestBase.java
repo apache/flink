@@ -27,18 +27,13 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.typeutils.PagedTypeSerializer;
 import org.apache.flink.table.runtime.util.KeyValueIterator;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BooleanType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.VarCharType;
-
-import org.junit.Assert;
+import org.apache.flink.table.types.logical.*;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
 import java.util.Random;
@@ -121,7 +116,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
             int i = 0;
             Iterator<RowData> valueIter = iter.getValue();
             while (valueIter.hasNext()) {
-                Assert.assertEquals(valueIter.next(), values[i++]);
+                Assertions.assertEquals(valueIter.next(), values[i++]);
             }
         }
     }

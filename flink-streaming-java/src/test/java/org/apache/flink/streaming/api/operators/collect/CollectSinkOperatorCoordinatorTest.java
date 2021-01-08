@@ -26,9 +26,12 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.types.Row;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -124,16 +127,17 @@ public class CollectSinkOperatorCoordinatorTest {
             long expectedLastCheckpointedOffset,
             List<Row> expectedResults)
             throws Exception {
-        Assert.assertEquals(request.getVersion(), response.getVersion());
-        Assert.assertEquals(expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
+        Assertions.assertEquals(request.getVersion(), response.getVersion());
+        Assertions.assertEquals(
+                expectedLastCheckpointedOffset, response.getLastCheckpointedOffset());
         List<Row> results = response.getResults(serializer);
-        Assert.assertEquals(expectedResults.size(), results.size());
+        Assertions.assertEquals(expectedResults.size(), results.size());
         for (int i = 0; i < results.size(); i++) {
             Row expectedRow = expectedResults.get(i);
             Row actualRow = results.get(i);
-            Assert.assertEquals(expectedRow.getArity(), actualRow.getArity());
+            Assertions.assertEquals(expectedRow.getArity(), actualRow.getArity());
             for (int j = 0; j < actualRow.getArity(); j++) {
-                Assert.assertEquals(expectedRow.getField(j), actualRow.getField(j));
+                Assertions.assertEquals(expectedRow.getField(j), actualRow.getField(j));
             }
         }
     }

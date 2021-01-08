@@ -25,8 +25,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,10 +34,10 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Abstract test base for comparators.
@@ -80,12 +80,12 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
             clone.setReference(data[1]);
 
             assertTrue(
-                    "Comparator duplication does not work: Altering the reference in a duplicated comparator alters the original comparator's reference.",
-                    comparator.equalToReference(data[0]) && clone.equalToReference(data[1]));
+                    comparator.equalToReference(data[0]) && clone.equalToReference(data[1]),
+                    "Comparator duplication does not work: Altering the reference in a duplicated comparator alters the original comparator's reference.");
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         }
     }
 
@@ -457,7 +457,7 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
     // --------------------------------------------------------------------------------------------
 
     protected void deepEquals(String message, T should, T is) {
-        assertEquals(message, should, is);
+        assertEquals(should, is, message);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -499,7 +499,7 @@ public abstract class ComparatorTestBase<T> extends TestLogger {
         // Just look if the data is really there after serialization, before testing comparator on
         // it
         TestInputView in = out.getInputView();
-        assertTrue("No data available during deserialization.", in.available() > 0);
+        assertTrue(in.available() > 0, "No data available during deserialization.");
 
         T deserialized = serializer.deserialize(serializer.createInstance(), in);
         deepEquals("Deserialized value is wrong.", value, deserialized);

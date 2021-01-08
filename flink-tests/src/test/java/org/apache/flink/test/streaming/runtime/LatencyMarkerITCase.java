@@ -29,8 +29,12 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.test.checkpointing.utils.MigrationTestUtils.AccumulatorCountingSink;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
@@ -100,6 +104,6 @@ public class LatencyMarkerITCase {
         Integer count =
                 executionResult.getAccumulatorResult(
                         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR);
-        Assert.assertEquals(inputCount * parallelism, count.intValue());
+        Assertions.assertEquals(inputCount * parallelism, count.intValue());
     }
 }

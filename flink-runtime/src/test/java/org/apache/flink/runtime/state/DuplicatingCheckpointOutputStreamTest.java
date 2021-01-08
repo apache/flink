@@ -23,8 +23,12 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -68,18 +72,18 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
                     duplicatingStream.write(bytes, off, len);
                 }
             }
-            Assert.assertEquals(referenceStream.getPos(), duplicatingStream.getPos());
+            Assertions.assertEquals(referenceStream.getPos(), duplicatingStream.getPos());
         }
 
         StreamStateHandle refStateHandle = referenceStream.closeAndGetHandle();
         StreamStateHandle primaryStateHandle = duplicatingStream.closeAndGetPrimaryHandle();
         StreamStateHandle secondaryStateHandle = duplicatingStream.closeAndGetSecondaryHandle();
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 CommonTestUtils.isStreamContentEqual(
                         refStateHandle.openInputStream(), primaryStateHandle.openInputStream()));
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
                 CommonTestUtils.isStreamContentEqual(
                         refStateHandle.openInputStream(), secondaryStateHandle.openInputStream()));
 
@@ -196,20 +200,21 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
         FailingCheckpointOutStream secondary =
                 (FailingCheckpointOutStream) duplicatingStream.getSecondaryOutputStream();
 
-        Assert.assertTrue(secondary.isClosed());
+        Assertions.assertTrue(secondary.isClosed());
 
         long pos = duplicatingStream.getPos();
         StreamStateHandle primaryHandle = duplicatingStream.closeAndGetPrimaryHandle();
 
         if (primaryHandle != null) {
-            Assert.assertEquals(pos, primaryHandle.getStateSize());
+            Assertions.assertEquals(pos, primaryHandle.getStateSize());
         }
 
         try {
             duplicatingStream.closeAndGetSecondaryHandle();
-            Assert.fail();
+            Assertions.fail();
         } catch (IOException ioEx) {
-            Assert.assertEquals(ioEx.getCause(), duplicatingStream.getSecondaryStreamException());
+            Assertions.assertEquals(
+                    ioEx.getCause(), duplicatingStream.getSecondaryStreamException());
         }
     }
 
@@ -219,7 +224,7 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
             throws Exception {
         try {
             testMethod.call();
-            Assert.fail();
+            Assertions.fail();
         } catch (IOException ignore) {
         } finally {
             IOUtils.closeQuietly(duplicatingStream);
@@ -244,24 +249,24 @@ public class DuplicatingCheckpointOutputStreamTest extends TestLogger {
         DuplicatingCheckpointOutputStream stream =
                 new DuplicatingCheckpointOutputStream(primaryStream, secondaryStream);
 
-        Assert.assertNotNull(stream.getSecondaryStreamException());
-        Assert.assertTrue(secondaryStream.isClosed());
+        Assertions.assertNotNull(stream.getSecondaryStreamException());
+        Assertions.assertTrue(secondaryStream.isClosed());
 
         stream.write(23);
 
         try {
             stream.closeAndGetSecondaryHandle();
-            Assert.fail();
+            Assertions.fail();
         } catch (IOException ignore) {
-            Assert.assertEquals(ignore.getCause(), stream.getSecondaryStreamException());
+            Assertions.assertEquals(ignore.getCause(), stream.getSecondaryStreamException());
         }
 
         StreamStateHandle primaryHandle = stream.closeAndGetPrimaryHandle();
 
         try (FSDataInputStream inputStream = primaryHandle.openInputStream(); ) {
-            Assert.assertEquals(42, inputStream.read());
-            Assert.assertEquals(23, inputStream.read());
-            Assert.assertEquals(-1, inputStream.read());
+            Assertions.assertEquals(42, inputStream.read());
+            Assertions.assertEquals(23, inputStream.read());
+            Assertions.assertEquals(-1, inputStream.read());
         }
     }
 

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
+import akka.actor.ActorSystem;
+import akka.actor.Terminated;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -28,32 +30,24 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link AkkaRpcService}. */
 public class AkkaRpcServiceTest extends TestLogger {
@@ -107,7 +101,7 @@ public class AkkaRpcServiceTest extends TestLogger {
         assertTrue(latch.isTriggered());
         final long stop = System.nanoTime();
 
-        assertTrue("call was not properly delayed", ((stop - start) / 1000000) >= delay);
+        assertTrue(((stop - start) / 1000000) >= delay, "call was not properly delayed");
     }
 
     /** Tests that the {@link AkkaRpcService} can execute runnables. */

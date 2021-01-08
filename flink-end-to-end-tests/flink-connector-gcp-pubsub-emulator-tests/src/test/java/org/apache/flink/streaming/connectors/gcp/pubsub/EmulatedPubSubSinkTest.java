@@ -32,13 +32,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /** Test of the PubSub SINK with the Google PubSub emulator. */
 public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
@@ -109,31 +111,36 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
 
     @Test
     public void testPubSubSinkThrowsExceptionOnFailure() throws Exception {
-        Assertions.assertThrows(Exception.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(100);
-        env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        assertThrows(
+                Exception.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.enableCheckpointing(100);
+                    env.setParallelism(1);
+                    env.setRestartStrategy(RestartStrategies.noRestart());
 
-        // Create test stream
-        // use source function to prevent the job from shutting down before a checkpoint has been
-        // made
-        env.addSource(new SingleInputSourceFunction())
-                .map((MapFunction<String, String>) StringUtils::reverse)
-                .addSink(
-                        PubSubSink.newBuilder()
-                                .withSerializationSchema(new SimpleStringSchema())
-                                .withProjectName(PROJECT_NAME)
-                                .withTopicName(TOPIC_NAME)
-                                // Specific for emulator
-                                .withHostAndPortForEmulator("unknown-host-to-force-sink-crash:1234")
-                                .withCredentials(EmulatorCredentials.getInstance())
-                                .build())
-                .name("PubSub sink");
+                    // Create test stream
+                    // use source function to prevent the job from shutting down before a checkpoint
+                    // has been
+                    // made
+                    env.addSource(new SingleInputSourceFunction())
+                            .map((MapFunction<String, String>) StringUtils::reverse)
+                            .addSink(
+                                    PubSubSink.newBuilder()
+                                            .withSerializationSchema(new SimpleStringSchema())
+                                            .withProjectName(PROJECT_NAME)
+                                            .withTopicName(TOPIC_NAME)
+                                            // Specific for emulator
+                                            .withHostAndPortForEmulator(
+                                                    "unknown-host-to-force-sink-crash:1234")
+                                            .withCredentials(EmulatorCredentials.getInstance())
+                                            .build())
+                            .name("PubSub sink");
 
-        // Run
-        env.execute();
-        });
+                    // Run
+                    env.execute();
+                });
     }
 
     private static class SingleInputSourceFunction implements SourceFunction<String> {

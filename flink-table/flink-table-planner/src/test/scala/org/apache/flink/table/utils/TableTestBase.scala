@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.StreamPlanner
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}

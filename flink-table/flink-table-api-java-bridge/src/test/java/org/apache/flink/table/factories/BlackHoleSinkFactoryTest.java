@@ -25,14 +25,17 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link BlackHoleTableSinkFactory}. */
 public class BlackHoleSinkFactoryTest {
@@ -73,12 +76,12 @@ public class BlackHoleSinkFactoryTest {
             createSink(properties);
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
+            Assertions.assertTrue(cause.toString(), cause instanceof ValidationException);
+            Assertions.assertTrue(
                     cause.getMessage(),
                     cause.getMessage().contains("Unsupported options:\n\nunknown-key"));
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        Assertions.fail("Should fail by ValidationException.");
     }
 }

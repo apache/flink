@@ -19,20 +19,20 @@
 package org.apache.flink.container.entrypoint;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DeploymentOptions;
-import org.apache.flink.configuration.GlobalConfiguration;
-import org.apache.flink.configuration.PipelineOptionsInternal;
-import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -40,15 +40,9 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.core.IsNull.nullValue;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link StandaloneApplicationClusterConfigurationParserFactory}. */
 public class StandaloneApplicationClusterConfigurationParserFactoryTest extends TestLogger {
@@ -196,11 +190,13 @@ public class StandaloneApplicationClusterConfigurationParserFactoryTest extends 
 
     @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        Assertions.assertThrows(FlinkParseException.class, () -> {
+        assertThrows(
+                FlinkParseException.class,
+                () -> {
                     final String[] args = {};
 
-        commandLineParser.parse(args);
-        });
+                    commandLineParser.parse(args);
+                });
     }
 
     @Test

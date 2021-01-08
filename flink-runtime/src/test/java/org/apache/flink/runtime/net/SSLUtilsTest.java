@@ -22,18 +22,20 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
-import org.apache.flink.util.TestLogger;
-
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
-
+import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import javax.net.ssl.SSLServerSocket;
-
 import java.io.File;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -50,12 +52,7 @@ import java.util.Locale;
 
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link SSLUtils}. */
 @RunWith(Parameterized.class)
@@ -571,7 +568,7 @@ public class SSLUtilsTest extends TestLogger {
 
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
         if (sslProvider.equalsIgnoreCase("OPENSSL")) {
-            assertTrue("openSSL not available", OpenSsl.isAvailable());
+            assertTrue(OpenSsl.isAvailable(), "openSSL not available");
 
             // Flink's default algorithm set is not available for openSSL - choose a different one:
             config.setString(

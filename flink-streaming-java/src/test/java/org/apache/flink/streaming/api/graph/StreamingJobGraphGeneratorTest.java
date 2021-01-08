@@ -96,8 +96,13 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -113,13 +118,13 @@ import java.util.stream.Collectors;
 import static org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.areOperatorsChainable;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link StreamingJobGraphGenerator}. */
 @SuppressWarnings("serial")
@@ -765,9 +770,11 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
     @Test
     public void testConflictShuffleModeWithBufferTimeout() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
                     testCompatibleShuffleModeWithBufferTimeout(ShuffleMode.BATCH);
-        });
+                });
     }
 
     @Test
@@ -908,7 +915,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
         final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        Assert.assertEquals(2, vertices.size());
+        Assertions.assertEquals(2, vertices.size());
         assertEquals(2, vertices.get(0).getOperatorIDs().size());
         assertEquals(5, vertices.get(1).getOperatorIDs().size());
     }
@@ -931,27 +938,30 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
         final List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
-        Assert.assertEquals(1, vertices.size());
+        Assertions.assertEquals(1, vertices.size());
         assertEquals(4, vertices.get(0).getOperatorIDs().size());
     }
 
     @Test
     public void testNotSupportInputSelectableOperatorIfCheckpointing() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(60_000L);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.enableCheckpointing(60_000L);
 
-        DataStreamSource<String> source1 = env.fromElements("1");
-        DataStreamSource<Integer> source2 = env.fromElements(1);
-        source1.connect(source2)
-                .transform(
-                        "test",
-                        BasicTypeInfo.STRING_TYPE_INFO,
-                        new TestAnyModeReadingStreamOperator("test operator"))
-                .print();
+                    DataStreamSource<String> source1 = env.fromElements("1");
+                    DataStreamSource<Integer> source2 = env.fromElements(1);
+                    source1.connect(source2)
+                            .transform(
+                                    "test",
+                                    BasicTypeInfo.STRING_TYPE_INFO,
+                                    new TestAnyModeReadingStreamOperator("test operator"))
+                            .print();
 
-        StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
-        });
+                    StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+                });
     }
 
     @Test

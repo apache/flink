@@ -40,8 +40,11 @@ import com.amazonaws.services.kinesis.model.Shard;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -61,9 +64,9 @@ import java.util.stream.IntStream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -170,11 +173,11 @@ public class KinesisProxyTest {
                         Arrays.asList(fakeStreamName));
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
-        Assert.assertEquals(shardListResult.hasRetrievedShards(), true);
+        Assertions.assertEquals(shardListResult.hasRetrievedShards(), true);
 
         Set<String> expectedStreams = new HashSet<>();
         expectedStreams.add(fakeStreamName);
-        Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        Assertions.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
         List<StreamShardHandle> expectedStreamShard = new ArrayList<>();
@@ -189,7 +192,7 @@ public class KinesisProxyTest {
             expectedStreamShard.add(shardHandle);
         }
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 actualShardList,
                 containsInAnyOrder(
                         expectedStreamShard.toArray(
@@ -225,15 +228,15 @@ public class KinesisProxyTest {
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then
-        Assert.assertTrue(shardListResult.hasRetrievedShards());
+        Assertions.assertTrue(shardListResult.hasRetrievedShards());
 
         Set<String> expectedStreams = new HashSet<>();
         expectedStreams.add(fakeStreamName);
-        Assert.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        Assertions.assertEquals(shardListResult.getStreamsWithRetrievedShards(), expectedStreams);
 
         List<StreamShardHandle> actualShardList =
                 shardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        Assert.assertThat(actualShardList, hasSize(2));
+        MatcherAssert.assertThat(actualShardList, hasSize(2));
 
         List<StreamShardHandle> expectedStreamShard =
                 IntStream.range(0, actualShardList.size())
@@ -248,7 +251,7 @@ public class KinesisProxyTest {
                                                                                 i))))
                         .collect(Collectors.toList());
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 actualShardList,
                 containsInAnyOrder(
                         expectedStreamShard.toArray(
@@ -270,12 +273,13 @@ public class KinesisProxyTest {
         GetShardListResult newShardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then new shards
-        Assert.assertTrue(newShardListResult.hasRetrievedShards());
-        Assert.assertEquals(newShardListResult.getStreamsWithRetrievedShards(), expectedStreams);
+        Assertions.assertTrue(newShardListResult.hasRetrievedShards());
+        Assertions.assertEquals(
+                newShardListResult.getStreamsWithRetrievedShards(), expectedStreams);
 
         List<StreamShardHandle> newActualShardList =
                 newShardListResult.getRetrievedShardListOfStream(fakeStreamName);
-        Assert.assertThat(newActualShardList, hasSize(1));
+        MatcherAssert.assertThat(newActualShardList, hasSize(1));
 
         List<StreamShardHandle> newExpectedStreamShard =
                 Collections.singletonList(
@@ -286,7 +290,7 @@ public class KinesisProxyTest {
                                                 KinesisShardIdGenerator.generateFromShardOrder(
                                                         2))));
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 newActualShardList,
                 containsInAnyOrder(
                         newExpectedStreamShard.toArray(
@@ -316,7 +320,7 @@ public class KinesisProxyTest {
         GetShardListResult shardListResult = kinesisProxy.getShardList(streamHashMap);
 
         // then
-        Assert.assertFalse(shardListResult.hasRetrievedShards());
+        Assertions.assertFalse(shardListResult.hasRetrievedShards());
     }
 
     @Test
@@ -372,7 +376,7 @@ public class KinesisProxyTest {
         Whitebox.getField(KinesisProxy.class, "kinesisClient").set(kinesisProxy, mockClient);
         try {
             kinesisProxy.getShardList(streamNames);
-            Assert.fail("exception expected");
+            Assertions.fail("exception expected");
         } catch (SdkClientException ex) {
             assertEquals(retriableExceptions[maxRetries], ex);
         }

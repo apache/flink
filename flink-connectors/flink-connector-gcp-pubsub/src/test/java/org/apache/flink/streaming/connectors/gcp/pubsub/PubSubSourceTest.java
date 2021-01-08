@@ -31,9 +31,12 @@ import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberF
 
 import com.google.auth.Credentials;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -87,10 +90,12 @@ public class PubSubSourceTest {
 
     @Test
     public void testOpenWithoutCheckpointing() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     when(streamingRuntimeContext.isCheckpointingEnabled()).thenReturn(false);
-        pubSubSource.open(null);
-        });
+                    pubSubSource.open(null);
+                });
     }
 
     @Test
@@ -146,7 +151,7 @@ public class PubSubSourceTest {
                         (args) -> {
                             DeserializationSchema.InitializationContext context =
                                     args.getArgument(0);
-                            Assert.assertThat(
+                            MatcherAssert.assertThat(
                                     context.getMetricGroup(), Matchers.equalTo(metricGroup));
                             return null;
                         })

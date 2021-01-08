@@ -46,8 +46,12 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 
@@ -94,13 +98,13 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 
             // verify the optimizer choices
             checkStandardStrategies(filteringMapper, join, combiner, reducer, sink);
-            Assert.assertTrue(checkRepartitionShipStrategies(join, reducer, combiner));
-            Assert.assertTrue(
+            Assertions.assertTrue(checkRepartitionShipStrategies(join, reducer, combiner));
+            Assertions.assertTrue(
                     checkHashJoinStrategies(join, reducer, true)
                             || checkHashJoinStrategies(join, reducer, false));
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -252,39 +256,40 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 
             // check the possible variants and that the variant ia allowed in this specific setting
             if (checkBroadcastShipStrategies(join, reducer, combiner)) {
-                Assert.assertTrue("Broadcast join incorrectly chosen.", broadcastOkay);
+                Assertions.assertTrue(broadcastOkay, "Broadcast join incorrectly chosen.");
 
                 if (checkHashJoinStrategies(join, reducer, true)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
                 } else if (checkHashJoinStrategies(join, reducer, false)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "Hash join (build lineitem) incorrectly chosen", hashJoinSecondOkay);
                 } else if (checkBroadcastMergeJoin(join, reducer)) {
-                    Assert.assertTrue("Merge join incorrectly chosen", mergeJoinOkay);
+                    Assertions.assertTrue(mergeJoinOkay, "Merge join incorrectly chosen");
                 } else {
-                    Assert.fail("Plan has no correct hash join or merge join strategies.");
+                    Assertions.fail("Plan has no correct hash join or merge join strategies.");
                 }
             } else if (checkRepartitionShipStrategies(join, reducer, combiner)) {
-                Assert.assertTrue("Partitioned join incorrectly chosen.", partitionedOkay);
+                Assertions.assertTrue(partitionedOkay, "Partitioned join incorrectly chosen.");
 
                 if (checkHashJoinStrategies(join, reducer, true)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
                 } else if (checkHashJoinStrategies(join, reducer, false)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             "Hash join (build lineitem) incorrectly chosen", hashJoinSecondOkay);
                 } else if (checkRepartitionMergeJoin(join, reducer)) {
-                    Assert.assertTrue("Merge join incorrectly chosen", mergeJoinOkay);
+                    Assertions.assertTrue(mergeJoinOkay, "Merge join incorrectly chosen");
                 } else {
-                    Assert.fail("Plan has no correct hash join or merge join strategies.");
+                    Assertions.fail("Plan has no correct hash join or merge join strategies.");
                 }
             } else {
-                Assert.fail("Plan has neither correct BC join or partitioned join configuration.");
+                Assertions.fail(
+                        "Plan has neither correct BC join or partitioned join configuration.");
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -299,16 +304,17 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
             SingleInputPlanNode reducer,
             SinkPlanNode sink) {
         // check ship strategies that are always fix
-        Assert.assertEquals(ShipStrategyType.FORWARD, map.getInput().getShipStrategy());
-        Assert.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
+        Assertions.assertEquals(ShipStrategyType.FORWARD, map.getInput().getShipStrategy());
+        Assertions.assertEquals(ShipStrategyType.FORWARD, sink.getInput().getShipStrategy());
 
         // check the driver strategies that are always fix
-        Assert.assertEquals(DriverStrategy.FLAT_MAP, map.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
-        Assert.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.FLAT_MAP, map.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.SORTED_GROUP_REDUCE, reducer.getDriverStrategy());
+        Assertions.assertEquals(DriverStrategy.NONE, sink.getDriverStrategy());
         if (combiner != null) {
-            Assert.assertEquals(DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
-            Assert.assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
+            Assertions.assertEquals(
+                    DriverStrategy.SORTED_GROUP_COMBINE, combiner.getDriverStrategy());
+            Assertions.assertEquals(LocalStrategy.NONE, combiner.getInput().getLocalStrategy());
         }
     }
 
@@ -319,8 +325,9 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
                 && ShipStrategyType.PARTITION_HASH == reducer.getInput().getShipStrategy()) {
 
             // check combiner
-            Assert.assertNotNull("Plan should have a combiner", combiner);
-            Assert.assertEquals(ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
+            Assertions.assertNotNull(combiner, "Plan should have a combiner");
+            Assertions.assertEquals(
+                    ShipStrategyType.FORWARD, combiner.getInput().getShipStrategy());
             return true;
         } else {
             return false;
@@ -334,7 +341,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
                 && ShipStrategyType.FORWARD == reducer.getInput().getShipStrategy()) {
 
             // check combiner
-            Assert.assertNull("Plan should not have a combiner", combiner);
+            Assertions.assertNull("Plan should not have a combiner", combiner);
             return true;
         } else {
             return false;
@@ -348,18 +355,19 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
                         && DriverStrategy.HYBRIDHASH_BUILD_SECOND == join.getDriverStrategy())) {
 
             // driver keys
-            Assert.assertEquals(set0, join.getKeysForInput1());
-            Assert.assertEquals(set0, join.getKeysForInput2());
+            Assertions.assertEquals(set0, join.getKeysForInput1());
+            Assertions.assertEquals(set0, join.getKeysForInput2());
 
             // local strategies
-            Assert.assertEquals(LocalStrategy.NONE, join.getInput1().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.NONE, join.getInput2().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.NONE, join.getInput1().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.NONE, join.getInput2().getLocalStrategy());
+            Assertions.assertEquals(
+                    LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
 
             // local strategy keys
-            Assert.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
-            Assert.assertEquals(set01, reducer.getKeys(0));
-            Assert.assertTrue(
+            Assertions.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
+            Assertions.assertEquals(set01, reducer.getKeys(0));
+            Assertions.assertTrue(
                     Arrays.equals(
                             reducer.getInput().getLocalStrategySortOrder(),
                             reducer.getSortOrders(0)));
@@ -372,24 +380,25 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
     private boolean checkBroadcastMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
         if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
             // driver keys
-            Assert.assertEquals(set0, join.getKeysForInput1());
-            Assert.assertEquals(set0, join.getKeysForInput2());
+            Assertions.assertEquals(set0, join.getKeysForInput1());
+            Assertions.assertEquals(set0, join.getKeysForInput2());
 
             // local strategies
-            Assert.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
+            Assertions.assertEquals(
+                    LocalStrategy.COMBININGSORT, reducer.getInput().getLocalStrategy());
 
             // local strategy keys
-            Assert.assertEquals(set0, join.getInput1().getLocalStrategyKeys());
-            Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
-            Assert.assertTrue(
+            Assertions.assertEquals(set0, join.getInput1().getLocalStrategyKeys());
+            Assertions.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
+            Assertions.assertTrue(
                     Arrays.equals(
                             join.getInput1().getLocalStrategySortOrder(),
                             join.getInput2().getLocalStrategySortOrder()));
-            Assert.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
-            Assert.assertEquals(set01, reducer.getKeys(0));
-            Assert.assertTrue(
+            Assertions.assertEquals(set01, reducer.getInput().getLocalStrategyKeys());
+            Assertions.assertEquals(set01, reducer.getKeys(0));
+            Assertions.assertTrue(
                     Arrays.equals(
                             reducer.getInput().getLocalStrategySortOrder(),
                             reducer.getSortOrders(0)));
@@ -402,22 +411,22 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
     private boolean checkRepartitionMergeJoin(DualInputPlanNode join, SingleInputPlanNode reducer) {
         if (DriverStrategy.INNER_MERGE == join.getDriverStrategy()) {
             // driver keys
-            Assert.assertEquals(set0, join.getKeysForInput1());
-            Assert.assertEquals(set0, join.getKeysForInput2());
+            Assertions.assertEquals(set0, join.getKeysForInput1());
+            Assertions.assertEquals(set0, join.getKeysForInput2());
 
             // local strategies
-            Assert.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
-            Assert.assertEquals(LocalStrategy.NONE, reducer.getInput().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.SORT, join.getInput1().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.SORT, join.getInput2().getLocalStrategy());
+            Assertions.assertEquals(LocalStrategy.NONE, reducer.getInput().getLocalStrategy());
 
             // local strategy keys
-            Assert.assertEquals(set01, join.getInput1().getLocalStrategyKeys());
-            Assert.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
-            Assert.assertTrue(
+            Assertions.assertEquals(set01, join.getInput1().getLocalStrategyKeys());
+            Assertions.assertEquals(set0, join.getInput2().getLocalStrategyKeys());
+            Assertions.assertTrue(
                     join.getInput1().getLocalStrategySortOrder()[0]
                             == join.getInput2().getLocalStrategySortOrder()[0]);
-            Assert.assertEquals(set01, reducer.getKeys(0));
-            Assert.assertTrue(
+            Assertions.assertEquals(set01, reducer.getKeys(0));
+            Assertions.assertTrue(
                     Arrays.equals(
                             join.getInput1().getLocalStrategySortOrder(),
                             reducer.getSortOrders(0)));

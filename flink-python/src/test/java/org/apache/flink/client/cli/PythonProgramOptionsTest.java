@@ -18,24 +18,23 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonOptions;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.PythonOptions;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
-import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.*;
 import static org.apache.flink.python.PythonOptions.PYTHON_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link PythonProgramOptions}. */
 public class PythonProgramOptionsTest {

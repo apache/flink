@@ -53,20 +53,24 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for timestamps, watermarks, and event-time sources. */
 @SuppressWarnings("serial")
@@ -359,7 +363,7 @@ public class TimestampITCase extends TestLogger {
                         new TimestampCheckingOperator());
 
         // verify that extractor picks up source parallelism
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 extractOp.getTransformation().getParallelism(),
                 source1.getTransformation().getParallelism());
 
@@ -369,7 +373,7 @@ public class TimestampITCase extends TestLogger {
         for (int j = 0; j < numElements; j++) {
             if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
                 long wm = CustomOperator.finalWatermarks[0].get(j).getTimestamp();
-                Assert.fail(
+                Assertions.fail(
                         "Wrong watermark. Expected: "
                                 + j
                                 + " Found: "
@@ -441,7 +445,7 @@ public class TimestampITCase extends TestLogger {
         // verify that we get NUM_ELEMENTS watermarks
         for (int j = 0; j < numElements; j++) {
             if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
-                Assert.fail("Wrong watermark.");
+                Assertions.fail("Wrong watermark.");
             }
         }
 
@@ -506,7 +510,7 @@ public class TimestampITCase extends TestLogger {
         // verify that we get NUM_ELEMENTS watermarks
         for (int j = 0; j < numElements; j++) {
             if (!CustomOperator.finalWatermarks[0].get(j).equals(new Watermark(j))) {
-                Assert.fail("Wrong watermark.");
+                Assertions.fail("Wrong watermark.");
             }
         }
         // the input is finite, so it should have a MAX Watermark
@@ -569,8 +573,8 @@ public class TimestampITCase extends TestLogger {
 
         env.execute();
 
-        Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
-        Assert.assertTrue(
+        Assertions.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
+        Assertions.assertTrue(
                 CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
     }
 
@@ -630,8 +634,8 @@ public class TimestampITCase extends TestLogger {
 
         env.execute();
 
-        Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
-        Assert.assertTrue(
+        Assertions.assertTrue(CustomOperator.finalWatermarks[0].size() == 1);
+        Assertions.assertTrue(
                 CustomOperator.finalWatermarks[0].get(0).getTimestamp() == Long.MAX_VALUE);
     }
 
@@ -656,7 +660,7 @@ public class TimestampITCase extends TestLogger {
 
         // verify that we don't get any watermarks, the source is used as watermark source in
         // other tests, so it normally emits watermarks
-        Assert.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
+        Assertions.assertTrue(CustomOperator.finalWatermarks[0].size() == 0);
     }
 
     @Test
@@ -741,7 +745,7 @@ public class TimestampITCase extends TestLogger {
         public void processElement(StreamRecord<Integer> element) throws Exception {
             if (timestampsEnabled) {
                 if (element.getTimestamp() != element.getValue()) {
-                    Assert.fail("Timestamps are not properly handled.");
+                    Assertions.fail("Timestamps are not properly handled.");
                 }
             }
             output.collect(element);
@@ -782,7 +786,7 @@ public class TimestampITCase extends TestLogger {
         @Override
         public void processElement(StreamRecord<Integer> element) throws Exception {
             if (element.getTimestamp() != element.getValue()) {
-                Assert.fail("Timestamps are not properly handled.");
+                Assertions.fail("Timestamps are not properly handled.");
             }
             output.collect(element);
         }
@@ -794,7 +798,7 @@ public class TimestampITCase extends TestLogger {
         @Override
         public void processElement(StreamRecord<Integer> element) throws Exception {
             if (element.hasTimestamp()) {
-                Assert.fail("Timestamps are not properly handled.");
+                Assertions.fail("Timestamps are not properly handled.");
             }
             output.collect(element);
         }

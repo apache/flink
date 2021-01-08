@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.completeness
 import java.lang.reflect.Method
 
 import org.apache.flink.util.TestLogger
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 import scala.language.existentials

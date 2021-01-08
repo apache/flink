@@ -21,9 +21,12 @@ package org.apache.flink.table.planner.runtime.stream.table;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,6 +72,6 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
             }
         }
 
-        Assert.assertEquals("Unexpected number of results", 10, results.size());
+        Assertions.assertEquals("Unexpected number of results", 10, results.size());
     }
 }

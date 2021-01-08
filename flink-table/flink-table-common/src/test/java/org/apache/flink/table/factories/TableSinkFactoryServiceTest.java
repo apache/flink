@@ -19,9 +19,13 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
@@ -31,12 +35,8 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
-import static org.apache.flink.table.factories.TestTableSinkFactory.CONNECTOR_TYPE_VALUE_TEST;
-import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_PATH;
-import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_TYPE_VALUE_TEST;
-import static org.apache.flink.table.factories.TestTableSinkFactory.REQUIRED_TEST;
-import static org.apache.flink.table.factories.TestTableSinkFactory.REQUIRED_TEST_VALUE;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.table.factories.TestTableSinkFactory.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for testing table sink discovery using {@link TableFactoryService}. The tests assume the

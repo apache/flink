@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.cost.FlinkCost
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.jupiter.api.Test
 
 class FlinkRelMdNonCumulativeCostTest extends FlinkRelMdHandlerTestBase {

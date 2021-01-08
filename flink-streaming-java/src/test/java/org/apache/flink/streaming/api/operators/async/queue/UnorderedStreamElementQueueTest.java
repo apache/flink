@@ -22,9 +22,12 @@ import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,35 +51,35 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
         ResultFuture<Integer> record5 = putSuccessfully(queue, new StreamRecord<>(5, 6L));
         ResultFuture<Integer> record6 = putSuccessfully(queue, new StreamRecord<>(6, 7L));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(8, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(8, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         // this should not make any item completed, because R3 is behind W1
         record3.complete(Arrays.asList(13));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(8, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(8, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         record2.complete(Arrays.asList(12));
 
-        Assert.assertEquals(Arrays.asList(new StreamRecord<>(12, 1L)), popCompleted(queue));
-        Assert.assertEquals(7, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Arrays.asList(new StreamRecord<>(12, 1L)), popCompleted(queue));
+        Assertions.assertEquals(7, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         // Should not be completed because R1 has not been completed yet
         record6.complete(Arrays.asList(16));
         record4.complete(Arrays.asList(14));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(7, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(7, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         // Now W1, R3, R4 and W2 are completed and should be pollable
         record1.complete(Arrays.asList(11));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.asList(
                         new StreamRecord<>(11, 0L),
                         new Watermark(2L),
@@ -85,15 +88,15 @@ public class UnorderedStreamElementQueueTest extends TestLogger {
                         new Watermark(5L),
                         new StreamRecord<>(16, 7L)),
                 popCompleted(queue));
-        Assert.assertEquals(1, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(1, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         // only R5 left in the queue
         record5.complete(Arrays.asList(15));
 
-        Assert.assertEquals(Arrays.asList(new StreamRecord<>(15, 6L)), popCompleted(queue));
-        Assert.assertEquals(0, queue.size());
-        Assert.assertTrue(queue.isEmpty());
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(Arrays.asList(new StreamRecord<>(15, 6L)), popCompleted(queue));
+        Assertions.assertEquals(0, queue.size());
+        Assertions.assertTrue(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
     }
 }

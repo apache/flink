@@ -26,9 +26,12 @@ import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.ml.operator.stream.StreamOperator;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link EstimatorBase}. */
 public class EstimatorBaseTest extends PipelineStageTestBase {
@@ -68,8 +71,8 @@ public class EstimatorBaseTest extends PipelineStageTestBase {
         estimator.setMLEnvironmentId(id);
         estimator.fit(env.getBatchTableEnvironment(), table);
 
-        Assert.assertTrue(estimator.batchFitted);
-        Assert.assertFalse(estimator.streamFitted);
+        Assertions.assertTrue(estimator.batchFitted);
+        Assertions.assertFalse(estimator.streamFitted);
     }
 
     @Test
@@ -83,7 +86,7 @@ public class EstimatorBaseTest extends PipelineStageTestBase {
         estimator.setMLEnvironmentId(id);
         estimator.fit(env.getStreamTableEnvironment(), table);
 
-        Assert.assertFalse(estimator.batchFitted);
-        Assert.assertTrue(estimator.streamFitted);
+        Assertions.assertFalse(estimator.batchFitted);
+        Assertions.assertTrue(estimator.streamFitted);
     }
 }

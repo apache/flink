@@ -22,6 +22,8 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -29,14 +31,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This class contains test for the configuration package. In particular, the serialization of
@@ -268,12 +270,12 @@ public class ConfigurationTest extends TestLogger {
         ConfigOption<Integer> unexistedOption =
                 ConfigOptions.key("e").defaultValue(-1).withDeprecatedKeys("f", "g", "j");
 
-        assertEquals("Wrong expectation about size", cfg.keySet().size(), 2);
-        assertTrue("Expected 'validOption' is removed", cfg.removeConfig(validOption));
-        assertEquals("Wrong expectation about size", cfg.keySet().size(), 1);
-        assertTrue("Expected 'existedOption' is removed", cfg.removeConfig(deprecatedOption));
-        assertEquals("Wrong expectation about size", cfg.keySet().size(), 0);
-        assertFalse("Expected 'unexistedOption' is not removed", cfg.removeConfig(unexistedOption));
+        assertEquals(cfg.keySet().size(), 2, "Wrong expectation about size");
+        assertTrue(cfg.removeConfig(validOption), "Expected 'validOption' is removed");
+        assertEquals(cfg.keySet().size(), 1, "Wrong expectation about size");
+        assertTrue(cfg.removeConfig(deprecatedOption), "Expected 'existedOption' is removed");
+        assertEquals(cfg.keySet().size(), 0, "Wrong expectation about size");
+        assertFalse(cfg.removeConfig(unexistedOption), "Expected 'unexistedOption' is not removed");
     }
 
     @Test

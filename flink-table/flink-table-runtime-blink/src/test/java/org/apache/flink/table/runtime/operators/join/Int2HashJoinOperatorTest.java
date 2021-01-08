@@ -40,9 +40,12 @@ import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -389,7 +392,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
         Queue<Object> actual = testHarness.getOutput();
 
-        Assert.assertEquals("Output was not correct.", expectOutSize, actual.size());
+        Assertions.assertEquals("Output was not correct.", expectOutSize, actual.size());
 
         // Don't verify the output value when experOutVal is -1
         if (expectOutVal != -1) {
@@ -410,12 +413,12 @@ public class Int2HashJoinOperatorTest implements Serializable {
                     map.put(key, contained);
                 }
 
-                Assert.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
+                Assertions.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
                 for (Map.Entry<Integer, Long> entry : map.entrySet()) {
                     long val = entry.getValue();
                     int key = entry.getKey();
 
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             "Wrong number of values in per-key cross product for key " + key,
                             expectOutVal,
                             val);
@@ -448,12 +451,12 @@ public class Int2HashJoinOperatorTest implements Serializable {
                     map.put(key, contained);
                 }
 
-                Assert.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
+                Assertions.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
                 for (Map.Entry<Integer, Long> entry : map.entrySet()) {
                     long val = entry.getValue();
                     int key = entry.getKey();
 
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             "Wrong number of values in per-key cross product for key " + key,
                             expectOutVal,
                             val);

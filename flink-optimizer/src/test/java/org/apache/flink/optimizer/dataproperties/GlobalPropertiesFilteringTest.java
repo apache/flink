@@ -32,13 +32,17 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class GlobalPropertiesFilteringTest {
 
@@ -400,9 +404,9 @@ public class GlobalPropertiesFilteringTest {
         FieldSet expected1 = new FieldSet(0, 1, 2);
         FieldSet expected2 = new FieldSet(3, 4);
 
-        Assert.assertTrue(unique.size() == 2);
-        Assert.assertTrue(unique.contains(expected1));
-        Assert.assertTrue(unique.contains(expected2));
+        Assertions.assertTrue(unique.size() == 2);
+        Assertions.assertTrue(unique.contains(expected1));
+        Assertions.assertTrue(unique.contains(expected2));
     }
 
     @Test
@@ -424,9 +428,9 @@ public class GlobalPropertiesFilteringTest {
         FieldSet expected1 = new FieldSet(1, 2, 5);
         FieldSet expected2 = new FieldSet(4, 6);
 
-        Assert.assertTrue(unique.size() == 2);
-        Assert.assertTrue(unique.contains(expected1));
-        Assert.assertTrue(unique.contains(expected2));
+        Assertions.assertTrue(unique.size() == 2);
+        Assertions.assertTrue(unique.contains(expected1));
+        Assertions.assertTrue(unique.contains(expected2));
     }
 
     @Test
@@ -444,21 +448,22 @@ public class GlobalPropertiesFilteringTest {
         gprops.addUniqueFieldCombination(set3);
 
         GlobalProperties result = gprops.filterBySemanticProperties(sprops, 0);
-        Assert.assertNull(result.getUniqueFieldCombination());
+        Assertions.assertNull(result.getUniqueFieldCombination());
     }
 
     @Test
     public void testInvalidInputIndex() {
-        Assertions.assertThrows(IndexOutOfBoundsException.class, () -> {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
 
-        SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
+                    GlobalProperties gprops = new GlobalProperties();
+                    gprops.setHashPartitioned(new FieldList(0, 1));
 
-        GlobalProperties gprops = new GlobalProperties();
-        gprops.setHashPartitioned(new FieldList(0, 1));
-
-        gprops.filterBySemanticProperties(sprops, 1);
-        });
+                    gprops.filterBySemanticProperties(sprops, 1);
+                });
     }
 }

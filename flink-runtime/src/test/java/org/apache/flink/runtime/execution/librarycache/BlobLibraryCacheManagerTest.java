@@ -22,17 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.*;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
-
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -49,12 +49,8 @@ import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCount
 import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link BlobLibraryCacheManager}. */
 public class BlobLibraryCacheManagerTest extends TestLogger {
@@ -434,31 +430,38 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
     @Test
     public void getOrResolveClassLoader_missingBlobKey_shouldFail() throws IOException {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     final PermanentBlobKey missingKey = new PermanentBlobKey();
 
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        classLoaderLease.getOrResolveClassLoader(
-                Collections.singletonList(missingKey), Collections.emptyList());
-        });
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.singletonList(missingKey), Collections.emptyList());
+                });
     }
 
     @Test
     public void getOrResolveClassLoader_closedLease_shouldFail() throws IOException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        classLoaderLease.release();
+                    classLoaderLease.release();
 
-        classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
-        });
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.emptyList(), Collections.emptyList());
+                });
     }
 
     @Test
@@ -508,16 +511,20 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
     @Test
     public void closingLibraryCacheManager_invalidatesAllOpenLeases() throws IOException {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-                    final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        libraryCacheManager.shutdown();
+                    libraryCacheManager.shutdown();
 
-        classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
-        });
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.emptyList(), Collections.emptyList());
+                });
     }
 
     @Test

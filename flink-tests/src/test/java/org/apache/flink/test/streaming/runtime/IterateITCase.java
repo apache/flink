@@ -52,6 +52,11 @@ import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.OutputTag;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,9 +65,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for streaming iterations. */
 @SuppressWarnings({"unchecked", "unused", "serial"})
@@ -76,16 +81,18 @@ public class IterateITCase extends AbstractTestBase {
 
     @Test
     public void testIncorrectParallelism() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    DataStream<Integer> source = env.fromElements(1, 10);
 
-        DataStream<Integer> source = env.fromElements(1, 10);
-
-        IterativeStream<Integer> iter1 = source.iterate();
-        SingleOutputStreamOperator<Integer> map1 = iter1.map(noOpIntMap);
-        iter1.closeWith(map1).print();
-        });
+                    IterativeStream<Integer> iter1 = source.iterate();
+                    SingleOutputStreamOperator<Integer> map1 = iter1.map(noOpIntMap);
+                    iter1.closeWith(map1).print();
+                });
     }
 
     @Test
@@ -104,88 +111,102 @@ public class IterateITCase extends AbstractTestBase {
 
     @Test
     public void testDifferingParallelism() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    // introduce dummy mapper to get to correct parallelism
+                    DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
 
-        // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+                    IterativeStream<Integer> iter1 = source.iterate();
 
-        IterativeStream<Integer> iter1 = source.iterate();
-
-        iter1.closeWith(iter1.map(noOpIntMap).setParallelism(parallelism / 2));
-        });
+                    iter1.closeWith(iter1.map(noOpIntMap).setParallelism(parallelism / 2));
+                });
     }
 
     @Test
     public void testCoDifferingParallelism() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    // introduce dummy mapper to get to correct parallelism
+                    DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
 
-        // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+                    ConnectedIterativeStreams<Integer, Integer> coIter =
+                            source.iterate().withFeedbackType(Integer.class);
 
-        ConnectedIterativeStreams<Integer, Integer> coIter =
-                source.iterate().withFeedbackType(Integer.class);
-
-        coIter.closeWith(coIter.map(noOpIntCoMap).setParallelism(parallelism / 2));
-        });
+                    coIter.closeWith(coIter.map(noOpIntCoMap).setParallelism(parallelism / 2));
+                });
     }
 
     @Test
     public void testClosingFromOutOfLoop() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
 
-        // this test verifies that we cannot close an iteration with a DataStream that does not
-        // have the iteration in its predecessors
+                    // this test verifies that we cannot close an iteration with a DataStream that
+                    // does not
+                    // have the iteration in its predecessors
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+                    // introduce dummy mapper to get to correct parallelism
+                    DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
 
-        IterativeStream<Integer> iter1 = source.iterate();
-        IterativeStream<Integer> iter2 = source.iterate();
+                    IterativeStream<Integer> iter1 = source.iterate();
+                    IterativeStream<Integer> iter2 = source.iterate();
 
-        iter2.closeWith(iter1.map(noOpIntMap));
-        });
+                    iter2.closeWith(iter1.map(noOpIntMap));
+                });
     }
 
     @Test
     public void testCoIterClosingFromOutOfLoop() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
 
-        // this test verifies that we cannot close an iteration with a DataStream that does not
-        // have the iteration in its predecessors
+                    // this test verifies that we cannot close an iteration with a DataStream that
+                    // does not
+                    // have the iteration in its predecessors
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // introduce dummy mapper to get to correct parallelism
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+                    // introduce dummy mapper to get to correct parallelism
+                    DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
 
-        IterativeStream<Integer> iter1 = source.iterate();
-        ConnectedIterativeStreams<Integer, Integer> coIter =
-                source.iterate().withFeedbackType(Integer.class);
+                    IterativeStream<Integer> iter1 = source.iterate();
+                    ConnectedIterativeStreams<Integer, Integer> coIter =
+                            source.iterate().withFeedbackType(Integer.class);
 
-        coIter.closeWith(iter1.map(noOpIntMap));
-        });
+                    coIter.closeWith(iter1.map(noOpIntMap));
+                });
     }
 
     @Test
     public void testExecutionWithEmptyIteration() throws Exception {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+                    DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
 
-        DataStream<Integer> source = env.fromElements(1, 10).map(noOpIntMap);
+                    IterativeStream<Integer> iter1 = source.iterate();
 
-        IterativeStream<Integer> iter1 = source.iterate();
+                    iter1.map(noOpIntMap).print();
 
-        iter1.map(noOpIntMap).print();
-
-        env.execute();
-        });
+                    env.execute();
+                });
     }
 
     @Test

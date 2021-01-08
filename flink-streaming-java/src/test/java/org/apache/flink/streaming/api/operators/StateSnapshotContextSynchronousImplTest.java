@@ -28,14 +28,18 @@ import org.apache.flink.runtime.state.StateSnapshotContextSynchronousImpl;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Closeable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -65,13 +69,13 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
     @Test
     public void testCreateRawKeyedStateOutput() throws Exception {
         KeyedStateCheckpointOutputStream stream = snapshotContext.getRawKeyedOperatorStateOutput();
-        Assert.assertNotNull(stream);
+        Assertions.assertNotNull(stream);
     }
 
     @Test
     public void testCreateRawOperatorStateOutput() throws Exception {
         OperatorStateCheckpointOutputStream stream = snapshotContext.getRawOperatorStateOutput();
-        Assert.assertNotNull(stream);
+        Assertions.assertNotNull(stream);
     }
 
     /**

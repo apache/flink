@@ -30,11 +30,14 @@ import org.apache.flink.runtime.io.network.util.TestProducerSource;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionConsumer;
 import org.apache.flink.runtime.io.network.util.TestSubpartitionProducer;
 import org.apache.flink.util.function.CheckedSupplier;
-
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
@@ -43,15 +46,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Tests for {@link PipelinedSubpartition}.
@@ -267,10 +263,10 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
             }
         }
         if (!buffer1Recycled) {
-            Assert.fail("buffer 1 not recycled");
+            Assertions.fail("buffer 1 not recycled");
         }
         if (!buffer2Recycled) {
-            Assert.fail("buffer 2 not recycled");
+            Assertions.fail("buffer 2 not recycled");
         }
         assertEquals(2, partition.getTotalNumberOfBuffers());
         assertEquals(0, partition.getTotalNumberOfBytes()); // buffer data is never consumed

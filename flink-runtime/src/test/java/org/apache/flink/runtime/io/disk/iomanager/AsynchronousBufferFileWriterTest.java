@@ -25,10 +25,14 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
@@ -39,9 +43,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link AsynchronousBufferFileWriter}. */
@@ -98,7 +99,7 @@ public class AsynchronousBufferFileWriterTest {
         } finally {
             if (!buffer.isRecycled()) {
                 buffer.recycleBuffer();
-                Assert.fail("buffer not recycled");
+                Assertions.fail("buffer not recycled");
             }
             assertEquals(
                     "Shouln't increment number of outstanding requests.",
@@ -215,7 +216,7 @@ public class AsynchronousBufferFileWriterTest {
                     }
                 } catch (Throwable t) {
                     System.out.println(i);
-                    Assert.fail(t.getMessage());
+                    Assertions.fail(t.getMessage());
                 }
             }
         } finally {

@@ -33,7 +33,7 @@ import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryN
 import org.apache.flink.table.utils.{CatalogManagerMocks, PlannerMock, StreamTableTestUtil, TableTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 

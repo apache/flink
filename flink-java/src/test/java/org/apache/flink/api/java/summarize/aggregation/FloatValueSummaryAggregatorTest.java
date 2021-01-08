@@ -20,8 +20,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 
 import org.apache.flink.api.java.summarize.NumericColumnSummary;
 import org.apache.flink.types.FloatValue;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 /** Tests for {@link ValueSummaryAggregator.FloatValueSummaryAggregator}. */
 public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest {
@@ -50,11 +49,11 @@ public class FloatValueSummaryAggregatorTest extends FloatSummaryAggregatorTest 
             @Override
             protected void compareResults(
                     NumericColumnSummary<Float> result1, NumericColumnSummary<Float> result2) {
-                Assert.assertEquals(result1.getMin(), result2.getMin(), 0.0f);
-                Assert.assertEquals(result1.getMax(), result2.getMax(), 0.0f);
-                Assert.assertEquals(result1.getMean(), result2.getMean(), 1e-10d);
-                Assert.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
-                Assert.assertEquals(
+                Assertions.assertEquals(result1.getMin(), result2.getMin(), 0.0f);
+                Assertions.assertEquals(result1.getMax(), result2.getMax(), 0.0f);
+                Assertions.assertEquals(result1.getMean(), result2.getMean(), 1e-10d);
+                Assertions.assertEquals(result1.getVariance(), result2.getVariance(), 1e-9d);
+                Assertions.assertEquals(
                         result1.getStandardDeviation(), result2.getStandardDeviation(), 1e-10d);
             }
         }.summarize(floatValues);

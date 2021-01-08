@@ -27,6 +27,11 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -113,7 +118,7 @@ public class BlobClientSslTest extends BlobClientTest {
     /** Verify ssl client to non-ssl server failure. */
     @Test
     public void testSSLClientFailure() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     // SSL client connected to non-ssl server
         uploadJarFile(blobServer, sslClientConfig);
         });
@@ -122,7 +127,7 @@ public class BlobClientSslTest extends BlobClientTest {
     /** Verify ssl client to non-ssl server failure. */
     @Test
     public void testSSLClientFailure2() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     // SSL client connected to non-ssl server
         uploadJarFile(blobNonSslServer, sslClientConfig);
         });
@@ -131,7 +136,7 @@ public class BlobClientSslTest extends BlobClientTest {
     /** Verify non-ssl client to ssl server failure. */
     @Test
     public void testSSLServerFailure() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, clientConfig);
         });
@@ -140,7 +145,7 @@ public class BlobClientSslTest extends BlobClientTest {
     /** Verify non-ssl client to ssl server failure. */
     @Test
     public void testSSLServerFailure2() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(IOException.class, () -> {
                     // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, nonSslClientConfig);
         });

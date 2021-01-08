@@ -33,8 +33,6 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.EvictingQueue;
 
-import org.junit.Assert;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
@@ -95,7 +93,8 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         // Checking the result of the built-in aggregate
         for (int i = 0; i < PARALLELISM; i++) {
             for (Long value : MinEvictingQueueSink.queues[i]) {
-                Assert.assertTrue("Value different from 1 found, was " + value + ".", value == 1);
+                Assertions.assertTrue(
+                        "Value different from 1 found, was " + value + ".", value == 1);
             }
         }
 
@@ -106,7 +105,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
             while (!SumEvictingQueueSink.queues[i].isEmpty()) {
                 sum += ++prevCount;
                 Long value = SumEvictingQueueSink.queues[i].remove();
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         "Unexpected reduce value " + value + " instead of " + sum + ".",
                         value == sum);
             }

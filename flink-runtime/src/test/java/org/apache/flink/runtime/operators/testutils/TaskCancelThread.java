@@ -20,8 +20,7 @@ package org.apache.flink.runtime.operators.testutils;
 
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.util.ExceptionUtils;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 public class TaskCancelThread extends Thread {
 
@@ -52,7 +51,7 @@ public class TaskCancelThread extends Thread {
         try {
             Thread.sleep(this.cancelTimeout * 1000);
         } catch (InterruptedException e) {
-            Assert.fail("CancelThread interruped while waiting for cancel timeout");
+            Assertions.fail("CancelThread interruped while waiting for cancel timeout");
         }
 
         try {
@@ -65,7 +64,7 @@ public class TaskCancelThread extends Thread {
 
             this.interruptedThread.interrupt();
         } catch (Exception e) {
-            Assert.fail("Canceling task failed: " + ExceptionUtils.stringifyException(e));
+            Assertions.fail("Canceling task failed: " + ExceptionUtils.stringifyException(e));
         }
     }
 }

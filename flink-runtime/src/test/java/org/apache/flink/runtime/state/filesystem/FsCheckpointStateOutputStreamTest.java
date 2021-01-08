@@ -27,42 +27,32 @@ import org.apache.flink.runtime.state.CheckpointStreamFactory.CheckpointStateOut
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-
-import org.junit.Assert;
 import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /** Tests for the {@link FsCheckpointStateOutputStream}. */
 @RunWith(Parameterized.class)
@@ -79,15 +69,17 @@ public class FsCheckpointStateOutputStreamTest {
 
     @Test
     public void testWrongParameters() throws Exception {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     // this should fail
-        new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                Path.fromLocalFile(tempDir.newFolder()),
-                FileSystem.getLocalFileSystem(),
-                4000,
-                5000,
-                relativePaths);
-        });
+                    new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+                            Path.fromLocalFile(tempDir.newFolder()),
+                            FileSystem.getLocalFileSystem(),
+                            4000,
+                            5000,
+                            relativePaths);
+                });
     }
 
     @Test
@@ -135,7 +127,7 @@ public class FsCheckpointStateOutputStreamTest {
                         relativePaths);
 
         for (int i = 0; i < 64; ++i) {
-            Assert.assertEquals(i, stream.getPos());
+            Assertions.assertEquals(i, stream.getPos());
             stream.write(0x42);
         }
 
@@ -154,7 +146,7 @@ public class FsCheckpointStateOutputStreamTest {
         byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
         for (int i = 0; i < 7; ++i) {
-            Assert.assertEquals(i * (1 + data.length), stream.getPos());
+            Assertions.assertEquals(i * (1 + data.length), stream.getPos());
             stream.write(0x42);
             stream.write(data);
         }
@@ -426,7 +418,7 @@ public class FsCheckpointStateOutputStreamTest {
         URI uri = path.toUri();
         if ("file".equals(uri.getScheme())) {
             File file = new File(uri.getPath());
-            assertFalse("file not properly deleted", file.exists());
+            assertFalse(file.exists(), "file not properly deleted");
         } else {
             throw new IllegalArgumentException("not a local path");
         }

@@ -143,7 +143,7 @@ class JoinTest extends TableTestBase {
 
   @Test
   def testFullJoinNoEquiJoinPredicate(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val util = batchTestUtil()
     val ds1 = util.addTableSource[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTableSource[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)

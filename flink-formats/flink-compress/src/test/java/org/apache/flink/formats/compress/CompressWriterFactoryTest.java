@@ -35,6 +35,11 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
@@ -46,9 +51,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link CompressWriterFactory}. */
 public class CompressWriterFactoryTest extends TestLogger {
@@ -106,9 +111,11 @@ public class CompressWriterFactoryTest extends TestLogger {
 
     @Test
     public void testCompressFailureWithUnknownCodec() throws Exception {
-        Assertions.assertThrows(IOException.class, () -> {
+        assertThrows(
+                IOException.class,
+                () -> {
                     testCompressByName("com.bla.bla.UnknownCodec");
-        });
+                });
     }
 
     @Test

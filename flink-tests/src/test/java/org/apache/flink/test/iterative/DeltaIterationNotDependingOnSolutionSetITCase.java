@@ -30,8 +30,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test delta iterations that do not join with the solution set. */
 @SuppressWarnings("serial")

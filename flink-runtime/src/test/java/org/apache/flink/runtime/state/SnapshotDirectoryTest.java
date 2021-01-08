@@ -22,9 +22,13 @@ import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -57,17 +61,17 @@ public class SnapshotDirectoryTest extends TestLogger {
         File innerNewFolder = new File(newFolder, String.valueOf(UUID.randomUUID()));
         Path path = innerNewFolder.toPath();
 
-        Assert.assertFalse(newFolder.isDirectory());
-        Assert.assertFalse(innerNewFolder.isDirectory());
+        Assertions.assertFalse(newFolder.isDirectory());
+        Assertions.assertFalse(innerNewFolder.isDirectory());
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
-        Assert.assertFalse(snapshotDirectory.exists());
-        Assert.assertFalse(newFolder.isDirectory());
-        Assert.assertFalse(innerNewFolder.isDirectory());
+        Assertions.assertFalse(snapshotDirectory.exists());
+        Assertions.assertFalse(newFolder.isDirectory());
+        Assertions.assertFalse(innerNewFolder.isDirectory());
 
-        Assert.assertTrue(snapshotDirectory.mkdirs());
-        Assert.assertTrue(newFolder.isDirectory());
-        Assert.assertTrue(innerNewFolder.isDirectory());
-        Assert.assertTrue(snapshotDirectory.exists());
+        Assertions.assertTrue(snapshotDirectory.mkdirs());
+        Assertions.assertTrue(newFolder.isDirectory());
+        Assertions.assertTrue(innerNewFolder.isDirectory());
+        Assertions.assertTrue(snapshotDirectory.exists());
     }
 
     /** Tests if indication of directory existence works. */
@@ -76,14 +80,14 @@ public class SnapshotDirectoryTest extends TestLogger {
         File folderRoot = temporaryFolder.getRoot();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
 
-        Assert.assertFalse(folderA.isDirectory());
+        Assertions.assertFalse(folderA.isDirectory());
         Path path = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
-        Assert.assertFalse(snapshotDirectory.exists());
-        Assert.assertTrue(folderA.mkdirs());
-        Assert.assertTrue(snapshotDirectory.exists());
-        Assert.assertTrue(folderA.delete());
-        Assert.assertFalse(snapshotDirectory.exists());
+        Assertions.assertFalse(snapshotDirectory.exists());
+        Assertions.assertTrue(folderA.mkdirs());
+        Assertions.assertTrue(snapshotDirectory.exists());
+        Assertions.assertTrue(folderA.delete());
+        Assertions.assertFalse(snapshotDirectory.exists());
     }
 
     /** Tests listing of file statuses works like listing on the path directly. */
@@ -92,15 +96,15 @@ public class SnapshotDirectoryTest extends TestLogger {
         File folderRoot = temporaryFolder.getRoot();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
         File folderB = new File(folderA, String.valueOf(UUID.randomUUID()));
-        Assert.assertTrue(folderB.mkdirs());
+        Assertions.assertTrue(folderB.mkdirs());
         File file = new File(folderA, "test.txt");
-        Assert.assertTrue(file.createNewFile());
+        Assertions.assertTrue(file.createNewFile());
 
         Path path = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(path);
-        Assert.assertTrue(snapshotDirectory.exists());
+        Assertions.assertTrue(snapshotDirectory.exists());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Arrays.toString(FileUtils.listDirectory(path)),
                 Arrays.toString(snapshotDirectory.listDirectory()));
     }
@@ -113,26 +117,26 @@ public class SnapshotDirectoryTest extends TestLogger {
     public void completeSnapshotAndGetHandle() throws Exception {
         File folderRoot = temporaryFolder.getRoot();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
-        Assert.assertTrue(folderA.mkdirs());
+        Assertions.assertTrue(folderA.mkdirs());
         Path folderAPath = folderA.toPath();
 
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
 
         // check that completed checkpoint dirs are not deleted as incomplete.
         DirectoryStateHandle handle = snapshotDirectory.completeSnapshotAndGetHandle();
-        Assert.assertNotNull(handle);
-        Assert.assertTrue(snapshotDirectory.cleanup());
-        Assert.assertTrue(folderA.isDirectory());
-        Assert.assertEquals(folderAPath, handle.getDirectory());
+        Assertions.assertNotNull(handle);
+        Assertions.assertTrue(snapshotDirectory.cleanup());
+        Assertions.assertTrue(folderA.isDirectory());
+        Assertions.assertEquals(folderAPath, handle.getDirectory());
         handle.discardState();
 
-        Assert.assertFalse(folderA.isDirectory());
-        Assert.assertTrue(folderA.mkdirs());
+        Assertions.assertFalse(folderA.isDirectory());
+        Assertions.assertTrue(folderA.mkdirs());
         snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
-        Assert.assertTrue(snapshotDirectory.cleanup());
+        Assertions.assertTrue(snapshotDirectory.cleanup());
         try {
             snapshotDirectory.completeSnapshotAndGetHandle();
-            Assert.fail();
+            Assertions.fail();
         } catch (IOException ignore) {
         }
     }
@@ -146,20 +150,20 @@ public class SnapshotDirectoryTest extends TestLogger {
         File folderRoot = temporaryFolder.getRoot();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
         File folderB = new File(folderA, String.valueOf(UUID.randomUUID()));
-        Assert.assertTrue(folderB.mkdirs());
+        Assertions.assertTrue(folderB.mkdirs());
         File file = new File(folderA, "test.txt");
-        Assert.assertTrue(file.createNewFile());
+        Assertions.assertTrue(file.createNewFile());
         Path folderAPath = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
-        Assert.assertTrue(snapshotDirectory.cleanup());
-        Assert.assertFalse(folderA.isDirectory());
-        Assert.assertTrue(folderA.mkdirs());
-        Assert.assertTrue(file.createNewFile());
+        Assertions.assertTrue(snapshotDirectory.cleanup());
+        Assertions.assertFalse(folderA.isDirectory());
+        Assertions.assertTrue(folderA.mkdirs());
+        Assertions.assertTrue(file.createNewFile());
         snapshotDirectory = SnapshotDirectory.permanent(folderAPath);
         snapshotDirectory.completeSnapshotAndGetHandle();
-        Assert.assertTrue(snapshotDirectory.cleanup());
-        Assert.assertTrue(folderA.isDirectory());
-        Assert.assertTrue(file.exists());
+        Assertions.assertTrue(snapshotDirectory.cleanup());
+        Assertions.assertTrue(folderA.isDirectory());
+        Assertions.assertTrue(file.exists());
     }
 
     /**
@@ -170,16 +174,16 @@ public class SnapshotDirectoryTest extends TestLogger {
     public void isSnapshotOngoing() throws Exception {
         File folderRoot = temporaryFolder.getRoot();
         File folderA = new File(folderRoot, String.valueOf(UUID.randomUUID()));
-        Assert.assertTrue(folderA.mkdirs());
+        Assertions.assertTrue(folderA.mkdirs());
         Path pathA = folderA.toPath();
         SnapshotDirectory snapshotDirectory = SnapshotDirectory.permanent(pathA);
-        Assert.assertFalse(snapshotDirectory.isSnapshotCompleted());
-        Assert.assertNotNull(snapshotDirectory.completeSnapshotAndGetHandle());
-        Assert.assertTrue(snapshotDirectory.isSnapshotCompleted());
+        Assertions.assertFalse(snapshotDirectory.isSnapshotCompleted());
+        Assertions.assertNotNull(snapshotDirectory.completeSnapshotAndGetHandle());
+        Assertions.assertTrue(snapshotDirectory.isSnapshotCompleted());
         snapshotDirectory = SnapshotDirectory.permanent(pathA);
-        Assert.assertFalse(snapshotDirectory.isSnapshotCompleted());
+        Assertions.assertFalse(snapshotDirectory.isSnapshotCompleted());
         snapshotDirectory.cleanup();
-        Assert.assertFalse(snapshotDirectory.isSnapshotCompleted());
+        Assertions.assertFalse(snapshotDirectory.isSnapshotCompleted());
     }
 
     /** Tests that temporary directories have the right behavior on completion and deletion. */
@@ -187,12 +191,12 @@ public class SnapshotDirectoryTest extends TestLogger {
     public void temporary() throws Exception {
         File folderRoot = temporaryFolder.getRoot();
         File folder = new File(folderRoot, String.valueOf(UUID.randomUUID()));
-        Assert.assertTrue(folder.mkdirs());
+        Assertions.assertTrue(folder.mkdirs());
         SnapshotDirectory tmpSnapshotDirectory = SnapshotDirectory.temporary(folder);
         // temporary snapshot directories should not return a handle, because they will be deleted.
-        Assert.assertNull(tmpSnapshotDirectory.completeSnapshotAndGetHandle());
+        Assertions.assertNull(tmpSnapshotDirectory.completeSnapshotAndGetHandle());
         // check that the directory is deleted even after we called #completeSnapshotAndGetHandle.
-        Assert.assertTrue(tmpSnapshotDirectory.cleanup());
-        Assert.assertFalse(folder.exists());
+        Assertions.assertTrue(tmpSnapshotDirectory.cleanup());
+        Assertions.assertFalse(folder.exists());
     }
 }

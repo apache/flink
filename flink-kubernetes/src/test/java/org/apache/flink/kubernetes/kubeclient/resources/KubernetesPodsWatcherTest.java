@@ -18,22 +18,25 @@
 
 package org.apache.flink.kubernetes.kubeclient.resources;
 
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.Watcher;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.util.TestLogger;
-
-import io.fabric8.kubernetes.client.KubernetesClientException;
-import io.fabric8.kubernetes.client.Watcher;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link KubernetesPodsWatcher}. */
 public class KubernetesPodsWatcherTest extends TestLogger {
@@ -47,7 +50,7 @@ public class KubernetesPodsWatcherTest extends TestLogger {
     public void testClosingWithNullException() {
         final KubernetesPodsWatcher podsWatcher =
                 new KubernetesPodsWatcher(
-                        new TestingCallbackHandler(e -> Assert.fail("Should not reach here.")));
+                        new TestingCallbackHandler(e -> Assertions.fail("Should not reach here.")));
         podsWatcher.onClose(null);
     }
 

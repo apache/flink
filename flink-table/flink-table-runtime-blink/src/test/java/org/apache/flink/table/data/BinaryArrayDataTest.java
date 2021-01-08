@@ -35,9 +35,12 @@ import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
@@ -45,9 +48,7 @@ import java.time.LocalDateTime;
 
 import static org.apache.flink.table.data.StringData.fromString;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Test of {@link BinaryArrayData} and {@link BinaryArrayWriter}. */
 public class BinaryArrayDataTest {
@@ -522,8 +523,8 @@ public class BinaryArrayDataTest {
         writer.writeBinary(1, bytes2);
         writer.complete();
 
-        Assert.assertArrayEquals(bytes1, array.getBinary(0));
-        Assert.assertArrayEquals(bytes2, array.getBinary(1));
+        Assertions.assertArrayEquals(bytes1, array.getBinary(0));
+        Assertions.assertArrayEquals(bytes2, array.getBinary(1));
     }
 
     @Test

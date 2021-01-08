@@ -19,9 +19,9 @@ package org.apache.flink.api.scala.io
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.java.io.CollectionInputFormat
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.core.io.GenericInputSplit
 import org.junit.jupiter.api.Test

@@ -26,10 +26,13 @@ import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.GenericMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
-
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.math.BigInteger;
@@ -71,14 +74,14 @@ public class RocksDBNativeMetricMonitorTest {
         ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);
         monitor.registerColumnFamily(COLUMN_FAMILY_NAME, handle);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Failed to register metrics for column family", 1, registry.metrics.size());
 
         RocksDBNativeMetricMonitor.RocksDBNativeMetricView view = registry.metrics.get(0);
 
         view.update();
 
-        Assert.assertNotEquals(
+        Assertions.assertNotEquals(
                 "Failed to pull metric from RocksDB", BigInteger.ZERO, view.getValue());
 
         view.setValue(0L);
@@ -91,7 +94,7 @@ public class RocksDBNativeMetricMonitorTest {
 
         view.update();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Failed to release RocksDB reference", BigInteger.ZERO, view.getValue());
     }
 
@@ -122,7 +125,7 @@ public class RocksDBNativeMetricMonitorTest {
 
         localRocksDBResource.after();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "Failed to interpret RocksDB result as an unsigned long", 1, result.signum());
     }
 
@@ -149,7 +152,8 @@ public class RocksDBNativeMetricMonitorTest {
         view.close();
         view.update();
 
-        Assert.assertEquals("Closed gauge still queried RocksDB", BigInteger.ZERO, view.getValue());
+        Assertions.assertEquals(
+                "Closed gauge still queried RocksDB", BigInteger.ZERO, view.getValue());
     }
 
     static class SimpleMetricRegistry implements MetricRegistry {

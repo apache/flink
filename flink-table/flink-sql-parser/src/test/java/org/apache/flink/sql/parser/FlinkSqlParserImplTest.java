@@ -31,9 +31,14 @@ import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** FlinkSqlParserImpl tests. * */
 public class FlinkSqlParserImplTest extends SqlParserTest {
@@ -923,13 +928,15 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 
     @Test
     public void testInsertExtendedColumnAsStaticPartition2() {
-        Assertions.assertThrows(SqlParseException.class, () -> {
+        assertThrows(
+                SqlParseException.class,
+                () -> {
                     sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
-                .node(
-                        new ValidationMatcher()
-                                .fails(
-                                        "Extended columns not allowed under the current SQL conformance level"));
-        });
+                            .node(
+                                    new ValidationMatcher()
+                                            .fails(
+                                                    "Extended columns not allowed under the current SQL conformance level"));
+                });
     }
 
     @Test

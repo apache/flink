@@ -30,7 +30,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
 
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.jupiter.api.Assertions.{assertEquals, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -130,7 +130,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testUdfWithWrongCatalog(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 testUdf("wrong_catalog.default_database.")
   }
 
@@ -843,7 +843,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
 
   @Test
   def testDropTableWithInvalidPath(): Unit = {
-        Assertions.assertThrows(classOf[ValidationException], () -> {
+        assertThrows(classOf[ValidationException], () -> {
                 val ddl1 =
       """
         |create table t1(

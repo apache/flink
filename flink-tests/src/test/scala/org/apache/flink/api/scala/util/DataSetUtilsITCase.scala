@@ -42,10 +42,10 @@ class DataSetUtilsITCase (
 
     val result = numbers.zipWithIndex.collect()
 
-    Assert.assertEquals(expectedSize, result.size)
+    Assertions.assertEquals(expectedSize, result.size)
 
     for( ((index, _), expected) <- result.sortBy(_._1).zipWithIndex) {
-      Assert.assertEquals(expected, index)
+      Assertions.assertEquals(expected, index)
     }
   }
 
@@ -60,7 +60,7 @@ class DataSetUtilsITCase (
 
     val result = numbers.zipWithUniqueId.collect().map(_._1).toSet
 
-    Assert.assertEquals(expectedSize, result.size)
+    Assertions.assertEquals(expectedSize, result.size)
   }
 
   @Test
@@ -70,8 +70,8 @@ class DataSetUtilsITCase (
     val ds = CollectionDataSets.getIntDataSet(env)
 
     val checksum: ChecksumHashCode = ds.checksumHashCode()
-    Assert.assertEquals(checksum.getCount, 15)
-    Assert.assertEquals(checksum.getChecksum, 55)
+    Assertions.assertEquals(checksum.getCount, 15)
+    Assertions.assertEquals(checksum.getChecksum, 55)
   }
 
   @Test
@@ -85,7 +85,7 @@ class DataSetUtilsITCase (
 
     val ds = numbers.countElementsPerPartition
 
-    Assert.assertEquals(env.getParallelism, ds.collect().size)
-    Assert.assertEquals(expectedSize, ds.sum(1).collect().head._2)
+    Assertions.assertEquals(env.getParallelism, ds.collect().size)
+    Assertions.assertEquals(expectedSize, ds.sum(1).collect().head._2)
   }
 }

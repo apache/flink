@@ -19,9 +19,13 @@
 
 package org.apache.flink.ml.common.linalg;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test cases for {@link MatVecOp}. */
 public class MatVecOpTest {
@@ -41,18 +45,18 @@ public class MatVecOpTest {
         Vector plusResult2 = MatVecOp.plus(sv, dv);
         Vector plusResult3 = MatVecOp.plus(sv, sv);
         Vector plusResult4 = MatVecOp.plus(dv, dv);
-        Assert.assertTrue(plusResult1 instanceof DenseVector);
-        Assert.assertTrue(plusResult2 instanceof DenseVector);
-        Assert.assertTrue(plusResult3 instanceof SparseVector);
-        Assert.assertTrue(plusResult4 instanceof DenseVector);
-        Assert.assertArrayEquals(
+        Assertions.assertTrue(plusResult1 instanceof DenseVector);
+        Assertions.assertTrue(plusResult2 instanceof DenseVector);
+        Assertions.assertTrue(plusResult3 instanceof SparseVector);
+        Assertions.assertTrue(plusResult4 instanceof DenseVector);
+        Assertions.assertArrayEquals(
                 ((DenseVector) plusResult1).getData(), new double[] {2, 2, 4, 4}, TOL);
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 ((DenseVector) plusResult2).getData(), new double[] {2, 2, 4, 4}, TOL);
-        Assert.assertArrayEquals(((SparseVector) plusResult3).getIndices(), new int[] {0, 2});
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(((SparseVector) plusResult3).getIndices(), new int[] {0, 2});
+        Assertions.assertArrayEquals(
                 ((SparseVector) plusResult3).getValues(), new double[] {2., 2.}, TOL);
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 ((DenseVector) plusResult4).getData(), new double[] {2, 4, 6, 8}, TOL);
     }
 
@@ -62,42 +66,42 @@ public class MatVecOpTest {
         Vector minusResult2 = MatVecOp.minus(sv, dv);
         Vector minusResult3 = MatVecOp.minus(sv, sv);
         Vector minusResult4 = MatVecOp.minus(dv, dv);
-        Assert.assertTrue(minusResult1 instanceof DenseVector);
-        Assert.assertTrue(minusResult2 instanceof DenseVector);
-        Assert.assertTrue(minusResult3 instanceof SparseVector);
-        Assert.assertTrue(minusResult4 instanceof DenseVector);
-        Assert.assertArrayEquals(
+        Assertions.assertTrue(minusResult1 instanceof DenseVector);
+        Assertions.assertTrue(minusResult2 instanceof DenseVector);
+        Assertions.assertTrue(minusResult3 instanceof SparseVector);
+        Assertions.assertTrue(minusResult4 instanceof DenseVector);
+        Assertions.assertArrayEquals(
                 ((DenseVector) minusResult1).getData(), new double[] {0, 2, 2, 4}, TOL);
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 ((DenseVector) minusResult2).getData(), new double[] {0, -2, -2, -4}, TOL);
-        Assert.assertArrayEquals(((SparseVector) minusResult3).getIndices(), new int[] {0, 2});
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(((SparseVector) minusResult3).getIndices(), new int[] {0, 2});
+        Assertions.assertArrayEquals(
                 ((SparseVector) minusResult3).getValues(), new double[] {0., 0.}, TOL);
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 ((DenseVector) minusResult4).getData(), new double[] {0, 0, 0, 0}, TOL);
     }
 
     @Test
     public void testDot() throws Exception {
-        Assert.assertEquals(MatVecOp.dot(dv, sv), 4.0, TOL);
-        Assert.assertEquals(MatVecOp.dot(sv, dv), 4.0, TOL);
-        Assert.assertEquals(MatVecOp.dot(sv, sv), 2.0, TOL);
-        Assert.assertEquals(MatVecOp.dot(dv, dv), 30.0, TOL);
+        Assertions.assertEquals(MatVecOp.dot(dv, sv), 4.0, TOL);
+        Assertions.assertEquals(MatVecOp.dot(sv, dv), 4.0, TOL);
+        Assertions.assertEquals(MatVecOp.dot(sv, sv), 2.0, TOL);
+        Assertions.assertEquals(MatVecOp.dot(dv, dv), 30.0, TOL);
     }
 
     @Test
     public void testSumAbsDiff() throws Exception {
-        Assert.assertEquals(MatVecOp.sumAbsDiff(dv, sv), 8.0, TOL);
-        Assert.assertEquals(MatVecOp.sumAbsDiff(sv, dv), 8.0, TOL);
-        Assert.assertEquals(MatVecOp.sumAbsDiff(sv, sv), 0.0, TOL);
-        Assert.assertEquals(MatVecOp.sumAbsDiff(dv, dv), 0.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumAbsDiff(dv, sv), 8.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumAbsDiff(sv, dv), 8.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumAbsDiff(sv, sv), 0.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumAbsDiff(dv, dv), 0.0, TOL);
     }
 
     @Test
     public void testSumSquaredDiff() throws Exception {
-        Assert.assertEquals(MatVecOp.sumSquaredDiff(dv, sv), 24.0, TOL);
-        Assert.assertEquals(MatVecOp.sumSquaredDiff(sv, dv), 24.0, TOL);
-        Assert.assertEquals(MatVecOp.sumSquaredDiff(sv, sv), 0.0, TOL);
-        Assert.assertEquals(MatVecOp.sumSquaredDiff(dv, dv), 0.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumSquaredDiff(dv, sv), 24.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumSquaredDiff(sv, dv), 24.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumSquaredDiff(sv, sv), 0.0, TOL);
+        Assertions.assertEquals(MatVecOp.sumSquaredDiff(dv, dv), 0.0, TOL);
     }
 }

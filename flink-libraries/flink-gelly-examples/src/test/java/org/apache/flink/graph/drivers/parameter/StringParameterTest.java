@@ -19,11 +19,14 @@
 package org.apache.flink.graph.drivers.parameter;
 
 import org.apache.flink.api.java.utils.ParameterTool;
-
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link StringParameter}. */
@@ -43,32 +46,32 @@ public class StringParameterTest extends ParameterTestBase {
     @Test
     public void testWithDefaultWithParameter() {
         parameter.setDefaultValue("Flink");
-        Assert.assertEquals("[--test TEST]", parameter.getUsage());
+        Assertions.assertEquals("[--test TEST]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "Gelly"}));
-        Assert.assertEquals("Gelly", parameter.getValue());
+        Assertions.assertEquals("Gelly", parameter.getValue());
     }
 
     @Test
     public void testWithDefaultWithoutParameter() {
         parameter.setDefaultValue("Flink");
-        Assert.assertEquals("[--test TEST]", parameter.getUsage());
+        Assertions.assertEquals("[--test TEST]", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {}));
-        Assert.assertEquals("Flink", parameter.getValue());
+        Assertions.assertEquals("Flink", parameter.getValue());
     }
 
     @Test
     public void testWithoutDefaultWithParameter() {
-        Assert.assertEquals("--test TEST", parameter.getUsage());
+        Assertions.assertEquals("--test TEST", parameter.getUsage());
 
         parameter.configure(ParameterTool.fromArgs(new String[] {"--test", "Gelly"}));
-        Assert.assertEquals("Gelly", parameter.getValue());
+        Assertions.assertEquals("Gelly", parameter.getValue());
     }
 
     @Test
     public void testWithoutDefaultWithoutParameter() {
-        Assert.assertEquals("--test TEST", parameter.getUsage());
+        Assertions.assertEquals("--test TEST", parameter.getUsage());
 
         expectedException.expect(RuntimeException.class);
         expectedException.expectMessage("No data for required key 'test'");

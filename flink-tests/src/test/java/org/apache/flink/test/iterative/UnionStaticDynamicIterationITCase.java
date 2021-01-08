@@ -26,7 +26,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 
 import java.util.ArrayList;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test union between static and dynamic path in an iteration. */
 public class UnionStaticDynamicIterationITCase extends JavaProgramTestBase {

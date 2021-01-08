@@ -23,9 +23,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,16 +51,16 @@ public class OrderedStreamElementQueueTest extends TestLogger {
         putSuccessfully(queue, new Watermark(2L));
         ResultFuture<Integer> entry4 = putSuccessfully(queue, new StreamRecord<>(3, 3L));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(4, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(4, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         entry2.complete(Collections.singleton(11));
         entry4.complete(Collections.singleton(13));
 
-        Assert.assertEquals(Collections.emptyList(), popCompleted(queue));
-        Assert.assertEquals(4, queue.size());
-        Assert.assertFalse(queue.isEmpty());
+        Assertions.assertEquals(Collections.emptyList(), popCompleted(queue));
+        Assertions.assertEquals(4, queue.size());
+        Assertions.assertFalse(queue.isEmpty());
 
         entry1.complete(Collections.singleton(10));
 
@@ -67,8 +70,8 @@ public class OrderedStreamElementQueueTest extends TestLogger {
                         new StreamRecord<>(11, 1L),
                         new Watermark(2L),
                         new StreamRecord<>(13, 3L));
-        Assert.assertEquals(expected, popCompleted(queue));
-        Assert.assertEquals(0, queue.size());
-        Assert.assertTrue(queue.isEmpty());
+        Assertions.assertEquals(expected, popCompleted(queue));
+        Assertions.assertEquals(0, queue.size());
+        Assertions.assertTrue(queue.isEmpty());
     }
 }

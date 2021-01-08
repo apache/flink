@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.aggregate.GroupAggProcessFunction
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertTrue
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 import java.lang.{Integer => JInt}

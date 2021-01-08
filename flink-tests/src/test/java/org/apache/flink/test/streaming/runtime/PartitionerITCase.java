@@ -31,6 +31,11 @@ import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -43,8 +48,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.sort;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** IT case that tests the different stream partitioning schemes. */
 @SuppressWarnings("serial")
@@ -56,31 +61,37 @@ public class PartitionerITCase extends AbstractTestBase {
 
     @Test
     public void testForwardFailsLowToHighParallelism() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Integer> src = env.fromElements(1, 2, 3);
+                    DataStream<Integer> src = env.fromElements(1, 2, 3);
 
-        // this doesn't work because it goes from 1 to 3
-        src.forward().map(new NoOpIntMap());
+                    // this doesn't work because it goes from 1 to 3
+                    src.forward().map(new NoOpIntMap());
 
-        env.execute();
-        });
+                    env.execute();
+                });
     }
 
     @Test
     public void testForwardFailsHightToLowParallelism() throws Exception {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
 
-        // this does a rebalance that works
-        DataStream<Integer> src = env.fromElements(1, 2, 3).map(new NoOpIntMap());
+                    // this does a rebalance that works
+                    DataStream<Integer> src = env.fromElements(1, 2, 3).map(new NoOpIntMap());
 
-        // this doesn't work because it goes from 3 to 1
-        src.forward().map(new NoOpIntMap()).setParallelism(1);
+                    // this doesn't work because it goes from 3 to 1
+                    src.forward().map(new NoOpIntMap()).setParallelism(1);
 
-        env.execute();
-        });
+                    env.execute();
+                });
     }
 
     @Test

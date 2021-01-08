@@ -22,7 +22,7 @@ import java.util
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Keys
 import Keys.IncompatibleKeysException
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
@@ -43,13 +43,13 @@ class CoGroupOperatorTest {
       ds1.coGroup(ds2).where(0).equalTo(0)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testCoGroupKeyFields2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -110,13 +110,13 @@ class CoGroupOperatorTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testCoGroupKeyFieldNames2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -177,13 +177,13 @@ class CoGroupOperatorTest {
 
         });
     }catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testCoGroupKeyExpressions2(): Unit = {
-        Assertions.assertThrows(classOf[IncompatibleKeysException], () -> {
+        assertThrows(classOf[IncompatibleKeysException], () -> {
                 val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(customTypeData)
     val ds2 = env.fromCollection(customTypeData)
@@ -225,7 +225,7 @@ class CoGroupOperatorTest {
         });
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -240,7 +240,7 @@ class CoGroupOperatorTest {
       ds1.coGroup(ds2).where { _.myLong }.equalTo(3)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -255,7 +255,7 @@ class CoGroupOperatorTest {
       ds1.coGroup(ds2).where(3).equalTo { _.myLong }
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 

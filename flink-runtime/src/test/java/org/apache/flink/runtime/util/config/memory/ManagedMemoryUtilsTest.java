@@ -26,6 +26,11 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,8 +40,8 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link ManagedMemoryUtils}. */
 public class ManagedMemoryUtilsTest extends TestLogger {
@@ -137,20 +142,23 @@ public class ManagedMemoryUtilsTest extends TestLogger {
 
     @Test
     public void testGetWeightsFromConfigFailNegativeWeight() {
-        Assertions.assertThrows(IllegalConfigurationException.class, () -> {
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
                     final Configuration config =
-                new Configuration() {
-                    {
-                        set(
-                                TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
-                                Collections.singletonMap(
-                                        TaskManagerOptions.MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
-                                        "-123"));
-                    }
-                };
+                            new Configuration() {
+                                {
+                                    set(
+                                            TaskManagerOptions.MANAGED_MEMORY_CONSUMER_WEIGHTS,
+                                            Collections.singletonMap(
+                                                    TaskManagerOptions
+                                                            .MANAGED_MEMORY_CONSUMER_NAME_OPERATOR,
+                                                    "-123"));
+                                }
+                            };
 
-        ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
-        });
+                    ManagedMemoryUtils.getManagedMemoryUseCaseWeightsFromConfig(config);
+                });
     }
 
     @Test

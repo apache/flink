@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils._
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Rule, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

@@ -28,23 +28,20 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.TestUtils.MockLi
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
-
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -95,7 +92,7 @@ public class BucketsTest {
                 restoredBuckets.getActiveBuckets();
 
         // because we commit pending files for previous checkpoints upon recovery
-        Assert.assertTrue(activeBuckets.isEmpty());
+        Assertions.assertTrue(activeBuckets.isEmpty());
     }
 
     private static TypeSafeMatcher<Bucket<String, String>>
@@ -143,10 +140,10 @@ public class BucketsTest {
         bucketsOne.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 2L));
         bucketsOne.snapshotState(0L, bucketStateContainerOne, partCounterContainerOne);
 
-        Assert.assertEquals(1L, bucketsOne.getMaxPartCounter());
+        Assertions.assertEquals(1L, bucketsOne.getMaxPartCounter());
 
         // make sure we have one in-progress file here
-        Assert.assertNotNull(bucketsOne.getActiveBuckets().get("test1").getInProgressPart());
+        Assertions.assertNotNull(bucketsOne.getActiveBuckets().get("test1").getInProgressPart());
 
         // add a couple of in-progress files so that the part counter increases.
         bucketsTwo.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 2L));
@@ -156,17 +153,17 @@ public class BucketsTest {
 
         bucketsTwo.snapshotState(0L, bucketStateContainerTwo, partCounterContainerTwo);
 
-        Assert.assertEquals(2L, bucketsTwo.getMaxPartCounter());
+        Assertions.assertEquals(2L, bucketsTwo.getMaxPartCounter());
 
         // make sure we have one in-progress file here and a pending
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1L,
                 bucketsTwo
                         .getActiveBuckets()
                         .get("test1")
                         .getPendingFileRecoverablesPerCheckpoint()
                         .size());
-        Assert.assertNotNull(bucketsTwo.getActiveBuckets().get("test1").getInProgressPart());
+        Assertions.assertNotNull(bucketsTwo.getActiveBuckets().get("test1").getInProgressPart());
 
         final ListState<byte[]> mergedBucketStateContainer = new MockListState<>();
         final ListState<Long> mergedPartCounterContainer = new MockListState<>();
@@ -186,25 +183,25 @@ public class BucketsTest {
                         mergedPartCounterContainer);
 
         // we get the maximum of the previous tasks
-        Assert.assertEquals(2L, restoredBuckets.getMaxPartCounter());
+        Assertions.assertEquals(2L, restoredBuckets.getMaxPartCounter());
 
         final Map<String, Bucket<String, String>> activeBuckets =
                 restoredBuckets.getActiveBuckets();
-        Assert.assertEquals(1L, activeBuckets.size());
-        Assert.assertTrue(activeBuckets.keySet().contains("test1"));
+        Assertions.assertEquals(1L, activeBuckets.size());
+        Assertions.assertTrue(activeBuckets.keySet().contains("test1"));
 
         final Bucket<String, String> bucket = activeBuckets.get("test1");
-        Assert.assertEquals("test1", bucket.getBucketId());
-        Assert.assertEquals(new Path(path, "test1"), bucket.getBucketPath());
+        Assertions.assertEquals("test1", bucket.getBucketId());
+        Assertions.assertEquals(new Path(path, "test1"), bucket.getBucketPath());
 
-        Assert.assertNotNull(bucket.getInProgressPart()); // the restored part file
+        Assertions.assertNotNull(bucket.getInProgressPart()); // the restored part file
 
         // this is due to the Bucket#merge(). The in progress file of one
         // of the previous tasks is put in the list of pending files.
-        Assert.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
+        Assertions.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
 
         // we commit the pending for previous checkpoints
-        Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
+        Assertions.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
     }
 
     @Test
@@ -224,21 +221,21 @@ public class BucketsTest {
 
         // now it should roll
         buckets.onProcessingTime(7L);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1L, rollOnProcessingTimeCountingPolicy.getOnProcessingTimeRollCounter());
 
         final Map<String, Bucket<String, String>> activeBuckets = buckets.getActiveBuckets();
-        Assert.assertEquals(1L, activeBuckets.size());
-        Assert.assertTrue(activeBuckets.keySet().contains("test"));
+        Assertions.assertEquals(1L, activeBuckets.size());
+        Assertions.assertTrue(activeBuckets.keySet().contains("test"));
 
         final Bucket<String, String> bucket = activeBuckets.get("test");
-        Assert.assertEquals("test", bucket.getBucketId());
-        Assert.assertEquals(new Path(path, "test"), bucket.getBucketPath());
-        Assert.assertEquals("test", bucket.getBucketId());
+        Assertions.assertEquals("test", bucket.getBucketId());
+        Assertions.assertEquals(new Path(path, "test"), bucket.getBucketPath());
+        Assertions.assertEquals("test", bucket.getBucketId());
 
-        Assert.assertNull(bucket.getInProgressPart());
-        Assert.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
-        Assert.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
+        Assertions.assertNull(bucket.getInProgressPart());
+        Assertions.assertEquals(1L, bucket.getPendingFileRecoverablesForCurrentCheckpoint().size());
+        Assertions.assertTrue(bucket.getPendingFileRecoverablesPerCheckpoint().isEmpty());
     }
 
     @Test
@@ -258,13 +255,13 @@ public class BucketsTest {
 
         // now it should roll
         buckets.onProcessingTime(7L);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1L, rollOnProcessingTimeCountingPolicy.getOnProcessingTimeRollCounter());
 
         buckets.snapshotState(0L, new MockListState<>(), new MockListState<>());
         buckets.commitUpToCheckpoint(0L);
 
-        Assert.assertTrue(buckets.getActiveBuckets().isEmpty());
+        Assertions.assertTrue(buckets.getActiveBuckets().isEmpty());
     }
 
     @Test
@@ -281,21 +278,21 @@ public class BucketsTest {
         // it takes the current processing time of the context for the creation time, and for the
         // last modification time.
         buckets.onElement("test", new TestUtils.MockSinkContext(1L, 2L, 3L));
-        Assert.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
+        Assertions.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
 
         // now it should roll
         buckets.onProcessingTime(7L);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 1L, rollOnProcessingTimeCountingPolicy.getOnProcessingTimeRollCounter());
-        Assert.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
+        Assertions.assertEquals(1L, buckets.getActiveBuckets().get("test").getPartCounter());
 
         buckets.snapshotState(0L, new MockListState<>(), new MockListState<>());
         buckets.commitUpToCheckpoint(0L);
 
-        Assert.assertTrue(buckets.getActiveBuckets().isEmpty());
+        Assertions.assertTrue(buckets.getActiveBuckets().isEmpty());
 
         buckets.onElement("test", new TestUtils.MockSinkContext(2L, 3L, 4L));
-        Assert.assertEquals(2L, buckets.getActiveBuckets().get("test").getPartCounter());
+        Assertions.assertEquals(2L, buckets.getActiveBuckets().get("test").getPartCounter());
     }
 
     private static class OnProcessingTimePolicy<IN, BucketID>
@@ -390,9 +387,9 @@ public class BucketsTest {
             final long watermark = context.currentWatermark();
             final long processingTime = context.currentProcessingTime();
 
-            Assert.assertEquals(expectedTimestamp, elementTimestamp);
-            Assert.assertEquals(expectedProcessingTime, processingTime);
-            Assert.assertEquals(expectedWatermark, watermark);
+            Assertions.assertEquals(expectedTimestamp, elementTimestamp);
+            Assertions.assertEquals(expectedProcessingTime, processingTime);
+            Assertions.assertEquals(expectedWatermark, watermark);
 
             return element;
         }
@@ -440,7 +437,7 @@ public class BucketsTest {
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.CREATED, "test2"),
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.INACTIVE, "test1"),
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.INACTIVE, "test2"));
-        Assert.assertEquals(expectedEvents, bucketLifeCycleListener.getEvents());
+        Assertions.assertEquals(expectedEvents, bucketLifeCycleListener.getEvents());
     }
 
     @Test
@@ -481,7 +478,7 @@ public class BucketsTest {
                         partCounterContainer,
                         OutputFileConfig.builder().build());
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new HashSet<>(Collections.singletonList("test2")),
                 buckets.getActiveBuckets().keySet());
         List<Tuple2<RecordBucketLifeCycleListener.EventType, String>> expectedEvents =
@@ -489,7 +486,7 @@ public class BucketsTest {
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.CREATED, "test1"),
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.CREATED, "test2"),
                         new Tuple2<>(RecordBucketLifeCycleListener.EventType.INACTIVE, "test1"));
-        Assert.assertEquals(expectedEvents, bucketLifeCycleListener.getEvents());
+        Assertions.assertEquals(expectedEvents, bucketLifeCycleListener.getEvents());
     }
 
     private static class RecordBucketLifeCycleListener
@@ -544,10 +541,10 @@ public class BucketsTest {
         buckets.onElement("test1", new TestUtils.MockSinkContext(null, 1L, 5L));
         buckets.onElement("test2", new TestUtils.MockSinkContext(null, 1L, 6L));
 
-        Assert.assertEquals(2, fileLifeCycleListener.files.size());
-        Assert.assertEquals(
+        Assertions.assertEquals(2, fileLifeCycleListener.files.size());
+        Assertions.assertEquals(
                 Arrays.asList("part-0-0", "part-0-1"), fileLifeCycleListener.files.get("test1"));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Collections.singletonList("part-0-1"), fileLifeCycleListener.files.get("test2"));
     }
 

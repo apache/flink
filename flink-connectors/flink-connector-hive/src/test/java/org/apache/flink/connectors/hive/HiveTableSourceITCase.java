@@ -56,11 +56,15 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -78,10 +82,10 @@ import java.util.Optional;
 
 import static org.apache.flink.table.catalog.hive.HiveTestUtils.createTableEnvWithHiveCatalog;
 import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -128,11 +132,11 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         Table src = batchTableEnv.sqlQuery("select * from hive.source_db.test");
         List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
 
-        Assert.assertEquals(4, rows.size());
-        Assert.assertEquals("+I[1, 1, a, 1000, 1.11]", rows.get(0).toString());
-        Assert.assertEquals("+I[2, 2, b, 2000, 2.22]", rows.get(1).toString());
-        Assert.assertEquals("+I[3, 3, c, 3000, 3.33]", rows.get(2).toString());
-        Assert.assertEquals("+I[4, 4, d, 4000, 4.44]", rows.get(3).toString());
+        Assertions.assertEquals(4, rows.size());
+        Assertions.assertEquals("+I[1, 1, a, 1000, 1.11]", rows.get(0).toString());
+        Assertions.assertEquals("+I[2, 2, b, 2000, 2.22]", rows.get(1).toString());
+        Assertions.assertEquals("+I[3, 3, c, 3000, 3.33]", rows.get(2).toString());
+        Assertions.assertEquals("+I[4, 4, d, 4000, 4.44]", rows.get(3).toString());
     }
 
     @Test
@@ -152,7 +156,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 .commit();
         Table src = batchTableEnv.sqlQuery("select * from hive.source_db.complex_test");
         List<Row> rows = CollectionUtil.iteratorToList(src.execute().collect());
-        Assert.assertEquals(1, rows.size());
+        Assertions.assertEquals(1, rows.size());
         assertArrayEquals(array, (Integer[]) rows.get(0).getField(0));
         assertEquals(map, rows.get(0).getField(1));
         assertEquals(Row.of(struct[0], struct[1]), rows.get(0).getField(2));
@@ -487,7 +491,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
         @SuppressWarnings("unchecked")
         Transformation transformation = execNode.translateToPlan(planner);
-        Assert.assertEquals(expected, transformation.getParallelism());
+        Assertions.assertEquals(expected, transformation.getParallelism());
     }
 
     @Test
@@ -521,7 +525,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 planner.translateToExecNodePlan(toScala(Collections.singletonList(relNode))).get(0);
         Transformation<?> transformation =
                 (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
-        Assert.assertEquals(1, transformation.getParallelism());
+        Assertions.assertEquals(1, transformation.getParallelism());
     }
 
     @Test
@@ -572,7 +576,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 tEnv.executeSql("select * from hive.source_db.stream_partition_name_test");
         CloseableIterator<Row> iter = result.collect();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Row.of(1, "b", "12", "2020", "09", "03").toString(), fetchRows(iter, 1).get(0));
 
         for (int i = 2; i < 6; i++) {
@@ -586,7 +590,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     .addRow(new Object[] {i, "new_add_1", 11 + i})
                     .commit("pt_year='2020',pt_mon='10',pt_day='0" + i + "'");
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     Arrays.asList(
                             Row.of(i, "new_add", 11 + i, "2020", "10", "0" + i).toString(),
                             Row.of(i, "new_add_1", 11 + i, "2020", "10", "0" + i).toString()),
@@ -628,7 +632,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 tEnv.executeSql("select * from hive.source_db.stream_create_time_test");
         CloseableIterator<Row> iter = result.collect();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Row.of(0, "a", "11", "A1", "B1", "C1").toString(), fetchRows(iter, 1).get(0));
 
         for (int i = 1; i < 6; i++) {
@@ -642,7 +646,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     .addRow(new Object[] {i, "new_add_1", 11 + i})
                     .commit("p1='A',p2='B',p3='" + i + "'");
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     Arrays.asList(
                             Row.of(i, "new_add", 11 + i, "A", "B", i).toString(),
                             Row.of(i, "new_add_1", 11 + i, "A", "B", i).toString()),
@@ -679,7 +683,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         TableResult result = tEnv.executeSql("select * from hive.source_db.stream_test");
         CloseableIterator<Row> iter = result.collect();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Row.of(0, "0", "2020-05-06 00:00:00").toString(), fetchRows(iter, 1).get(0));
 
         for (int i = 1; i < 6; i++) {
@@ -693,7 +697,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     .addRow(new Object[] {i, i + "_copy"})
                     .commit("ts='2020-05-06 00:" + i + "0:00'");
 
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     Arrays.asList(
                             Row.of(i, String.valueOf(i), "2020-05-06 00:" + i + "0:00").toString(),
                             Row.of(i, i + "_copy", "2020-05-06 00:" + i + "0:00").toString()),
@@ -706,7 +710,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     private static List<String> fetchRows(Iterator<Row> iter, int size) {
         List<String> strings = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
-            Assert.assertTrue(iter.hasNext());
+            Assertions.assertTrue(iter.hasNext());
             strings.add(iter.next().toString());
         }
         strings.sort(String::compareTo);
@@ -759,7 +763,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                     .executeSql(
                             "insert into table source_db." + tblName + " values (1,'a'), (2,'b')")
                     .await();
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     Arrays.asList(Row.of(1, "a").toString(), Row.of(2, "b").toString()),
                     fetchRows(iter, 2));
         }
@@ -836,7 +840,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                 String.format(
                         "create external table parquet_t (i int, j int) stored as %s location '%s'",
                         format, folderURI));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Row.of(1, 2), tEnv.executeSql("select * from parquet_t").collect().next());
     }
 

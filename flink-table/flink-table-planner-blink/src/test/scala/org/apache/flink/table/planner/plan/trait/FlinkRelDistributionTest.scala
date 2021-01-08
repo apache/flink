@@ -21,7 +21,7 @@ import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.{MappingType, Mappings}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue}
 import org.junit.jupiter.api.Test
 
 class FlinkRelDistributionTest {

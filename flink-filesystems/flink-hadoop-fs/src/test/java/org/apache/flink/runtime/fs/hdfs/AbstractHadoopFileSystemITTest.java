@@ -19,16 +19,15 @@
 package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileStatus;
-import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.fs.*;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -36,10 +35,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
+import static junit.framework.TestCase.*;
 import static org.apache.flink.core.fs.FileSystemTestUtils.checkPathEventualExistence;
 
 /** Abstract integration test class for implementations of hadoop file system. */
@@ -160,6 +156,6 @@ public abstract class AbstractHadoopFileSystemITTest extends TestLogger {
             fs.delete(path, true);
             Thread.sleep(50L);
         }
-        Assert.assertFalse(fs.exists(path));
+        Assertions.assertFalse(fs.exists(path));
     }
 }

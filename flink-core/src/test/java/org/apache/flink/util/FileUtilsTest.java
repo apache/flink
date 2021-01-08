@@ -25,6 +25,11 @@ import org.apache.flink.core.testutils.CheckedThread;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
@@ -52,14 +57,14 @@ import java.util.stream.Stream;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link FileUtils}. */
 public class FileUtilsTest extends TestLogger {
@@ -319,20 +324,24 @@ public class FileUtilsTest extends TestLogger {
 
     @Test
     public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final String fileName = "_does_not_exists_file";
-        FileUtils.listFilesInDirectory(
-                tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
-        });
+                    FileUtils.listFilesInDirectory(
+                            tmp.getRoot().toPath().resolve(fileName), FileUtils::isJarFile);
+                });
     }
 
     @Test
     public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final String fileName = "a.jar";
-        final File file = tmp.newFile(fileName);
-        FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
-        });
+                    final File file = tmp.newFile(fileName);
+                    FileUtils.listFilesInDirectory(file.toPath(), FileUtils::isJarFile);
+                });
     }
 
     // ------------------------------------------------------------------------

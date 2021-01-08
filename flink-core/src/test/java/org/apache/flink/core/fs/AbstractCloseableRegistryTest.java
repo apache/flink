@@ -19,9 +19,12 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.util.AbstractCloseableRegistry;
-
-import org.junit.Assert;
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,9 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link AbstractCloseableRegistry}. */
 public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
@@ -53,7 +54,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
             int maxStreams);
 
     public void setup(int maxStreams) {
-        Assert.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
+        Assertions.assertFalse(SafetyNetCloseableRegistry.isReaperThreadRunning());
         this.closeableRegistry = createRegistry();
         this.unclosedCounter = new AtomicInteger(0);
         this.streamOpenThreads = new ProducerThread[10];
@@ -245,7 +246,7 @@ public abstract class AbstractCloseableRegistryTest<C extends Closeable, T> {
 
         @Override
         public void close() throws IOException {
-            assertTrue("TestCloseable was already closed", closed.compareAndSet(false, true));
+            assertTrue(closed.compareAndSet(false, true), "TestCloseable was already closed");
         }
 
         public boolean isClosed() {

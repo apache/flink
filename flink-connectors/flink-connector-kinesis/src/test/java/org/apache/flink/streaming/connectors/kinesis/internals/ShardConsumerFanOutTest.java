@@ -24,8 +24,12 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interfa
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.AbstractSingleShardFanOutKinesisV2;
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.SingleShardFanOutKinesisV2;
-
 import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 
 import java.text.SimpleDateFormat;
@@ -38,11 +42,9 @@ import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsu
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_LATEST_SEQUENCE_NUM;
 import static org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils.efoProperties;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.AFTER_SEQUENCE_NUMBER;
-import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.AT_SEQUENCE_NUMBER;
-import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static software.amazon.awssdk.services.kinesis.model.ShardIteratorType.*;
 
 /** Tests for the {@link ShardConsumer} using Fan Out consumption mocked Kinesis behaviours. */
 public class ShardConsumerFanOutTest {
