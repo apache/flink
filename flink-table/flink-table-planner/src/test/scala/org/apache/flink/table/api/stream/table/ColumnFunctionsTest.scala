@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for column functions which includes tests for different column functions.

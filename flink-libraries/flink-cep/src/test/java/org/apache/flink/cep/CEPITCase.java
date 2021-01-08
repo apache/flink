@@ -42,7 +42,7 @@ import org.apache.flink.types.Either;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;

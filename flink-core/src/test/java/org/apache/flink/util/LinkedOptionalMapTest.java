@@ -20,7 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
 

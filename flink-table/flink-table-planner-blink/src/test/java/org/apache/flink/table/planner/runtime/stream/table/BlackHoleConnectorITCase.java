@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.runtime.stream.table;
 import org.apache.flink.table.factories.BlackHoleTableSinkFactory;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 

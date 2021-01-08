@@ -35,7 +35,7 @@ import org.apache.flink.streaming.runtime.operators.sink.StreamingGlobalCommitte
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

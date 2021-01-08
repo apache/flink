@@ -25,7 +25,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;

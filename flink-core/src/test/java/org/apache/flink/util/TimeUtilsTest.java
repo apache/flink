@@ -20,7 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.time.Time;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;

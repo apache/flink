@@ -20,7 +20,7 @@ package org.apache.flink.runtime.management;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;

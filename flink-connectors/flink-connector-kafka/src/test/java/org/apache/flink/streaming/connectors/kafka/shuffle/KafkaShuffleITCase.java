@@ -40,7 +40,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.Timeout;
 
 import java.util.ArrayList;

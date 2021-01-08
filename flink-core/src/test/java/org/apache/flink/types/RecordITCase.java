@@ -26,7 +26,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;

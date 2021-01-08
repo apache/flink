@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

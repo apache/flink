@@ -23,7 +23,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 abstract class JoinTestBase extends TableTestBase {
 

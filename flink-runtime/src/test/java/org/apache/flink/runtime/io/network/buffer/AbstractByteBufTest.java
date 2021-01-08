@@ -27,7 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.util.internal.PlatformDependent;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

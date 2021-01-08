@@ -30,7 +30,7 @@ import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
 import org.apache.flink.table.utils.{TableTestBase, TestTableSourceWithTime}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util
 import java.util.Collections

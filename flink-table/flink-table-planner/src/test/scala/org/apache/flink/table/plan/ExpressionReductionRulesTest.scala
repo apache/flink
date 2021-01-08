@@ -26,7 +26,7 @@ import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 
 class ExpressionReductionRulesTest extends TableTestBase {

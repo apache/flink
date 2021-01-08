@@ -33,7 +33,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.management.MBeanAttributeInfo;
 import javax.management.MBeanInfo;

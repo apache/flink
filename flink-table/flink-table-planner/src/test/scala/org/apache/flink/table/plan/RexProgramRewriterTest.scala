@@ -20,7 +20,7 @@ package org.apache.flink.table.plan
 
 import org.apache.flink.table.plan.util.RexProgramRewriter
 import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 

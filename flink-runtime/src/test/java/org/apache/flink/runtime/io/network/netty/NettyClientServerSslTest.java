@@ -35,7 +35,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.string.StringEncode
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

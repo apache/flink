@@ -20,7 +20,7 @@ package org.apache.flink.test.state;
 
 import org.apache.flink.runtime.state.StateObject;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;

@@ -21,7 +21,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInputStream;
 import java.io.IOException;

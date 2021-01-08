@@ -33,7 +33,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Collections;

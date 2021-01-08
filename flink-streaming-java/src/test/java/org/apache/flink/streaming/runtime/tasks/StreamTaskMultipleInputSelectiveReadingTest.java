@@ -35,7 +35,7 @@ import org.apache.flink.streaming.util.TestAnyModeMultipleInputStreamOperator.To
 import org.apache.flink.streaming.util.TestSequentialMultipleInputStreamOperator;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;

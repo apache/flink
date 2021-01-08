@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverAggregateTest extends TableTestBase {
 

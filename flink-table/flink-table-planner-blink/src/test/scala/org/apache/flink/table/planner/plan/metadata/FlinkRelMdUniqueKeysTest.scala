@@ -25,7 +25,7 @@ import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

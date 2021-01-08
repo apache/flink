@@ -25,7 +25,7 @@ import org.apache.flink.api.common.operators.util.FieldList;
 import org.apache.flink.optimizer.dataproperties.GlobalProperties;
 import org.apache.flink.optimizer.dataproperties.RequestedGlobalProperties;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;
 

@@ -20,7 +20,7 @@
 package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test cases for DenseVector. */
 public class DenseVectorTest {

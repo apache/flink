@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runners.Parameterized;
 
 import java.io.ByteArrayInputStream;

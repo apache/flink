@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.utils.TestDataTypeTableSource
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
 

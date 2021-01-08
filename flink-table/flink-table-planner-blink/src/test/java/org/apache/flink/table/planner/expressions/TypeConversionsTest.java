@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.expressions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.planner.expressions.utils.ScalarOperatorsTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalDate;

@@ -22,7 +22,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.mesos.Protos;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.List;

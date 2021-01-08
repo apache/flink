@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.StateTtlConfig.IncrementalCleanupStrate
 import org.apache.flink.api.common.state.StateTtlConfig.RocksdbCompactFilterCleanupStrategy;
 import org.apache.flink.api.common.time.Time;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;

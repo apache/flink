@@ -34,7 +34,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

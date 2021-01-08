@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.state;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class OperatorStreamStateHandleTest {
 

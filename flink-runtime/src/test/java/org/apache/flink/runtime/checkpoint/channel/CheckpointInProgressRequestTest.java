@@ -17,7 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint.channel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;

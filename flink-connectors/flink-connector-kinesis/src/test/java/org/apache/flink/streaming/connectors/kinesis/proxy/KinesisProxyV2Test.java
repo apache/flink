@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kinesis.proxy;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.fanout.FanOutRecordPublisherConfiguration;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;

@@ -32,7 +32,7 @@ import org.apache.flink.graph.test.TestGraphUtils;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.fail;
 

@@ -21,7 +21,7 @@ import org.apache.flink.util.TestLogger
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.apache.flink.api.common.typeutils.TypePairComparator
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Abstract test base for PairComparators.

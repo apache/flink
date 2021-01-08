@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.buffer;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.Timeout;
 
 import java.util.concurrent.TimeUnit;

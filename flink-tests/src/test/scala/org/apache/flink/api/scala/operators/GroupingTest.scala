@@ -23,7 +23,7 @@ import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
 import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Order
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.api.scala._
 

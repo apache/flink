@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.calcite.rex.RexProgram
 
 import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._

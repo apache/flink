@@ -29,7 +29,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.aggregate._
 import org.apache.flink.table.runtime.harness.HarnessTestBase._
 import org.apache.flink.table.runtime.types.CRow
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowHarnessTest extends HarnessTestBase{
 

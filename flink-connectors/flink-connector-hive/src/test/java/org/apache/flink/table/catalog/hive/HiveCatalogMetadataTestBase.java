@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
 
 import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Base class for testing HiveCatalog. */
 public abstract class HiveCatalogMetadataTestBase extends CatalogTestBase {

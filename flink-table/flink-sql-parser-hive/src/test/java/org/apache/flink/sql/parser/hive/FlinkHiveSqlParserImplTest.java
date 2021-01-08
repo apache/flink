@@ -23,7 +23,7 @@ import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link FlinkHiveSqlParserImpl}. */
 public class FlinkHiveSqlParserImplTest extends SqlParserTest {

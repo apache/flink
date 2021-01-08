@@ -25,7 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerPa
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.Pod;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

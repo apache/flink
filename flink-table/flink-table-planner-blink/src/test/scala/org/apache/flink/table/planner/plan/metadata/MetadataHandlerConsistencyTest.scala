@@ -24,7 +24,7 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
 import org.apache.calcite.rel.metadata.{MetadataDef, MetadataHandler, RelMetadataQuery}
 import org.junit.Assert.fail
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.reflections.Reflections

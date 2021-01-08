@@ -19,7 +19,7 @@ package org.apache.flink.cep.scala.pattern
 
 import org.apache.flink.cep.pattern.{Pattern => JPattern}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.apache.flink.cep.Event
 import org.apache.flink.cep.SubEvent
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy

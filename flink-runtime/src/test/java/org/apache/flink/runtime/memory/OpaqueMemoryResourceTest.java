@@ -20,7 +20,7 @@ package org.apache.flink.runtime.memory;
 
 import org.apache.flink.util.function.ThrowingRunnable;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.util.{Collector, TestLogger}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests [[KeyedProcessOperatorWithWatermarkDelay]].

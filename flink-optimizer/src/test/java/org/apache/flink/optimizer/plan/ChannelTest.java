@@ -26,7 +26,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.dag.DataSourceNode;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class ChannelTest {
 

@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSi
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableSinkValidationTest extends TableTestBase {
 

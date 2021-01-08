@@ -22,7 +22,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

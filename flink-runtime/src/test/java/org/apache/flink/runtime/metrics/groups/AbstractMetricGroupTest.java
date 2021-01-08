@@ -39,7 +39,7 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.collection.IsMapContaining;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

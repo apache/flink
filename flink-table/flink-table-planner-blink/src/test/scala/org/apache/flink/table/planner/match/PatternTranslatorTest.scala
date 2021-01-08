@@ -23,7 +23,7 @@ import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PatternTranslatorTest extends PatternTranslatorTestBase {
 

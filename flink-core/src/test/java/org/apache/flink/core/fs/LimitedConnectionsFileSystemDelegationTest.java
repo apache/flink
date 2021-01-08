@@ -21,7 +21,7 @@ package org.apache.flink.core.fs;
 import org.apache.flink.core.fs.FileSystem.WriteMode;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;

@@ -32,7 +32,7 @@ import ch.vorburger.mariadb4j.DBConfigurationBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

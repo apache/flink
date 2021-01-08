@@ -25,7 +25,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.table.runtime.harness.HarnessTestBase.TestTableConfig
 import org.apache.flink.table.runtime.triggers.StateCleaningCountTrigger
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class StateCleaningCountTriggerHarnessTest {
   protected var config = new TestTableConfig

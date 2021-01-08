@@ -21,7 +21,7 @@ package org.apache.flink.types.parser;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.types.parser.FieldParser.ParseErrorState;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;
 

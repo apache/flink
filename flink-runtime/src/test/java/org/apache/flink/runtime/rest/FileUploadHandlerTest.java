@@ -39,7 +39,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;

@@ -28,7 +28,7 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATO
 
 import org.hamcrest.Matchers.{equalTo, startsWith}
 import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

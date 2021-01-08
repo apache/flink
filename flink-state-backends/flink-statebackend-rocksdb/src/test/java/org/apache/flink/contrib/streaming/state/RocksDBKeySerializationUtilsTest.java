@@ -28,7 +28,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for guarding {@link RocksDBKeySerializationUtils}. */
 public class RocksDBKeySerializationUtilsTest {

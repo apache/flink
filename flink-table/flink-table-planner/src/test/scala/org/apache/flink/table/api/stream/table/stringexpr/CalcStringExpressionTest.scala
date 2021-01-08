@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.Func23
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CalcStringExpressionTest extends TableTestBase {
 

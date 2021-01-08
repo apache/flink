@@ -28,7 +28,7 @@ import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collection;

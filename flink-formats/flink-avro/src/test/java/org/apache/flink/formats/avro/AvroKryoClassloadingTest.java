@@ -24,7 +24,7 @@ import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.net.URL;

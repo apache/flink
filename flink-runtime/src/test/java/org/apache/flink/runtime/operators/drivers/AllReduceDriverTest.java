@@ -34,7 +34,7 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;

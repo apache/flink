@@ -34,7 +34,7 @@ import org.apache.flink.graph.Vertex;
 import org.apache.flink.graph.utils.Tuple3ToEdgeMap;
 import org.apache.flink.types.NullValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;

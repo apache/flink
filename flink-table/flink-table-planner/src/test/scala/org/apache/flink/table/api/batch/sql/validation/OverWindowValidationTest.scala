@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

@@ -40,7 +40,7 @@ import org.apache.flink.table.utils.{CatalogManagerMocks, TableTestBase}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 
 import java.lang.{Integer => JInt, Long => JLong}

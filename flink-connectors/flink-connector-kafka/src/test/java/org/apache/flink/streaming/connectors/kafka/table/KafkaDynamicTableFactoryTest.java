@@ -55,7 +55,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;

@@ -20,7 +20,7 @@ package org.apache.flink.api.java.utils;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import static org.junit.Assert.fail;

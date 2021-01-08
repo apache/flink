@@ -39,7 +39,7 @@ import org.apache.flink.types.ByteValue;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.io.File;

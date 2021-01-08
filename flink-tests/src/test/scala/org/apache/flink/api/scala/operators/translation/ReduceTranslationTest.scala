@@ -26,7 +26,7 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.junit.Assert._
 import org.apache.flink.api.common.operators.base.MapOperatorBase
 import org.apache.flink.api.common.operators.base.ReduceOperatorBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.ExecutionConfig

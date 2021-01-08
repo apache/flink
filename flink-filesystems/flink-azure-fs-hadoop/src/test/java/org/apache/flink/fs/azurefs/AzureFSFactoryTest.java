@@ -23,7 +23,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.fs.azure.AzureException;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

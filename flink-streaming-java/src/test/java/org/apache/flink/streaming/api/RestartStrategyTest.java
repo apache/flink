@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link RestartStrategies}. */
 public class RestartStrategyTest extends TestLogger {

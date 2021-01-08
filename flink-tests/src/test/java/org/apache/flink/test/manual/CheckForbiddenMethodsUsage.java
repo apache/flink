@@ -21,7 +21,7 @@ package org.apache.flink.test.manual;
 import org.apache.flink.types.parser.FieldParserTest;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
 import org.reflections.util.ClasspathHelper;

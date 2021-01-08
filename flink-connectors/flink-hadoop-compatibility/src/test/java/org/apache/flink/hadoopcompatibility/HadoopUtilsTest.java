@@ -21,7 +21,7 @@ package org.apache.flink.hadoopcompatibility;
 import org.apache.flink.api.java.utils.AbstractParameterToolTest;
 import org.apache.flink.api.java.utils.ParameterTool;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 

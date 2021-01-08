@@ -33,7 +33,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
 import org.hamcrest.Matchers.{equalTo, startsWith}
 import org.junit.Assert.{assertEquals, assertThat}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TemporalTableJoinTest extends TableTestBase {
 

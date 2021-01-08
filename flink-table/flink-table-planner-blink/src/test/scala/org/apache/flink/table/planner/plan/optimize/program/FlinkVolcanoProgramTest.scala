@@ -22,7 +22,7 @@ import org.apache.calcite.plan.Convention
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for [[FlinkVolcanoProgramTest]].

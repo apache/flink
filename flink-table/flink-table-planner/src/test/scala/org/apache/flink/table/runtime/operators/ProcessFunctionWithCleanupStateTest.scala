@@ -31,7 +31,7 @@ import org.apache.flink.table.runtime.harness.HarnessTestBase
 import org.apache.flink.table.runtime.harness.HarnessTestBase.TestTableConfig
 import org.apache.flink.util.Collector
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 

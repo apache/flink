@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class RightOuterJoinTaskExternalITCase extends AbstractOuterJoinTaskExternalITCase {
 

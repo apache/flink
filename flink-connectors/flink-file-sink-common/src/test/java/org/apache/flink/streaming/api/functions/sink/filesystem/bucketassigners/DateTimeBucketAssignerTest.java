@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

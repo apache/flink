@@ -24,7 +24,7 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class JsonFunctionsTest extends ExpressionTestBase {
 

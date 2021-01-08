@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.LocalTime;
 import java.util.Arrays;

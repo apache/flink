@@ -26,7 +26,7 @@ import org.apache.flink.table.descriptors.FormatDescriptorValidator.{FORMAT_PROP
 import org.apache.flink.table.factories.TableFormatFactoryServiceTest._
 import org.apache.flink.table.factories.utils.{TestAmbiguousTableFormatFactory, TestTableFormatFactory}
 import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for testing format discovery using [[TableFactoryService]]. The tests assume the two

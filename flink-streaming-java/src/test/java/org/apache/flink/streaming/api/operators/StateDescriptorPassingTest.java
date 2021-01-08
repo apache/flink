@@ -42,7 +42,7 @@ import org.apache.flink.util.Collector;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 

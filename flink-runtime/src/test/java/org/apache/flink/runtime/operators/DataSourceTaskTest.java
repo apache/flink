@@ -30,7 +30,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;

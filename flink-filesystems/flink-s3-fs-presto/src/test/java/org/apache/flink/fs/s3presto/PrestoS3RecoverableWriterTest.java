@@ -26,7 +26,7 @@ import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;

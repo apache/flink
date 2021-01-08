@@ -21,7 +21,7 @@ package org.apache.flink.table.filesystem;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.utils.PartitionPathUtils.generatePartitionPath;
 

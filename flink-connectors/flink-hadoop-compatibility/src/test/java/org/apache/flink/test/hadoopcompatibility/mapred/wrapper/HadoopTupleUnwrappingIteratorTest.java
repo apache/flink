@@ -24,7 +24,7 @@ import org.apache.flink.hadoopcompatibility.mapred.wrapper.HadoopTupleUnwrapping
 
 import org.apache.hadoop.io.IntWritable;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.NoSuchElementException;

@@ -24,7 +24,7 @@ import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordT
 import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
 
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util.Optional
 

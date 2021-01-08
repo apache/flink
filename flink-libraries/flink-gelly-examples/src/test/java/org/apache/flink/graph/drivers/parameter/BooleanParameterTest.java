@@ -22,7 +22,7 @@ import org.apache.flink.api.java.utils.ParameterTool;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link BooleanParameter}. */
 public class BooleanParameterTest extends ParameterTestBase {

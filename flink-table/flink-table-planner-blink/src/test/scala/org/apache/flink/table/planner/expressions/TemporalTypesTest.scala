@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.planner.{JInt, JLong}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TemporalTypesTest extends ExpressionTestBase {
 

@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.stream.sql.ToMillis
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MatchRecognizeValidationTest extends TableTestBase {
 

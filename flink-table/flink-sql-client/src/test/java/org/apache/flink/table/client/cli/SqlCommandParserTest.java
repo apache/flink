@@ -28,7 +28,7 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Parser;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

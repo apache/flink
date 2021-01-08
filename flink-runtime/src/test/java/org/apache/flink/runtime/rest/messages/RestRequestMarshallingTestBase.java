@@ -24,7 +24,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test base for verifying that marshalling / unmarshalling REST {@link RequestBody}s work properly.

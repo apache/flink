@@ -21,7 +21,7 @@ import org.apache.flink.streaming.examples.windowing.util.TopSpeedWindowingExamp
 import org.apache.flink.streaming.scala.examples.windowing.TopSpeedWindowing;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link TopSpeedWindowing}. */
 public class TopSpeedWindowingExampleITCase extends AbstractTestBase {

@@ -37,7 +37,7 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Visitor;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests in this class:

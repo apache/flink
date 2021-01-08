@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingA
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 import java.time.LocalDateTime

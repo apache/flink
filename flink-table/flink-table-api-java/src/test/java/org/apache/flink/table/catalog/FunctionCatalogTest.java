@@ -31,7 +31,7 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.hamcrest.Matcher;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashSet;

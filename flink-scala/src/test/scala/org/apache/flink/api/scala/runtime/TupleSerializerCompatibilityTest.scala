@@ -28,7 +28,7 @@ import org.apache.flink.api.scala.runtime.TupleSerializerCompatibilityTestGenera
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer
 import org.apache.flink.core.memory.DataInputViewStreamWrapper
 import org.junit.Assert.{assertEquals, assertNotNull, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Test for ensuring backwards compatibility of tuples and case classes across Scala versions.

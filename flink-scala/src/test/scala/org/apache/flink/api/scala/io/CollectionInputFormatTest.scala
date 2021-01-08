@@ -24,7 +24,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.core.io.GenericInputSplit
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectInputStream

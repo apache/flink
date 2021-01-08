@@ -21,7 +21,7 @@ package org.apache.flink.connector.jdbc;
 import org.apache.flink.types.Row;
 
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.sql.Connection;

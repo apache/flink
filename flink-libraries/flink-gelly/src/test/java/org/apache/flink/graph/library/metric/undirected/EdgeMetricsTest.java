@@ -24,7 +24,7 @@ import org.apache.flink.graph.library.metric.undirected.EdgeMetrics.Result;
 import org.apache.flink.types.NullValue;
 
 import org.apache.commons.math3.util.CombinatoricsUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

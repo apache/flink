@@ -27,7 +27,7 @@ import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

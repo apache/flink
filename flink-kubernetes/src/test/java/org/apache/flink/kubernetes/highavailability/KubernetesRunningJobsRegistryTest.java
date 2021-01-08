@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.security;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.security.auth.login.AppConfigurationEntry;
 

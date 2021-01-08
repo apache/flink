@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions
 import ApiExpressionUtils.{unresolvedCall, lookupCall, unresolvedRef}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests keyword as suffix.

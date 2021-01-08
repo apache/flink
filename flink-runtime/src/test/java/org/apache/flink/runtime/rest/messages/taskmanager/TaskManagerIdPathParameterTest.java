@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;

@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
 import java.time.Duration
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateTest extends TableTestBase {
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.io;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
 

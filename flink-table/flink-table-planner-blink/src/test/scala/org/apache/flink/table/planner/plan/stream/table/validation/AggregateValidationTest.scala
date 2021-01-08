@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateValidationTest extends TableTestBase {
   private val util = scalaStreamTestUtil()

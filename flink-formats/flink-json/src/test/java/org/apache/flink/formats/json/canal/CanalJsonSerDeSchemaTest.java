@@ -30,7 +30,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Collector;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.File;

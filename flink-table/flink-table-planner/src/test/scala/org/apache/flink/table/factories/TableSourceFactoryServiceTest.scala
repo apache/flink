@@ -27,7 +27,7 @@ import org.apache.flink.table.factories.utils.TestFixedFormatTableFactory.{CONNE
 import org.apache.flink.table.factories.utils.TestWildcardFormatTableSourceFactory.CONNECTOR_TYPE_VALUE_WILDCARD
 import org.apache.flink.table.factories.utils.{TestFixedFormatTableFactory, TestWildcardFormatTableSourceFactory}
 import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for testing table source discovery using [[TableFactoryService]]. The tests assume the

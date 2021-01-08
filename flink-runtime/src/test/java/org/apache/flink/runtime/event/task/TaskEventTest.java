@@ -20,7 +20,7 @@ package org.apache.flink.runtime.event.task;
 
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 

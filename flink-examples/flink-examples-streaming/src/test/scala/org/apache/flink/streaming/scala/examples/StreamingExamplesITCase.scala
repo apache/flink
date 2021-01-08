@@ -38,7 +38,7 @@ import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Integration test for streaming programs in Scala examples.

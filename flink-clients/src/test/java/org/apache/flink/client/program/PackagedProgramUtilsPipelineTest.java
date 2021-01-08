@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

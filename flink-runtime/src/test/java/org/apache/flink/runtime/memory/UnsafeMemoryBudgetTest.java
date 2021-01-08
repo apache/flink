@@ -21,7 +21,7 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.util.JavaGcCleanerWrapper;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;

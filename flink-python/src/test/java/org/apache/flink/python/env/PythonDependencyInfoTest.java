@@ -27,7 +27,7 @@ import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;

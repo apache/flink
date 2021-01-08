@@ -22,7 +22,7 @@ import org.apache.flink.api.scala.typeutils.Types
 
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.junit.Assert.{assertFalse, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /** Test cases for [[FlinkTypeFactory]]. */
 class FlinkTypeFactoryTest {

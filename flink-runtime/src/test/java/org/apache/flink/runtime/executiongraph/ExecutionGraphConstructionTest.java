@@ -36,7 +36,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 
 import java.util.ArrayList;

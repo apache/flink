@@ -21,7 +21,7 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.connector.file.src.util.SingletonResultIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;

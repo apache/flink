@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.math.BigInteger;

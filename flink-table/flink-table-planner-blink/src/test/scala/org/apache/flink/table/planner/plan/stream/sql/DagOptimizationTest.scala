@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctio
 import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class DagOptimizationTest extends TableTestBase {
   private val util = streamTestUtil()

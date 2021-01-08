@@ -26,7 +26,7 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

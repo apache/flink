@@ -32,7 +32,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;

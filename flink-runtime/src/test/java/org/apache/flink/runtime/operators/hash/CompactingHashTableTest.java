@@ -30,7 +30,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntList;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.powermock.reflect.Whitebox;
 
 import java.lang.reflect.Field;

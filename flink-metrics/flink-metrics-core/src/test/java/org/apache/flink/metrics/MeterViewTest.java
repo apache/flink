@@ -20,7 +20,7 @@ package org.apache.flink.metrics;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.metrics.View.UPDATE_INTERVAL_SECONDS;
 import static org.junit.Assert.assertEquals;

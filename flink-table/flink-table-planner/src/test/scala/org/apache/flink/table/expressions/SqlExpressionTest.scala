@@ -23,7 +23,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests all SQL expressions that are currently supported according to the documentation.

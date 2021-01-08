@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.webmonitor.history;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the {@link ArchivedJson}. */
 public class ArchivedJsonTest {

@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link EstimatorBase}. */
 public class EstimatorBaseTest extends PipelineStageTestBase {

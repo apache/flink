@@ -26,7 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

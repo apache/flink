@@ -22,7 +22,7 @@ import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.fakedb.FakeDBUtils;
 import org.apache.flink.core.testutils.CheckedThread;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.sql.Connection;

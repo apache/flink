@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.stats.ValueInterval._
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil.toBigDecimalInterval
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ValueIntervalTest {
 

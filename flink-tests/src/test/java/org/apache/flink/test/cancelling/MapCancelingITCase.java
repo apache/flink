@@ -25,7 +25,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.InfiniteIntegerInputFormat;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test job cancellation from within a MapFunction. */
 public class MapCancelingITCase extends CancelingTestBase {

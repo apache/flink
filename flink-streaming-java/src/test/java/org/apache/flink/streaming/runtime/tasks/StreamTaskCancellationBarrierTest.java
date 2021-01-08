@@ -31,7 +31,7 @@ import org.apache.flink.streaming.runtime.io.AlignedControllerTest;
 import org.apache.flink.streaming.runtime.io.AlignedControllerTest.CheckpointExceptionMatcher;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.Timeout;
 
 import static org.junit.Assert.assertEquals;

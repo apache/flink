@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 

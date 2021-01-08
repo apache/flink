@@ -21,7 +21,7 @@ package org.apache.flink.runtime.entrypoint;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 

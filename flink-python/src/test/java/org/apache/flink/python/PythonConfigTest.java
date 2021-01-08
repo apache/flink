@@ -21,7 +21,7 @@ package org.apache.flink.python;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.util.PythonDependencyUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

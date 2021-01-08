@@ -26,7 +26,7 @@ import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.junit.Assert.{assertEquals, assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateTranslationTest {
   @Test

@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.DataInput;
 import java.io.DataOutput;

@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala.typeutils
 
 import org.apache.flink.util.TestLogger
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.Assert._
 import org.scalatest.junit.JUnitSuiteLike
 

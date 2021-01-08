@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.FormatDescriptorMock;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 import org.apache.flink.table.utils.TableSourceFactoryMock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;

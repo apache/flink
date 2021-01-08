@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.Pytho
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
 

@@ -20,7 +20,7 @@ package org.apache.flink.api.scala.compiler
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.Assert._
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType

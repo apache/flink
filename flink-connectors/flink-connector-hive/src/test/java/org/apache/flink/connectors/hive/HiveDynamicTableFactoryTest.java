@@ -32,7 +32,7 @@ import org.apache.flink.table.filesystem.FileSystemLookupFunction;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 

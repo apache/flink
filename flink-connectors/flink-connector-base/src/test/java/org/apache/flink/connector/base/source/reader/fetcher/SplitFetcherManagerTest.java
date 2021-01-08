@@ -29,7 +29,7 @@ import org.apache.flink.connector.base.source.reader.synchronization.FutureCompl
 import org.apache.flink.core.testutils.OneShotLatch;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayDeque;

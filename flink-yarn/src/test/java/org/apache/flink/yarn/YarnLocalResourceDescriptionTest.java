@@ -24,7 +24,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.core.Is.is;

@@ -27,7 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.orc.MemoryManager;
 import org.apache.orc.OrcFile;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;

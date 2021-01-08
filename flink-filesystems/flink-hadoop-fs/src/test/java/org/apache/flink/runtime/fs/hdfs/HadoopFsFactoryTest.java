@@ -21,7 +21,7 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;

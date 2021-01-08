@@ -34,7 +34,7 @@ import org.apache.flink.table.utils.{CatalogManagerMocks, PlannerMock, StreamTab
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
 class AggregateTest extends TableTestBase {

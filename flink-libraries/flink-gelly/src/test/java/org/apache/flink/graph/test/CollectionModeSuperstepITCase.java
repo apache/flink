@@ -30,7 +30,7 @@ import org.apache.flink.graph.utils.VertexToTuple2Map;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Dummy iteration to test that the supersteps are correctly incremented and can be retrieved from

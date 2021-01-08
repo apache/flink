@@ -19,7 +19,7 @@
 package org.apache.flink.client.python;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import py4j.GatewayServer;
 
 import java.io.IOException;

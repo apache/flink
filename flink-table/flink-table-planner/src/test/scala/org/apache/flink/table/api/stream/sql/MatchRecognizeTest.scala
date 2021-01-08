@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestUtil.{term, _}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MatchRecognizeTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()

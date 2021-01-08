@@ -22,7 +22,7 @@ import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

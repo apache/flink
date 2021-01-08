@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.RelNode
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowValidationTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()

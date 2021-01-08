@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.utils._
 
 import org.hamcrest.Matchers.startsWith
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

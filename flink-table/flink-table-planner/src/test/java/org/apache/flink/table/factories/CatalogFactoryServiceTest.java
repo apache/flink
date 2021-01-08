@@ -21,7 +21,7 @@ package org.apache.flink.table.factories;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.factories.utils.TestCatalogFactory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

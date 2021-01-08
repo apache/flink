@@ -20,7 +20,7 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the {@link OutputTag}. */
 public class OutputTagTest {

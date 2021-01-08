@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.DataType
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PythonAggregateTest extends TableTestBase {
 

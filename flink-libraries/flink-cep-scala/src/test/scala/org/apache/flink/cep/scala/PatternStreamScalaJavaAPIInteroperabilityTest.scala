@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.util
 import org.apache.flink.util.{Collector, TestLogger}
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
 import scala.collection.JavaConverters._

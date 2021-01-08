@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertTrue;
 

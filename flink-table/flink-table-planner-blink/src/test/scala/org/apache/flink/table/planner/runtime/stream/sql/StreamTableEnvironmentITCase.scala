@@ -25,7 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.{Device, Order, Person, ProductItem}
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, StringSink}
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util.Collections
 

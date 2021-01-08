@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.Socket;
 import java.util.Random;

@@ -21,7 +21,7 @@ package org.apache.flink.dropwizard.metrics;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.util.TestCounter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

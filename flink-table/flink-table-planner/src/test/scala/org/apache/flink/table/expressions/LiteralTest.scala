@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.utils.{ExpressionTestBase, Func3}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class LiteralTest extends ExpressionTestBase {
 

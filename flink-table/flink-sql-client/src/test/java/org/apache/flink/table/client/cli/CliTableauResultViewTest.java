@@ -32,7 +32,7 @@ import org.apache.flink.types.Row;
 import org.jline.terminal.Terminal;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;

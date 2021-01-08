@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

@@ -19,7 +19,7 @@ package org.apache.flink.streaming.api.windowing.deltafunction;
 
 import org.apache.flink.streaming.api.functions.windowing.delta.EuclideanDistance;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

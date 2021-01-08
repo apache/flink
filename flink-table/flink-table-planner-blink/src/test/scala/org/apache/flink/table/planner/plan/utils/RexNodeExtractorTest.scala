@@ -41,7 +41,7 @@ import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.time.ZoneId

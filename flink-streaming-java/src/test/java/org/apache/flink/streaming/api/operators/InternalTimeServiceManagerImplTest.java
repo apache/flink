@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link InternalTimeServiceManagerImpl}. */
 public class InternalTimeServiceManagerImplTest extends TestLogger {

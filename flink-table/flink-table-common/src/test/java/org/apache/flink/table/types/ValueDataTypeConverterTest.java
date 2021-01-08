@@ -25,7 +25,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.SymbolType;
 import org.apache.flink.table.types.utils.ValueDataTypeConverter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

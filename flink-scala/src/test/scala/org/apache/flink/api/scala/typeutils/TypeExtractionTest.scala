@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TypeExtractionTest.{CustomBeanClass, CustomTypeInputFormat}
 import org.apache.flink.util.TestLogger
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.scalatest.junit.JUnitSuiteLike
 
 import scala.beans.BeanProperty

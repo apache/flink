@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** IT cases for the {@link FlinkKafkaProducer}. */
 @SuppressWarnings("serial")

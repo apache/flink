@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.bundle.trigger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static junit.framework.TestCase.assertEquals;
 

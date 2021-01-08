@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
 public class PushProjectIntoTableSourceScanRuleTest

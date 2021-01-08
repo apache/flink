@@ -24,7 +24,7 @@ import org.apache.flink.types.Either;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;

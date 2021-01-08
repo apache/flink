@@ -28,7 +28,7 @@ import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.functions.Func1;
 import com.netflix.fenzo.plugins.HostAttrValueConstraint;
 import org.apache.mesos.Protos;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.multipleinput.input;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.table.runtime.operators.multipleinput.MultipleInputTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

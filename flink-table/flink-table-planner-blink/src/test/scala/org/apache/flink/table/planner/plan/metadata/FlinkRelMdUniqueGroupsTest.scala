@@ -25,7 +25,7 @@ import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

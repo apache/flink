@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

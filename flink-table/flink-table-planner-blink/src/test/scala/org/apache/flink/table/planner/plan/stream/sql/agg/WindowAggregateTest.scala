@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.utils.TableTestBase
 
 import java.time.Duration
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class WindowAggregateTest extends TableTestBase {
 

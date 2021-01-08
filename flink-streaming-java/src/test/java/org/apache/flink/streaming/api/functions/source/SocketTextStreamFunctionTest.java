@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.functions.source;
 import org.apache.flink.streaming.api.watermark.Watermark;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.io.OutputStreamWriter;

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.clusterframework.types;
 import org.apache.flink.configuration.MemorySize;
 
 import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;

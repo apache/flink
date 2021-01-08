@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.stream.table.TestAppendSink
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableSinksValidationTest extends TableTestBase {
 

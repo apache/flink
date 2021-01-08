@@ -24,7 +24,7 @@ import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingS
 import org.apache.flink.testutils.TestFileSystem;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.net.URI;

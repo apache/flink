@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowValidationTest extends TableTestBase {
 

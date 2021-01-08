@@ -31,7 +31,7 @@ import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingResultPartit
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Iterator;

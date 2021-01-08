@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Plan tests for JDBC connector, for example, testing projection push down. */
 public class JdbcTablePlanTest extends TableTestBase {

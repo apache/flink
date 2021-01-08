@@ -53,7 +53,7 @@ import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;

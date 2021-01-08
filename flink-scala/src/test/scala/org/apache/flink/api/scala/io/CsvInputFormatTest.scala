@@ -28,7 +28,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.junit.Assert.{assertEquals, assertNotNull, assertNull, assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.mutable.ArrayBuffer
 

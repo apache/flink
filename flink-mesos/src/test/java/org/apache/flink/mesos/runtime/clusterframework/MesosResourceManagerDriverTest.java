@@ -49,7 +49,7 @@ import akka.testkit.TestActor;
 import akka.testkit.TestProbe;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

@@ -30,7 +30,7 @@ import org.apache.flink.table.data.vector.heap.HeapShortVector;
 import org.apache.flink.table.data.vector.heap.HeapTimestampVector;
 import org.apache.flink.table.data.vector.writable.WritableColumnVector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;

@@ -38,7 +38,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;

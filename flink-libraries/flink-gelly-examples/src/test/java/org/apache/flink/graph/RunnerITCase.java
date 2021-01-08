@@ -22,7 +22,7 @@ import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.drivers.DriverBaseITCase;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;

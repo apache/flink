@@ -19,7 +19,7 @@ package org.apache.flink.api.scala
 
 import org.apache.flink.api.common.InvalidProgramException
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.Assert
 
 class MaxByOperatorTest {

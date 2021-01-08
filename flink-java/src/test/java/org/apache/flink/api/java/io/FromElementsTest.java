@@ -19,7 +19,7 @@ package org.apache.flink.api.java.io;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link ExecutionEnvironment#fromElements}. */
 public class FromElementsTest {

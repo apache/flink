@@ -21,7 +21,7 @@ package org.apache.flink.externalresource.gpu;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

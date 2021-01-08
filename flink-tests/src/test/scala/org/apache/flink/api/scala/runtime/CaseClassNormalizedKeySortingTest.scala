@@ -29,7 +29,7 @@ import java.util
 import java.util.Random
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 
 case class CaseTestClass(a: Int, b: Int, c: Int, d: String)

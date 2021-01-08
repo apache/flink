@@ -35,7 +35,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Collections;

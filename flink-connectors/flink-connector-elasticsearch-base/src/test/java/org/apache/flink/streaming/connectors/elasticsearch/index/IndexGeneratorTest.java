@@ -26,7 +26,7 @@ import org.apache.flink.types.Row;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Date;
 import java.sql.Time;

@@ -24,7 +24,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;

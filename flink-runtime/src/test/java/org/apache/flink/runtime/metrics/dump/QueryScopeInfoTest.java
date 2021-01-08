@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.metrics.dump;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

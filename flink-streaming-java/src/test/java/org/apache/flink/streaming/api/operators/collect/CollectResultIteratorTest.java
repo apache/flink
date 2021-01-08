@@ -33,7 +33,7 @@ import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;

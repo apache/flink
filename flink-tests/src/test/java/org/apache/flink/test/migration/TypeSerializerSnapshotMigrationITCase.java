@@ -39,7 +39,7 @@ import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase;
 import org.apache.flink.testutils.migration.MigrationVersion;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

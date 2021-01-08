@@ -18,7 +18,7 @@
 package org.apache.flink.runtime.state.metainfo;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * This test fixes the enum constants in {@link StateMetaInfoSnapshot} because any changes can break

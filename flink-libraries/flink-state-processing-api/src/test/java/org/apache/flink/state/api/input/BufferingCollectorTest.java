@@ -19,7 +19,7 @@
 package org.apache.flink.state.api.input;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test of the buffering collector. */
 public class BufferingCollectorTest {

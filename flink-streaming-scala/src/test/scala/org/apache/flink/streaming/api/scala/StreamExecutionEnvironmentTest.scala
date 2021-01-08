@@ -25,7 +25,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.junit.Assert.{assertEquals, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util
 

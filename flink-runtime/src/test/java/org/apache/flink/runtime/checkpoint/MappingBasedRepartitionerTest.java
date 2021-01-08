@@ -19,7 +19,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;

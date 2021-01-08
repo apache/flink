@@ -25,7 +25,7 @@ import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateTest extends TableTestBase {
 

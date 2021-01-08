@@ -17,7 +17,7 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.lang.System.arraycopy;
 import static org.junit.Assert.assertArrayEquals;

@@ -25,7 +25,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.time.Duration;

@@ -20,7 +20,7 @@ package org.apache.flink.core.io;
 
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Calendar;

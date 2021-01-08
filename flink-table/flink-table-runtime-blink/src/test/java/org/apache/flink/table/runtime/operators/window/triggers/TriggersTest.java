@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.window.triggers;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 

@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ArrayTypeTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
 

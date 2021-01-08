@@ -23,7 +23,7 @@ import org.apache.flink.util.MethodForwardingTestUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.operators.coordination.TestEventSender.EventWith
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CompletableFuture;
 

@@ -32,7 +32,7 @@ import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 @RunWith(classOf[Parameterized])
 class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {

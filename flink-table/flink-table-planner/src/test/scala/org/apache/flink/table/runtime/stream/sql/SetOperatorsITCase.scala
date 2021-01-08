@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTes
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SetOperatorsITCase extends StreamingWithStateTestBase {
 

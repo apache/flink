@@ -33,7 +33,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;

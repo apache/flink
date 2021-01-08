@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link SelectByMaxFunction} and {@link SelectByMinFunction}. */
 public class SelectByFunctionsTest {

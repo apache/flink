@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions.utils._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 import org.junit.Assert.{assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateValidationTest extends TableTestBase {
 

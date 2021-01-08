@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.operators.join.KeyedCoProcessOperatorWithW
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.BinaryRowDataKeySelector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -21,7 +21,7 @@ package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 /** The test cases for {@link BLAS}. */

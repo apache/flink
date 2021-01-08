@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.CompositeTypeTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CompositeAccessTest extends CompositeTypeTestBase {
 

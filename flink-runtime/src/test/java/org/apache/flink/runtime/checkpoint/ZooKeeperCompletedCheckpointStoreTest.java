@@ -37,7 +37,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFram
 
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 

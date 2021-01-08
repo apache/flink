@@ -24,7 +24,7 @@ import org.apache.flink.graph.library.clustering.undirected.AverageClusteringCoe
 import org.apache.flink.types.CopyableValue;
 import org.apache.flink.types.NullValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.Pytho
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MatchRecognizeValidationTest extends TableTestBase {
 

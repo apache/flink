@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{BatchTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for column functions.

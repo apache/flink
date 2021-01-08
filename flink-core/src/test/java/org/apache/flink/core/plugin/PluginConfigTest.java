@@ -27,7 +27,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;

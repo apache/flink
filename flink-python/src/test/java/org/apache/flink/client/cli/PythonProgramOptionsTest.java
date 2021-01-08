@@ -24,7 +24,7 @@ import org.apache.flink.python.PythonOptions;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;

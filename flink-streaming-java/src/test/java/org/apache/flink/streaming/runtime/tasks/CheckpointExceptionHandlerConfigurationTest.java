@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test that the configuration mechanism for how tasks react on checkpoint errors works correctly.

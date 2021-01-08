@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithRetract}
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowStringExpressionTest extends TableTestBase {
 

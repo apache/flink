@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.MapTypeTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Date
 

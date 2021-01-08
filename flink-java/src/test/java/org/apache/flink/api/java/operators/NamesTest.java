@@ -32,7 +32,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;

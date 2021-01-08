@@ -39,7 +39,7 @@ import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Ordering;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.*;

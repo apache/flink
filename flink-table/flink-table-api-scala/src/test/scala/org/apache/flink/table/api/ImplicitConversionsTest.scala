@@ -24,7 +24,7 @@ import org.apache.flink.types.Row
 
 import org.hamcrest.CoreMatchers.equalTo
 import org.junit.Assert.assertThat
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Tests for conversion between objects and [[Expression]]s used in Expression DSL.

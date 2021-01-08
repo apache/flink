@@ -21,7 +21,7 @@ package org.apache.flink.graph.drivers;
 import org.apache.flink.client.program.ProgramParametrizationException;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

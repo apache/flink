@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 

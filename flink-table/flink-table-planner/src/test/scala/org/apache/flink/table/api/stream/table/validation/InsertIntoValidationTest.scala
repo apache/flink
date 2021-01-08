@@ -26,7 +26,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class InsertIntoValidationTest {
 

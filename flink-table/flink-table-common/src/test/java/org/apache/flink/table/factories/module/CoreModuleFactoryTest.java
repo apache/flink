@@ -25,7 +25,7 @@ import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.Module;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 

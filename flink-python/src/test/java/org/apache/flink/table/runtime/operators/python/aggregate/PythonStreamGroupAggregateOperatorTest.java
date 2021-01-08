@@ -37,7 +37,7 @@ import org.apache.flink.table.runtime.utils.PassThroughStreamAggregatePythonFunc
 import org.apache.flink.table.runtime.utils.PythonTestUtils;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.HashMap;

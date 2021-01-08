@@ -28,7 +28,7 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.util.TestLogger;
 
 import org.influxdb.dto.Point;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.HashMap;

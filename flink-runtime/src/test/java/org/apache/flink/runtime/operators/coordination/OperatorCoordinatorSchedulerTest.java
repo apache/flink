@@ -54,7 +54,7 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

@@ -32,7 +32,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Matchers;
 
 import java.util.ArrayList;

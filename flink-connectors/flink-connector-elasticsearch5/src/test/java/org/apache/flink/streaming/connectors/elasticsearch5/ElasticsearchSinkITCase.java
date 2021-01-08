@@ -27,7 +27,7 @@ import org.apache.flink.streaming.connectors.elasticsearch.testutils.Elasticsear
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;

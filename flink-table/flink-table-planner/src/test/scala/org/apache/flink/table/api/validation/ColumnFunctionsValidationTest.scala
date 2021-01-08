@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{Slide, ValidationException, _}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests to validate exceptions for column functions. This test can also cover the batch

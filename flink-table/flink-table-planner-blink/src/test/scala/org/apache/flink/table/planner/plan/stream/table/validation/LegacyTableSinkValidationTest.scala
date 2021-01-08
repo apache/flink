@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestBase, TableTestUtil}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class LegacyTableSinkValidationTest extends TableTestBase {
 

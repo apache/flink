@@ -43,7 +43,7 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 

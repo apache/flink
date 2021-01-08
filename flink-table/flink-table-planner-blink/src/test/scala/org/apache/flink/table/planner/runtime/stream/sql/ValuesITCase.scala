@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{IntType, VarCharType}
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ValuesITCase extends StreamingTestBase {
 

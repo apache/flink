@@ -27,7 +27,7 @@ import org.apache.flink.api.common.operators.util.FieldSet
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFields
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsFirst
 import org.apache.flink.api.java.functions.FunctionAnnotation.ForwardedFieldsSecond
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.api.scala._
 

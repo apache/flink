@@ -21,7 +21,7 @@ package org.apache.flink.client.program;
 import org.apache.flink.configuration.Configuration;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;

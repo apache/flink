@@ -19,7 +19,7 @@
 package org.apache.flink.connector.jdbc.catalog;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for {@link JdbcCatalogUtils}. */

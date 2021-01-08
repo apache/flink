@@ -27,7 +27,7 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.util.Arrays;

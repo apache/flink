@@ -32,7 +32,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;

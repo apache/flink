@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link LongHashJoinGenerator}. */
 public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {

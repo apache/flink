@@ -46,7 +46,7 @@ import com.google.common.collect.ImmutableList
 import org.hamcrest.CoreMatchers
 import org.hamcrest.Matchers.{endsWith, startsWith}
 import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.mutable.ArrayBuffer
 import collection.JavaConverters._

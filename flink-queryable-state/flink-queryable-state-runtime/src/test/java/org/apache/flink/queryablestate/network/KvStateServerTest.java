@@ -57,7 +57,7 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChann
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;

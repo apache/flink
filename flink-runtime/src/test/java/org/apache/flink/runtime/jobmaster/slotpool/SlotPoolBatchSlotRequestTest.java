@@ -36,7 +36,7 @@ import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

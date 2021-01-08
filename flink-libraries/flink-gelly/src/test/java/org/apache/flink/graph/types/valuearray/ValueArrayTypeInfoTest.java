@@ -22,7 +22,7 @@ package org.apache.flink.graph.types.valuearray;
 
 import org.apache.flink.api.common.ExecutionConfig;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.graph.types.valuearray.ValueArrayTypeInfo.INT_VALUE_ARRAY_TYPE_INFO;
 import static org.apache.flink.graph.types.valuearray.ValueArrayTypeInfo.LONG_VALUE_ARRAY_TYPE_INFO;

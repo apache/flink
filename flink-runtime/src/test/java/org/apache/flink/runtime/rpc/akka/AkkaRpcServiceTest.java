@@ -33,7 +33,7 @@ import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 

@@ -24,7 +24,7 @@ import org.apache.flink.table.api.{EnvironmentSettings, ValidationException, _}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.test.util.AbstractTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class UnsupportedOpsValidationTest extends AbstractTestBase {
 

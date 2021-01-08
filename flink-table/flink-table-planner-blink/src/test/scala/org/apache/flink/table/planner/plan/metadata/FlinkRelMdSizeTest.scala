@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

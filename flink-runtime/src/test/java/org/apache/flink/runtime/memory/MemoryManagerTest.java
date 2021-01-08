@@ -25,7 +25,7 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

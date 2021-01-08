@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kafka;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the {@link FlinkFixedPartitioner}. */
 public class FlinkFixedPartitionerTest {

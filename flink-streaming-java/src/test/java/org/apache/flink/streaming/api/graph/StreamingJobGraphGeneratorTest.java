@@ -97,7 +97,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;

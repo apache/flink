@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical.subquery
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.{Date, Timestamp}
 

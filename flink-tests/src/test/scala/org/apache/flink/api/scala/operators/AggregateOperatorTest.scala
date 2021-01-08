@@ -21,7 +21,7 @@ import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.java.aggregation.Aggregations
 import org.apache.flink.api.java.aggregation.UnsupportedAggregationTypeException
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.api.scala._
 

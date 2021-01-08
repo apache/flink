@@ -25,7 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

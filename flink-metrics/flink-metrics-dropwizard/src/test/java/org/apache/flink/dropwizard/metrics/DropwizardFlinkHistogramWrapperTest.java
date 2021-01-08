@@ -36,7 +36,7 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.SlidingWindowReservoir;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;

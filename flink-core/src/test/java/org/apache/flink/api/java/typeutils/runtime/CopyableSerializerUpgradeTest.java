@@ -30,7 +30,7 @@ import org.apache.flink.types.CopyableValue;
 
 import org.hamcrest.Matcher;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

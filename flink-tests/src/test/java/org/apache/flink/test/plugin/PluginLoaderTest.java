@@ -23,7 +23,7 @@ import org.apache.flink.core.plugin.PluginLoader;
 import org.apache.flink.test.plugin.jar.plugina.TestServiceA;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.util.Iterator;

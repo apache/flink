@@ -37,7 +37,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;

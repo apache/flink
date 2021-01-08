@@ -27,7 +27,7 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
 import org.hamcrest.Matchers
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class JoinValidationTest extends TableTestBase {
 

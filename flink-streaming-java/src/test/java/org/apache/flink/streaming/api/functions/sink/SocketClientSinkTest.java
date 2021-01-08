@@ -25,7 +25,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.AssumptionViolatedException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.IOException;

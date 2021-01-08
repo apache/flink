@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test output types from {@link Graph} methods. */
 public class TypeExtractorTest {

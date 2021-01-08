@@ -38,7 +38,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import akka.actor.ActorSystem;
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

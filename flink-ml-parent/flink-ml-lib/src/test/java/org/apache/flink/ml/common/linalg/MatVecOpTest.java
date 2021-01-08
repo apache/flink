@@ -21,7 +21,7 @@ package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test cases for {@link MatVecOp}. */
 public class MatVecOpTest {

@@ -20,7 +20,7 @@ package org.apache.flink.graph.bipartite;
 
 import org.apache.flink.graph.Vertex;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

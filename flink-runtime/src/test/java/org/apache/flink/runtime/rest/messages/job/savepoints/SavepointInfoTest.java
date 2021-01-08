@@ -21,7 +21,7 @@ package org.apache.flink.runtime.rest.messages.job.savepoints;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.fail;
 

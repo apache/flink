@@ -27,7 +27,7 @@ import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.mutable
 

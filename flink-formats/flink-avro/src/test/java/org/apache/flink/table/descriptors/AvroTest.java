@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;

@@ -50,7 +50,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
 import akka.pattern.AskTimeoutException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;

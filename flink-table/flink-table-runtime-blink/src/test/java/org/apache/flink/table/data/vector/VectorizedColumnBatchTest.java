@@ -33,7 +33,7 @@ import org.apache.flink.table.data.vector.heap.HeapLongVector;
 import org.apache.flink.table.data.vector.heap.HeapShortVector;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

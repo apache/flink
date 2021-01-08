@@ -21,7 +21,7 @@ package org.apache.flink.table.descriptors
 import java.util
 
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 

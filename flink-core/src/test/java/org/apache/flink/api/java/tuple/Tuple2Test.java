@@ -21,7 +21,7 @@ package org.apache.flink.api.java.tuple;
 import org.apache.flink.types.NullFieldException;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link Tuple2}. */
 public class Tuple2Test {

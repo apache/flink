@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoLi
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.apache.calcite.rel.core.AggregateCall
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 /**

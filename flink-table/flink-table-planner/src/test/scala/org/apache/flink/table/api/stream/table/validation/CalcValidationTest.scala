@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 

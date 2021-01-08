@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.testutils;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -178,7 +178,7 @@ public class CommonTestUtils {
             String msg, Class<? extends Exception> expected, Callable<?> code) {
         try {
             Object result = code.call();
-            Assert.fail("Previous method call should have failed but it returned: " + result);
+            Assertions.fail("Previous method call should have failed but it returned: " + result);
         } catch (Exception e) {
             assertThat(e, instanceOf(expected));
             assertThat(e.getMessage(), containsString(msg));

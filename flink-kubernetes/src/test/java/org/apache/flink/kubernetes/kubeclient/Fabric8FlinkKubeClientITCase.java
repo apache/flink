@@ -28,7 +28,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashMap;

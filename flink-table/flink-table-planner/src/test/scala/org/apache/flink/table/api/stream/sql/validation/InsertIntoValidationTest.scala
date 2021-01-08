@@ -25,7 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, Types, ValidationException}
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class InsertIntoValidationTest {
 

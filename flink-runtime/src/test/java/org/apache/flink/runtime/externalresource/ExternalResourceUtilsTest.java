@@ -27,7 +27,7 @@ import org.apache.flink.core.plugin.TestingPluginManager;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.IteratorUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

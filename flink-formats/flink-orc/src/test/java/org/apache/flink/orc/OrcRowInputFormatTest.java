@@ -37,7 +37,7 @@ import org.apache.orc.StripeInformation;
 import org.apache.orc.impl.RecordReaderImpl;
 import org.apache.orc.impl.SchemaEvolution;
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

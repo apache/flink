@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test for {@link ProjectWatermarkAssignerTransposeRule}. */
 public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {

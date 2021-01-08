@@ -20,7 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.runtime.blob.VoidBlobStore;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;

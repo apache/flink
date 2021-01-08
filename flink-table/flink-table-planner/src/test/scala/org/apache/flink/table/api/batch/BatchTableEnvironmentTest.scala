@@ -28,7 +28,7 @@ import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStag
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.util
 

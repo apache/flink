@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Unit test for {@link CoGroupedStreams}. */
 public class CoGroupedStreamsTest {

@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.runtime.metrics;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the {@link MinWatermarkGauge}. */
 public class MinWatermarkGaugeTest {

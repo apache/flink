@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment, TableSchema}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.Assert.assertEquals
 
 /**

@@ -36,7 +36,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cac
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 

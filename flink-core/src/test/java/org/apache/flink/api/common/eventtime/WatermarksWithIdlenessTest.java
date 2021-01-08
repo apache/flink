@@ -21,7 +21,7 @@ package org.apache.flink.api.common.eventtime;
 import org.apache.flink.api.common.eventtime.WatermarksWithIdleness.IdlenessTimer;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 

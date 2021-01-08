@@ -31,7 +31,7 @@ import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class CoGroupTaskExternalITCase
         extends DriverTestBase<CoGroupFunction<Record, Record, Record>> {

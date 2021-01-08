@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.test.util.AbstractTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class UnsupportedOpsValidationTest extends AbstractTestBase {
 

@@ -38,7 +38,7 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;

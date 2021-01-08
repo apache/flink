@@ -19,7 +19,7 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for the {@link

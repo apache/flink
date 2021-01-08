@@ -34,7 +34,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;

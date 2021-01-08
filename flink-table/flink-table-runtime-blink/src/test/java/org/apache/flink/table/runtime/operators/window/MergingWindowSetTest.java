@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAs
 import org.apache.flink.table.runtime.operators.window.internal.MergingWindowSet;
 
 import org.hamcrest.core.Is;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.rest.handler.legacy.files;
 
 import org.apache.flink.runtime.rest.handler.util.MimeTypes;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;

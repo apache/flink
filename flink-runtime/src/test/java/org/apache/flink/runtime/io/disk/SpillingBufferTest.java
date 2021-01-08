@@ -36,7 +36,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.EOFException;
 import java.util.ArrayList;

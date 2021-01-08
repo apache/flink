@@ -30,7 +30,7 @@ import org.apache.flink.util.TestLogger;
 
 import akka.actor.ActorSystem;
 import akka.actor.Terminated;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;

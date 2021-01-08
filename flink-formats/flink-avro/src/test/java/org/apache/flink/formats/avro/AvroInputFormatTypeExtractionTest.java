@@ -27,7 +27,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for the type extraction of the {@link AvroInputFormat}. */
 public class AvroInputFormatTypeExtractionTest {

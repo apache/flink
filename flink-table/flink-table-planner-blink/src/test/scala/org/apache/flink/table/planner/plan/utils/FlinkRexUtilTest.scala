@@ -23,7 +23,7 @@ import org.apache.calcite.rex.{RexLiteral, RexNode, RexUtil}
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.junit.Assert.{assertEquals, assertFalse}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.util.Collections

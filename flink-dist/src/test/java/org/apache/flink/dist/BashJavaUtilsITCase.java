@@ -26,7 +26,7 @@ import org.apache.flink.runtime.util.bash.BashJavaUtils;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;

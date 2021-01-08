@@ -20,7 +20,7 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

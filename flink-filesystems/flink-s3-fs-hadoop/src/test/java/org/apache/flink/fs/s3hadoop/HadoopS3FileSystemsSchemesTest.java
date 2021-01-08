@@ -20,7 +20,7 @@ package org.apache.flink.fs.s3hadoop;
 
 import org.apache.flink.core.fs.FileSystemFactory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ServiceLoader;
 

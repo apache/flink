@@ -38,7 +38,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import io.prometheus.client.CollectorRegistry;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

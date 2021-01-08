@@ -21,7 +21,7 @@ package org.apache.flink.core.fs;
 import org.apache.flink.util.AbstractCloseableRegistry;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Closeable;
 import java.io.IOException;

@@ -38,7 +38,7 @@ import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Ignore;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.util.Random;

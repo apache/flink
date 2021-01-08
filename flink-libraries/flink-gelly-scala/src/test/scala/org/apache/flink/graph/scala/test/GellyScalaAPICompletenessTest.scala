@@ -22,7 +22,7 @@ import java.lang.reflect.Method
 import org.apache.flink.api.scala.completeness.ScalaAPICompletenessTestBase
 import org.apache.flink.graph.scala._
 import org.apache.flink.graph.{Graph => JavaGraph}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.language.existentials
 

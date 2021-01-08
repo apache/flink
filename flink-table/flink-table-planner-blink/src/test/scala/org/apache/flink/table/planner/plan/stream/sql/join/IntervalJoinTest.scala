@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase,
 
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class IntervalJoinTest extends TableTestBase {
 

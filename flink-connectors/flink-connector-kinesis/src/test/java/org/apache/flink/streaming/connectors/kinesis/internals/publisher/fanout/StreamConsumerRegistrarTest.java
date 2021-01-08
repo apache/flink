@@ -24,7 +24,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOut
 import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOutBehavioursFactory.StreamConsumerFakeKinesis;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 

@@ -20,7 +20,7 @@ package org.apache.flink.graph.asm.translate.translators;
 
 import org.apache.flink.types.LongValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 

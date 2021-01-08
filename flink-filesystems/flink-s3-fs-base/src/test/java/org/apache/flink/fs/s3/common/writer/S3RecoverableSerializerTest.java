@@ -21,7 +21,7 @@ package org.apache.flink.fs.s3.common.writer;
 import com.amazonaws.services.s3.model.PartETag;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;

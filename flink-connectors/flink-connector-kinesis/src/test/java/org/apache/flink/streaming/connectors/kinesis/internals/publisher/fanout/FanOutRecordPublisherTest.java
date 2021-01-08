@@ -32,7 +32,7 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import io.netty.handler.timeout.ReadTimeoutException;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.services.kinesis.model.LimitExceededException;

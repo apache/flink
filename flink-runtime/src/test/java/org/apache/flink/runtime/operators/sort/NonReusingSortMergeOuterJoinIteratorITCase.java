@@ -27,7 +27,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class NonReusingSortMergeOuterJoinIteratorITCase
         extends AbstractSortMergeOuterJoinIteratorITCase {

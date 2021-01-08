@@ -33,7 +33,7 @@ import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase;
 import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

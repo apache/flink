@@ -20,7 +20,7 @@ package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.AbstractHistogramTest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link DescriptiveStatisticsHistogram} and {@link

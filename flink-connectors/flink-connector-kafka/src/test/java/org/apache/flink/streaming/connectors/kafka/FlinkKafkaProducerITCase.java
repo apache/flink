@@ -32,7 +32,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;

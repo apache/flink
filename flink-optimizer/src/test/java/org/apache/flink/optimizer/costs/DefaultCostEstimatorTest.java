@@ -20,7 +20,7 @@ package org.apache.flink.optimizer.costs;
 
 import org.apache.flink.optimizer.dag.EstimateProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;
 

@@ -38,7 +38,7 @@ import org.apache.flink.util.FileUtils;
 
 import org.apache.calcite.rel.RelNode;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;

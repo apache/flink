@@ -24,7 +24,7 @@ import org.apache.flink.ml.api.misc.param.Params;
 
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 /** Test for the behavior and validator of {@link Params}. */

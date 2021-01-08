@@ -40,7 +40,7 @@ import org.apache.flink.util.Collector;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 /** Test writing keyed bootstrap state. */

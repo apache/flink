@@ -21,7 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.resources;
 import org.apache.flink.kubernetes.KubernetesTestBase;
 import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 

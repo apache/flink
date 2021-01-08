@@ -21,7 +21,7 @@ package org.apache.flink.connector.base.source.reader.synchronization;
 import org.apache.flink.connector.base.source.reader.SourceReaderOptions;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.BitSet;

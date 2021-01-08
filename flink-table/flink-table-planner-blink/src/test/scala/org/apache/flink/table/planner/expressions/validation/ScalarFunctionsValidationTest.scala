@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
 import org.apache.calcite.avatica.util.TimeUnit
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 

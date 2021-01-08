@@ -28,7 +28,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
 import org.apache.hadoop.conf.Configuration;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;

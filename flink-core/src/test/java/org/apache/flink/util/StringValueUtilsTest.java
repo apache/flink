@@ -21,7 +21,7 @@ package org.apache.flink.util;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.StringValueUtils.WhitespaceTokenizer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.Weighted
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()

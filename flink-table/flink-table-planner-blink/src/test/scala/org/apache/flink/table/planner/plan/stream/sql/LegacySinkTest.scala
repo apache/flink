@@ -24,7 +24,7 @@ import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class LegacySinkTest extends TableTestBase {
 

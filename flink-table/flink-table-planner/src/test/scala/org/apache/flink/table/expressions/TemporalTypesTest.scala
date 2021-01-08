@@ -24,7 +24,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.{Date, Time, Timestamp}
 

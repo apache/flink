@@ -28,7 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.testutils.FailingIdentityMapp
 import org.apache.flink.streaming.connectors.kafka.testutils.ValidatingExactlyOnceSink;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.Timeout;
 
 import static org.apache.flink.streaming.api.TimeCharacteristic.EventTime;

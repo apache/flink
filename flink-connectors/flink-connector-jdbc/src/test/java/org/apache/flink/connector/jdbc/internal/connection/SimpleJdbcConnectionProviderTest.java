@@ -24,7 +24,7 @@ import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection1;
 import org.apache.flink.connector.jdbc.fakedb.driver.FakeConnection2;
 
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 

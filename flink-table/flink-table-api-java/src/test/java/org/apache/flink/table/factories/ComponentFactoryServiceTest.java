@@ -24,7 +24,7 @@ import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.factories.utils.TestPlannerFactory;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;

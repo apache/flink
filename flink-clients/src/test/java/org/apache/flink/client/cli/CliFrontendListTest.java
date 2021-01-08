@@ -27,7 +27,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Arrays;

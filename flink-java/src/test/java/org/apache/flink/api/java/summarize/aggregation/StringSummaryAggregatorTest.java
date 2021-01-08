@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link StringSummaryAggregator}. */
 public class StringSummaryAggregatorTest {

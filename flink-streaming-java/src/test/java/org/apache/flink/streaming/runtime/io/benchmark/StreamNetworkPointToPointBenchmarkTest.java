@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link StreamNetworkPointToPointBenchmark}. */
 public class StreamNetworkPointToPointBenchmarkTest {

@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.streaming.util.StreamRecordMatchers.timeWindow;
 import static org.hamcrest.CoreMatchers.containsString;

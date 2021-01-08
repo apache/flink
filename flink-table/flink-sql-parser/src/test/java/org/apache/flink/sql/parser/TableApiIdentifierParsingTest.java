@@ -26,7 +26,7 @@ import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.util.SourceStringReader;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

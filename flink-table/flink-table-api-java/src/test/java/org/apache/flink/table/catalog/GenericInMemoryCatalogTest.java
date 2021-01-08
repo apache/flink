@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.TestSimpleUDF;
 import org.apache.flink.table.utils.TableEnvironmentMock;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

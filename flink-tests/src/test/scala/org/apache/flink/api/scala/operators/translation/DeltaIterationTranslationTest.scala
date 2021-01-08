@@ -30,7 +30,7 @@ import org.apache.flink.api.common.aggregators.LongSumAggregator
 import org.apache.flink.api.common.operators.base.DeltaIterationBase
 import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase
 import org.apache.flink.api.common.operators.base.MapOperatorBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.util.Collector
 

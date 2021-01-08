@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBas
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 

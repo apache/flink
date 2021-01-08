@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;

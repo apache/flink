@@ -19,7 +19,7 @@
 package org.apache.flink.api.java.summarize.aggregation;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link CompensatedSum}. */
 public class CompensatedSumTest {

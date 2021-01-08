@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Unit test for {@link TransformerBase}. */
 public class TransformerBaseTest extends PipelineStageTestBase {

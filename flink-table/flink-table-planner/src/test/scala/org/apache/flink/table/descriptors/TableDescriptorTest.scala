@@ -23,7 +23,7 @@ import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.CommonTestData.Person
 import org.apache.flink.table.utils.TableTestBase
 import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 

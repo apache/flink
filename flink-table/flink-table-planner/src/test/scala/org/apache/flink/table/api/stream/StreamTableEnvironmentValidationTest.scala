@@ -26,7 +26,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.TimestampWithEqualWatermark
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 

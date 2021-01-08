@@ -25,7 +25,7 @@ import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 

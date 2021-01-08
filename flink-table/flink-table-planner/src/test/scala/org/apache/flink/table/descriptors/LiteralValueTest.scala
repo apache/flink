@@ -22,7 +22,7 @@ import java.util.{Arrays => JArrays, List => JList, Map => JMap}
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 

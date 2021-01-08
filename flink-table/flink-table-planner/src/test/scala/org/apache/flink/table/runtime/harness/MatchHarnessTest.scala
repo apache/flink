@@ -25,7 +25,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import java.time.{Instant, ZoneId}
 import java.util.concurrent.ConcurrentLinkedQueue
 

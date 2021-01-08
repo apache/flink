@@ -36,7 +36,7 @@ import org.apache.flink.streaming.util.keys.KeySelectorUtil;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.util.ArrayList;

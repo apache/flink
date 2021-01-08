@@ -32,7 +32,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TernaryBoolean;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDBException;
 

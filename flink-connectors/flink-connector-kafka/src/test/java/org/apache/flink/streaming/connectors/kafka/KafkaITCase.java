@@ -39,7 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 

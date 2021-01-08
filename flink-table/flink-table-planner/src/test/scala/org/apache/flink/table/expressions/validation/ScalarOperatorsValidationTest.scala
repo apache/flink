@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.validation
 import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.utils.ScalarOperatorsTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
 

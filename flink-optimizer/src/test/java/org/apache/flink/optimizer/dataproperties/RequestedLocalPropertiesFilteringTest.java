@@ -31,7 +31,7 @@ import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;
 

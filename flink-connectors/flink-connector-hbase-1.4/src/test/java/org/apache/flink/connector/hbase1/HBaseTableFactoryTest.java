@@ -38,7 +38,7 @@ import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

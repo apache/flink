@@ -36,7 +36,7 @@ import org.apache.flink.table.types.DataType;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.List;

@@ -24,7 +24,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import scala.Option;
 

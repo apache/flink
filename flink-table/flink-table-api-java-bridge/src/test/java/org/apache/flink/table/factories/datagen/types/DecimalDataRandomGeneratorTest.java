@@ -21,7 +21,7 @@ package org.apache.flink.table.factories.datagen.types;
 import org.apache.flink.table.data.DecimalData;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 

@@ -29,7 +29,7 @@ import org.apache.flink.yarn.YarnConfigKeys;
 
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;

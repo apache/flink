@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.runtime.jobgraph.ScheduleMode.EAGER;

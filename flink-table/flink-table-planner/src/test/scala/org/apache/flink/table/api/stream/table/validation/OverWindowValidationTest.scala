@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{OverAgg0, WeightedAvgWithRetract}
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OverWindowValidationTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()

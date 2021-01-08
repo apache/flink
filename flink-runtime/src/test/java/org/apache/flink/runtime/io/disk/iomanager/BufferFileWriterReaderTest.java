@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Random;

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase
 import org.apache.flink.api.common.typeutils.base.{IntSerializer, StringSerializer}
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 

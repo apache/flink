@@ -25,7 +25,7 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test base for {@link GenericWriteAheadSink}. */
 public abstract class WriteAheadSinkTestBase<IN, S extends GenericWriteAheadSink<IN>>

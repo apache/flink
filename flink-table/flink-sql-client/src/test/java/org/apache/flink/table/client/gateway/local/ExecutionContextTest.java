@@ -50,7 +50,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.util.StringUtils;
 
 import org.apache.commons.cli.Options;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.URL;
 import java.time.Duration;

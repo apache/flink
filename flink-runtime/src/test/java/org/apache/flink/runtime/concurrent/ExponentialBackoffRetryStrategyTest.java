@@ -20,7 +20,7 @@ package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 

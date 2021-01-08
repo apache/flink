@@ -30,7 +30,7 @@ import org.apache.flink.test.streaming.runtime.util.TestListResultSink
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Integration test for streaming programs using side outputs.

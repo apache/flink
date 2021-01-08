@@ -35,7 +35,7 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

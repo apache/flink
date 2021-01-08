@@ -30,7 +30,7 @@ import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.event.Level;
 
 import java.io.IOException;

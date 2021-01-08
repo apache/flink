@@ -28,7 +28,7 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 /** Integration tests for {@link StreamExecutionEnvironment}. */

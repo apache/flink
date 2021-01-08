@@ -25,7 +25,7 @@ import org.apache.flink.ml.common.MLEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * The base class for testing the base implementation of pipeline stages, i.e. Estimators and

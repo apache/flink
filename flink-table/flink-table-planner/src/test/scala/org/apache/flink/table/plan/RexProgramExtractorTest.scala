@@ -35,7 +35,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 import org.hamcrest.CoreMatchers.is
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertThat}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}

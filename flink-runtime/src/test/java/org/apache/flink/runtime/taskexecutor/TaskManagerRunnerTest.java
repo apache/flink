@@ -33,7 +33,7 @@ import org.apache.flink.util.TimeUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.Timeout;
 
 import javax.annotation.Nonnull;

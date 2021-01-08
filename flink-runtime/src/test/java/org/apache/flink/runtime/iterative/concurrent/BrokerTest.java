@@ -20,7 +20,7 @@ package org.apache.flink.runtime.iterative.concurrent;
 
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;

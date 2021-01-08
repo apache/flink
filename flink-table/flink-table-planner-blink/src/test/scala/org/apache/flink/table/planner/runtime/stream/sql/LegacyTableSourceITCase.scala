@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestLegacy
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 

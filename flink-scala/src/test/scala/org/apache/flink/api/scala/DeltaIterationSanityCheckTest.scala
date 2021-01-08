@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.apache.flink.api.common.InvalidProgramException
 
 // Verify that the sanity checking in delta iterations works. We just

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCo
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

@@ -35,7 +35,7 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;

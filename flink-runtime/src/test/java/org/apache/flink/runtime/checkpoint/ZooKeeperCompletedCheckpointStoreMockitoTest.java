@@ -34,7 +34,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.Curator
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ErrorListenerPathable;
 import org.apache.flink.shaded.curator4.org.apache.curator.utils.EnsurePath;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;

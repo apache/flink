@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.transformations.LegacySourceTransformation
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 

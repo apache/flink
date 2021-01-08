@@ -23,7 +23,7 @@ import org.apache.flink.graph.drivers.parameter.Simplify.Ordering;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Tests for {@link Simplify}. */
 public class SimplifyTest extends ParameterTestBase {

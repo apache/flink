@@ -37,7 +37,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test rule {@link PushWatermarkIntoTableSourceScanAcrossCalcRule} and {@link

@@ -23,7 +23,7 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

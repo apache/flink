@@ -35,7 +35,7 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cac
 
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.time.Duration;

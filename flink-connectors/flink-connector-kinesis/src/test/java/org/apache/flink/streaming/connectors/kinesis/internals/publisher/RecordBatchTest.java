@@ -22,7 +22,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
 import com.amazonaws.services.kinesis.model.Record;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;

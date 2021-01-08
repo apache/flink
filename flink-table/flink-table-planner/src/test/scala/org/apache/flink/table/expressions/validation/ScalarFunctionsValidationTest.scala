@@ -24,7 +24,7 @@ import org.apache.flink.table.expressions.TimePointUnit
 import org.apache.flink.table.expressions.utils.ScalarTypesTestBase
 
 import org.apache.calcite.avatica.util.TimeUnit
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
 

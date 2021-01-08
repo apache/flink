@@ -21,7 +21,7 @@ package org.apache.flink.streaming.runtime.io.benchmark;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;

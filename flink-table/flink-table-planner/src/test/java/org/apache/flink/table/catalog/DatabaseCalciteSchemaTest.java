@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ParserMock;
 
 import org.apache.calcite.schema.Table;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
 import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters

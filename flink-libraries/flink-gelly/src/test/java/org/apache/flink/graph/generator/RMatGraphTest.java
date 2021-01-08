@@ -26,7 +26,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.NullValue;
 
 import org.apache.commons.math3.random.JDKRandomGenerator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

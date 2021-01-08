@@ -26,7 +26,7 @@ import org.apache.flink.runtime.util.event.EventListener;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import static junit.framework.TestCase.assertTrue;

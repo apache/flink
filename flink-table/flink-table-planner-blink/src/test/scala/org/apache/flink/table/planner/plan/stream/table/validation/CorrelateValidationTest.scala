@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.Wei
 import org.apache.flink.table.planner.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 
 import org.junit.Assert.{assertTrue, fail}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateValidationTest extends TableTestBase {
 

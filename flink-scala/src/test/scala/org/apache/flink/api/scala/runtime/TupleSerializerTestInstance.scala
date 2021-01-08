@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeutils.{SerializerTestInstance, TypeSerial
 import org.apache.flink.testutils.DeeplyEqualsChecker
 import org.apache.flink.testutils.DeeplyEqualsChecker.CustomEqualityChecker
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 
 object TupleSerializerTestInstance {

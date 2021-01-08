@@ -44,7 +44,7 @@ import com.rabbitmq.client.Delivery;
 import com.rabbitmq.client.Envelope;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;

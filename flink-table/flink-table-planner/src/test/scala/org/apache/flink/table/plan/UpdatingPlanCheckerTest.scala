@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.utils.StreamTableTestUtil
 
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class UpdatingPlanCheckerTest {
 

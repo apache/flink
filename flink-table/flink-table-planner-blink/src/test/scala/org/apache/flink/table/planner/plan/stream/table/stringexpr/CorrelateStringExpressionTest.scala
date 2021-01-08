@@ -28,7 +28,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.utils._
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 
 class CorrelateStringExpressionTest extends TableTestBase {

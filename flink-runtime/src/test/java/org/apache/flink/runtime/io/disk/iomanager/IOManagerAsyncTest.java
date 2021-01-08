@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;

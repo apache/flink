@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.mutable
 

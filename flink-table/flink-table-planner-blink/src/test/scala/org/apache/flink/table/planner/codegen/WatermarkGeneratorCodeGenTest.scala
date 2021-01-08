@@ -47,7 +47,7 @@ import java.util.function.{Function => JFunction, Supplier => JSupplier}
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].

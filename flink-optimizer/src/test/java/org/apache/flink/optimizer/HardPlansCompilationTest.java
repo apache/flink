@@ -29,7 +29,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
 import org.apache.flink.optimizer.testfunctions.IdentityMapper;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * This class tests plans that once failed because of a bug:

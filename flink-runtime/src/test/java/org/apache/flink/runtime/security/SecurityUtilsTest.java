@@ -32,7 +32,7 @@ import org.apache.flink.runtime.security.modules.TestSecurityModuleFactory;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;

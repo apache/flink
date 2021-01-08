@@ -24,7 +24,7 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Integration tests for {@link org.apache.flink.api.java.io.CsvOutputFormat}. */
 public class CsvOutputFormatITCase extends AbstractTestBase {

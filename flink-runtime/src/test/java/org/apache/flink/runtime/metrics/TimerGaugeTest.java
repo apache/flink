@@ -29,7 +29,7 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.metrics.View;
 import org.apache.flink.util.clock.ManualClock;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 

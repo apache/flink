@@ -23,7 +23,7 @@ import org.apache.flink.ml.common.linalg.DenseMatrix;
 import org.apache.flink.ml.common.linalg.DenseVector;
 
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Test cases for {@link MultivariateGaussian}. */
 public class MultivariateGaussianTest {

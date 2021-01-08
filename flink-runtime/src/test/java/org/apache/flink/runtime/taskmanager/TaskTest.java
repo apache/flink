@@ -51,7 +51,7 @@ import org.apache.flink.util.WrappingRuntimeException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;

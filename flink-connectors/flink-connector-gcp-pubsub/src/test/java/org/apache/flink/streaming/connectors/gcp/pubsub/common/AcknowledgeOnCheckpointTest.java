@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub.common;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;

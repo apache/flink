@@ -21,7 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.configuration.MemorySize.MemoryUnit;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 

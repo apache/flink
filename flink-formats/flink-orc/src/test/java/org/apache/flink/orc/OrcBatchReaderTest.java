@@ -28,7 +28,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 
 import org.apache.orc.TypeDescription;
 import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /** Unit tests for {@link OrcBatchReader}. */
 public class OrcBatchReaderTest {

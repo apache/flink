@@ -27,7 +27,7 @@ import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.net.URLClassLoader;

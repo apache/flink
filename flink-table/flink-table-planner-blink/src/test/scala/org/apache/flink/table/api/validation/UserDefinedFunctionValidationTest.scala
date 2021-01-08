@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class UserDefinedFunctionValidationTest extends TableTestBase {
 
