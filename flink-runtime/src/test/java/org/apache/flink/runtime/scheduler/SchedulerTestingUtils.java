@@ -37,6 +37,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -410,6 +411,8 @@ public class SchedulerTestingUtils {
         private ExecutionVertexVersioner executionVertexVersioner = new ExecutionVertexVersioner();
         private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
+        private JobStatusListener jobStatusListener =
+                (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -518,6 +521,11 @@ public class SchedulerTestingUtils {
             return this;
         }
 
+        public DefaultSchedulerBuilder setJobStatusListener(JobStatusListener jobStatusListener) {
+            this.jobStatusListener = jobStatusListener;
+            return this;
+        }
+
         public DefaultScheduler build() throws Exception {
             return new DefaultScheduler(
                     log,
@@ -542,7 +550,8 @@ public class SchedulerTestingUtils {
                     executionSlotAllocatorFactory,
                     new DefaultExecutionDeploymentTracker(),
                     System.currentTimeMillis(),
-                    mainThreadExecutor);
+                    mainThreadExecutor,
+                    jobStatusListener);
         }
     }
 }
