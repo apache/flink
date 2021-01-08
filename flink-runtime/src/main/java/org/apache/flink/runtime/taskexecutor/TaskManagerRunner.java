@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JMXServerOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.TaskManagerOptionsInternal;
-import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -34,7 +33,6 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
@@ -498,16 +496,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
                 metricQueryServiceAddress,
                 blobCacheService,
                 fatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                createBackPressureSampleService(configuration, rpcService.getScheduledExecutor()));
-    }
-
-    static BackPressureSampleService createBackPressureSampleService(
-            Configuration configuration, ScheduledExecutor scheduledExecutor) {
-        return new BackPressureSampleService(
-                configuration.getInteger(WebOptions.BACKPRESSURE_NUM_SAMPLES),
-                Time.milliseconds(configuration.getInteger(WebOptions.BACKPRESSURE_DELAY)),
-                scheduledExecutor);
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
 
     /**

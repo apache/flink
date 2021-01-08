@@ -28,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
@@ -42,7 +41,6 @@ public interface SchedulerNGFactory {
     SchedulerNG createInstance(
             Logger log,
             JobGraph jobGraph,
-            BackPressureStatsTracker backPressureStatsTracker,
             Executor ioExecutor,
             Configuration jobMasterConfiguration,
             SlotPool slotPool,

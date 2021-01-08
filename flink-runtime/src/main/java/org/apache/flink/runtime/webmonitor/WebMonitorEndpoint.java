@@ -511,7 +511,8 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         leaderRetriever,
                         timeout,
                         responseHeaders,
-                        JobVertexBackPressureHeaders.getInstance());
+                        JobVertexBackPressureHeaders.getInstance(),
+                        metricFetcher);
 
         final JobCancellationHandler jobCancelTerminationHandler =
                 new JobCancellationHandler(

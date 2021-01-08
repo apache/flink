@@ -46,7 +46,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstrain
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
@@ -785,28 +784,6 @@ public class Execution
     @Override
     public void fail(Throwable t) {
         processFail(t, true);
-    }
-
-    /**
-     * Request the back pressure ratio from the task of this execution.
-     *
-     * @param requestId id of the request.
-     * @param timeout the request times out.
-     * @return A future of the task back pressure result.
-     */
-    public CompletableFuture<TaskBackPressureResponse> requestBackPressure(
-            int requestId, Time timeout) {
-
-        final LogicalSlot slot = assignedResource;
-
-        if (slot != null) {
-            final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-
-            return taskManagerGateway.requestTaskBackPressure(attemptId, requestId, timeout);
-        } else {
-            return FutureUtils.completedExceptionally(
-                    new Exception("The execution has no slot assigned."));
-        }
     }
 
     /**

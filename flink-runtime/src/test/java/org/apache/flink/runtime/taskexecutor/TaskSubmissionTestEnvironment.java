@@ -264,9 +264,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                 metricQueryServiceAddress,
                 blobCacheService,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration, testingRpcService.getScheduledExecutor()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
 
     private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

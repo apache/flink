@@ -27,7 +27,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
@@ -87,7 +86,6 @@ public class JobMasterSchedulerTest extends TestLogger {
         public SchedulerNG createInstance(
                 Logger log,
                 JobGraph jobGraph,
-                BackPressureStatsTracker backPressureStatsTracker,
                 Executor ioExecutor,
                 Configuration jobMasterConfiguration,
                 SlotPool slotPool,
