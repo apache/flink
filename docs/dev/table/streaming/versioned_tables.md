@@ -25,8 +25,6 @@ under the License.
 Flink SQL operates over dynamic tables that evolve, which may either be append-only or updating. 
 Versioned tables represent a special type of updating table that remembers the past values for each key.
 
-<span class="label label-danger">Attention</span> The Legacy planner does not support versioned tables.
-
 * This will be replaced by the TOC
 {:toc}
 

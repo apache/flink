@@ -90,9 +90,6 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> Currently, key-value options are only supported
-for the Blink planner.
-
 ### Execution Options
 
 The following options can be used to tune the performance of the query execution.

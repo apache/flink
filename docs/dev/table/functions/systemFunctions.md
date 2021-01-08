@@ -1487,7 +1487,6 @@ PI()
       </td>
       <td>
       <p>Returns the value of π (pi).</p>
-      <p>Only supported in blink planner.</p>
       </td>
     </tr> 
         
@@ -2722,7 +2721,6 @@ ASCII(string)
       </td>
       <td>
         <p>Returns the numeric value of the first character of <i>string</i>. Returns NULL if <i>string</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>ascii('abc')</code> returns 97, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
       </td>
     </tr>
@@ -2735,7 +2733,6 @@ CHR(integer)
       </td>
       <td>
         <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255, we will get the modulus of <i>integer</i> divided by 255 first, and returns <i>CHR</i> of the modulus. Returns NULL if <i>integer</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
       </td>
     </tr>
@@ -2748,7 +2745,6 @@ DECODE(binary, string)
       </td>
       <td>
         <p>Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2760,7 +2756,6 @@ ENCODE(string1, string2)
       </td>
       <td>
         <p>Encodes the <i>string1</i> into a BINARY using the provided <i>string2</i> character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2772,7 +2767,6 @@ INSTR(string1, string2)
       </td>
       <td>
         Returns the position of the first occurrence of <i>string2</i> in <i>string1</i>. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2784,7 +2778,6 @@ LEFT(string, integer)
       </td>
       <td>
         <p>Returns the leftmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2796,7 +2789,6 @@ RIGHT(string, integer)
       </td>
       <td>
         <p>Returns the rightmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2808,7 +2800,6 @@ LOCATE(string1, string2[, integer])
       </td>
       <td>
         <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i> after position <i>integer</i>. Returns 0 if not found. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2823,7 +2814,6 @@ PARSE_URL(string1, string2[, string3])
         <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')</code>, returns 'facebook.com'.</p>
         <p>Also a value of a particular key in QUERY can be extracted by providing the key as the third argument <i>string3</i>.</p>
         <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')</code> returns 'v1'. </p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2835,7 +2825,6 @@ REGEXP(string1, string2)
       </td>
       <td>
         <p>Returns TRUE if any (possibly empty) substring of <i>string1</i> matches the Java regular expression <i>string2</i>, otherwise FALSE. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2847,7 +2836,6 @@ REVERSE(string)
       </td>
       <td>
         <p>Returns the reversed string. Returns NULL if <i>string</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2859,7 +2847,6 @@ SPLIT_INDEX(string1, string2, integer1)
       </td>
       <td>
         <p>Splits <i>string1</i> by the delimiter <i>string2</i>, returns the <i>integer</i>th (zero-based) string of the split strings. Returns NULL if <i>integer</i> is negative. Returns NULL if any of arguments is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -2871,7 +2858,6 @@ STR_TO_MAP(string1[, string2, string3]])
       </td>
       <td>
         <p>Returns a map after splitting the <i>string1</i> into key/value pairs using delimiters. <i>string2</i> is the pair delimiter, default is ','. And <i>string3</i> is the key-value delimiter, default is '='.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -2883,7 +2869,6 @@ SUBSTR(string[, integer1[, integer2]])
       </td>
       <td>
         <p>Returns a substring of string starting from position integer1 with length integer2 (to the end by default).</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3711,8 +3696,7 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p><span class="label label-danger">Attention for old planner</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
-        <p>For blink planner, this converts <i>timestamp</i> to a value of string in the format specified by the date format <i>string</i>. The format string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html">SimpleDateFormat</a>.</p>
+        <p>Converts <i>timestamp</i> to a value of string in the format specified by the date format <i>string</i>. The format string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html">SimpleDateFormat</a>.</p>
       </td>
     </tr>
 
@@ -3749,7 +3733,6 @@ CONVERT_TZ(string1, string2, string3)
       <td>
         <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
         <p>E.g., <code>CONVERT_TZ('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3762,7 +3745,6 @@ FROM_UNIXTIME(numeric[, string])
       <td>
         <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'yyyy-MM-dd HH:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
         <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 00:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -3775,7 +3757,6 @@ UNIX_TIMESTAMP()
       <td>
         <p>Gets current Unix timestamp in seconds.</p>
         <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -3787,7 +3768,6 @@ UNIX_TIMESTAMP(string1[, string2])
       </td>
       <td>
         <p>Converts date time string <i>string1</i> in format <i>string2</i> (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3799,7 +3779,6 @@ TO_DATE(string1[, string2])
       </td>
       <td>
         <p>Converts a date string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd') to a date.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr> 
        
@@ -3811,7 +3790,6 @@ TO_TIMESTAMP(string1[, string2])
       </td>
       <td>
         <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -3824,7 +3802,6 @@ NOW()
       <td>
         <p>Returns the current SQL timestamp in the UTC time zone.</p>
         <p><b>Note:</b> This function is not deterministic which means the value would be recalculated for each record.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -4477,7 +4454,6 @@ IF(condition, true_value, false_value)
       </td>
       <td>
         <p>Returns the <i>true_value</i> if <i>condition</i> is met, otherwise <i>false_value</i>.</p>
-        <p>Only supported in blink planner.</p>
         <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
       </td>
     </tr>
@@ -4507,7 +4483,6 @@ IS_ALPHA(string)
       </td>
       <td>
         <p>Returns true if all characters in <i>string</i> are letter, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>    
 
@@ -4519,7 +4494,6 @@ IS_DECIMAL(string)
       </td>
       <td>
         <p>Returns true if <i>string</i> can be parsed to a valid numeric, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>    
 
@@ -4531,7 +4505,6 @@ IS_DIGIT(string)
       </td>
       <td>
         <p>Returns true if all characters in <i>string</i> are digit, otherwise false.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
     
@@ -5849,7 +5822,6 @@ VARIANCE([ ALL | DISTINCT ] expression)
       </td>
       <td>
         <p>Synonyms for VAR_SAMP().</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5861,7 +5833,6 @@ RANK()
       </td>
       <td>
         <p>Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5873,7 +5844,6 @@ DENSE_RANK()
       </td>
       <td>
         <p>Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5886,7 +5856,6 @@ ROW_NUMBER()
       <td>
         <p>Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition.</p>
         <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5898,7 +5867,6 @@ LEAD(expression [, offset] [, default] )
       </td>
       <td>
         <p>Returns the value of <i>expression</i> at the <i>offset</i>th row before the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5910,7 +5878,6 @@ LAG(expression [, offset] [, default])
       </td>
       <td>
         <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
         
@@ -5922,7 +5889,6 @@ FIRST_VALUE(expression)
       </td>
       <td>
         <p>Returns the first value in an ordered set of values.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5934,7 +5900,6 @@ LAST_VALUE(expression)
       </td>
       <td>
         <p>Returns the last value in an ordered set of values.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -5946,7 +5911,6 @@ LISTAGG(expression [, separator])
       </td>
       <td>
         <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is ','.</p>
-        <p>Only supported in blink planner.</p>
       </td>
     </tr>
            
