@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategyFactoryLoader;
@@ -63,7 +64,8 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionDeploymentTracker executionDeploymentTracker,
             long initializationTimestamp,
-            final ComponentMainThreadExecutor mainThreadExecutor)
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         final DefaultSchedulerComponents schedulerComponents =
@@ -110,6 +112,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getAllocatorFactory(),
                 executionDeploymentTracker,
                 initializationTimestamp,
-                mainThreadExecutor);
+                mainThreadExecutor,
+                jobStatusListener);
     }
 }

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -122,7 +123,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
             final ExecutionDeploymentTracker executionDeploymentTracker,
             long initializationTimestamp,
-            final ComponentMainThreadExecutor mainThreadExecutor)
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         super(
@@ -141,7 +143,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 executionVertexVersioner,
                 executionDeploymentTracker,
                 initializationTimestamp,
-                mainThreadExecutor);
+                mainThreadExecutor,
+                jobStatusListener);
 
         this.log = log;
 
