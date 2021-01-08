@@ -34,6 +34,7 @@ import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -759,13 +760,10 @@ object GenerateUtils {
       s"$compareFunc($leftTerm, $rightTerm)"
     case ROW | STRUCTURED_TYPE =>
       val fieldCount = getFieldCount(t)
-      val orders = (0 until fieldCount).map(_ => true).toArray
       val comparisons = generateRowCompare(
         ctx,
-        (0 until fieldCount).toArray,
-        getFieldTypes(t).toArray(Array[LogicalType]()),
-        orders,
-        SortUtil.getNullDefaultOrders(orders),
+        t,
+        SortUtil.getAscendingSortSpec((0 until fieldCount).toArray),
         "a",
         "b")
       val compareFunc = newName("compareRow")
@@ -866,8 +864,59 @@ object GenerateUtils {
   }
 
   /**
-    * Generates code for comparing row keys.
-    */
+   * Generates code for comparing row keys.
+   */
+  def generateRowCompare(
+      ctx: CodeGeneratorContext,
+      inputType: LogicalType,
+      sortSpec: SortSpec,
+      leftTerm: String,
+      rightTerm: String): String = {
+
+    val fieldTypes = getFieldTypes(inputType)
+    val compares = new mutable.ArrayBuffer[String]
+    sortSpec.getFieldSpecs.foreach(fieldSpec => {
+      val index = fieldSpec.getFieldIndex
+      val symbol = if (fieldSpec.getIsAscendingOrder) "" else "-"
+      val nullIsLastRet = if (fieldSpec.getNullIsLast) 1 else -1
+      val t = fieldTypes.get(index)
+
+      val typeTerm = primitiveTypeTermForType(t)
+      val fieldA = newName("fieldA")
+      val isNullA = newName("isNullA")
+      val fieldB = newName("fieldB")
+      val isNullB = newName("isNullB")
+      val comp = newName("comp")
+
+      val code =
+        s"""
+           |boolean $isNullA = $leftTerm.isNullAt($index);
+           |boolean $isNullB = $rightTerm.isNullAt($index);
+           |if ($isNullA && $isNullB) {
+           |  // Continue to compare the next element
+           |} else if ($isNullA) {
+           |  return $nullIsLastRet;
+           |} else if ($isNullB) {
+           |  return ${-nullIsLastRet};
+           |} else {
+           |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
+           |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
+           |  int $comp = ${generateCompare(ctx, t, fieldSpec.getNullIsLast, fieldA, fieldB)};
+           |  if ($comp != 0) {
+           |    return $symbol$comp;
+           |  }
+           |}
+         """.stripMargin
+      compares += code
+    })
+    compares.mkString
+  }
+
+  /**
+   * Generates code for comparing row keys.
+   * TODO: Remove this after [[MultiFieldRangeBoundComparatorCodeGenerator]]
+   * is refactored using SortSpec.
+   */
   def generateRowCompare(
     ctx: CodeGeneratorContext,
     keys: Array[Int],

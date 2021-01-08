@@ -70,8 +70,7 @@ class BatchExecOverAggregateRule
 
     def generatorOverAggregate(): Unit = {
       val groupSet: Array[Int] = lastGroup.keys.toArray
-      val (orderKeyIndexes, orders, nullIsLasts) = SortUtil.getKeysAndOrders(
-        lastGroup.orderKeys.getFieldCollations)
+      val sortSpec = SortUtil.getSortSpec(lastGroup.orderKeys.getFieldCollations)
 
       val requiredDistribution = if (groupSet.nonEmpty) {
         FlinkRelDistribution.hash(groupSet.map(Integer.valueOf).toList, requireStrict = false)
@@ -96,7 +95,7 @@ class BatchExecOverAggregateRule
         val (_, _, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
           FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
           aggregateCalls,
-          orderKeyIndexes)
+          sortSpec.getFieldIndices)
         val aggCallToAggFunction = aggregateCalls.zip(aggregates)
         (group, aggCallToAggFunction)
       }
@@ -132,9 +131,9 @@ class BatchExecOverAggregateRule
           outputRowType,
           newInput.getRowType,
           groupSet,
-          orderKeyIndexes,
-          orders,
-          nullIsLasts,
+          sortSpec.getFieldIndices,
+          sortSpec.getAscendingOrders,
+          sortSpec.getNullsIsLast,
           groupToAggCallToAggFunction,
           logicWindow)
       } else {
@@ -146,9 +145,9 @@ class BatchExecOverAggregateRule
           outputRowType,
           newInput.getRowType,
           groupSet,
-          orderKeyIndexes,
-          orders,
-          nullIsLasts,
+          sortSpec.getFieldIndices,
+          sortSpec.getAscendingOrders,
+          sortSpec.getNullsIsLast,
           groupToAggCallToAggFunction,
           logicWindow)
       }
