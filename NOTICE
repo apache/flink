@@ -14,6 +14,7 @@ See bundled license files for details.
     -> js in "docs/page/js/bootstrap.min.js"
     -> fonts in "docs/page/fonts"
 
+Note: The "docs/page/fonts/glyphicons-halflings*" fonts are included in Bootstrap, and licensed under the same license as Boostrap. See https://glyphicons.com/old/license.html#old-halflings-bootstrap for more information.
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details.
 
@@ -43,4 +44,3 @@ The Apache Flink project contains or reuses code that is licensed under the Apac
 - Google Cloud Client Library for Java (https://github.com/googleapis/google-cloud-java) Copyright 2017 Google LLC
 
   See: flink-end-to-end-tests/flink-connector-gcp-pubsub-emulator-tests/src/test/java/org/apache/flink/streaming/connectors/gcp/pubsub/emulator/PubsubHelper.java
-
