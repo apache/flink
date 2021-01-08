@@ -19,29 +19,23 @@
 package org.apache.flink.runtime.jobmanager.scheduler;
 
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
+
+import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableList;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A Co-location group is a group of JobVertices, where the <i>i-th</i> subtask of one vertex has to
- * be executed on the same TaskManager as the <i>i-th</i> subtask of all other JobVertices in the
- * same group.
- *
- * <p>The co-location group is used for example to make sure that the i-th subtasks for iteration
- * head and iteration tail are scheduled to the same TaskManager.
- */
-public class CoLocationGroup implements java.io.Serializable {
+/** A {@link CoLocationGroupDesc} implementation. */
+public class CoLocationGroup implements CoLocationGroupDesc, java.io.Serializable {
 
     private static final long serialVersionUID = -2605819490401895297L;
 
-    /** The ID that describes the slot co-location-constraint as a group */
     private final AbstractID id = new AbstractID();
 
-    /** The vertices participating in the co-location group */
-    private final List<JobVertex> vertices = new ArrayList<JobVertex>();
+    private final List<JobVertex> vertices = new ArrayList<>();
 
     // --------------------------------------------------------------------------------------------
 
@@ -60,8 +54,14 @@ public class CoLocationGroup implements java.io.Serializable {
         this.vertices.add(vertex);
     }
 
-    public List<JobVertex> getVertices() {
-        return vertices;
+    @Override
+    public List<JobVertexID> getVertices() {
+        return vertices.stream().map(JobVertex::getID).collect(ImmutableList.toImmutableList());
+    }
+
+    @Override
+    public CoLocationConstraintDesc getLocationConstraint(int subTaskIndex) {
+        return new CoLocationConstraintDesc(id, subTaskIndex);
     }
 
     public void mergeInto(CoLocationGroup other) {
@@ -78,6 +78,7 @@ public class CoLocationGroup implements java.io.Serializable {
 
     // --------------------------------------------------------------------------------------------
 
+    @Override
     public AbstractID getId() {
         return id;
     }

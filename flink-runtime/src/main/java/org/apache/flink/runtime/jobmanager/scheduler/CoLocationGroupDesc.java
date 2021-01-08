@@ -18,50 +18,42 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.AbstractID;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+/**
+ * {@code CoLocationGroupDesc} refers to a list of {@link JobVertex} instances, where the
+ * <i>i-th</i> subtask of one vertex has to be executed on the same {@code TaskManager} as the
+ * <i>i-th</i> subtask of all other {@code JobVertex} instances in the same group.
+ *
+ * <p>The co-location group is used to make sure that the i-th subtasks for iteration head and
+ * iteration tail are scheduled on the same TaskManager.
+ */
+public interface CoLocationGroupDesc {
 
-/** A read-only and light weight version of {@link CoLocationGroup}. */
-public class CoLocationGroupDesc {
+    /**
+     * Returns the unique identifier describing this co-location constraint as a group.
+     *
+     * @return The group's identifier.
+     */
+    AbstractID getId();
 
-    private final AbstractID id;
+    /**
+     * Returns the IDs of the {@link JobVertex} instances participating in this group.
+     *
+     * @return The group's members represented by their {@link JobVertexID}s.
+     */
+    List<JobVertexID> getVertices();
 
-    private final List<JobVertexID> vertices;
-
-    private CoLocationGroupDesc(final AbstractID id, final List<JobVertexID> vertices) {
-        this.id = checkNotNull(id);
-        this.vertices = checkNotNull(vertices);
-    }
-
-    public AbstractID getId() {
-        return id;
-    }
-
-    public List<JobVertexID> getVertices() {
-        return Collections.unmodifiableList(vertices);
-    }
-
-    public CoLocationConstraintDesc getLocationConstraint(final int index) {
-        return new CoLocationConstraintDesc(id, index);
-    }
-
-    public static CoLocationGroupDesc from(final CoLocationGroup group) {
-        return new CoLocationGroupDesc(
-                group.getId(),
-                group.getVertices().stream().map(JobVertex::getID).collect(Collectors.toList()));
-    }
-
-    @VisibleForTesting
-    public static CoLocationGroupDesc from(final JobVertexID... ids) {
-        return new CoLocationGroupDesc(new AbstractID(), Arrays.asList(ids));
-    }
+    /**
+     * Returns the {@link CoLocationConstraintDesc} for a specific {@code subTaskIndex}.
+     *
+     * @param subTaskIndex The index of the subtasks for which a {@code CoLocationConstraintDesc}
+     *     shall be returned.
+     * @return The corresponding {@code CoLocationConstraintDesc} instance.
+     */
+    CoLocationConstraintDesc getLocationConstraint(final int subTaskIndex);
 }

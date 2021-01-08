@@ -332,14 +332,10 @@ public class JobGraph implements Serializable {
     }
 
     public Set<CoLocationGroupDesc> getCoLocationGroupDescriptors() {
-        // invoke distinct() on CoLocationGroup first to avoid creating
-        // multiple CoLocationGroupDec from one CoLocationGroup
         final Set<CoLocationGroupDesc> coLocationGroups =
                 IterableUtils.toStream(getVertices())
                         .map(JobVertex::getCoLocationGroup)
                         .filter(Objects::nonNull)
-                        .distinct()
-                        .map(CoLocationGroupDesc::from)
                         .collect(Collectors.toSet());
         return Collections.unmodifiableSet(coLocationGroups);
     }
