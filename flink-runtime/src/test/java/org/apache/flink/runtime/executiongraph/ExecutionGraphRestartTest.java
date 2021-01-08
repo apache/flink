@@ -311,7 +311,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     private static void startScheduling(SchedulerBase scheduler) throws Exception {
-        scheduler.initialize(mainThreadExecutor);
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.CREATED));
         scheduler.startScheduling();
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));

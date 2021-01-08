@@ -178,7 +178,7 @@ public class DefaultSchedulerTest extends TestLogger {
                         schedulingStrategyFactory);
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
-        startScheduling(scheduler);
+        scheduler.startScheduling();
 
         final List<ExecutionVertexID> verticesToSchedule =
                 Arrays.asList(
@@ -370,7 +370,7 @@ public class DefaultSchedulerTest extends TestLogger {
                         new RestartPipelinedRegionFailoverStrategy.Factory());
         final TestSchedulingStrategy schedulingStrategy =
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
-        startScheduling(scheduler);
+        scheduler.startScheduling();
 
         final ExecutionVertexID vid11 = new ExecutionVertexID(v1.getID(), 0);
         final ExecutionVertexID vid12 = new ExecutionVertexID(v1.getID(), 1);
@@ -466,7 +466,7 @@ public class DefaultSchedulerTest extends TestLogger {
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
         final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
 
-        startScheduling(scheduler);
+        scheduler.startScheduling();
 
         final SchedulingExecutionVertex onlySchedulingVertex =
                 Iterables.getOnlyElement(topology.getVertices());
@@ -500,7 +500,7 @@ public class DefaultSchedulerTest extends TestLogger {
                 schedulingStrategyFactory.getLastCreatedSchedulingStrategy();
         final SchedulingTopology topology = schedulingStrategy.getSchedulingTopology();
 
-        startScheduling(scheduler);
+        scheduler.startScheduling();
 
         final ExecutionVertexID onlySchedulingVertexId =
                 Iterables.getOnlyElement(topology.getVertices()).getId();
@@ -846,7 +846,7 @@ public class DefaultSchedulerTest extends TestLogger {
                         ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                         new PipelinedRegionSchedulingStrategy.Factory(),
                         new RestartAllFailoverStrategy.Factory());
-        startScheduling(scheduler);
+        scheduler.startScheduling();
 
         Iterator<ArchivedExecutionVertex> vertexIterator =
                 scheduler.requestJob().getAllExecutionVertices().iterator();
@@ -927,7 +927,7 @@ public class DefaultSchedulerTest extends TestLogger {
                             jobGraph,
                             ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                             schedulingStrategyFactory);
-            startScheduling(scheduler);
+            scheduler.startScheduling();
             return scheduler;
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -965,11 +965,6 @@ public class DefaultSchedulerTest extends TestLogger {
                 .setExecutionVertexVersioner(executionVertexVersioner)
                 .setExecutionSlotAllocatorFactory(executionSlotAllocatorFactory)
                 .build();
-    }
-
-    private void startScheduling(final SchedulerNG scheduler) {
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-        scheduler.startScheduling();
     }
 
     /**

@@ -234,6 +234,7 @@ public abstract class SchedulerBase implements SchedulerNG {
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
         this.coordinatorMap = createCoordinatorMap();
+        initializeOperatorCoordinators(this.mainThreadExecutor);
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -303,6 +304,10 @@ public abstract class SchedulerBase implements SchedulerNG {
                         newExecutionGraph, jobGraph.getSavepointRestoreSettings());
             }
         }
+
+        newExecutionGraph.setInternalTaskFailuresListener(
+                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+        newExecutionGraph.start(mainThreadExecutor);
 
         return newExecutionGraph;
     }
@@ -597,14 +602,6 @@ public abstract class SchedulerBase implements SchedulerNG {
     // ------------------------------------------------------------------------
     // SchedulerNG
     // ------------------------------------------------------------------------
-
-    @Override
-    public void initialize(final ComponentMainThreadExecutor mainThreadExecutor) {
-        initializeOperatorCoordinators(this.mainThreadExecutor);
-        executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
-        executionGraph.start(this.mainThreadExecutor);
-    }
 
     @Override
     public void registerJobStatusListener(final JobStatusListener jobStatusListener) {
