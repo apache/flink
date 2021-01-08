@@ -616,11 +616,6 @@ public abstract class SchedulerBase implements SchedulerNG {
     // ------------------------------------------------------------------------
 
     @Override
-    public void registerJobStatusListener(final JobStatusListener jobStatusListener) {
-        executionGraph.registerJobStatusListener(jobStatusListener);
-    }
-
-    @Override
     public final void startScheduling() {
         mainThreadExecutor.assertRunningInMainThread();
         registerJobMetrics();
