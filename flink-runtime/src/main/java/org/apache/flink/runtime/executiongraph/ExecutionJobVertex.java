@@ -41,7 +41,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinatorHolder;
@@ -102,7 +102,7 @@ public class ExecutionJobVertex
 
     private final SlotSharingGroup slotSharingGroup;
 
-    @Nullable private final CoLocationGroup coLocationGroup;
+    @Nullable private final CoLocationGroupDesc coLocationGroup;
 
     private final InputSplit[] inputSplits;
 
@@ -356,7 +356,7 @@ public class ExecutionJobVertex
     }
 
     @Nullable
-    public CoLocationGroup getCoLocationGroup() {
+    public CoLocationGroupDesc getCoLocationGroup() {
         return coLocationGroup;
     }
 

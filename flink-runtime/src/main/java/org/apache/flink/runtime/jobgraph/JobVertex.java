@@ -26,6 +26,7 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.util.Preconditions;
@@ -449,7 +450,7 @@ public class JobVertex implements java.io.Serializable {
     }
 
     @Nullable
-    public CoLocationGroup getCoLocationGroup() {
+    public CoLocationGroupDesc getCoLocationGroup() {
         return coLocationGroup;
     }
 
