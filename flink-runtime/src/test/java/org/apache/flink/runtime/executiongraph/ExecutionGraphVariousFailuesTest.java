@@ -43,7 +43,10 @@ public class ExecutionGraphVariousFailuesTest extends TestLogger {
     @Test
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph()).build();
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                new JobGraph(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
+                        .build();
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 

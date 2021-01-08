@@ -165,10 +165,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
-    private ComponentMainThreadExecutor mainThreadExecutor =
-            new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
-                    "SchedulerBase is not initialized with proper main thread executor. "
-                            + "Call to SchedulerBase.setMainThreadExecutor(...) required.");
+    private final ComponentMainThreadExecutor mainThreadExecutor;
 
     public SchedulerBase(
             final Logger log,
@@ -185,7 +182,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception {
 
         this.log = checkNotNull(log);
@@ -200,6 +198,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.blobWriter = checkNotNull(blobWriter);
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
+        this.mainThreadExecutor = mainThreadExecutor;
 
         this.checkpointsCleaner = new CheckpointsCleaner();
         this.completedCheckpointStore =
@@ -222,7 +221,8 @@ public abstract class SchedulerBase implements SchedulerNG {
                         checkNotNull(shuffleMaster),
                         checkNotNull(partitionTracker),
                         checkNotNull(executionDeploymentTracker),
-                        initializationTimestamp);
+                        initializationTimestamp,
+                        mainThreadExecutor);
 
         registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
 
@@ -276,7 +276,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception {
 
         ExecutionGraph newExecutionGraph =
@@ -610,11 +611,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     @Override
     public void initialize(final ComponentMainThreadExecutor mainThreadExecutor) {
-        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
-        initializeOperatorCoordinators(mainThreadExecutor);
+        initializeOperatorCoordinators(this.mainThreadExecutor);
         executionGraph.setInternalTaskFailuresListener(
                 new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
-        executionGraph.start(mainThreadExecutor);
+        executionGraph.start(this.mainThreadExecutor);
     }
 
     @Override

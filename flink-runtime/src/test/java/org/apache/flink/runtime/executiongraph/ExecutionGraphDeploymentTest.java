@@ -468,7 +468,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(graph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                graph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
@@ -528,7 +529,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(v1, v2))
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                new JobGraph(v1, v2),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setFutureExecutor(executorService)
@@ -615,7 +618,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
