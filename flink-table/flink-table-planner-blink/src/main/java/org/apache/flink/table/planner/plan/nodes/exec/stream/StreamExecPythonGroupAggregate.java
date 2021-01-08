@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Constructor;
 import java.util.Arrays;
 
-/** Stream [[ExecNode]] for Python unbounded group aggregate. */
+/** Stream {@link ExecNode} for Python unbounded group aggregate. */
 public class StreamExecPythonGroupAggregate extends CommonExecPythonAggregate
         implements StreamExecNode<RowData> {
 

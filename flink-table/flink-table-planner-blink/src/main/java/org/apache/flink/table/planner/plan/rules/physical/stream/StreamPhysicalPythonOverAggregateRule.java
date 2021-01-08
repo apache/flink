@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate;
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonOverAggregate;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalPythonOverAggregate;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 
@@ -38,18 +38,18 @@ import java.util.List;
 
 /**
  * The physical rule is responsible for converting {@link FlinkLogicalOverAggregate} to {@link
- * StreamExecPythonOverAggregate}.
+ * StreamPhysicalPythonOverAggregate}.
  */
-public class StreamExecPythonOverAggregateRule extends ConverterRule {
-    public static final StreamExecPythonOverAggregateRule INSTANCE =
-            new StreamExecPythonOverAggregateRule();
+public class StreamPhysicalPythonOverAggregateRule extends ConverterRule {
+    public static final StreamPhysicalPythonOverAggregateRule INSTANCE =
+            new StreamPhysicalPythonOverAggregateRule();
 
-    private StreamExecPythonOverAggregateRule() {
+    private StreamPhysicalPythonOverAggregateRule() {
         super(
                 FlinkLogicalOverAggregate.class,
                 FlinkConventions.LOGICAL(),
                 FlinkConventions.STREAM_PHYSICAL(),
-                "StreamExecPythonOverAggregateRule");
+                "StreamPhysicalPythonOverAggregateRule");
     }
 
     @Override
@@ -109,7 +109,7 @@ public class StreamExecPythonOverAggregateRule extends ConverterRule {
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
 
-        return new StreamExecPythonOverAggregate(
+        return new StreamPhysicalPythonOverAggregate(
                 rel.getCluster(), providedTraitSet, newInput, rel.getRowType(), logicWindow);
     }
 }

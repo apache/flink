@@ -15,7 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.flink.table.planner.plan.nodes.physical.stream
+
+package org.apache.flink.table.planner.plan.nodes.exec.stream
+
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
@@ -25,160 +27,118 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonFunctionInfo
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecPythonOverAggregate
-.{ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME,
-  ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME,
-  ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME,
-  ARROW_PYTHON_OVER_WINDOW_ROWS_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonOverAggregate.{ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME, ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME, ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME, ARROW_PYTHON_OVER_WINDOW_ROWS_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME}
+import org.apache.flink.table.planner.plan.nodes.exec.utils.OverSpec
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
 import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, OverAggregateUtil}
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
-import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rel.core.AggregateCall
 
-import java.util
+import java.util.Collections
 
-import scala.collection.JavaConverters._
+import scala.collection.JavaConversions._
 
 /**
-  * Stream physical RelNode for python time-based over [[Window]].
-  */
+ * Stream [[ExecNode]] for python time-based over operator.
+ *
+ * <p>Note: This class can't be ported to Java,
+ * because java class can't extend scala interface with default implementation.
+ * FLINK-20924 will port this class to Java.
+ */
 class StreamExecPythonOverAggregate(
-    cluster: RelOptCluster,
-    traitSet: RelTraitSet,
-    inputRel: RelNode,
-    outputRowType: RelDataType,
-    logicWindow: Window)
-  extends StreamPhysicalOverAggregateBase(
-    cluster,
-    traitSet,
-    inputRel,
-    outputRowType,
-    logicWindow)
+    overSpec: OverSpec, inputEdge: ExecEdge, outputType: RowType, description: String)
+  extends ExecNodeBase[RowData](
+    Collections.singletonList(inputEdge),
+    outputType,
+    description)
+  with StreamExecNode[RowData]
   with CommonPythonAggregate
-  with LegacyStreamExecNode[RowData] {
+  with Logging {
 
-  override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecPythonOverAggregate(
-      cluster,
-      traitSet,
-      inputs.get(0),
-      outputRowType,
-      logicWindow)
-  }
+  override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
+    val group = overSpec.getGroups.get(0)
+    val orderKeys = group.getSort.getFieldIndices
+    val isAscendingOrders = group.getSort.getAscendingOrders
+    if (orderKeys.length != 1 || isAscendingOrders.length != 1) {
+      throw new TableException("The window can only be ordered by a single time column.")
+    }
+    if (!isAscendingOrders(0)) {
+      throw new TableException("The window can only be ordered in ASCENDING mode.")
+    }
 
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
     val tableConfig = planner.getTableConfig
-
-    val overWindow: Group = logicWindow.groups.get(0)
-
-    val orderKeys = overWindow.orderKeys.getFieldCollations
-
-    if (orderKeys.size() != 1) {
-      throw new TableException(
-        "The window can only be ordered by a single time column.")
-    }
-    val orderKey = orderKeys.get(0)
-
-    if (!orderKey.direction.equals(ASCENDING)) {
-      throw new TableException(
-        "The window can only be ordered in ASCENDING mode.")
-    }
-
-    val inputDS = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-
-    if (!logicWindow.groups.get(0).keys.isEmpty && tableConfig.getMinIdleStateRetentionTime < 0) {
+    val partitionKeys = overSpec.getPartition.getFieldIndices
+    if (partitionKeys.nonEmpty && tableConfig.getMinIdleStateRetentionTime < 0) {
       LOG.warn(
         "No state retention interval configured for a query which accumulates state. " +
           "Please provide a query configuration with valid retention interval to prevent " +
           "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val timeType = outputRowType.getFieldList.get(orderKey.getFieldIndex).getType
+    val inputNode = getInputNodes.get(0).asInstanceOf[ExecNode[RowData]]
+    val inputTransform = inputNode.translateToPlan(planner)
+    val inputRowType = inputNode.getOutputType.asInstanceOf[RowType]
+
+    val orderKey = orderKeys(0)
+    val orderKeyType = inputRowType.getFields.get(orderKey).getType
 
     // check time field
-    if (!FlinkTypeFactory.isRowtimeIndicatorType(timeType)
-      && !FlinkTypeFactory.isProctimeIndicatorType(timeType)) {
-      throw new TableException(
-        "OVER windows' ordering in stream mode must be defined on a time attribute.")
+    val rowTimeIdx: Option[Int] = orderKeyType match {
+      case t: TimestampType if t.getKind == TimestampKind.ROWTIME => Some(orderKey)
+      case t: TimestampType if t.getKind == TimestampKind.PROCTIME => None
+      case _ =>
+        throw new TableException(
+          "OVER windows' ordering in stream mode must be defined on a time attribute.")
     }
 
-    // identify window rowtime attribute
-    val rowTimeIdx: Option[Int] = if (FlinkTypeFactory.isRowtimeIndicatorType(timeType)) {
-      Some(orderKey.getFieldIndex)
-    } else if (FlinkTypeFactory.isProctimeIndicatorType(timeType)) {
-      None
-    } else {
+    if (group.getLowerBound.isPreceding && group.getLowerBound.isUnbounded) {
       throw new TableException(
-        "OVER windows can only be applied on time attributes.")
+        "Python UDAF is not supported to be used in UNBOUNDED PRECEDING OVER windows.")
+    } else if (!group.getUpperBound.isCurrentRow) {
+      throw new TableException(
+        "Python UDAF is not supported to be used in UNBOUNDED FOLLOWING OVER windows.")
     }
 
-    if (overWindow.lowerBound.isPreceding
-      && overWindow.lowerBound.isUnbounded) {
-      throw new TableException(
-        "Python UDAF is not supported to be used in UNBOUNDED PRECEDING OVER windows."
-      )
-    } else if (!overWindow.upperBound.isCurrentRow) {
-      throw new TableException(
-        "Python UDAF is not supported to be used in UNBOUNDED FOLLOWING OVER windows."
-      )
-    }
-    val aggregateCalls = logicWindow.groups.get(0).getAggregateCalls(logicWindow).asScala
-    val inRowType = FlinkTypeFactory.toLogicalRowType(inputRel.getRowType)
-    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
-
-    val partitionKeys: Array[Int] = overWindow.keys.toArray
-    val inputTypeInfo = InternalTypeInfo.of(inRowType)
-
-    val selector = KeySelectorUtil.getRowDataSelector(partitionKeys, inputTypeInfo)
-
-    val boundValue = OverAggregateUtil.getBoundary(logicWindow, overWindow.lowerBound)
-
-    val isRowsClause = overWindow.isRows
-
+    val boundValue = OverAggregateUtil.getBoundary(overSpec, group.getLowerBound)
     if (boundValue.isInstanceOf[BigDecimal]) {
       throw new TableException(
         "the specific value is decimal which haven not supported yet.")
     }
     // bounded OVER window
     val precedingOffset = -1 * boundValue.asInstanceOf[Long]
-    val ret = createPythonOneInputTransformation(
-      inputDS,
-      inRowType,
-      outRowType,
+    val transform = createPythonOneInputTransformation(
+      inputTransform,
+      inputRowType,
+      getOutputType.asInstanceOf[RowType],
       rowTimeIdx,
-      aggregateCalls,
+      group.getAggCalls,
       precedingOffset,
-      isRowsClause,
+      group.isRows,
       partitionKeys,
       tableConfig.getMinIdleStateRetentionTime,
       tableConfig.getMaxIdleStateRetentionTime,
       getConfig(planner.getExecEnv, tableConfig))
 
     if (isPythonWorkerUsingManagedMemory(tableConfig.getConfiguration)) {
-      ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
+      transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
 
     if (inputsContainSingleton()) {
-      ret.setParallelism(1)
-      ret.setMaxParallelism(1)
+      transform.setParallelism(1)
+      transform.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state
-    ret.setStateKeySelector(selector)
-    ret.setStateKeyType(selector.getProducedType)
-    ret
+    val selector = KeySelectorUtil.getRowDataSelector(
+      partitionKeys, InternalTypeInfo.of(inputRowType))
+    transform.setStateKeySelector(selector)
+    transform.setStateKeyType(selector.getProducedType)
+    transform
   }
 
   private[this] def createPythonOneInputTransformation(
@@ -294,16 +254,16 @@ class StreamExecPythonOverAggregate(
 }
 
 object StreamExecPythonOverAggregate {
-  val ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
+  val ARROW_PYTHON_OVER_WINDOW_RANGE_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
       "StreamArrowPythonRowTimeBoundedRangeOperator"
-  val ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
+  val ARROW_PYTHON_OVER_WINDOW_RANGE_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
       "StreamArrowPythonProcTimeBoundedRangeOperator"
-  val ARROW_PYTHON_OVER_WINDOW_ROWS_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
+  val ARROW_PYTHON_OVER_WINDOW_ROWS_ROW_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
       "StreamArrowPythonRowTimeBoundedRowsOperator"
-  val ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME : String =
+  val ARROW_PYTHON_OVER_WINDOW_ROWS_PROC_TIME_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream." +
       "StreamArrowPythonProcTimeBoundedRowsOperator"
 }
