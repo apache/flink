@@ -478,8 +478,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .setBlobWriter(blobWriter)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         checkJobOffloaded(eg);
@@ -540,8 +538,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         checkJobOffloaded(eg);
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         // schedule, this triggers mock deployment
         scheduler.startScheduling();
@@ -626,8 +622,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .setFutureExecutor(new DirectScheduledExecutorService())
                         .build();
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         scheduler.startScheduling();
 

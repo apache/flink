@@ -128,7 +128,6 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                         .setExecutionSlotAllocatorFactory(
                                 new TestExecutionSlotAllocatorFactory(taskManagerGateway))
                         .build();
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         final ExecutionVertex ev1 =
                 scheduler.getExecutionVertex(new ExecutionVertexID(v1.getID(), 0));

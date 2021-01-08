@@ -271,7 +271,6 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                         .setPartitionTracker(partitionTracker)
                         .build();
 
-        scheduler.initialize(mainThreadExecutor.getMainThreadExecutor());
         mainThreadExecutor.execute(scheduler::startScheduling);
 
         return scheduler;

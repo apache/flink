@@ -64,7 +64,6 @@ public class ExecutionVertexTest extends TestLogger {
                         .setPartitionTracker(partitionTracker)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionJobVertex producerExecutionJobVertex =

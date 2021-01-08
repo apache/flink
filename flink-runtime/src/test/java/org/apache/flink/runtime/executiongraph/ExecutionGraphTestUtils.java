@@ -412,8 +412,6 @@ public class ExecutionGraphTestUtils {
                         .setFutureExecutor(executor)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         return scheduler.getExecutionJobVertex(jobVertex.getID());
     }
 

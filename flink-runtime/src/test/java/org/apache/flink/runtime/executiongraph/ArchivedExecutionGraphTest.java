@@ -113,7 +113,6 @@ public class ArchivedExecutionGraphTest extends TestLogger {
         SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
                         jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread());
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         runtimeGraph = scheduler.getExecutionGraph();
 

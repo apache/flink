@@ -168,8 +168,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
                         .setRpcTimeout(timeout)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         return scheduler;
     }
 
