@@ -26,9 +26,8 @@ SQL is the most widely used language for data analytics. Flink's Table API and S
 
 In this page, we will introduce some useful optimization options and the internals of streaming aggregation which will bring great improvement in some cases.
 
-<span class="label label-danger">Attention</span> Currently, the optimization options mentioned in this page are only supported in the Blink planner.
-
-<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({% link dev/table/sql/queries.md %}#aggregations). Optimizations for [window aggregations]({% link dev/table/sql/queries.md %}#group-windows) will be supported in the future.
+<span class="label label-danger">Attention</span> The streaming aggregations optimization are only supported for [unbounded-aggregations]({% link dev/table/sql/queries.md %}#aggregations).
+Optimizations for [window aggregations]({% link dev/table/sql/queries.md %}#group-windows) will be supported in the future.
 
 * This will be replaced by the TOC
 {:toc}

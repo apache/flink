@@ -28,13 +28,20 @@ under the License.
 <div class="codetabs" data-hide-tabs="1" markdown="1">
 <div data-lang="java/scala" markdown="1">
 
-SELECT statements and VALUES statements are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SELECT statement (or the VALUES statements) as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries]({% link dev/table/common.md %}#mixing-table-api-and-sql), be [converted into a DataSet or DataStream]({% link dev/table/common.md %}#integration-with-datastream-and-dataset-api), or [written to a TableSink]({% link dev/table/common.md %}#emit-a-table). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
+`SELECT` statements and `VALUES` statements are specified with the `sqlQuery()` method of the `TableEnvironment`.
+The method returns the result of the SELECT statement (or the VALUES statements) as a `Table`.
+A `Table` can be used in [subsequent SQL and Table API queries]({% link dev/table/common.md %}#mixing-table-api-and-sql), be [converted into a DataStream]({% link dev/table/common.md %}#integration-with-datastream), or [written to a TableSink]({% link dev/table/common.md %}#emit-a-table).
+SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({% link dev/table/common.md %}#register-tables-in-the-catalog). A table can be registered from a [TableSource]({% link dev/table/common.md %}#register-a-tablesource), [Table]({% link dev/table/common.md %}#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet]({% link dev/table/common.md %}#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register catalogs in a TableEnvironment]({% link dev/table/catalogs.md %}) to specify the location of the data sources.
+In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({% link dev/table/common.md %}#register-tables-in-the-catalog).
+A table can be registered from a [TableSource]({% link dev/table/common.md %}#register-a-tablesource), [Table]({% link dev/table/common.md %}#register-a-table), [CREATE TABLE statement](#create-table), [DataStream]({% link dev/table/common.md %}#register-a-datastream).
+Alternatively, users can also [register catalogs in a TableEnvironment]({% link dev/table/catalogs.md %}) to specify the location of the data sources.
 
-For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
+For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name.
+So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
 
-**Note:** Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL on batch and streaming tables are listed in the following sections.
+**Note:** Queries that include unsupported SQL features cause a `TableException`.
+The supported features of SQL on batch and streaming tables are listed in the following sections.
 
 </div>
 
@@ -563,7 +570,6 @@ SELECT SUM(amount)
 FROM Orders
 GROUP BY GROUPING SETS ((user), (product))
 {% endhighlight %}
-        <p><b>Note:</b> Streaming mode Grouping sets, Rollup and Cube are only supported in Blink planner.</p>
       </td>
     </tr>
     <tr>
@@ -745,8 +751,7 @@ FROM
   ON r.currency = o.currency
 {% endhighlight %}
         <p>The RHS table can be named with an alias using optional clause <code>[[<strong>AS</strong>] correlationName]</code>, note that the <code><strong>AS</strong></code> keyword is also optional.</p>
-        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.md %}">Temporal Tables</a> concept description.</p>
-        <p>Only supported in Blink planner.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/versioned_tables.md %}">versioned table</a> concept description.</p>
       </td>
     </tr>    
     <tr>
@@ -940,8 +945,6 @@ LIMIT 3
 
 ### Top-N
 
-<span class="label label-danger">Attention</span> Top-N is only supported in Blink planner.
-
 Top-N queries ask for the N smallest or largest values ordered by columns. Both smallest and largest values sets are considered Top-N queries. Top-N queries are useful in cases where the need is to display only the N bottom-most or the N top-
 most records from batch/streaming table on a condition. This result set can be used for further analysis.
 
@@ -1081,8 +1084,6 @@ val result1 = tableEnv.sqlQuery(
 {% top %}
 
 ### Deduplication
-
-<span class="label label-danger">Attention</span> Deduplication is only supported in Blink planner.
 
 Deduplication is removing rows that duplicate over a set of columns, keeping only the first one or the last one. In some cases, the upstream ETL jobs are not end-to-end exactly-once, this may result in there are duplicate records in the sink in case of failover. However, the duplicate records will affect the correctness of downstream analytical jobs (e.g. `SUM`, `COUNT`). So a deduplication is needed before further analysis.
 

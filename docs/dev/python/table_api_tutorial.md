@@ -71,7 +71,7 @@ t_config = TableConfig()
 t_env = BatchTableEnvironment.create(exec_env, t_config)
 {% endhighlight %}
 
-The the table environment created, you can declare source and sink tables.
+The table environment created, you can declare source and sink tables.
 
 {% highlight python %}
 t_env.connect(FileSystem().path('/tmp/input')) \
