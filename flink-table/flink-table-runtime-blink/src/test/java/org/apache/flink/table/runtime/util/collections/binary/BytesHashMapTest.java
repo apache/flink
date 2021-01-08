@@ -31,7 +31,7 @@ public class BytesHashMapTest extends BytesHashMapTestBase<BinaryRowData> {
     }
 
     @Override
-    public BytesHashMapBase<BinaryRowData> createBytesHashMap(
+    public AbstractBytesHashMap<BinaryRowData> createBytesHashMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,

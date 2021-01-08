@@ -28,9 +28,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * A binary map in the structure like {@code Map<BinaryRowData, List<BinaryRowData>>}.
  *
- * @see BytesMultiMapBase for more information about the binary layout.
+ * @see AbstractBytesMultiMap for more information about the binary layout.
  */
-public final class BytesMultiMap extends BytesMultiMapBase<BinaryRowData> {
+public final class BytesMultiMap extends AbstractBytesMultiMap<BinaryRowData> {
 
     public BytesMultiMap(
             Object owner,

@@ -66,16 +66,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BytesHashMap} are influenced by Apache Spark BytesToBytesMap.
  */
-public abstract class BytesHashMapBase<K> extends BytesMap<K, BinaryRowData> {
+public abstract class AbstractBytesHashMap<K> extends BytesMap<K, BinaryRowData> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(BytesHashMapBase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractBytesHashMap.class);
 
     /**
      * Set true when valueTypeInfos.length == 0. Usually in this case the BytesHashMap will be used
-     * as a HashSet. The value from {@link BytesHashMapBase#append(LookupInfo info, BinaryRowData
-     * value)} will be ignored when hashSetMode set. The reusedValue will always point to a 16 bytes
-     * long MemorySegment acted as each BytesHashMap entry's value part when appended to make the
-     * BytesHashMap's spilling work compatible.
+     * as a HashSet. The value from {@link AbstractBytesHashMap#append(LookupInfo info,
+     * BinaryRowData value)} will be ignored when hashSetMode set. The reusedValue will always point
+     * to a 16 bytes long MemorySegment acted as each BytesHashMap entry's value part when appended
+     * to make the BytesHashMap's spilling work compatible.
      */
     private final boolean hashSetMode;
 
@@ -87,7 +87,7 @@ public abstract class BytesHashMapBase<K> extends BytesMap<K, BinaryRowData> {
 
     private volatile RecordArea.EntryIterator destructiveIterator = null;
 
-    public BytesHashMapBase(
+    public AbstractBytesHashMap(
             final Object owner,
             MemoryManager memoryManager,
             long memorySize,

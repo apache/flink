@@ -30,9 +30,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>{@code BytesHashMap} is influenced by Apache Spark BytesToBytesMap.
  *
- * @see BytesHashMapBase for more information about the binary layout.
+ * @see AbstractBytesHashMap for more information about the binary layout.
  */
-public final class BytesHashMap extends BytesHashMapBase<BinaryRowData> {
+public final class BytesHashMap extends AbstractBytesHashMap<BinaryRowData> {
 
     public BytesHashMap(
             final Object owner,

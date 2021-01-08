@@ -26,20 +26,20 @@ import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Random;
 
-/** Verify the correctness of {@link BytesWindowMultiMap}. */
-public class BytesWindowMultiMapTest extends BytesMultiMapTestBase<WindowKey> {
+/** Verify the correctness of {@link WindowBytesMultiMap}. */
+public class WindowBytesMultiMapTest extends BytesMultiMapTestBase<WindowKey> {
 
-    public BytesWindowMultiMapTest() {
+    public WindowBytesMultiMapTest() {
         super(new WindowKeySerializer(KEY_TYPES.length));
     }
 
     @Override
-    public BytesMultiMapBase<WindowKey> createBytesMultiMap(
+    public AbstractBytesMultiMap<WindowKey> createBytesMultiMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        return new BytesWindowMultiMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+        return new WindowBytesMultiMap(this, memoryManager, memorySize, keyTypes, valueTypes);
     }
 
     @Override

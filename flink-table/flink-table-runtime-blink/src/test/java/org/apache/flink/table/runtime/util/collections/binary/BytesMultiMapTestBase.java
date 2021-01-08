@@ -43,7 +43,7 @@ import org.junit.Test;
 import java.util.Iterator;
 import java.util.Random;
 
-/** Base test class for {@link BytesMultiMap} and {@link BytesWindowMultiMap}. */
+/** Base test class for {@link BytesMultiMap} and {@link WindowBytesMultiMap}. */
 public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
     protected static final int NUM_VALUE_PER_KEY = 50;
 
@@ -73,9 +73,9 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
 
     /**
      * Creates the specific BytesHashMap, either {@link BytesMultiMap} or {@link
-     * BytesWindowMultiMap}.
+     * WindowBytesMultiMap}.
      */
-    public abstract BytesMultiMapBase<K> createBytesMultiMap(
+    public abstract AbstractBytesMultiMap<K> createBytesMultiMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,
@@ -102,7 +102,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(numMemSegments * PAGE_SIZE).build();
 
-        BytesMultiMapBase<K> table =
+        AbstractBytesMultiMap<K> table =
                 createBytesMultiMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
         K[] keys = generateRandomKeys(NUM_ENTRIES / 10);

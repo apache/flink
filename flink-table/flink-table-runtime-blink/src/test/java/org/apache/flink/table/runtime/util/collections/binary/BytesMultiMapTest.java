@@ -31,7 +31,7 @@ public class BytesMultiMapTest extends BytesMultiMapTestBase<BinaryRowData> {
     }
 
     @Override
-    public BytesMultiMapBase<BinaryRowData> createBytesMultiMap(
+    public AbstractBytesMultiMap<BinaryRowData> createBytesMultiMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,

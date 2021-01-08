@@ -19,31 +19,37 @@
 package org.apache.flink.table.runtime.util.collections.binary;
 
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.typeutils.WindowKeySerializer;
 import org.apache.flink.table.runtime.util.WindowKey;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
+import java.util.Random;
 
-/**
- * A binary map in the structure like {@code Map<WindowKey, List<BinaryRowData>>}.
- *
- * @see BytesMultiMapBase for more information about the binary layout.
- */
-public final class BytesWindowMultiMap extends BytesMultiMapBase<WindowKey> {
+/** Test case for {@link WindowBytesHashMap}. */
+public class WindowBytesHashMapTest extends BytesHashMapTestBase<WindowKey> {
 
-    public BytesWindowMultiMap(
-            Object owner,
+    public WindowBytesHashMapTest() {
+        super(new WindowKeySerializer(KEY_TYPES.length));
+    }
+
+    @Override
+    public AbstractBytesHashMap<WindowKey> createBytesHashMap(
             MemoryManager memoryManager,
-            long memorySize,
+            int memorySize,
             LogicalType[] keyTypes,
             LogicalType[] valueTypes) {
-        super(
-                owner,
-                memoryManager,
-                memorySize,
-                new WindowKeySerializer(keyTypes.length),
-                valueTypes);
-        checkArgument(keyTypes.length > 0);
+        return new WindowBytesHashMap(this, memoryManager, memorySize, keyTypes, valueTypes);
+    }
+
+    @Override
+    public WindowKey[] generateRandomKeys(int num) {
+        final Random rnd = new Random(RANDOM_SEED);
+        BinaryRowData[] keys = getRandomizedInputs(num, rnd, true);
+        WindowKey[] windowKeys = new WindowKey[num];
+        for (int i = 0; i < num; i++) {
+            windowKeys[i] = new WindowKey(rnd.nextLong(), keys[i]);
+        }
+        return windowKeys;
     }
 }

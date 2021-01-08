@@ -71,8 +71,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *   |--- 4 + len(V) Bytes (value data) -----|
  * </pre>
  */
-public abstract class BytesMultiMapBase<K> extends BytesMap<K, Iterator<RowData>> {
-    private static final Logger LOG = LoggerFactory.getLogger(BytesMultiMapBase.class);
+public abstract class AbstractBytesMultiMap<K> extends BytesMap<K, Iterator<RowData>> {
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractBytesMultiMap.class);
 
     /** Used to serialize map key into RecordArea's MemorySegments. */
     protected final PagedTypeSerializer<K> keySerializer;
@@ -93,7 +93,7 @@ public abstract class BytesMultiMapBase<K> extends BytesMap<K, Iterator<RowData>
 
     private long numKeys = 0;
 
-    public BytesMultiMapBase(
+    public AbstractBytesMultiMap(
             final Object owner,
             MemoryManager memoryManager,
             long memorySize,

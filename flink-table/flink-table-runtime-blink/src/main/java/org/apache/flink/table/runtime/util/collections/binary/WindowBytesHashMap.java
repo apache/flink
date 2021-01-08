@@ -28,11 +28,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * A binary map in the structure like {@code Map<WindowKey, BinaryRowData>}.
  *
- * @see BytesHashMapBase for more information about the binary layout.
+ * @see AbstractBytesHashMap for more information about the binary layout.
  */
-public final class BytesWindowHashMap extends BytesHashMapBase<WindowKey> {
+public final class WindowBytesHashMap extends AbstractBytesHashMap<WindowKey> {
 
-    public BytesWindowHashMap(
+    public WindowBytesHashMap(
             final Object owner,
             MemoryManager memoryManager,
             long memorySize,

@@ -45,7 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/** Base test class for both {@link BytesHashMap} and {@link BytesWindowHashMap}. */
+/** Base test class for both {@link BytesHashMap} and {@link WindowBytesHashMap}. */
 public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     private static final int NUM_REWRITES = 10;
@@ -83,9 +83,9 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     /**
-     * Creates the specific BytesHashMap, either {@link BytesHashMap} or {@link BytesWindowHashMap}.
+     * Creates the specific BytesHashMap, either {@link BytesHashMap} or {@link WindowBytesHashMap}.
      */
-    public abstract BytesHashMapBase<K> createBytesHashMap(
+    public abstract AbstractBytesHashMap<K> createBytesHashMap(
             MemoryManager memoryManager,
             int memorySize,
             LogicalType[] keyTypes,
@@ -112,7 +112,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(numMemSegments * PAGE_SIZE).build();
 
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, new LogicalType[] {});
         Assert.assertTrue(table.isHashSetMode());
 
@@ -135,7 +135,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
         K[] keys = generateRandomKeys(NUM_ENTRIES);
@@ -158,7 +158,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
         K[] keys = generateRandomKeys(NUM_ENTRIES);
@@ -182,7 +182,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
 
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
 
         final K[] keys = generateRandomKeys(NUM_ENTRIES);
@@ -209,7 +209,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(minMemorySize).build();
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, minMemorySize, KEY_TYPES, VALUE_TYPES);
 
         K[] keys = generateRandomKeys(NUM_ENTRIES);
@@ -277,7 +277,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         int memorySize = numMemSegments * PAGE_SIZE;
         MemoryManager memoryManager =
                 MemoryManagerBuilder.newBuilder().setMemorySize(memorySize).build();
-        BytesHashMapBase<K> table =
+        AbstractBytesHashMap<K> table =
                 createBytesHashMap(memoryManager, memorySize, KEY_TYPES, VALUE_TYPES);
         final K key = generateRandomKeys(1)[0];
         for (int i = 0; i < 3; i++) {
@@ -312,7 +312,8 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
 
     // ----------------------- Utilities  -----------------------
 
-    private void verifyRetrieve(BytesHashMapBase<K> table, K[] keys, List<BinaryRowData> expected) {
+    private void verifyRetrieve(
+            AbstractBytesHashMap<K> table, K[] keys, List<BinaryRowData> expected) {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
@@ -324,7 +325,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         }
     }
 
-    private void verifyInsert(K[] keys, List<BinaryRowData> inserted, BytesHashMapBase<K> table)
+    private void verifyInsert(K[] keys, List<BinaryRowData> inserted, AbstractBytesHashMap<K> table)
             throws IOException {
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
@@ -340,7 +341,8 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
     }
 
     private void verifyInsertAndUpdate(
-            K[] keys, List<BinaryRowData> inserted, BytesHashMapBase<K> table) throws IOException {
+            K[] keys, List<BinaryRowData> inserted, AbstractBytesHashMap<K> table)
+            throws IOException {
         final Random rnd = new Random(RANDOM_SEED);
         for (int i = 0; i < NUM_ENTRIES; i++) {
             K groupKey = keys[i];
@@ -358,7 +360,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
     }
 
-    private void verifyKeyPresent(K[] keys, BytesHashMapBase<K> table) {
+    private void verifyKeyPresent(K[] keys, AbstractBytesHashMap<K> table) {
         Assert.assertEquals(NUM_ENTRIES, table.getNumElements());
         BinaryRowData present = new BinaryRowData(0);
         present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
@@ -372,7 +374,7 @@ public abstract class BytesHashMapTestBase<K> extends BytesMapTestBase {
         }
     }
 
-    private void verifyKeyInsert(K[] keys, BytesHashMapBase<K> table) throws IOException {
+    private void verifyKeyInsert(K[] keys, AbstractBytesHashMap<K> table) throws IOException {
         BinaryRowData present = new BinaryRowData(0);
         present.pointTo(MemorySegmentFactory.wrap(new byte[8]), 0, 8);
         for (int i = 0; i < NUM_ENTRIES; i++) {
