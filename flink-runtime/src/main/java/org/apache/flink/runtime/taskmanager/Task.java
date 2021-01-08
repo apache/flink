@@ -71,7 +71,6 @@ import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.TaskStateManager;
-import org.apache.flink.runtime.taskexecutor.BackPressureSampleableTask;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
@@ -135,8 +134,7 @@ public class Task
                 TaskSlotPayload,
                 TaskActions,
                 PartitionProducerStateProvider,
-                CheckpointListener,
-                BackPressureSampleableTask {
+                CheckpointListener {
 
     /** The class logger. */
     private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -506,9 +504,10 @@ public class Task
         return invokable;
     }
 
-    @Override
     public boolean isBackPressured() {
-        if (invokable == null || consumableNotifyingPartitionWriters.length == 0 || !isRunning()) {
+        if (invokable == null
+                || consumableNotifyingPartitionWriters.length == 0
+                || executionState != ExecutionState.RUNNING) {
             return false;
         }
         for (int i = 0; i < consumableNotifyingPartitionWriters.length; ++i) {
@@ -541,11 +540,6 @@ public class Task
         return executionState == ExecutionState.CANCELING
                 || executionState == ExecutionState.CANCELED
                 || executionState == ExecutionState.FAILED;
-    }
-
-    @Override
-    public boolean isRunning() {
-        return executionState == ExecutionState.RUNNING;
     }
 
     /**

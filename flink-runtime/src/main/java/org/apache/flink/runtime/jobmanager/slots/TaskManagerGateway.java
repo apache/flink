@@ -28,7 +28,6 @@ import org.apache.flink.runtime.executiongraph.PartitionInfo;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
@@ -46,17 +45,6 @@ public interface TaskManagerGateway extends TaskExecutorOperatorEventGateway {
      * @return Address of the task manager with which this gateway is associated.
      */
     String getAddress();
-
-    /**
-     * Request the back pressure ratio for the given task.
-     *
-     * @param executionAttemptID identifying the task to request.
-     * @param requestId id of the request.
-     * @param timeout rpc request timeout.
-     * @return A future of the task back pressure result.
-     */
-    CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
-            ExecutionAttemptID executionAttemptID, int requestId, Time timeout);
 
     /**
      * Submit a task to the task manager.

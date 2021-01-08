@@ -42,14 +42,12 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.state.KeyGroupRange;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -175,13 +173,6 @@ public class TestingSchedulerNG implements SchedulerNG {
     @Override
     public void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot) {
         failOperation();
-    }
-
-    @Override
-    public Optional<OperatorBackPressureStats> requestOperatorBackPressureStats(
-            JobVertexID jobVertexId) {
-        failOperation();
-        return Optional.empty();
     }
 
     @Override

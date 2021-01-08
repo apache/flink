@@ -47,7 +47,6 @@ import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.FlinkException;
@@ -56,7 +55,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -132,11 +130,6 @@ public interface SchedulerNG {
     // ------------------------------------------------------------------------
 
     void updateAccumulators(AccumulatorSnapshot accumulatorSnapshot);
-
-    // ------------------------------------------------------------------------
-
-    Optional<OperatorBackPressureStats> requestOperatorBackPressureStats(JobVertexID jobVertexId)
-            throws FlinkException;
 
     // ------------------------------------------------------------------------
 

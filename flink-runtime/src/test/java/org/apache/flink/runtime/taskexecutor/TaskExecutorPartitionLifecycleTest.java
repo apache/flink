@@ -605,9 +605,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                 null,
                 new BlobCacheService(configuration, new VoidBlobStore(), null),
                 new TestingFatalErrorHandler(),
-                partitionTracker,
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration, rpc.getScheduledExecutor()));
+                partitionTracker);
     }
 
     private static TaskSlotTable<Task> createTaskSlotTable() {

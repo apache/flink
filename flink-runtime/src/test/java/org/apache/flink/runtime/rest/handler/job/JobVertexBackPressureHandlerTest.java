@@ -21,9 +21,13 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.dump.MetricDump;
+import org.apache.flink.runtime.metrics.dump.MetricDump.GaugeDump;
+import org.apache.flink.runtime.metrics.dump.QueryScopeInfo.TaskQueryScopeInfo;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
@@ -36,6 +40,8 @@ import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,44 +58,77 @@ import static org.junit.Assert.assertThat;
 /** Tests for {@link JobVertexBackPressureHandler}. */
 public class JobVertexBackPressureHandlerTest {
 
-    /** Job ID for which {@link OperatorBackPressureStats} exist. */
+    /** Job ID for which back pressure stats exist. */
     private static final JobID TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE = new JobID();
 
-    /** Job ID for which {@link OperatorBackPressureStats} are not available. */
+    private static final JobVertexID TEST_JOB_VERTEX_ID = new JobVertexID();
+
+    /** Job ID for which back pressure stats are not available. */
     private static final JobID TEST_JOB_ID_BACK_PRESSURE_STATS_ABSENT = new JobID();
 
     private TestingRestfulGateway restfulGateway;
 
     private JobVertexBackPressureHandler jobVertexBackPressureHandler;
 
+    private MetricStore metricStore;
+
+    private static Collection<MetricDump> getMetricDumps() {
+        Collection<MetricDump> dumps = new ArrayList<>();
+        TaskQueryScopeInfo task1 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        1);
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
+
+        TaskQueryScopeInfo task2 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        2);
+        dumps.add(new GaugeDump(task2, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
+
+        TaskQueryScopeInfo task3 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        3);
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_BACK_PRESSURED_TIME, "100"));
+
+        return dumps;
+    }
+
     @Before
     public void setUp() {
-        restfulGateway =
-                new TestingRestfulGateway.Builder()
-                        .setRequestOperatorBackPressureStatsFunction(
-                                (jobId, jobVertexId) -> {
-                                    if (jobId.equals(TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE)) {
-                                        return CompletableFuture.completedFuture(
-                                                OperatorBackPressureStatsResponse.of(
-                                                        new OperatorBackPressureStats(
-                                                                4711,
-                                                                Integer.MAX_VALUE,
-                                                                new double[] {1.0, 0.5, 0.1})));
-                                    } else if (jobId.equals(
-                                            TEST_JOB_ID_BACK_PRESSURE_STATS_ABSENT)) {
-                                        return CompletableFuture.completedFuture(
-                                                OperatorBackPressureStatsResponse.of(null));
-                                    } else {
-                                        throw new AssertionError();
-                                    }
-                                })
-                        .build();
+        metricStore = new MetricStore();
+        for (MetricDump metricDump : getMetricDumps()) {
+            metricStore.add(metricDump);
+        }
+
         jobVertexBackPressureHandler =
                 new JobVertexBackPressureHandler(
                         () -> CompletableFuture.completedFuture(restfulGateway),
                         Time.seconds(10),
                         Collections.emptyMap(),
-                        JobVertexBackPressureHeaders.getInstance());
+                        JobVertexBackPressureHeaders.getInstance(),
+                        new MetricFetcher() {
+                            private long updateCount = 0;
+
+                            @Override
+                            public MetricStore getMetricStore() {
+                                return metricStore;
+                            }
+
+                            @Override
+                            public void update() {
+                                updateCount++;
+                            }
+
+                            @Override
+                            public long getLastUpdateTime() {
+                                return updateCount;
+                            }
+                        });
     }
 
     @Test
@@ -97,7 +136,7 @@ public class JobVertexBackPressureHandlerTest {
         final Map<String, String> pathParameters = new HashMap<>();
         pathParameters.put(
                 JobIDPathParameter.KEY, TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString());
-        pathParameters.put(JobVertexIdPathParameter.KEY, new JobVertexID().toString());
+        pathParameters.put(JobVertexIdPathParameter.KEY, TEST_JOB_VERTEX_ID.toString());
 
         final HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request =
                 new HandlerRequest<>(

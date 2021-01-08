@@ -48,7 +48,6 @@ import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStatsResponse;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
@@ -127,11 +126,6 @@ public class TestingJobMasterGatewayBuilder {
                             targetDirectory != null
                                     ? targetDirectory
                                     : UUID.randomUUID().toString());
-    private Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-            requestOperatorBackPressureStatsFunction =
-                    ignored ->
-                            CompletableFuture.completedFuture(
-                                    OperatorBackPressureStatsResponse.of(null));
     private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer =
             (ignoredA, ignoredB) -> {};
     private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>>
@@ -287,13 +281,6 @@ public class TestingJobMasterGatewayBuilder {
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setRequestOperatorBackPressureStatsFunction(
-            Function<JobVertexID, CompletableFuture<OperatorBackPressureStatsResponse>>
-                    requestOperatorBackPressureStatsFunction) {
-        this.requestOperatorBackPressureStatsFunction = requestOperatorBackPressureStatsFunction;
-        return this;
-    }
-
     public TestingJobMasterGatewayBuilder setNotifyAllocationFailureConsumer(
             BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer) {
         this.notifyAllocationFailureConsumer = notifyAllocationFailureConsumer;
@@ -404,7 +391,6 @@ public class TestingJobMasterGatewayBuilder {
                 requestJobSupplier,
                 triggerSavepointFunction,
                 stopWithSavepointFunction,
-                requestOperatorBackPressureStatsFunction,
                 notifyAllocationFailureConsumer,
                 acknowledgeCheckpointConsumer,
                 declineCheckpointConsumer,

@@ -47,8 +47,7 @@ class TestingTaskExecutor extends TaskExecutor {
             @Nullable String metricQueryServiceAddress,
             BlobCacheService blobCacheService,
             FatalErrorHandler fatalErrorHandler,
-            TaskExecutorPartitionTracker partitionTracker,
-            BackPressureSampleService backPressureSampleService) {
+            TaskExecutorPartitionTracker partitionTracker) {
         super(
                 rpcService,
                 taskManagerConfiguration,
@@ -60,8 +59,7 @@ class TestingTaskExecutor extends TaskExecutor {
                 metricQueryServiceAddress,
                 blobCacheService,
                 fatalErrorHandler,
-                partitionTracker,
-                backPressureSampleService);
+                partitionTracker);
     }
 
     @Override

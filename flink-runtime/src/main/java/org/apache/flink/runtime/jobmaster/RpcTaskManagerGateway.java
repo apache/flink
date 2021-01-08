@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskBackPressureResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.Preconditions;
@@ -54,13 +53,6 @@ public class RpcTaskManagerGateway implements TaskManagerGateway {
     @Override
     public String getAddress() {
         return taskExecutorGateway.getAddress();
-    }
-
-    @Override
-    public CompletableFuture<TaskBackPressureResponse> requestTaskBackPressure(
-            ExecutionAttemptID executionAttemptID, int requestId, Time timeout) {
-
-        return taskExecutorGateway.requestTaskBackPressure(executionAttemptID, requestId, timeout);
     }
 
     @Override

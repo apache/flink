@@ -21,13 +21,17 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.ComponentMetricStore;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore.TaskMetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo;
+import org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.SubtaskBackPressureInfo;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -36,10 +40,11 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 /** Request handler for the job vertex back pressure. */
 public class JobVertexBackPressureHandler
@@ -49,13 +54,17 @@ public class JobVertexBackPressureHandler
                 JobVertexBackPressureInfo,
                 JobVertexMessageParameters> {
 
+    private final MetricFetcher metricFetcher;
+
     public JobVertexBackPressureHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
             Time timeout,
             Map<String, String> responseHeaders,
             MessageHeaders<EmptyRequestBody, JobVertexBackPressureInfo, JobVertexMessageParameters>
-                    messageHeaders) {
+                    messageHeaders,
+            MetricFetcher metricFetcher) {
         super(leaderRetriever, timeout, responseHeaders, messageHeaders);
+        this.metricFetcher = metricFetcher;
     }
 
     @Override
@@ -63,36 +72,60 @@ public class JobVertexBackPressureHandler
             @Nonnull HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request,
             @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
+        metricFetcher.update();
+
         final JobID jobId = request.getPathParameter(JobIDPathParameter.class);
         final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
-        return gateway.requestOperatorBackPressureStats(jobId, jobVertexId)
-                .thenApply(
-                        operatorBackPressureStats ->
-                                operatorBackPressureStats
-                                        .getOperatorBackPressureStats()
-                                        .map(
-                                                JobVertexBackPressureHandler
-                                                        ::createJobVertexBackPressureInfo)
-                                        .orElse(JobVertexBackPressureInfo.deprecated()));
+
+        TaskMetricStore taskMetricStore =
+                metricFetcher
+                        .getMetricStore()
+                        .getTaskMetricStore(jobId.toString(), jobVertexId.toString());
+
+        return CompletableFuture.completedFuture(
+                taskMetricStore != null
+                        ? createJobVertexBackPressureInfo(
+                                taskMetricStore.getAllSubtaskMetricStores())
+                        : JobVertexBackPressureInfo.deprecated());
     }
 
-    private static JobVertexBackPressureInfo createJobVertexBackPressureInfo(
-            final OperatorBackPressureStats operatorBackPressureStats) {
+    private JobVertexBackPressureInfo createJobVertexBackPressureInfo(
+            Collection<ComponentMetricStore> allSubtaskMetricStores) {
+
         return new JobVertexBackPressureInfo(
                 JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
-                getBackPressureLevel(operatorBackPressureStats.getMaxBackPressureRatio()),
-                operatorBackPressureStats.getEndTimestamp(),
-                IntStream.range(0, operatorBackPressureStats.getNumberOfSubTasks())
-                        .mapToObj(
-                                subtask -> {
-                                    final double backPressureRatio =
-                                            operatorBackPressureStats.getBackPressureRatio(subtask);
-                                    return new JobVertexBackPressureInfo.SubtaskBackPressureInfo(
-                                            subtask,
-                                            getBackPressureLevel(backPressureRatio),
-                                            backPressureRatio);
-                                })
-                        .collect(Collectors.toList()));
+                getBackPressureLevel(getMaxBackPressureRatio(allSubtaskMetricStores)),
+                metricFetcher.getLastUpdateTime(),
+                createSubtaskBackPressureInfo(allSubtaskMetricStores));
+    }
+
+    private List<SubtaskBackPressureInfo> createSubtaskBackPressureInfo(
+            Collection<ComponentMetricStore> subtaskMetricStores) {
+        List<SubtaskBackPressureInfo> result = new ArrayList<>(subtaskMetricStores.size());
+        int subTaskIndex = 0;
+        for (ComponentMetricStore subtaskMetricStore : subtaskMetricStores) {
+            double backPressureRatio = getBackPressureRatio(subtaskMetricStore);
+            result.add(
+                    new SubtaskBackPressureInfo(
+                            subTaskIndex,
+                            getBackPressureLevel(backPressureRatio),
+                            backPressureRatio));
+            subTaskIndex++;
+        }
+        return result;
+    }
+
+    private double getMaxBackPressureRatio(
+            Collection<ComponentMetricStore> allSubtaskMetricStores) {
+        return allSubtaskMetricStores.stream()
+                .mapToDouble(metricStore -> getBackPressureRatio(metricStore))
+                .max()
+                .getAsDouble();
+    }
+
+    private double getBackPressureRatio(ComponentMetricStore metricStore) {
+        return Double.valueOf(metricStore.getMetric(MetricNames.TASK_BACK_PRESSURED_TIME, "0"))
+                / 1_000;
     }
 
     /**

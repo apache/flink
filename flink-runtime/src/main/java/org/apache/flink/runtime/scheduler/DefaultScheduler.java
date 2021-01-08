@@ -47,7 +47,6 @@ import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
-import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
@@ -105,7 +104,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
-            final BackPressureStatsTracker backPressureStatsTracker,
             final Executor ioExecutor,
             final Configuration jobMasterConfiguration,
             final Consumer<ComponentMainThreadExecutor> startUpAction,
@@ -131,7 +129,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         super(
                 log,
                 jobGraph,
-                backPressureStatsTracker,
                 ioExecutor,
                 jobMasterConfiguration,
                 futureExecutor,

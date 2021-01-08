@@ -2168,9 +2168,7 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 dummyBlobCacheService,
                 testingFatalErrorHandler,
-                taskExecutorPartitionTracker,
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration, rpc.getScheduledExecutor()));
+                taskExecutorPartitionTracker);
     }
 
     private TestingTaskExecutor createTestingTaskExecutor(TaskManagerServices taskManagerServices) {
@@ -2193,9 +2191,7 @@ public class TaskExecutorTest extends TestLogger {
                 null,
                 dummyBlobCacheService,
                 testingFatalErrorHandler,
-                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()),
-                TaskManagerRunner.createBackPressureSampleService(
-                        configuration, rpc.getScheduledExecutor()));
+                new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
 
     private TaskExecutorTestingContext createTaskExecutorTestingContext(int numberOfSlots)
