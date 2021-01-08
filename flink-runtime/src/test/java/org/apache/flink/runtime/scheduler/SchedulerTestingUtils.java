@@ -32,7 +32,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -114,15 +113,15 @@ public class SchedulerTestingUtils {
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
-            JobGraph jobGraph, ManuallyTriggeredScheduledExecutorService asyncExecutor) {
+            JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
 
         return createSchedulerBuilder(
-                jobGraph, asyncExecutor, new SimpleAckingTaskManagerGateway());
+                jobGraph, mainThreadExecutor, new SimpleAckingTaskManagerGateway());
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
             JobGraph jobGraph,
-            ManuallyTriggeredScheduledExecutorService asyncExecutor,
+            ComponentMainThreadExecutor mainThreadExecutor,
             TaskExecutorOperatorEventGateway operatorEventGateway) {
 
         final TaskManagerGateway gateway =
@@ -130,18 +129,15 @@ public class SchedulerTestingUtils {
                         ? (TaskManagerGateway) operatorEventGateway
                         : new TaskExecutorOperatorEventGatewayAdapter(operatorEventGateway);
 
-        return createSchedulerBuilder(jobGraph, asyncExecutor, gateway);
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor, gateway);
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
             JobGraph jobGraph,
             ComponentMainThreadExecutor mainThreadExecutor,
-            ManuallyTriggeredScheduledExecutorService asyncExecutor,
             TaskManagerGateway taskManagerGateway) {
 
         return newSchedulerBuilder(jobGraph, mainThreadExecutor)
-                .setFutureExecutor(asyncExecutor)
-                .setDelayExecutor(asyncExecutor)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
                 .setRestartBackoffTimeStrategy(new TestRestartBackoffTimeStrategy(true, 0))
                 .setExecutionSlotAllocatorFactory(

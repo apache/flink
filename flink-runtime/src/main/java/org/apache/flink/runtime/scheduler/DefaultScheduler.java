@@ -99,8 +99,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-    private final Consumer<ComponentMainThreadExecutor> startUpAction;
-
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -171,18 +169,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         .createInstance(new DefaultExecutionSlotAllocationContext());
 
         this.verticesWaitingForRestart = new HashSet<>();
-        this.startUpAction = startUpAction;
+        startUpAction.accept(mainThreadExecutor);
     }
 
     // ------------------------------------------------------------------------
     // SchedulerNG
     // ------------------------------------------------------------------------
-
-    @Override
-    public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
-        super.initialize(mainThreadExecutor);
-        startUpAction.accept(mainThreadExecutor);
-    }
 
     @Override
     protected long getNumberOfRestarts() {

@@ -653,21 +653,23 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
             jobGraphPreProcessing.accept(jobGraph);
         }
 
+        final ComponentMainThreadExecutor mainThreadExecutor =
+                new ComponentMainThreadExecutorServiceAdapter(
+                        (ScheduledExecutorService) executor, Thread.currentThread());
+
+        SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor);
+
         final SchedulerTestingUtils.DefaultSchedulerBuilder schedulerBuilder =
                 taskExecutorOperatorEventGateway == null
-                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, executor)
+                        ? SchedulerTestingUtils.createSchedulerBuilder(jobGraph, mainThreadExecutor)
                         : SchedulerTestingUtils.createSchedulerBuilder(
-                                jobGraph, executor, taskExecutorOperatorEventGateway);
+                                jobGraph, mainThreadExecutor, taskExecutorOperatorEventGateway);
         if (restartAllOnFailover) {
             schedulerBuilder.setFailoverStrategyFactory(new RestartAllFailoverStrategy.Factory());
         }
 
-        final DefaultScheduler scheduler = schedulerBuilder.build();
-
-        final ComponentMainThreadExecutor mainThreadExecutor =
-                new ComponentMainThreadExecutorServiceAdapter(
-                        (ScheduledExecutorService) executor, Thread.currentThread());
-        scheduler.initialize(mainThreadExecutor);
+        final DefaultScheduler scheduler =
+                schedulerBuilder.setFutureExecutor(executor).setDelayExecutor(executor).build();
 
         this.createdScheduler = scheduler;
         return scheduler;
