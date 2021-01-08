@@ -37,15 +37,7 @@ You can easily switch between all APIs and libraries which build upon them.
 For instance, you can detect patterns from a table using [`MATCH_RECOGNIZE` clause]({% link dev/table/streaming/match_recognize.md %})
 and later use the DataStream API to build alerting based on the matched patterns.
 
-Table Planners
---------------
-
-Table planners are responsible for translating relational operators into an executable, optimized Flink job.
-Flink supports two different planner implementations; the modern Blink planner and the legacy planner.
-For production use cases, we recommend the Blink planner which has been the default planner since 1.11.
-See the [common API]({% link dev/table/common.md %}) page for more information on how to switch between the two planners.
-
-### Table Program Dependencies
+## Table Program Dependencies
 
 Depending on the target programming language, you need to add the Java or Scala API to a project
 in order to use the Table API & SQL for defining pipelines.
@@ -83,10 +75,8 @@ $ python -m pip install apache-flink
 </div>
 
 Additionally, if you want to run the Table API & SQL programs locally within your IDE, you must add the
-following set of modules, depending which planner you want to use.
+following set of modules.
 
-<div class="codetabs" markdown="1">
-<div data-lang="Blink Planner" markdown="1">
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -101,24 +91,6 @@ following set of modules, depending which planner you want to use.
   <scope>provided</scope>
 </dependency>
 {% endhighlight %}
-</div>
-<div data-lang="Legacy Planner" markdown="1">
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-  <scope>provided</scope>
-</dependency>
-{% endhighlight %}
-</div>
-</div>
 
 ### Extension Dependencies
 
