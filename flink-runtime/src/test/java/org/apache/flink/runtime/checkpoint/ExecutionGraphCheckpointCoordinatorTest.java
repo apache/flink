@@ -161,7 +161,8 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
         jobGraph.setSnapshotSettings(checkpointingSettings);
 
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setCheckpointRecoveryFactory(
                                 new TestingCheckpointRecoveryFactory(store, counter))
                         .setRpcTimeout(timeout)

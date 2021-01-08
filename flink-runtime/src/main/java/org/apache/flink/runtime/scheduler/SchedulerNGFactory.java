@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.ExecutionDeploymentTracker;
@@ -54,6 +55,7 @@ public interface SchedulerNGFactory {
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor)
             throws Exception;
 }

@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
@@ -99,7 +100,8 @@ public class JobMasterSchedulerTest extends TestLogger {
                 ShuffleMaster<?> shuffleMaster,
                 JobMasterPartitionTracker partitionTracker,
                 ExecutionDeploymentTracker executionDeploymentTracker,
-                long initializationTimestamp) {
+                long initializationTimestamp,
+                ComponentMainThreadExecutor mainThreadExecutor) {
             return TestingSchedulerNG.newBuilder()
                     .setStartSchedulingRunnable(
                             () -> {

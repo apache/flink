@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
@@ -101,12 +102,15 @@ public class SchedulerTestingUtils {
 
     private SchedulerTestingUtils() {}
 
-    public static DefaultSchedulerBuilder newSchedulerBuilder(final JobGraph jobGraph) {
-        return new DefaultSchedulerBuilder(jobGraph);
+    public static DefaultSchedulerBuilder newSchedulerBuilder(
+            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor) {
+        return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor);
     }
 
-    public static DefaultScheduler createScheduler(final JobGraph jobGraph) throws Exception {
-        return newSchedulerBuilder(jobGraph).build();
+    public static DefaultScheduler createScheduler(
+            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
+            throws Exception {
+        return newSchedulerBuilder(jobGraph, mainThreadExecutor).build();
     }
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
@@ -131,10 +135,11 @@ public class SchedulerTestingUtils {
 
     public static DefaultSchedulerBuilder createSchedulerBuilder(
             JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
             ManuallyTriggeredScheduledExecutorService asyncExecutor,
             TaskManagerGateway taskManagerGateway) {
 
-        return newSchedulerBuilder(jobGraph)
+        return newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setFutureExecutor(asyncExecutor)
                 .setDelayExecutor(asyncExecutor)
                 .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
@@ -380,6 +385,8 @@ public class SchedulerTestingUtils {
     public static class DefaultSchedulerBuilder {
         private final JobGraph jobGraph;
 
+        private final ComponentMainThreadExecutor mainThreadExecutor;
+
         private SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
@@ -408,8 +415,10 @@ public class SchedulerTestingUtils {
         private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
 
-        public DefaultSchedulerBuilder(final JobGraph jobGraph) {
+        public DefaultSchedulerBuilder(
+                final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
             this.jobGraph = jobGraph;
+            this.mainThreadExecutor = mainThreadExecutor;
         }
 
         public DefaultSchedulerBuilder setLogger(final Logger log) {
@@ -536,7 +545,8 @@ public class SchedulerTestingUtils {
                     executionVertexVersioner,
                     executionSlotAllocatorFactory,
                     new DefaultExecutionDeploymentTracker(),
-                    System.currentTimeMillis());
+                    System.currentTimeMillis(),
+                    mainThreadExecutor);
         }
     }
 }

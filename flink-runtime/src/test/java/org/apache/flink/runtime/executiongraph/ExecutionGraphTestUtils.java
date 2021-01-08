@@ -406,7 +406,8 @@ public class ExecutionGraphTestUtils {
         jobGraph.setScheduleMode(scheduleMode);
 
         SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setIoExecutor(executor)
                         .setFutureExecutor(executor)
                         .build();

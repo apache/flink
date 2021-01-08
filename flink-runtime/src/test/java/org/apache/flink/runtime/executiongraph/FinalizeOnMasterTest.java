@@ -51,7 +51,10 @@ public class FinalizeOnMasterTest extends TestLogger {
         vertex2.setInvokableClass(NoOpInvokable.class);
         vertex2.setParallelism(2);
 
-        final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex1, vertex2));
+        final SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph("Test Job", vertex1, vertex2),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
@@ -77,7 +80,10 @@ public class FinalizeOnMasterTest extends TestLogger {
         vertex.setInvokableClass(NoOpInvokable.class);
         vertex.setParallelism(1);
 
-        final SchedulerBase scheduler = createScheduler(new JobGraph("Test Job", vertex));
+        final SchedulerBase scheduler =
+                createScheduler(
+                        new JobGraph("Test Job", vertex),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
