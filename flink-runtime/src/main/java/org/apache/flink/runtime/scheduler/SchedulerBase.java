@@ -181,7 +181,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionDeploymentTracker executionDeploymentTracker,
             long initializationTimestamp,
-            final ComponentMainThreadExecutor mainThreadExecutor)
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         this.log = checkNotNull(log);
@@ -219,7 +220,8 @@ public abstract class SchedulerBase implements SchedulerNG {
                         checkNotNull(partitionTracker),
                         checkNotNull(executionDeploymentTracker),
                         initializationTimestamp,
-                        mainThreadExecutor);
+                        mainThreadExecutor,
+                        jobStatusListener);
 
         registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
 
@@ -275,7 +277,8 @@ public abstract class SchedulerBase implements SchedulerNG {
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
             long initializationTimestamp,
-            ComponentMainThreadExecutor mainThreadExecutor)
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobStatusListener jobStatusListener)
             throws Exception {
 
         ExecutionGraph newExecutionGraph =
@@ -305,6 +308,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
         newExecutionGraph.setInternalTaskFailuresListener(
                 new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+        newExecutionGraph.registerJobStatusListener(jobStatusListener);
         newExecutionGraph.start(mainThreadExecutor);
 
         return newExecutionGraph;
