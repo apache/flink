@@ -124,6 +124,13 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         declareResourceRequirements();
     }
 
+    @Override
+    public void setResourceRequirements(ResourceCounter resourceRequirements) {
+        totalResourceRequirements = resourceRequirements;
+
+        declareResourceRequirements();
+    }
+
     private void declareResourceRequirements() {
         final Collection<ResourceRequirement> resourceRequirements = getResourceRequirements();
 

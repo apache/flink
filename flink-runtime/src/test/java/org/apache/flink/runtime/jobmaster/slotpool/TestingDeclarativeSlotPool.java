@@ -72,6 +72,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final LongConsumer releaseIdleSlotsConsumer;
 
+    private final Consumer<ResourceCounter> setResourceRequirementsConsumer;
+
     TestingDeclarativeSlotPool(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer,
             Consumer<ResourceCounter> decreaseResourceRequirementsByConsumer,
@@ -90,7 +92,8 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             BiFunction<AllocationID, ResourceProfile, PhysicalSlot> reserveFreeSlotFunction,
             TriFunction<AllocationID, Throwable, Long, ResourceCounter> freeReservedSlotFunction,
             Function<ResourceID, Boolean> containsSlotsFunction,
-            LongConsumer releaseIdleSlotsConsumer) {
+            LongConsumer releaseIdleSlotsConsumer,
+            Consumer<ResourceCounter> setResourceRequirementsConsumer) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
         this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
@@ -103,6 +106,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.freeReservedSlotFunction = freeReservedSlotFunction;
         this.containsSlotsFunction = containsSlotsFunction;
         this.releaseIdleSlotsConsumer = releaseIdleSlotsConsumer;
+        this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
     }
 
     @Override
@@ -113,6 +117,11 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
     @Override
     public void decreaseResourceRequirementsBy(ResourceCounter decrement) {
         decreaseResourceRequirementsByConsumer.accept(decrement);
+    }
+
+    @Override
+    public void setResourceRequirements(ResourceCounter resourceRequirements) {
+        setResourceRequirementsConsumer.accept(resourceRequirements);
     }
 
     @Override
