@@ -515,6 +515,35 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
                 hasItems(ResourceRequirement.create(largeResourceProfile, 2)));
     }
 
+    @Test
+    public void testSetResourceRequirementsForInitialResourceRequirements() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE_1, 2);
+
+        slotPool.setResourceRequirements(resourceRequirements);
+
+        assertThat(
+                slotPool.getResourceRequirements(),
+                is(toResourceRequirements(resourceRequirements)));
+    }
+
+    @Test
+    public void testSetResourceRequirementsOverwritesPreviousValue() {
+        final DefaultDeclarativeSlotPool slotPool = new DefaultDeclarativeSlotPoolBuilder().build();
+
+        slotPool.setResourceRequirements(ResourceCounter.withResource(RESOURCE_PROFILE_1, 1));
+
+        final ResourceCounter resourceRequirements =
+                ResourceCounter.withResource(RESOURCE_PROFILE_2, 1);
+        slotPool.setResourceRequirements(resourceRequirements);
+
+        assertThat(
+                slotPool.getResourceRequirements(),
+                is(toResourceRequirements(resourceRequirements)));
+    }
+
     @Nonnull
     private static ResourceCounter createResourceRequirements() {
         final Map<ResourceProfile, Integer> requirements = new HashMap<>();
