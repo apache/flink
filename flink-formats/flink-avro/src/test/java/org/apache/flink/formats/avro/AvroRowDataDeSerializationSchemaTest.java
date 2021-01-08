@@ -68,9 +68,19 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertNull;
 
 /** Test for the Avro serialization and deserialization schema. */
 public class AvroRowDataDeSerializationSchemaTest {
+
+    @Test
+    public void testDeserializeNullRow() throws Exception {
+        final DataType dataType = ROW(FIELD("bool", BOOLEAN())).nullable();
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchema(dataType);
+
+        assertNull(deserializationSchema.deserialize(null));
+    }
 
     @Test
     public void testSerializeDeserialize() throws Exception {
@@ -97,7 +107,6 @@ public class AvroRowDataDeSerializationSchemaTest {
                                 FIELD("nullEntryMap", MAP(STRING(), STRING())))
                         .notNull();
         final RowType rowType = (RowType) dataType.getLogicalType();
-        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
 
         final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
         final GenericRecord record = new GenericData.Record(schema);
@@ -148,12 +157,9 @@ public class AvroRowDataDeSerializationSchemaTest {
         map2.put("key1", null);
         record.put(18, map2);
 
-        AvroRowDataSerializationSchema serializationSchema =
-                new AvroRowDataSerializationSchema(rowType);
-        serializationSchema.open(null);
+        AvroRowDataSerializationSchema serializationSchema = createSerializationSchema(dataType);
         AvroRowDataDeserializationSchema deserializationSchema =
-                new AvroRowDataDeserializationSchema(rowType, typeInfo);
-        deserializationSchema.open(null);
+                createDeserializationSchema(dataType);
 
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
@@ -189,14 +195,9 @@ public class AvroRowDataDeSerializationSchemaTest {
                                 FIELD("type_date", DATE().notNull()),
                                 FIELD("type_time_millis", TIME(3).notNull()))
                         .notNull();
-        final RowType rowType = (RowType) dataType.getLogicalType();
-        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
-        AvroRowDataSerializationSchema serializationSchema =
-                new AvroRowDataSerializationSchema(rowType);
-        serializationSchema.open(null);
+        AvroRowDataSerializationSchema serializationSchema = createSerializationSchema(dataType);
         AvroRowDataDeserializationSchema deserializationSchema =
-                new AvroRowDataDeserializationSchema(rowType, typeInfo);
-        deserializationSchema.open(null);
+                createDeserializationSchema(dataType);
 
         RowData rowData = deserializationSchema.deserialize(input);
         byte[] output = serializationSchema.serialize(rowData);
@@ -213,5 +214,26 @@ public class AvroRowDataDeSerializationSchemaTest {
                 DataFormatConverters.LocalTimeConverter.INSTANCE
                         .toExternal(rowData.getInt(2))
                         .toString());
+    }
+
+    private AvroRowDataSerializationSchema createSerializationSchema(DataType dataType)
+            throws Exception {
+        final RowType rowType = (RowType) dataType.getLogicalType();
+
+        AvroRowDataSerializationSchema serializationSchema =
+                new AvroRowDataSerializationSchema(rowType);
+        serializationSchema.open(null);
+        return serializationSchema;
+    }
+
+    private AvroRowDataDeserializationSchema createDeserializationSchema(DataType dataType)
+            throws Exception {
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(rowType, typeInfo);
+        deserializationSchema.open(null);
+        return deserializationSchema;
     }
 }
