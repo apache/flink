@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.planner.codegen
 
-import java.math.{BigDecimal => JBigDecimal}
-import java.time.ZoneOffset
-
-import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.util.TimestampString
-import org.apache.commons.lang3.StringEscapeUtils
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
@@ -41,6 +35,13 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
 import org.apache.flink.table.util.TimestampStringUtils.toLocalDateTime
+
+import org.apache.calcite.avatica.util.ByteString
+import org.apache.calcite.util.TimestampString
+import org.apache.commons.lang3.StringEscapeUtils
+
+import java.math.{BigDecimal => JBigDecimal}
+import java.time.ZoneOffset
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -875,7 +876,7 @@ object GenerateUtils {
 
     val fieldTypes = getFieldTypes(inputType)
     val compares = new mutable.ArrayBuffer[String]
-    sortSpec.getFieldSpecs.foreach(fieldSpec => {
+    sortSpec.getFieldSpecs.foreach { fieldSpec =>
       val index = fieldSpec.getFieldIndex
       val symbol = if (fieldSpec.getIsAscendingOrder) "" else "-"
       val nullIsLastRet = if (fieldSpec.getNullIsLast) 1 else -1
@@ -902,62 +903,6 @@ object GenerateUtils {
            |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
            |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
            |  int $comp = ${generateCompare(ctx, t, fieldSpec.getNullIsLast, fieldA, fieldB)};
-           |  if ($comp != 0) {
-           |    return $symbol$comp;
-           |  }
-           |}
-         """.stripMargin
-      compares += code
-    })
-    compares.mkString
-  }
-
-  /**
-   * Generates code for comparing row keys.
-   * TODO: Remove this after [[MultiFieldRangeBoundComparatorCodeGenerator]]
-   * is refactored using SortSpec.
-   */
-  def generateRowCompare(
-    ctx: CodeGeneratorContext,
-    keys: Array[Int],
-    keyTypes: Array[LogicalType],
-    orders: Array[Boolean],
-    nullsIsLast: Array[Boolean],
-    leftTerm: String,
-    rightTerm: String): String = {
-
-    val compares = new mutable.ArrayBuffer[String]
-
-    for (i <- keys.indices) {
-      val index = keys(i)
-
-      val symbol = if (orders(i)) "" else "-"
-
-      val nullIsLastRet = if (nullsIsLast(i)) 1 else -1
-
-      val t = keyTypes(i)
-
-      val typeTerm = primitiveTypeTermForType(t)
-      val fieldA = newName("fieldA")
-      val isNullA = newName("isNullA")
-      val fieldB = newName("fieldB")
-      val isNullB = newName("isNullB")
-      val comp = newName("comp")
-
-      val code =
-        s"""
-           |boolean $isNullA = $leftTerm.isNullAt($index);
-           |boolean $isNullB = $rightTerm.isNullAt($index);
-           |if ($isNullA && $isNullB) {
-           |  // Continue to compare the next element
-           |} else if ($isNullA) {
-           |  return $nullIsLastRet;
-           |} else if ($isNullB) {
-           |  return ${-nullIsLastRet};
-           |} else {
-           |  $typeTerm $fieldA = ${rowFieldReadAccess(ctx, index, leftTerm, t)};
-           |  $typeTerm $fieldB = ${rowFieldReadAccess(ctx, index, rightTerm, t)};
-           |  int $comp = ${generateCompare(ctx, t, nullsIsLast(i), fieldA, fieldB)};
            |  if ($comp != 0) {
            |    return $symbol$comp;
            |  }
