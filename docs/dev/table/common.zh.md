@@ -60,12 +60,12 @@ tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... 
 tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )");
 
 // create a Table object from a Table API query
-Table tapiResult = tableEnv.from("table1").select(...);
+Table table2 = tableEnv.from("table1").select(...);
 // create a Table object from a SQL query
-Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
+Table table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = tapiResult.executeInsert("outputTable");
+TableResult tableResult = table2.executeInsert("outputTable");
 tableResult...
 
 {% endhighlight %}
@@ -83,12 +83,12 @@ tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... 
 tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
 
 // create a Table from a Table API query
-val tapiResult = tableEnv.from("table1").select(...)
+val table2 = tableEnv.from("table1").select(...)
 // create a Table from a SQL query
-val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
+val table3 = tableEnv.sqlQuery("SELECT ... FROM table1 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = tapiResult.executeInsert("outputTable")
+val tableResult = table2.executeInsert("outputTable")
 tableResult...
 
 {% endhighlight %}
@@ -106,12 +106,12 @@ table_env.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ...
 table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
 
 # create a Table from a Table API query
-tapi_result = table_env.from_path("table1").select(...)
+table2 = table_env.from_path("table1").select(...)
 # create a Table from a SQL query
-sql_result  = table_env.sql_query("SELECT ... FROM table1 ...")
+table3 = table_env.sql_query("SELECT ... FROM table1 ...")
 
 # emit a Table API result Table to a TableSink, same for SQL result
-table_result = tapi_result.execute_insert("outputTable")
+table_result = table3.execute_insert("outputTable")
 table_result...
 
 {% endhighlight %}
