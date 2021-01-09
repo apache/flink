@@ -38,6 +38,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.functions.timestamps.{AscendingTimestampExtractor, BoundedOutOfOrdernessTimestampExtractor}
 import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, AssignerWithPunctuatedWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
+import org.apache.flink.streaming.api.operators.collect.ClientAndIterator
 import org.apache.flink.streaming.api.windowing.assigners._
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.{GlobalWindow, TimeWindow, Window}
@@ -51,7 +52,7 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Returns the [[StreamExecutionEnvironment]] associated with the current [[DataStream]].
    *
-   * @return associated execution environment 
+   * @return associated execution environment
    * @deprecated Use [[executionEnvironment]] instead
    */
   @deprecated
@@ -61,7 +62,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
    * Returns the TypeInformation for the elements of this DataStream.
-   * 
+   *
    * @deprecated Use [[dataType]] instead.
    */
   @deprecated
@@ -70,7 +71,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
    * Returns the parallelism of this operation.
-   * 
+   *
    * @deprecated Use [[parallelism]] instead.
    */
   @deprecated
@@ -79,7 +80,7 @@ class DataStream[T](stream: JavaStream[T]) {
 
   /**
    * Returns the execution config.
-   * 
+   *
    * @deprecated Use [[executionConfig]] instead.
    */
   @deprecated
@@ -91,16 +92,16 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   @Internal
   private[flink] def getId = stream.getId()
-  
+
   // --------------------------------------------------------------------------
-  //  Scalaesk accessors 
+  //  Scalaesk accessors
   // --------------------------------------------------------------------------
-  
+
   /**
    * Gets the underlying java DataStream object.
    */
   def javaStream: JavaStream[T] = stream
-  
+
   /**
    * Returns the TypeInformation for the elements of this DataStream.
    */
@@ -116,8 +117,8 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def executionEnvironment: StreamExecutionEnvironment =
     new StreamExecutionEnvironment(stream.getExecutionEnvironment())
-  
-  
+
+
   /**
    * Returns the parallelism of this operation.
    */
@@ -196,9 +197,9 @@ class DataStream[T](stream: JavaStream[T]) {
     case _ => throw new
         UnsupportedOperationException("Only supported for operators.")
   }
-  
+
   // --------------------------------------------------------------------------
-  
+
   /**
    * Gets the name of the current data stream. This name is
    * used by the visualization and logging during runtime.
@@ -345,9 +346,9 @@ class DataStream[T](stream: JavaStream[T]) {
   }
 
   // --------------------------------------------------------------------------
-  //  Stream Transformations 
+  //  Stream Transformations
   // --------------------------------------------------------------------------
-  
+
   /**
    * Creates a new DataStream by merging DataStream outputs of
    * the same type with each other. The DataStreams merged using this operator
@@ -463,10 +464,10 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def partitionCustom[K: TypeInformation](partitioner: Partitioner[K], fun: T => K)
       : DataStream[T] = {
-    
+
     val keyType = implicitly[TypeInformation[K]]
     val cleanFun = clean(fun)
-    
+
     val keyExtractor = new KeySelector[T, K] with ResultTypeQueryable[K] {
       def getKey(in: T) = cleanFun(in)
       override def getProducedType(): TypeInformation[K] = keyType
@@ -602,9 +603,9 @@ class DataStream[T](stream: JavaStream[T]) {
   def iterate[R, F: TypeInformation](
         stepFunction: ConnectedStreams[T, F] => (DataStream[F], DataStream[R]),
         maxWaitTimeMillis:Long): DataStream[R] = {
-    
+
     val feedbackType: TypeInformation[F] = implicitly[TypeInformation[F]]
-    
+
     val connectedIterativeStream = stream.iterate(maxWaitTimeMillis).
                                    withFeedbackType(feedbackType)
 
@@ -886,12 +887,12 @@ class DataStream[T](stream: JavaStream[T]) {
   /**
    * Assigns timestamps to the elements in the data stream and periodically creates
    * watermarks to signal event time progress.
-   * 
+   *
    * This method is a shortcut for data streams where the element timestamp are known
    * to be monotonously ascending within each parallel stream.
    * In that case, the system can generate watermarks automatically and perfectly
    * by tracking the ascending timestamps.
-   * 
+   *
    * For cases where the timestamps are not monotonously increasing, use the more
    * general methods [[assignTimestampsAndWatermarks(AssignerWithPeriodicWatermarks)]]
    * and [[assignTimestampsAndWatermarks(AssignerWithPunctuatedWatermarks)]].
@@ -1180,6 +1181,19 @@ class DataStream[T](stream: JavaStream[T]) {
    */
   def executeAndCollect(jobExecutionName: String, limit: Int): List[T] =
     stream.executeAndCollect(jobExecutionName, limit).asScala.toList
+
+  /**
+   * Triggers the distributed execution of the streaming dataflow and returns
+   * <li>an iterator over the elements of the given DataStream.
+   * <li>and a {@link JobClient} scoped to the exeuted job.
+   * <p></p>
+   *
+   * <p>The DataStream application is executed in the regular distributed manner on the target
+   * environment, and the events from the stream are polled back to this application process and
+   * thread through Flink's REST API.
+   */
+  def executeAndCollectWithClient(jobExecutionName: String): ClientAndIterator[T] =
+    stream.executeAndCollectWithClient(jobExecutionName)
 
   /**
    * Returns a "closure-cleaned" version of the given function. Cleans only if closure cleaning
