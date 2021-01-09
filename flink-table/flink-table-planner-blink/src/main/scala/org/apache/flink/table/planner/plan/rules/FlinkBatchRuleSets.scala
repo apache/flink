@@ -421,7 +421,7 @@ object FlinkBatchRuleSets {
     RemoveRedundantLocalHashAggRule.INSTANCE,
     BatchPhysicalPythonAggregateRule.INSTANCE,
     // over agg
-    BatchExecOverAggregateRule.INSTANCE,
+    BatchPhysicalOverAggregateRule.INSTANCE,
     // window agg
     BatchPhysicalWindowAggregateRule.INSTANCE,
     BatchPhysicalPythonWindowAggregateRule.INSTANCE,

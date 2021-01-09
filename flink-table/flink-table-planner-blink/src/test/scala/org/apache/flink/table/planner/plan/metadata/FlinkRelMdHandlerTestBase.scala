@@ -30,8 +30,6 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindow
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowReference, PlannerWindowStart}
-import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
@@ -45,7 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.{CountAggFunction, Top3}
+import org.apache.flink.table.planner.utils.Top3
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
@@ -1676,21 +1674,13 @@ class FlinkRelMdHandlerTestBase {
       newSortTrait1.getTrait(RelCollationTraitDef.INSTANCE))
 
     val outputRowType1 = createRowType("id", "name", "score", "age", "class", "rn")
-    val innerWindowAgg1 = new BatchExecOverAggregate(
+    val innerWindowAgg1 = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       sort1,
       outputRowType1,
       sort1.getRowType,
-      Array(4),
-      Array(1),
-      Array(true),
-      Array(false),
-      Seq((overAggGroups(0), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.ROW_NUMBER, false, ImmutableList.of(), -1,
-          longType, "rn"),
-          new RowNumberAggFunction())))),
+      Seq(overAggGroups(0)),
       flinkLogicalOverAgg
     )
 
@@ -1703,31 +1693,13 @@ class FlinkRelMdHandlerTestBase {
 
     val outputRowType2 = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk", "count$0_score", "sum$0_score")
-    val innerWindowAgg2 = new BatchExecOverAggregate(
+    val innerWindowAgg2 = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       sort2,
       outputRowType2,
       sort2.getRowType,
-      Array(4),
-      Array(2),
-      Array(true),
-      Array(false),
-      Seq((overAggGroups(1), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.RANK, false, ImmutableList.of(), -1, longType,
-          "rk"),
-          new RankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
-        (AggregateCall.create(SqlStdOperatorTable.DENSE_RANK, false, ImmutableList.of(), -1,
-          longType, "drk"),
-          new DenseRankAggFunction(Array(new VarCharType(VarCharType.MAX_LENGTH)))),
-        (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, longType, "count$0_socre"),
-          new CountAggFunction()),
-        (AggregateCall.create(SqlStdOperatorTable.SUM, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, doubleType, "sum$0_score"),
-          new DoubleSumAggFunction())
-      ))),
+      Seq(overAggGroups(1)),
       flinkLogicalOverAgg
     )
 
@@ -1738,25 +1710,13 @@ class FlinkRelMdHandlerTestBase {
     val outputRowType3 = createRowType(
       "id", "name", "score", "age", "class", "rn", "rk", "drk",
       "count$0_score", "sum$0_score", "max_score", "cnt")
-    val batchWindowAgg = new BatchExecOverAggregate(
+    val batchWindowAgg = new BatchPhysicalOverAggregate(
       cluster,
-      relBuilder,
       batchPhysicalTraits,
       exchange2,
       outputRowType3,
       exchange2.getRowType,
-      Array(3),
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Seq((overAggGroups(2), Seq(
-        (AggregateCall.create(SqlStdOperatorTable.MAX, false,
-          ImmutableList.of(Integer.valueOf(2)), -1, longType, "max_score"),
-          new CountAggFunction()),
-        (AggregateCall.create(SqlStdOperatorTable.COUNT, false,
-          ImmutableList.of(Integer.valueOf(0)), -1, doubleType, "cnt"),
-          new DoubleSumAggFunction())
-      ))),
+      Seq(overAggGroups(2)),
       flinkLogicalOverAgg
     )
 
