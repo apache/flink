@@ -17,13 +17,16 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.functions.python.PythonFunctionKind
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecOverAggregate, BatchExecOverAggregateBase, BatchExecPythonOverAggregate}
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecPythonOverAggregate, BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
+
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel._
@@ -31,23 +34,21 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.tools.ValidationException
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.python.PythonFunctionKind
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Rule that converts [[FlinkLogicalOverAggregate]] to one or more [[BatchExecOverAggregate]]s.
+  * Rule that converts [[FlinkLogicalOverAggregate]] to one or more [[BatchPhysicalOverAggregate]]s.
   * If there are more than one [[Group]], this rule will combine adjacent [[Group]]s with the
   * same partition keys and order keys into one BatchExecOverAggregate.
   */
-class BatchExecOverAggregateRule
+class BatchPhysicalOverAggregateRule
   extends RelOptRule(
     operand(classOf[FlinkLogicalOverAggregate],
       operand(classOf[RelNode], any)),
-    "BatchExecOverAggregateRule") {
+    "BatchPhysicalOverAggregateRule") {
 
   override def onMatch(call: RelOptRuleCall): Unit = {
     val logicWindow: FlinkLogicalOverAggregate = call.rel(0)
@@ -63,7 +64,7 @@ class BatchExecOverAggregateRule
     val inputTypeWithConstants = typeFactory.buildRelNodeRowType(
       inputNamesWithConstants, inputTypesWithConstants)
 
-    var overWindowAgg: BatchExecOverAggregateBase = null
+    var overWindowAgg: BatchPhysicalOverAggregateBase = null
 
     var lastGroup: Window.Group = null
     val groupBuffer = ArrayBuffer[Window.Group]()
@@ -123,32 +124,22 @@ class BatchExecOverAggregateRule
         }
       }
       overWindowAgg = if (existJavaFunction) {
-        new BatchExecOverAggregate(
+        new BatchPhysicalOverAggregate(
           logicWindow.getCluster,
-          call.builder(),
           providedTraitSet,
           newInput,
           outputRowType,
           newInput.getRowType,
-          groupSet,
-          sortSpec.getFieldIndices,
-          sortSpec.getAscendingOrders,
-          sortSpec.getNullsIsLast,
-          groupToAggCallToAggFunction,
+          groupBuffer.clone(),
           logicWindow)
       } else {
         new BatchExecPythonOverAggregate(
           logicWindow.getCluster,
-          call.builder(),
           providedTraitSet,
           newInput,
           outputRowType,
           newInput.getRowType,
-          groupSet,
-          sortSpec.getFieldIndices,
-          sortSpec.getAscendingOrders,
-          sortSpec.getNullsIsLast,
-          groupToAggCallToAggFunction,
+          groupBuffer.clone(),
           logicWindow)
       }
 
@@ -215,6 +206,6 @@ class BatchExecOverAggregateRule
   }
 }
 
-object BatchExecOverAggregateRule {
-  val INSTANCE: RelOptRule = new BatchExecOverAggregateRule
+object BatchPhysicalOverAggregateRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalOverAggregateRule
 }

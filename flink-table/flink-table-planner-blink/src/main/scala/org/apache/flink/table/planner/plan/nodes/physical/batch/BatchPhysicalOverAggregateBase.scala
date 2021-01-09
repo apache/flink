@@ -18,18 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.CalcitePair
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.{LegacyBatchExecNode, ExecEdge}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRuleBase
+import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.splitOutOffsetOrInsensitiveGroup
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
 
-import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel._
@@ -37,69 +33,36 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexLiteral
-import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
-import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
 
 import java.util
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Batch physical RelNode for sort-based over [[Window]] aggregate.
-  */
-abstract class BatchExecOverAggregateBase(
+ * Base batch physical RelNode for sort-based over [[Window]] aggregate.
+ */
+abstract class BatchPhysicalOverAggregateBase(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
-    grouping: Array[Int],
-    orderKeyIndices: Array[Int],
-    orders: Array[Boolean],
-    nullIsLasts: Array[Boolean],
-    windowGroupToAggCallToAggFunction: Seq[
-      (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
+    windowGroups: Seq[Window.Group],
     logicWindow: Window)
   extends SingleRel(cluster, traitSet, inputRel)
-  with BatchPhysicalRel
-  with LegacyBatchExecNode[RowData] {
+  with BatchPhysicalRel {
 
-  protected lazy val modeToGroupToAggCallToAggFunction:
-    Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] =
-    splitOutOffsetOrInsensitiveGroup()
-
-  protected val constants: ImmutableList[RexLiteral] = logicWindow.constants
-  protected val inputTypeWithConstants: RelDataType = {
-    val constantTypes = constants.map(c => FlinkTypeFactory.toLogicalType(c.getType))
-    val inputTypeNamesWithConstants =
-      inputType.getFieldNames ++ constants.indices.map(i => "TMP" + i)
-    val inputTypesWithConstants = inputType.getChildren ++ constantTypes
-    cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-      .buildRelNodeRowType(inputTypeNamesWithConstants, inputTypesWithConstants)
+  val partitionKeyIndices: Array[Int] = windowGroups.head.keys.toArray
+  windowGroups.tail.foreach { g =>
+    if (!util.Arrays.equals(partitionKeyIndices, g.keys.toArray)) {
+      throw new TableException("" +
+        "BatchPhysicalOverAggregateBase requires all groups should have same partition key.")
+    }
   }
 
-  lazy val aggregateCalls: Seq[AggregateCall] =
-    windowGroupToAggCallToAggFunction.flatMap(_._2).map(_._1)
-
-  protected lazy val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
-
-  protected def isUnboundedWindow(group: Window.Group) =
-    group.lowerBound.isUnbounded && group.upperBound.isUnbounded
-
-  protected def isUnboundedPrecedingWindow(group: Window.Group) =
-    group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
-
-  protected def isUnboundedFollowingWindow(group: Window.Group) =
-    !group.lowerBound.isUnbounded && group.upperBound.isUnbounded
-
-  protected def isSlidingWindow(group: Window.Group) =
-    !group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
-
-  def getGrouping: Array[Int] = grouping
+  protected lazy val offsetAndInsensitiveSensitiveGroups: Seq[Group] =
+    splitOutOffsetOrInsensitiveGroup(windowGroups)
 
   override def deriveRowType: RelDataType = outputRowType
 
@@ -110,7 +73,7 @@ abstract class BatchExecOverAggregateBase(
       return null
     }
     val cpu = FlinkCost.FUNC_CPU_COST * inputRows *
-      modeToGroupToAggCallToAggFunction.flatMap(_._3).size
+      offsetAndInsensitiveSensitiveGroups.flatMap(_.aggCalls).size
     val averageRowSize: Double = mq.getAverageRowSize(this)
     val memCost = averageRowSize
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
@@ -118,100 +81,36 @@ abstract class BatchExecOverAggregateBase(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val partitionKeys: Array[Int] = grouping
-    val groups = modeToGroupToAggCallToAggFunction.map(_._2)
     val writer = super.explainTerms(pw)
-      .itemIf("partitionBy", RelExplainUtil.fieldToString(partitionKeys, inputRowType),
-        partitionKeys.nonEmpty)
+      .itemIf("partitionBy",
+        RelExplainUtil.fieldToString(partitionKeyIndices, inputRowType),
+        partitionKeyIndices.nonEmpty)
       .itemIf("orderBy",
-        RelExplainUtil.collationToString(groups.head.orderKeys, inputRowType),
-        orderKeyIndices.nonEmpty)
+        RelExplainUtil.collationToString(windowGroups.head.orderKeys, inputRowType),
+        windowGroups.head.orderKeys.getFieldCollations.nonEmpty)
 
     var offset = inputRowType.getFieldCount
-    groups.zipWithIndex.foreach { case (group, index) =>
+    offsetAndInsensitiveSensitiveGroups.zipWithIndex.foreach { case (group, index) =>
       val namedAggregates = generateNamedAggregates(group)
       val select = RelExplainUtil.overAggregationToString(
         inputRowType,
         outputRowType,
-        constants,
+        logicWindow.constants,
         namedAggregates,
         outputInputName = false,
         rowTypeOffset = offset)
       offset += namedAggregates.size
       val windowRange = RelExplainUtil.windowRangeToString(logicWindow, group)
       writer.item("window#" + index, select + windowRange)
-                                }
+    }
     writer.item("select", getRowType.getFieldNames.mkString(", "))
   }
 
   private def generateNamedAggregates(
-      groupWindow: Group): Seq[CalcitePair[AggregateCall, String]] = {
-    val aggregateCalls = groupWindow.getAggregateCalls(logicWindow)
+      windowGroup: Group): Seq[CalcitePair[AggregateCall, String]] = {
+    val aggregateCalls = windowGroup.getAggregateCalls(logicWindow)
     for (i <- 0 until aggregateCalls.size())
       yield new CalcitePair[AggregateCall, String](aggregateCalls.get(i), "windowAgg$" + i)
-  }
-
-  private def splitOutOffsetOrInsensitiveGroup()
-  : Seq[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])] = {
-
-    def compareTo(o1: Window.RexWinAggCall, o2: Window.RexWinAggCall): Boolean = {
-      val allowsFraming1 = o1.getOperator.allowsFraming
-      val allowsFraming2 = o2.getOperator.allowsFraming
-      if (!allowsFraming1 && !allowsFraming2) {
-        o1.getOperator.getClass == o2.getOperator.getClass
-      } else {
-        allowsFraming1 == allowsFraming2
-      }
-    }
-
-    def inferGroupMode(group: Window.Group): OverWindowMode = {
-      val aggCall = group.aggCalls(0)
-      if (aggCall.getOperator.allowsFraming()) {
-        if (group.isRows) OverWindowMode.Row else OverWindowMode.Range
-      } else {
-        if (aggCall.getOperator.isInstanceOf[SqlLeadLagAggFunction]) {
-          OverWindowMode.Offset
-        } else {
-          OverWindowMode.Insensitive
-        }
-      }
-    }
-
-    def createNewGroup(
-        group: Window.Group,
-        aggCallsBuffer: Seq[(Window.RexWinAggCall, (AggregateCall, UserDefinedFunction))])
-    : (OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)]) = {
-      val newGroup = new Window.Group(
-        group.keys,
-        group.isRows,
-        group.lowerBound,
-        group.upperBound,
-        group.orderKeys,
-        aggCallsBuffer.map(_._1))
-      val mode = inferGroupMode(newGroup)
-      (mode, group, aggCallsBuffer.map(_._2))
-    }
-
-    val windowGroupInfo =
-      ArrayBuffer[(OverWindowMode, Window.Group, Seq[(AggregateCall, UserDefinedFunction)])]()
-    windowGroupToAggCallToAggFunction.foreach { case (group, aggCallToAggFunction) =>
-      var lastAggCall: Window.RexWinAggCall = null
-      val aggCallsBuffer =
-        ArrayBuffer[(Window.RexWinAggCall, (AggregateCall, UserDefinedFunction))]()
-      group.aggCalls.zip(aggCallToAggFunction).foreach { case (aggCall, aggFunction) =>
-        if (lastAggCall != null && !compareTo(lastAggCall, aggCall)) {
-          windowGroupInfo.add(createNewGroup(group, aggCallsBuffer))
-          aggCallsBuffer.clear()
-        }
-        aggCallsBuffer.add((aggCall, aggFunction))
-        lastAggCall = aggCall
-                                                       }
-      if (aggCallsBuffer.nonEmpty) {
-        windowGroupInfo.add(createNewGroup(group, aggCallsBuffer))
-        aggCallsBuffer.clear()
-      }
-                                              }
-    windowGroupInfo
   }
 
   override def satisfyTraits(requiredTraitSet: RelTraitSet): Option[RelNode] = {
@@ -231,18 +130,18 @@ abstract class BatchExecOverAggregateBase(
     val canSatisfy = if (requiredDistribution.getType == ANY) {
       true
     } else {
-      if (!grouping.isEmpty) {
+      if (!partitionKeyIndices.isEmpty) {
         if (requiredDistribution.requireStrict) {
-          requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
+          requiredDistribution.getKeys == ImmutableIntList.of(partitionKeyIndices: _*)
         } else {
           val isAllFieldsFromInput = requiredDistribution.getKeys.forall(_ < inputFieldCnt)
           if (isAllFieldsFromInput) {
             val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
             if (tableConfig.getConfiguration.getBoolean(
               BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)) {
-              ImmutableIntList.of(grouping: _*).containsAll(requiredDistribution.getKeys)
+              ImmutableIntList.of(partitionKeyIndices: _*).containsAll(requiredDistribution.getKeys)
             } else {
-              requiredDistribution.getKeys == ImmutableIntList.of(grouping: _*)
+              requiredDistribution.getKeys == ImmutableIntList.of(partitionKeyIndices: _*)
             }
           } else {
             // If requirement distribution keys are not all comes from input directly,
@@ -293,14 +192,15 @@ abstract class BatchExecOverAggregateBase(
   private def inferProvidedTraitSet(): RelTraitSet = {
     var selfProvidedTraitSet = getTraitSet
     // provided distribution
-    val providedDistribution = if (grouping.nonEmpty) {
-      FlinkRelDistribution.hash(grouping.map(Integer.valueOf).toList, requireStrict = false)
+    val providedDistribution = if (partitionKeyIndices.nonEmpty) {
+      FlinkRelDistribution.hash(
+        partitionKeyIndices.map(Integer.valueOf).toList, requireStrict = false)
     } else {
       FlinkRelDistribution.SINGLETON
     }
     selfProvidedTraitSet = selfProvidedTraitSet.replace(providedDistribution)
     // provided collation
-    val firstGroup = windowGroupToAggCallToAggFunction.head._1
+    val firstGroup = offsetAndInsensitiveSensitiveGroups.head
     if (OverAggregateUtil.needCollationTrait(logicWindow, firstGroup)) {
       val collation = OverAggregateUtil.createCollation(firstGroup)
       if (!collation.equals(RelCollations.EMPTY)) {
@@ -310,16 +210,4 @@ abstract class BatchExecOverAggregateBase(
     selfProvidedTraitSet
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
-}
-
-object OverWindowMode extends Enumeration {
-  type OverWindowMode = Value
-  val Row: OverWindowMode = Value
-  val Range: OverWindowMode = Value
-  //Then it is a special kind of Window when the agg is LEAD&LAG.
-  val Offset: OverWindowMode = Value
-  val Insensitive: OverWindowMode = Value
 }

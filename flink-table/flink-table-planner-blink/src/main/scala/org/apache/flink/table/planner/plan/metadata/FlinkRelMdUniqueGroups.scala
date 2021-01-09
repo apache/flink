@@ -317,7 +317,7 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
   }
 
   def getUniqueGroups(
-      over: BatchExecOverAggregate,
+      over: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
     getUniqueGroupsOfOver(over.getRowType.getFieldCount, over.getInput, mq, columns)

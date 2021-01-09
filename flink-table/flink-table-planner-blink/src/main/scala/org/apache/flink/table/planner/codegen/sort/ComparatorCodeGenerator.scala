@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
-import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.logical.RowType
 
 /**
   * A code generator for generating [[RecordComparator]].
@@ -34,28 +34,23 @@ object ComparatorCodeGenerator {
   /**
     * Generates a [[RecordComparator]] that can be passed to a Java compiler.
     *
-    * @param conf        Table config.
+    * @param tableConfig Table config.
     * @param name        Class name of the function.
     *                    Does not need to be unique but has to be a valid Java class identifier.
-    * @param input        input type.
-    * @param sortSpec     sort specification.
+    * @param inputType   input type.
+    * @param sortSpec    sort specification.
     * @return A GeneratedRecordComparator
     */
   def gen(
-      conf: TableConfig,
+      tableConfig: TableConfig,
       name: String,
-      input: RowType,
+      inputType: RowType,
       sortSpec: SortSpec): GeneratedRecordComparator = {
     val className = newName(name)
     val baseClass = classOf[RecordComparator]
 
-    val ctx = new CodeGeneratorContext(conf)
-    val compareCode = GenerateUtils.generateRowCompare(
-        ctx,
-        input,
-        sortSpec,
-        "o1",
-        "o2")
+    val ctx = new CodeGeneratorContext(tableConfig)
+    val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, "o1", "o2")
 
     val code =
       j"""

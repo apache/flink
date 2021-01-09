@@ -350,7 +350,7 @@ Calc(select=[c, e, avg_b, sum_b, sum_b0 AS psum, sum_b1 AS nsum, avg_b0 AS avg_b
    :                                +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
    :- Exchange(distribution=[hash[c, e, rn]])
    :  +- Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w1$o0 AS rn, c, e], where=[((c <> _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AND ((sum_b - (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0)) > 3))])
-   :     +- OverAggregate(partitionBy=[c, e], orderBy=[], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0, w0$o1, w1$o0])(reuse_id=[2])
+   :     +- OverAggregate(partitionBy=[c, e], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[c, e, sum_b, w0$o0, w0$o1, w1$o0])(reuse_id=[2])
    :        +- Reused(reference_id=[1])
    +- Exchange(distribution=[hash[c, e, $f5]], shuffle_mode=[BATCH])
       +- Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, c, e, (w1$o0 + 1) AS $f5])

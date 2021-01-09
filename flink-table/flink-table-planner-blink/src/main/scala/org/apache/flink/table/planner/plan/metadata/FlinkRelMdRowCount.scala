@@ -239,7 +239,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
 
   def getRowCount(rel: Window, mq: RelMetadataQuery): JDouble = getRowCountOfOverAgg(rel, mq)
 
-  def getRowCount(rel: BatchExecOverAggregate, mq: RelMetadataQuery): JDouble =
+  def getRowCount(rel: BatchPhysicalOverAggregate, mq: RelMetadataQuery): JDouble =
     getRowCountOfOverAgg(rel, mq)
 
   private def getRowCountOfOverAgg(overAgg: SingleRel, mq: RelMetadataQuery): JDouble =

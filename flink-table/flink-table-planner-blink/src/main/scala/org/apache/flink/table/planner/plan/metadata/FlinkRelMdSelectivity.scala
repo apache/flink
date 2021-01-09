@@ -174,7 +174,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
       predicate: RexNode): JDouble = getSelectivityOfOverAgg(overWindow, mq, predicate)
 
   def getSelectivity(
-      rel: BatchExecOverAggregate,
+      rel: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       predicate: RexNode): JDouble = getSelectivityOfOverAgg(rel, mq, predicate)
 
@@ -187,7 +187,7 @@ class FlinkRelMdSelectivity private extends MetadataHandler[BuiltInMetadata.Sele
     } else {
       val input = over.getInput
       val childBitmap = over match {
-        case _: BatchExecOverAggregate | _: Window =>
+        case _: BatchPhysicalOverAggregate | _: Window =>
           ImmutableBitSet.range(0, input.getRowType.getFieldCount)
         case _ => throw new IllegalArgumentException(s"Unknown node type ${over.getRelTypeName}")
       }

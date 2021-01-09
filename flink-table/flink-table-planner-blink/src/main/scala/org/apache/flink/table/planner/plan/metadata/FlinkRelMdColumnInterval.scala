@@ -706,7 +706,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
    * @return interval of the given column on batch over aggregate.
    */
   def getColumnInterval(
-      agg: BatchExecOverAggregate,
+      agg: BatchPhysicalOverAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = getColumnIntervalOfOverAgg(agg, mq, index)
 

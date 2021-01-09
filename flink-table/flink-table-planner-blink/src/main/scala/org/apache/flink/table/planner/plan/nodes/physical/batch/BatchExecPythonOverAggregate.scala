@@ -24,22 +24,28 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.BatchPlanner
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecPythonOverAggregate.ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
+import org.apache.flink.table.planner.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan._
+import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.tools.RelBuilder
+import org.apache.calcite.sql.fun.SqlLeadLagAggFunction
 
+import java.util
+
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -48,48 +54,37 @@ import scala.collection.mutable.ArrayBuffer
   */
 class BatchExecPythonOverAggregate(
     cluster: RelOptCluster,
-    relBuilder: RelBuilder,
     traitSet: RelTraitSet,
     inputRel: RelNode,
     outputRowType: RelDataType,
     inputRowType: RelDataType,
-    grouping: Array[Int],
-    orderKeyIndices: Array[Int],
-    orders: Array[Boolean],
-    nullIsLasts: Array[Boolean],
-    windowGroupToAggCallToAggFunction: Seq[
-      (Window.Group, Seq[(AggregateCall, UserDefinedFunction)])],
+    windowGroups: Seq[Window.Group],
     logicWindow: Window)
-  extends BatchExecOverAggregateBase(
+  extends BatchPhysicalOverAggregateBase(
     cluster,
-    relBuilder,
     traitSet,
     inputRel,
     outputRowType,
     inputRowType,
-    grouping,
-    orderKeyIndices,
-    orders,
-    nullIsLasts,
-    windowGroupToAggCallToAggFunction,
+    windowGroups,
     logicWindow)
+  with LegacyBatchExecNode[RowData]
   with CommonPythonAggregate {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new BatchExecPythonOverAggregate(
       cluster,
-      relBuilder,
       traitSet,
       inputs.get(0),
       outputRowType,
       inputRowType,
-      grouping,
-      orderKeyIndices,
-      orders,
-      nullIsLasts,
-      windowGroupToAggCallToAggFunction,
+      windowGroups,
       logicWindow)
   }
+
+  //~ ExecNode methods -----------------------------------------------------------
+
+  override def getInputEdges: util.List[ExecEdge] = List(ExecEdge.DEFAULT)
 
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[RowData] = {
@@ -98,8 +93,9 @@ class BatchExecPythonOverAggregate(
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
     val windowBoundary = ArrayBuffer[(Long, Long, Boolean)]()
-    val aggFunctions = modeToGroupToAggCallToAggFunction.zipWithIndex.flatMap {
-      case ((mode, windowGroup, aggCallToAggFunction), index) =>
+    val aggFunctions = offsetAndInsensitiveSensitiveGroups.zipWithIndex.flatMap {
+      case (windowGroup, index) =>
+        val mode = inferGroupMode(windowGroup)
         val boundary = mode match {
           case OverWindowMode.Row if isUnboundedWindow(windowGroup) =>
             (Long.MinValue, Long.MaxValue, false)
@@ -121,7 +117,7 @@ class BatchExecPythonOverAggregate(
               getLongBoundary(logicWindow, windowGroup.upperBound), true)
         }
         windowBoundary.append(boundary)
-        aggCallToAggFunction.map((_, index))
+        windowGroup.getAggregateCalls(logicWindow).map((_, index))
     }
     val ret = createPythonOneInputTransformation(
       input,
@@ -129,7 +125,7 @@ class BatchExecPythonOverAggregate(
       windowBoundary.toArray,
       inputType,
       outputType,
-      grouping,
+      partitionKeyIndices,
       getConfig(planner.getExecEnv, planner.getTableConfig))
 
     if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
@@ -138,17 +134,41 @@ class BatchExecPythonOverAggregate(
     ret
   }
 
+ private def inferGroupMode(group: Window.Group): OverWindowMode = {
+    val aggCall = group.aggCalls(0)
+    if (aggCall.getOperator.allowsFraming()) {
+      if (group.isRows) OverWindowMode.Row else OverWindowMode.Range
+    } else {
+      if (aggCall.getOperator.isInstanceOf[SqlLeadLagAggFunction]) {
+        OverWindowMode.Offset
+      } else {
+        OverWindowMode.Insensitive
+      }
+    }
+  }
+
+  private def isUnboundedWindow(group: Window.Group) =
+    group.lowerBound.isUnbounded && group.upperBound.isUnbounded
+
+  private def isUnboundedPrecedingWindow(group: Window.Group) =
+    group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
+
+  private def isUnboundedFollowingWindow(group: Window.Group) =
+    !group.lowerBound.isUnbounded && group.upperBound.isUnbounded
+
+  private def isSlidingWindow(group: Window.Group) =
+    !group.lowerBound.isUnbounded && !group.upperBound.isUnbounded
+
   private[this] def createPythonOneInputTransformation(
       inputTransform: Transformation[RowData],
-      aggCallToAggFunctionToWindowIndex: Seq[((AggregateCall, UserDefinedFunction), Int)],
+      aggCallToWindowIndex: Seq[(AggregateCall, Int)],
       windowBoundary: Array[(Long, Long, Boolean)],
       inputRowType: RowType,
       outputRowType: RowType,
       groupingSet: Array[Int],
       config: Configuration): OneInputTransformation[RowData, RowData] = {
     val (pythonUdafInputOffsets, pythonFunctionInfos) =
-      extractPythonAggregateFunctionInfosFromAggregateCall(
-        aggCallToAggFunctionToWindowIndex.map(_._1._1))
+      extractPythonAggregateFunctionInfosFromAggregateCall(aggCallToWindowIndex.map(_._1))
     val pythonOperator = getPythonOverWindowAggregateFunctionOperator(
       config,
       inputRowType,
@@ -156,7 +176,7 @@ class BatchExecPythonOverAggregate(
       windowBoundary.map(_._1),
       windowBoundary.map(_._2),
       windowBoundary.map(_._3),
-      aggCallToAggFunctionToWindowIndex.map(_._2).toArray,
+      aggCallToWindowIndex.map(_._2).toArray,
       pythonUdafInputOffsets,
       pythonFunctionInfos)
 
@@ -195,6 +215,7 @@ class BatchExecPythonOverAggregate(
       classOf[Int],
       classOf[Boolean])
 
+    val orderKey = offsetAndInsensitiveSensitiveGroups.last.orderKeys.getFieldCollations.get(0)
     ctor.newInstance(
       config,
       pythonFunctionInfos,
@@ -204,11 +225,11 @@ class BatchExecPythonOverAggregate(
       upperBinary,
       windowType,
       aggWindowIndex,
-      grouping,
-      grouping,
+      partitionKeyIndices,
+      partitionKeyIndices,
       udafInputOffsets,
-      java.lang.Integer.valueOf(orderKeyIndices(0)),
-      java.lang.Boolean.valueOf(orders(0)))
+      java.lang.Integer.valueOf(orderKey.getFieldIndex),
+      java.lang.Boolean.valueOf(orderKey.direction == Direction.ASCENDING))
       .asInstanceOf[OneInputStreamOperator[RowData, RowData]]
   }
 }
@@ -217,4 +238,13 @@ object BatchExecPythonOverAggregate {
   val ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME: String =
     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch." +
       "BatchArrowPythonOverWindowAggregateFunctionOperator"
+}
+
+object OverWindowMode extends Enumeration {
+  type OverWindowMode = Value
+  val Row: OverWindowMode = Value
+  val Range: OverWindowMode = Value
+  //Then it is a special kind of Window when the agg is LEAD&LAG.
+  val Offset: OverWindowMode = Value
+  val Insensitive: OverWindowMode = Value
 }
