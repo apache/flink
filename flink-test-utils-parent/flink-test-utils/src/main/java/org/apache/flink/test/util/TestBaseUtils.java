@@ -29,6 +29,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,12 +98,12 @@ public class TestBaseUtils extends TestLogger {
     private static void verifyJvmOptions() {
         long heap = Runtime.getRuntime().maxMemory() >> 20;
         Assertions.assertTrue(
+                heap > MINIMUM_HEAP_SIZE_MB - 50,
                 "Insufficient java heap space "
                         + heap
                         + "mb - set JVM option: -Xmx"
                         + MINIMUM_HEAP_SIZE_MB
-                        + "m",
-                heap > MINIMUM_HEAP_SIZE_MB - 50);
+                        + "m");
     }
 
     // --------------------------------------------------------------------------------------------
@@ -428,10 +429,10 @@ public class TestBaseUtils extends TestLogger {
                         Arrays.toString(expectedStrings),
                         Arrays.toString(resultStrings));
 
-        assertEquals(msg, expectedStrings.length, resultStrings.length);
+        assertEquals(expectedStrings.length, resultStrings.length, msg);
 
         for (int i = 0; i < expectedStrings.length; i++) {
-            assertEquals(msg, expectedStrings[i], resultStrings[i]);
+            assertEquals(expectedStrings[i], resultStrings[i], msg);
         }
     }
 

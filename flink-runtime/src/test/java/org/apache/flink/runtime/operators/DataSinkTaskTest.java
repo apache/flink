@@ -32,13 +32,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +47,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DataSinkTaskTest extends TaskTestBase {
 
@@ -103,21 +101,21 @@ public class DataSinkTaskTest extends TaskTestBase {
             }
 
             Assertions.assertTrue(
+                    keyValueCountMap.keySet().size() == keyCnt,
                     "Invalid key count in out file. Expected: "
                             + keyCnt
                             + " Actual: "
-                            + keyValueCountMap.keySet().size(),
-                    keyValueCountMap.keySet().size() == keyCnt);
+                            + keyValueCountMap.keySet().size());
 
             for (Integer key : keyValueCountMap.keySet()) {
                 Assertions.assertTrue(
+                        keyValueCountMap.get(key).size() == valCnt,
                         "Invalid value count for key: "
                                 + key
                                 + ". Expected: "
                                 + valCnt
                                 + " Actual: "
-                                + keyValueCountMap.get(key).size(),
-                        keyValueCountMap.get(key).size() == valCnt);
+                                + keyValueCountMap.get(key).size());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -203,21 +201,21 @@ public class DataSinkTaskTest extends TaskTestBase {
             }
 
             Assertions.assertTrue(
+                    keyValueCountMap.keySet().size() == keyCnt * 4,
                     "Invalid key count in out file. Expected: "
                             + keyCnt
                             + " Actual: "
-                            + keyValueCountMap.keySet().size(),
-                    keyValueCountMap.keySet().size() == keyCnt * 4);
+                            + keyValueCountMap.keySet().size());
 
             for (Integer key : keyValueCountMap.keySet()) {
                 Assertions.assertTrue(
+                        keyValueCountMap.get(key).size() == valCnt,
                         "Invalid value count for key: "
                                 + key
                                 + ". Expected: "
                                 + valCnt
                                 + " Actual: "
-                                + keyValueCountMap.get(key).size(),
-                        keyValueCountMap.get(key).size() == valCnt);
+                                + keyValueCountMap.get(key).size());
             }
 
         } catch (FileNotFoundException e) {

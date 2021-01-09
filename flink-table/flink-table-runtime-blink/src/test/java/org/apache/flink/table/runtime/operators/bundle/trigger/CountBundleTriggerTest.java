@@ -19,14 +19,8 @@
 package org.apache.flink.table.runtime.operators.bundle.trigger;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link CountBundleTrigger}. */
 public class CountBundleTriggerTest {

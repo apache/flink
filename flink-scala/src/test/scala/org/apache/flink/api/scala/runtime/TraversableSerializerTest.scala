@@ -24,7 +24,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.TraversableSerializer
 import org.junit.jupiter.api.Assertions._
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import scala.collection.immutable.{BitSet, LinearSeq}
 import scala.collection.mutable
@@ -37,19 +37,19 @@ class TraversableSerializerTest {
 
   @Test
   def testSeq(): Unit = {
-    val testData = Array(Seq(1,2,3), Seq(2,3))
+    val testData = Array(Seq(1, 2, 3), Seq(2, 3))
     runTests(testData)
   }
 
   @Test
   def testIndexedSeq(): Unit = {
-    val testData = Array(IndexedSeq(1,2,3), IndexedSeq(2,3))
+    val testData = Array(IndexedSeq(1, 2, 3), IndexedSeq(2, 3))
     runTests(testData)
   }
 
   @Test
   def testLinearSeq(): Unit = {
-    val testData = Array(LinearSeq(1,2,3), LinearSeq(2,3))
+    val testData = Array(LinearSeq(1, 2, 3), LinearSeq(2, 3))
     runTests(testData)
   }
 
@@ -61,19 +61,19 @@ class TraversableSerializerTest {
 
   @Test
   def testSet(): Unit = {
-    val testData = Array(Set(1,2,3,3), Set(2,3))
+    val testData = Array(Set(1, 2, 3, 3), Set(2, 3))
     runTests(testData)
   }
 
   @Test
   def testBitSet(): Unit = {
-    val testData = Array(BitSet(1,2,3,4), BitSet(2,3,2))
+    val testData = Array(BitSet(1, 2, 3, 4), BitSet(2, 3, 2))
     runTests(testData)
   }
 
   @Test
   def testMutableList(): Unit = {
-    val testData = Array(mutable.MutableList(1,2,3), mutable.MutableList(2,3,2))
+    val testData = Array(mutable.MutableList(1, 2, 3), mutable.MutableList(2, 3, 2))
     runTests(testData)
   }
 
@@ -113,10 +113,10 @@ class TraversableSerializerTest {
   def differentClassLoadersProvideNonEqualKeys(): Unit = {
     val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
     val classLoaderB = new URLClassLoader(Seq.empty[java.net.URL], null)
-    
+
     val keyA = TraversableSerializer.Key(classLoaderA, "code")
     val keyB = TraversableSerializer.Key(classLoaderB, "code")
-    
+
     assertNotEquals(keyA, keyB)
   }
 
@@ -125,7 +125,7 @@ class TraversableSerializerTest {
     val classLoaderA = new URLClassLoader(Seq.empty[java.net.URL], null)
 
     val keyA = TraversableSerializer.Key(classLoaderA, "code")
-    val keyB = keyA.copy(classLoaderRef = WeakReference(null)) 
+    val keyB = keyA.copy(classLoaderRef = WeakReference(null))
 
     assertNotEquals(keyA, keyB)
   }
@@ -147,8 +147,8 @@ class TraversableSerializerTest {
 
     assertNotEquals(keyA, keyB)
   }
-  
-  private final def runTests[T : TypeInformation](instances: Array[T]) {
+
+  private final def runTests[T: TypeInformation](instances: Array[T]) {
     try {
       val typeInfo = implicitly[TypeInformation[T]]
       val serializer = typeInfo.createSerializer(new ExecutionConfig)
@@ -176,10 +176,10 @@ class Pojo(var name: String, var count: Int) {
 }
 
 class TraversableSerializerTestInstance[T](
-    serializer: TypeSerializer[T],
-    typeClass: Class[T],
-    length: Int,
-    testData: Array[T])
+                                            serializer: TypeSerializer[T],
+                                            typeClass: Class[T],
+                                            length: Int,
+                                            testData: Array[T])
   extends ScalaSpecialTypesSerializerTestInstance[T](serializer, typeClass, length, testData) {
 
   @Test

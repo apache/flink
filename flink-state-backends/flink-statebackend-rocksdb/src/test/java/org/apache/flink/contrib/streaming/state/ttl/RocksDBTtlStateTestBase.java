@@ -30,18 +30,17 @@ import org.apache.flink.runtime.state.ttl.TtlStateTestBase;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TernaryBoolean;
+
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Base test suite for rocksdb state TTL. */
 public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
@@ -129,14 +128,14 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 
         sbetc.setCurrentKey("k1");
         checkUnexpiredOriginalAvailable();
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
 
         ctx().update(ctx().updateUnexpired);
         checkUnexpiredOriginalAvailable();
 
         sbetc.setCurrentKey("k2");
         checkUnexpiredOriginalAvailable();
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
 
         ctx().update(ctx().updateUnexpired);
         checkUnexpiredOriginalAvailable();
@@ -153,11 +152,11 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 
         sbetc.setCurrentKey("k1");
         checkUnexpiredOriginalAvailable();
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertEquals(ctx().getUnexpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         sbetc.setCurrentKey("k2");
         checkUnexpiredOriginalAvailable();
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertEquals(ctx().getUnexpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         if (takeSnapshot) {
             takeAndRestoreSnapshot(numberOfKeyGroupsAfterRestore);
@@ -166,18 +165,18 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
         setTimeAndCompact(stateDesc, 170L);
         sbetc.setCurrentKey("k1");
         assertTrue(ctx().isOriginalEmptyValue(), "Expired original state should be unavailable");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
 
         sbetc.setCurrentKey("k2");
         assertTrue(ctx().isOriginalEmptyValue(), "Expired original state should be unavailable");
-        assertEquals("Expired state should be unavailable", ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), "Expired state should be unavailable");
     }
 
     private void checkUnexpiredOriginalAvailable() throws Exception {
         assertNotEquals(
-                "Unexpired original state should be available",
                 ctx().emptyValue,
-                ctx().getOriginal());
+                ctx().getOriginal(),
+                "Unexpired original state should be available");
     }
 
     private void setTimeAndCompact(StateDescriptor<?, ?> stateDesc, long ts)

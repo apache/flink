@@ -17,6 +17,11 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
+import com.amazonaws.services.kinesis.model.HashKeyRange;
+import com.amazonaws.services.kinesis.model.SequenceNumberRange;
+import com.amazonaws.services.kinesis.model.Shard;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.core.testutils.CheckedThread;
@@ -35,41 +40,14 @@ import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchema;
 import org.apache.flink.streaming.connectors.kinesis.serialization.KinesisDeserializationSchemaWrapper;
-import org.apache.flink.streaming.connectors.kinesis.testutils.AlwaysThrowsDeserializationSchema;
-import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisBehavioursFactory;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGenerator;
-import org.apache.flink.streaming.connectors.kinesis.testutils.TestSourceContext;
-import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
-import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcher;
-import org.apache.flink.streaming.connectors.kinesis.testutils.TestableKinesisDataFetcherForShardConsumerException;
+import org.apache.flink.streaming.connectors.kinesis.testutils.*;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
-
-import com.amazonaws.services.kinesis.model.HashKeyRange;
-import com.amazonaws.services.kinesis.model.SequenceNumberRange;
-import com.amazonaws.services.kinesis.model.Shard;
-import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.powermock.reflect.Whitebox;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -80,14 +58,8 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /** Tests for the {@link KinesisDataFetcher}. */
 public class KinesisDataFetcherTest extends TestLogger {
@@ -807,9 +779,9 @@ public class KinesisDataFetcherTest extends TestLogger {
 
                 String msg = String.format("for hash=%d, subtask=%d", hash, subtaskIndex);
                 if (j == i) {
-                    assertEquals(msg, shardCount, shards.size());
+                    assertEquals(shardCount, shards.size(), msg);
                 } else {
-                    assertEquals(msg, 0, shards.size());
+                    assertEquals(0, shards.size(), msg);
                 }
             }
         }
@@ -997,7 +969,9 @@ public class KinesisDataFetcherTest extends TestLogger {
             fail("Expected exception from deserializer, but got: " + e);
         }
 
-        assertTrue(                fetcher.wasInterrupted,                "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.");
+        assertTrue(
+                fetcher.wasInterrupted,
+                "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.");
     }
 
     @Test

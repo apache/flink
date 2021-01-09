@@ -21,6 +21,8 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.types.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 
 import java.util.List;

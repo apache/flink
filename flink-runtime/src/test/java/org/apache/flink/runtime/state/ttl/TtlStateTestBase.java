@@ -28,10 +28,10 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.heap.CopyOnWriteStateMap;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.StateMigrationException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -45,6 +45,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -179,7 +180,7 @@ public abstract class TtlStateTestBase {
     @Test
     public void testNonExistentValue() throws Exception {
         initTest();
-        assertEquals("Non-existing state should be empty", ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), "Non-existing state should be empty");
     }
 
     @Test
@@ -196,7 +197,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 20;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
@@ -206,7 +207,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 120;
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertEquals(ctx().getUnexpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
@@ -216,12 +217,12 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 220;
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUpdateExpired, ctx().get());
+        assertEquals(ctx().getUpdateExpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 300;
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
         assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
     }
 
@@ -237,9 +238,9 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 120;
-        assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), EXPIRED_AVAIL);
         assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
-        assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), "Expired state should be cleared on access");
     }
 
     @Test
@@ -254,7 +255,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
@@ -267,7 +268,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 250;
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
         assertTrue(ctx().isOriginalEmptyValue(), "Original state should be cleared on access");
     }
 
@@ -283,13 +284,13 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
         timeProvider.time = 170;
-        assertEquals(EXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
-        assertEquals("Expired state should be cleared on access", ctx().emptyValue, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), EXPIRED_AVAIL);
+        assertEquals(ctx().emptyValue, ctx().get(), "Expired state should be cleared on access");
     }
 
     @Test
@@ -305,7 +306,7 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         timeProvider.time = 50;
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
     }
 
     @Test
@@ -393,9 +394,9 @@ public abstract class TtlStateTestBase {
         takeAndRestoreSnapshot();
 
         idChanger.accept("id1");
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
         idChanger.accept("id2");
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUnexpired, ctx().get());
+        assertEquals(ctx().getUnexpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         takeAndRestoreSnapshot();
 
@@ -408,18 +409,18 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = timeBackAfterRestore ? 170 : timeProvider.time;
         idChanger.accept("id1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
         idChanger.accept("id2");
-        assertEquals(UPDATED_UNEXPIRED_AVAIL, ctx().getUpdateExpired, ctx().get());
+        assertEquals(ctx().getUpdateExpired, ctx().get(), UPDATED_UNEXPIRED_AVAIL);
 
         timeProvider.time = 300;
         takeAndRestoreSnapshot();
 
         timeProvider.time = timeBackAfterRestore ? 230 : timeProvider.time;
         idChanger.accept("id1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
         idChanger.accept("id2");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
     }
 
     @Test
@@ -450,9 +451,9 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 180;
         sbetc.setCurrentKey("k1");
-        assertEquals(EXPIRED_UNAVAIL, ctx().emptyValue, ctx().get());
+        assertEquals(ctx().emptyValue, ctx().get(), EXPIRED_UNAVAIL);
         sbetc.setCurrentKey("k2");
-        assertEquals(UNEXPIRED_AVAIL, ctx().getUpdateEmpty, ctx().get());
+        assertEquals(ctx().getUpdateEmpty, ctx().get(), UNEXPIRED_AVAIL);
     }
 
     @Test
@@ -539,7 +540,7 @@ public abstract class TtlStateTestBase {
     private <T> void checkUnexpiredKeys(int startKey, int endKey, T value) throws Exception {
         for (int i = startKey; i < endKey; i++) {
             sbetc.setCurrentKey(Integer.toString(i));
-            assertEquals(UNEXPIRED_AVAIL, value, ctx().get());
+            assertEquals(value, ctx().get(), UNEXPIRED_AVAIL);
         }
     }
 

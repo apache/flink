@@ -21,18 +21,18 @@ package org.apache.flink.api.scala.migration
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils._
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import scala.util.Try
 
 class ScalaSerializersMigrationTest {
 
   /**
-    * Verifies that the generated classnames for anonymous Scala serializers remain the same.
-    *
-    * The classnames in this test are collected from running the same type information generation
-    * code in previous version branches. They should not change across different Flink versions.
-    */
+   * Verifies that the generated classnames for anonymous Scala serializers remain the same.
+   *
+   * The classnames in this test are collected from running the same type information generation
+   * code in previous version branches. They should not change across different Flink versions.
+   */
   @Test
   def testStableAnonymousClassnameGeneration(): Unit = {
     val caseClassInfo = createTypeInformation[CustomCaseClass]
@@ -159,8 +159,8 @@ class ScalaSerializersMigrationTest {
   }
 
   def assertPreviouslyGeneratedClassExists(
-      previousClassName: String,
-      expectedClass: Class[_]): Unit = {
+                                            previousClassName: String,
+                                            expectedClass: Class[_]): Unit = {
     val klass = Class.forName(previousClassName)
     Assertions.assertEquals(
       expectedClass,

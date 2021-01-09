@@ -58,6 +58,8 @@ import org.apache.flink.util.CloseableIterable;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import javax.annotation.Nonnull;
 

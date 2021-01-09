@@ -228,16 +228,16 @@ public class ReOpenableHashTableITCase extends TestLogger {
 
             if (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) {
                 Assertions.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
                         (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                 * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                                 * NUM_PROBES,
-                        val);
+                        val,
+                        "Wrong number of values in per-key cross product for key " + key);
             } else {
                 Assertions.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
                         PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY * NUM_PROBES,
-                        val);
+                        val,
+                        "Wrong number of values in per-key cross product for key " + key);
             }
         }
 

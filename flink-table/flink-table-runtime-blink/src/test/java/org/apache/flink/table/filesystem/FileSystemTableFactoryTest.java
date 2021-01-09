@@ -29,6 +29,8 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;

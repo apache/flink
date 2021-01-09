@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.descriptors
 
-import java.util
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.table.api.{DataTypes, ValidationException}
@@ -29,27 +28,32 @@ import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
-
 import org.junit.jupiter.api.Test
 
+import java.util
 import scala.collection.JavaConverters._
 
 class RowtimeTest extends DescriptorTestBase {
 
   @Test
   def testInvalidWatermarkType(): Unit = {
-        assertThrows(classOf[ValidationException], () -> {
-                addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
+    assertThrows[ValidationException] {
+      addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "xxx")
+    }
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMissingWatermarkClass(): Unit = {
-    removePropertyAndVerify(descriptors().get(1), "rowtime.watermarks.class")
+    assertThrows[ValidationException] {
+      removePropertyAndVerify(descriptors().get(1), "rowtime.watermarks.class")
+    }
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnsupportedSourceWatermarks(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "from-source")
+    assertThrows[ValidationException] {
+      addPropertyAndVerify(descriptors().get(0), "rowtime.watermarks.type", "from-source")
+    }
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -119,41 +123,44 @@ object RowtimeTest {
   class CustomExtractor(val field: String) extends TimestampExtractor {
     def this() = {
       this("ts")
-        });
     }
 
-    override def getArgumentFields: Array[String] = Array(field)
+    );
+  }
 
-    override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
-      argumentFieldTypes(0) match {
-        case Types.SQL_TIMESTAMP =>
-        case _ =>
-          throw new ValidationException(
-            s"Field 'ts' must be of type Timestamp but is of type ${argumentFieldTypes(0)}.")
-      }
-    }
+  override def getArgumentFields: Array[String] = Array(field)
 
-    override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-      val fieldAccess = fieldAccesses(0)
-      require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
-      val fieldReferenceExpr = new FieldReferenceExpression(
-        fieldAccess.name,
-        TypeConversions.fromLegacyInfoToDataType(fieldAccess.resultType),
-        0,
-        fieldAccess.fieldIndex)
-      ApiExpressionUtils.unresolvedCall(
-        BuiltInFunctionDefinitions.CAST,
-        fieldReferenceExpr,
-        ApiExpressionUtils.typeLiteral(DataTypes.BIGINT()))
-    }
-
-    override def equals(other: Any): Boolean = other match {
-      case that: CustomExtractor => field == that.field
-      case _ => false
-    }
-
-    override def hashCode(): Int = {
-      field.hashCode
+  override def validateArgumentFields(argumentFieldTypes: Array[TypeInformation[_]]): Unit = {
+    argumentFieldTypes(0) match {
+      case Types.SQL_TIMESTAMP =>
+      case _ =>
+        throw new ValidationException(
+          s"Field 'ts' must be of type Timestamp but is of type ${argumentFieldTypes(0)}.")
     }
   }
+
+  override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
+    val fieldAccess = fieldAccesses(0)
+    require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
+    val fieldReferenceExpr = new FieldReferenceExpression(
+      fieldAccess.name,
+      TypeConversions.fromLegacyInfoToDataType(fieldAccess.resultType),
+      0,
+      fieldAccess.fieldIndex)
+    ApiExpressionUtils.unresolvedCall(
+      BuiltInFunctionDefinitions.CAST,
+      fieldReferenceExpr,
+      ApiExpressionUtils.typeLiteral(DataTypes.BIGINT()))
+  }
+
+  override def equals(other: Any): Boolean = other match {
+    case that: CustomExtractor => field == that.field
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    field.hashCode
+  }
+}
+
 }

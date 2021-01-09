@@ -44,9 +44,10 @@ class OverAggregateTest extends TableTestBase {
   /**
     * All aggregates must be computed on the same window.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testMultiWindow(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       """
         |SELECT c,
         |    COUNT(a) OVER (PARTITION BY c ORDER BY proctime RANGE UNBOUNDED PRECEDING),
@@ -55,25 +56,30 @@ class OverAggregateTest extends TableTestBase {
       """.stripMargin
 
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
+        assertThrows[ValidationException] {
+                util.addFunction("overAgg", new OverAgg0)
     util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable")
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
+        assertThrows[ValidationException] {
+                util.addFunction("overAgg", new OverAgg0)
     util.verifyExecPlan("SELECT overAgg(c, a) FROM MyTable")
-  }
+        }
+    }
 
   @Test
   def testProctimeBoundedDistinctWithNonDistinctPartitionedRowOver(): Unit = {
@@ -406,9 +412,10 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testProcTimeBoundedPartitionedRowsOverDifferentWindows(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT a,
         |    SUM(c) OVER (PARTITION BY a ORDER BY proctime
@@ -428,7 +435,8 @@ class OverAggregateTest extends TableTestBase {
 
     verifyPlanIdentical(sql, sql2)
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   @Test
   def testProcTimeBoundedPartitionedRowsOverWithBuiltinProctime(): Unit = {

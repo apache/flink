@@ -28,22 +28,27 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.RuntimePairComparatorFactory;
 import org.apache.flink.api.java.typeutils.runtime.TupleComparator;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
-import org.apache.flink.runtime.operators.testutils.*;
-import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
+import org.apache.flink.runtime.operators.testutils.BinaryOperatorTestBase;
+import org.apache.flink.runtime.operators.testutils.DelayingIterator;
+import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.InfiniteIntTupleIterator;
+import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public abstract class AbstractOuterJoinTaskTest
@@ -187,8 +192,8 @@ public abstract class AbstractOuterJoinTaskTest
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
         Assertions.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -225,8 +230,8 @@ public abstract class AbstractOuterJoinTaskTest
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
         Assertions.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -263,8 +268,8 @@ public abstract class AbstractOuterJoinTaskTest
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
         Assertions.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -299,8 +304,8 @@ public abstract class AbstractOuterJoinTaskTest
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
         Assertions.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }

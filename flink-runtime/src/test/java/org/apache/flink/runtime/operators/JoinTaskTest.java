@@ -35,6 +35,8 @@ import org.apache.flink.util.Collector;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -108,8 +110,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -149,8 +151,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -190,8 +192,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -231,8 +233,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -272,8 +274,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -311,8 +313,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -350,8 +352,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
@@ -387,8 +389,8 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+                this.outList.size() == expCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }

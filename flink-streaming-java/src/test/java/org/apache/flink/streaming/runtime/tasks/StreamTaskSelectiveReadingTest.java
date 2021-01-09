@@ -35,17 +35,12 @@ import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test selective reading. */
@@ -195,7 +190,7 @@ public class StreamTaskSelectiveReadingTest {
                             .toArray(String[]::new);
             Arrays.sort(result);
 
-            assertArrayEquals("Output was not correct.", expectedResult, result);
+            assertArrayEquals(expectedResult, result, "Output was not correct.");
         }
     }
 

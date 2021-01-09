@@ -23,15 +23,14 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
 import org.apache.flink.table.runtime.generated.Projection
-import org.apache.flink.table.types.logical.{BigIntType, DecimalType, IntType, RowType, TimestampType}
-
-import org.junit.{Assert, Test}
+import org.apache.flink.table.types.logical._
+import org.junit.jupiter.api.{Assertions, Test}
 
 import scala.util.Random
 
 /**
-  * Test for [[ProjectionCodeGenerator]].
-  */
+ * Test for [[ProjectionCodeGenerator]].
+ */
 class ProjectionCodeGeneratorTest {
 
   private val classLoader = Thread.currentThread().getContextClassLoader

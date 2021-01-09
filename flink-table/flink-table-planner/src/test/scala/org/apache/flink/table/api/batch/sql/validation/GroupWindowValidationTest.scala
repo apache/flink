@@ -29,9 +29,10 @@ import java.sql.Timestamp
 
 class GroupWindowValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testHopWindowNoOffset(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
@@ -40,11 +41,13 @@ class GroupWindowValidationTest extends TableTestBase {
         "GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
 
     util.verifySql(sqlQuery, "n/a")
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSessionWindowNoOffset(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
@@ -53,22 +56,26 @@ class GroupWindowValidationTest extends TableTestBase {
         "GROUP BY SESSION(ts, INTERVAL '2' HOUR, TIME '10:00:00')"
 
     util.verifySql(sqlQuery, "n/a")
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testVariableWindowSize() = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sql = "SELECT COUNT(*) " +
       "FROM T " +
       "GROUP BY TUMBLE(ts, b * INTERVAL '1' MINUTE)"
     util.verifySql(sql, "n/a")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTumbleWindowWithInvalidUdAggArgs() = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val weightedAvg = new WeightedAvgWithMerge
@@ -78,11 +85,13 @@ class GroupWindowValidationTest extends TableTestBase {
       "FROM T " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
     util.verifySql(sql, "n/a")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWindowProctime(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
 
     val sqlQuery =
@@ -93,5 +102,6 @@ class GroupWindowValidationTest extends TableTestBase {
 
     // should fail because PROCTIME properties are not yet supported in batch
     util.verifySql(sqlQuery, "FAIL")
-  }
+        }
+    }
 }

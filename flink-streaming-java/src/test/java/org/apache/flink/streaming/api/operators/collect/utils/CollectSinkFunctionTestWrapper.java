@@ -36,6 +36,8 @@ import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorCoordinator;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

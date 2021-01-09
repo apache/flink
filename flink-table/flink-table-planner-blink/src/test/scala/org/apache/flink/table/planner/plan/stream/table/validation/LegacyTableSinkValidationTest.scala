@@ -31,9 +31,10 @@ import org.junit.jupiter.api.Test
 
 class LegacyTableSinkValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAppendSinkOnUpdatingTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -44,11 +45,13 @@ class LegacyTableSinkValidationTest extends TableTestBase {
 
     // must fail because table is not append-only
     env.execute()
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(TestData.tupleData3)
@@ -65,11 +68,13 @@ class LegacyTableSinkValidationTest extends TableTestBase {
     tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("testSink", sink)
     // must fail because table is updating table without full key
     result.executeInsert("testSink")
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAppendSinkOnLeftJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.tupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -81,7 +86,8 @@ class LegacyTableSinkValidationTest extends TableTestBase {
 
     // must fail because table is not append-only
     env.execute()
-  }
+        }
+    }
 
   @Test
   def testValidateSink(): Unit = {

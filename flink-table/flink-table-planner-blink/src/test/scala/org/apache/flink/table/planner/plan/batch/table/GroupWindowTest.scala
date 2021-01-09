@@ -33,9 +33,10 @@ class GroupWindowTest extends TableTestBase {
   // Common test
   //===============================================================================================
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
@@ -43,7 +44,8 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
     util.verifyExecPlan(windowedTable)
-  }
+        }
+    }
 
   @Test
   def testEventTimeTumblingGroupWindowOverTimeWithUdAgg(): Unit = {
@@ -83,9 +85,10 @@ class GroupWindowTest extends TableTestBase {
     util.verifyExecPlan(windowedTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeTumblingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
@@ -94,7 +97,8 @@ class GroupWindowTest extends TableTestBase {
       .select('int.count)
 
     util.verifyExecPlan(windowedTable)
-  }
+        }
+    }
 
   @Test
   def testLongEventTimeTumblingGroupWindowWithProperties(): Unit = {
@@ -139,9 +143,10 @@ class GroupWindowTest extends TableTestBase {
     util.verifyExecPlan(windowedTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeSlidingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
     val windowedTable = table
@@ -150,6 +155,7 @@ class GroupWindowTest extends TableTestBase {
       .select('string, 'int.count)
 
     util.verifyExecPlan(windowedTable)
-  }
+        }
+    }
 
 }

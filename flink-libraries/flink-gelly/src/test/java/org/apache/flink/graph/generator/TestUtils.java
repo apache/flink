@@ -108,8 +108,8 @@ public final class TestUtils {
             // Data sources may have parallelism of 1, so simply check that the node
             // parallelism has not been increased by setting the default parallelism
             assertTrue(
-                    "Wrong parallelism for " + node.toString(),
-                    node.getParallelism() <= expectedParallelism);
+                    node.getParallelism() <= expectedParallelism,
+                    "Wrong parallelism for " + node.toString());
 
             for (Channel channel : node.getInputs()) {
                 queue.add(channel.getSource());

@@ -25,12 +25,6 @@ import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.StringUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -44,8 +38,7 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
@@ -409,24 +402,24 @@ public class EncoderDecoderTest {
             if (obj.getClass().isArray()) {
                 Class<?> clazz = obj.getClass();
                 if (clazz == byte[].class) {
-                    assertArrayEquals(message, (byte[]) obj, (byte[]) result);
+                    assertArrayEquals((byte[]) obj, (byte[]) result, message);
                 } else if (clazz == short[].class) {
-                    assertArrayEquals(message, (short[]) obj, (short[]) result);
+                    assertArrayEquals((short[]) obj, (short[]) result, message);
                 } else if (clazz == int[].class) {
-                    assertArrayEquals(message, (int[]) obj, (int[]) result);
+                    assertArrayEquals((int[]) obj, (int[]) result, message);
                 } else if (clazz == long[].class) {
-                    assertArrayEquals(message, (long[]) obj, (long[]) result);
+                    assertArrayEquals((long[]) obj, (long[]) result, message);
                 } else if (clazz == char[].class) {
-                    assertArrayEquals(message, (char[]) obj, (char[]) result);
+                    assertArrayEquals((char[]) obj, (char[]) result, message);
                 } else if (clazz == float[].class) {
-                    assertArrayEquals(message, (float[]) obj, (float[]) result, 0.0f);
+                    assertArrayEquals((float[]) obj, (float[]) result, 0.0f, message);
                 } else if (clazz == double[].class) {
-                    assertArrayEquals(message, (double[]) obj, (double[]) result, 0.0);
+                    assertArrayEquals((double[]) obj, (double[]) result, 0.0, message);
                 } else {
-                    assertArrayEquals(message, (Object[]) obj, (Object[]) result);
+                    assertArrayEquals((Object[]) obj, (Object[]) result, message);
                 }
             } else {
-                assertEquals(message, obj, result);
+                assertEquals(obj, result, message);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

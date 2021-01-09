@@ -22,12 +22,13 @@ import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializerReflectionTe
 import org.apache.flink.util.TestLogger
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.scalatest.Matchers.assertThrows
 
 
 /**
-  * Test obtaining the primary constructor of a case class
-  * via reflection.
-  */
+ * Test obtaining the primary constructor of a case class
+ * via reflection.
+ */
 class ScalaCaseClassSerializerReflectionTest extends TestLogger {
 
   @Test
@@ -70,13 +71,15 @@ class ScalaCaseClassSerializerReflectionTest extends TestLogger {
     assertEquals(("a", "b", 7), actual)
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def unsupportedInstanceClass(): Unit = {
+    assertThrows[IllegalArgumentException] {
 
-    val outerInstance = new OuterClass
+      val outerInstance = new OuterClass
 
-    ScalaCaseClassSerializer
-      .lookupConstructor(classOf[outerInstance.InnerCaseClass])
+      ScalaCaseClassSerializer
+        .lookupConstructor(classOf[outerInstance.InnerCaseClass])
+    }
   }
 
   @Test
@@ -88,7 +91,7 @@ class ScalaCaseClassSerializerReflectionTest extends TestLogger {
       1.asInstanceOf[AnyRef],
       new DegreeCelsius(0.5f).asInstanceOf[AnyRef]
     )
-    
+
     val actual = constructor(arguments)
 
     assertEquals(Measurement(1, new DegreeCelsius(0.5f)), actual)

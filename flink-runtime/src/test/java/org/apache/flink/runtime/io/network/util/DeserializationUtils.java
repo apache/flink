@@ -21,6 +21,8 @@ package org.apache.flink.runtime.io.network.util;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.ArrayDeque;
 
 /** Utility class to help deserialization for testing. */

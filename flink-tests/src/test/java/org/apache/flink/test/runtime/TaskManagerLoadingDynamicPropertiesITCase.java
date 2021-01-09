@@ -26,15 +26,10 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.util.ShellScript;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -48,6 +43,7 @@ import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILE
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -97,7 +93,7 @@ public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 throw new Exception("TestingTaskManagerRunner did not shutdown in time.");
             }
-            assertEquals(processOutput.toString(), 0, process.exitValue());
+            assertEquals(0, process.exitValue(), processOutput.toString());
         } finally {
             process.destroy();
         }

@@ -21,12 +21,11 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 /**
-  * Test for [[HashCodeGenerator]].
-  */
+ * Test for [[HashCodeGenerator]].
+ */
 class HashCodeGeneratorTest {
 
   private val classLoader = Thread.currentThread().getContextClassLoader

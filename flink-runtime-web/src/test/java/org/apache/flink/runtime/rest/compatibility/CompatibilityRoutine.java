@@ -21,6 +21,8 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.util.Preconditions;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;

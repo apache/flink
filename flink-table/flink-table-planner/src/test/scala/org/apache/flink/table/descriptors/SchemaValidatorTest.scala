@@ -72,9 +72,10 @@ class SchemaValidatorTest {
       SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testDeriveTableSinkSchemaWithRowtimeFromSource(): Unit = {
-    val desc1 = new Schema()
+        assertThrows[TableException] {
+                val desc1 = new Schema()
       .field("otherField", Types.STRING).from("csvField")
       .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
@@ -84,7 +85,8 @@ class SchemaValidatorTest {
     props.putProperties(desc1.toProperties)
 
     SchemaValidator.deriveTableSinkSchema(props)
-  }
+        }
+    }
 
   @Test
   def testDeriveTableSinkSchemaWithRowtimeFromField(): Unit = {

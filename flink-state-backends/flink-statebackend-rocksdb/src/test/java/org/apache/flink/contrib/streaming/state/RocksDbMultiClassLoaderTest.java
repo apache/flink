@@ -19,14 +19,9 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.RocksDB;
 
@@ -34,6 +29,7 @@ import java.lang.reflect.Method;
 import java.net.URL;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * This test validates that the RocksDB JNI library loading works properly in the presence of the
@@ -73,7 +69,7 @@ public class RocksDbMultiClassLoaderTest {
         final Class<?> clazz1 = Class.forName(className, false, loader1);
         final Class<?> clazz2 = Class.forName(className, false, loader2);
         assertNotEquals(
-                "Test broken - the two reflectively loaded classes are equal", clazz1, clazz2);
+                clazz1, clazz2, "Test broken - the two reflectively loaded classes are equal");
 
         final Object instance1 =
                 clazz1.getConstructor(String.class).newInstance(tmp.newFolder().toURI().toString());

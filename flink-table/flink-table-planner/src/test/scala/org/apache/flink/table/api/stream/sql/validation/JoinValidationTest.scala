@@ -33,9 +33,10 @@ class JoinValidationTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable2", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   /** Both time attributes in a join condition must be of the same type **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testWindowJoinDiffTimeIndicator() = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT t2.a FROM
         |MyTable t1 JOIN MyTable2 t2 ON
@@ -43,12 +44,14 @@ class JoinValidationTest extends TableTestBase {
         |  t1.proctime > t2.proctime - INTERVAL '5' SECOND AND
         |  t1.proctime < t2.c + INTERVAL '5' SECOND""".stripMargin
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** The time conditions should be an And condition **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testWindowJoinNotCnfCondition() = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT t2.a
         |FROM MyTable t1 JOIN MyTable2 t2 ON
@@ -56,12 +59,14 @@ class JoinValidationTest extends TableTestBase {
         |  (t1.proctime > t2.proctime - INTERVAL '5' SECOND OR
         |   t1.proctime < t2.c + INTERVAL '5' SECOND)""".stripMargin
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Validates that no rowtime attribute is in the output schema **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoRowtimeAttributeInResult(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT *
         |FROM MyTable t1, MyTable2 t2
@@ -70,12 +75,14 @@ class JoinValidationTest extends TableTestBase {
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Validates that range and equality predicate are not accepted **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testRangeAndEqualityPredicates(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT *
         |FROM MyTable t1, MyTable2 t2
@@ -85,12 +92,14 @@ class JoinValidationTest extends TableTestBase {
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Validates that equality predicate with offset are not accepted **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testEqualityPredicateWithOffset(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT *
         |FROM MyTable t1, MyTable2 t2
@@ -99,12 +108,14 @@ class JoinValidationTest extends TableTestBase {
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Validates that no rowtime attribute is in the output schema for non-window inner join **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoRowtimeAttributeInResultForNonWindowInnerJoin(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT *
         |FROM MyTable t1, MyTable2 t2
@@ -112,12 +123,14 @@ class JoinValidationTest extends TableTestBase {
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Validates that no proctime attribute is in remaining predicate for non-window inner join **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoProctimeAttributeInResultForNonWindowInnerJoin(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT *
         |FROM MyTable t1, MyTable2 t2
@@ -125,7 +138,8 @@ class JoinValidationTest extends TableTestBase {
         | """.stripMargin
 
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Rowtime attributes cannot be accessed in filter conditions yet. */
   @Test

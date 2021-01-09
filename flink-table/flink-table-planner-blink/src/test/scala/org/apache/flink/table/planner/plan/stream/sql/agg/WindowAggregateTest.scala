@@ -46,46 +46,57 @@ class WindowAggregateTest extends TableTestBase {
        |)
        |""".stripMargin)
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testTumbleWindowNoOffset(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY TUMBLE(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testHopWindowNoOffset(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY HOP(proctime, INTERVAL '1' HOUR, INTERVAL '2' HOUR, TIME '10:00:00')"
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSessionWindowNoOffset(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       "SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable " +
         "GROUP BY SESSION(proctime, INTERVAL '2' HOUR, TIME '10:00:00')"
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testVariableWindowSize(): Unit = {
-    val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
+        assertThrows[TableException] {
+                val sql = "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, c * INTERVAL '1' MINUTE)"
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWindowUdAggInvalidArgs(): Unit = {
-    val sqlQuery = "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg FROM MyTable " +
+        assertThrows[ValidationException] {
+                val sqlQuery = "SELECT SUM(a) AS sumA, weightedAvg(a, b) AS wAvg FROM MyTable " +
       "GROUP BY TUMBLE(proctime(), INTERVAL '2' HOUR, TIME '10:00:00')"
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testWindowAggWithGroupSets(): Unit = {
-    // TODO supports group sets
+        assertThrows[AssertionError] {
+                // TODO supports group sets
     // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
     val sql =
     """
@@ -95,7 +106,8 @@ class WindowAggregateTest extends TableTestBase {
       |    GROUP BY rollup(TUMBLE(rowtime, INTERVAL '15' MINUTE), b)
     """.stripMargin
     util.verifyRelPlanNotExpected(sql, "TUMBLE(rowtime")
-  }
+        }
+    }
 
   @Test
   def testWindowWrongWindowParameter1(): Unit = {

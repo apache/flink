@@ -30,9 +30,10 @@ import org.junit.jupiter.api.Test
 
 class TableSinksValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAppendSinkOnUpdatingTable(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
 
     val t = util.addTable[(Int, Long, String)]("MyTable", 'id, 'num, 'text)
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
@@ -42,11 +43,13 @@ class TableSinksValidationTest extends TableTestBase {
     .select('text, 'id.count, 'num.sum)
     // must fail because table is not append-only
     .insertInto("testSink")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSinkTableRegistrationUsingExistedTableName(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     util.addTable[(Int, String)]("TargetTable", 'id, 'text)
 
     val fieldNames = Array("a", "b", "c")
@@ -55,11 +58,13 @@ class TableSinksValidationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRegistrationWithInconsistentFieldNamesAndTypesLength(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
 
     // inconsistent length of field names and types
     val fieldNames = Array("a", "b", "c")
@@ -68,5 +73,6 @@ class TableSinksValidationTest extends TableTestBase {
     util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "TargetTable",
       new UnsafeMemoryAppendTableSink().configure(fieldNames, fieldTypes))
-  }
+        }
+    }
 }

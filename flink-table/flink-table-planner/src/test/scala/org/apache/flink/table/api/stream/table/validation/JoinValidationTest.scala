@@ -36,9 +36,10 @@ class JoinValidationTest extends TableTestBase {
   /**
     * Generic type cannot be used as key of map state.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidStateTypes(): Unit = {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tenv = StreamTableEnvironment.create(env, settings)
     val ds = env.fromElements(new WithoutEqualsHashCode) // no equals/hashCode
@@ -52,14 +53,16 @@ class JoinValidationTest extends TableTestBase {
       .select('l)
 
     resultTable.toRetractStream[Row]
-  }
+        }
+    }
 
   /**
     * At least one equi-join predicate required.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testInnerJoinWithoutEquiPredicate(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.rowtime)
     val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.rowtime)
 
@@ -69,14 +72,16 @@ class JoinValidationTest extends TableTestBase {
 
     val expected = ""
     util.verifyTable(resultTable, expected)
-  }
+        }
+    }
 
   /**
     * At least one equi-join predicate required for non-window inner join.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testNonWindowInnerJoinWithoutEquiPredicate(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val left = util.addTable[(Long, Int, String)]('a, 'b, 'c)
     val right = util.addTable[(Long, Int, String)]('d, 'e, 'f)
 
@@ -85,14 +90,16 @@ class JoinValidationTest extends TableTestBase {
 
     val expected = ""
     util.verifyTable(resultTable, expected)
-  }
+        }
+    }
 
   /**
     * There must be complete window-bounds.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testInnerJoinWithIncompleteWindowBounds1(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.rowtime)
     val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.rowtime)
 
@@ -101,14 +108,16 @@ class JoinValidationTest extends TableTestBase {
       .select('a, 'e, 'ltime)
 
     util.verifyTable(resultTable, "")
-  }
+        }
+    }
 
   /**
     * There must be complete window-bounds.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testInnerJoinWithIncompleteWindowBounds2(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.rowtime)
     val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.rowtime)
 
@@ -117,14 +126,16 @@ class JoinValidationTest extends TableTestBase {
       .select('a, 'e, 'ltime)
 
     util.verifyTable(resultTable, "")
-  }
+        }
+    }
 
   /**
     * Time indicators for the two tables must be identical.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testInnerJoinWithDifferentTimeIndicators(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val left = util.addTable[(Long, Int, String)]('a, 'b, 'c, 'ltime.proctime)
     val right = util.addTable[(Long, Int, String)]('d, 'e, 'f, 'rtime.rowtime)
 
@@ -132,11 +143,13 @@ class JoinValidationTest extends TableTestBase {
       .where('a ==='d && 'ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 3.seconds)
 
     util.verifyTable(resultTable, "")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinNonExistingKey(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -144,11 +157,13 @@ class JoinValidationTest extends TableTestBase {
       // must fail. Field 'foo does not exist
       .where('foo === 'e)
       .select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithNonMatchingKeyTypes(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -156,12 +171,14 @@ class JoinValidationTest extends TableTestBase {
       // must fail. Field 'a is Int, and 'g is String
       .where('a === 'g)
       .select('c, 'g)
-  }
+        }
+    }
 
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithAmbiguousFields(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -169,11 +186,13 @@ class JoinValidationTest extends TableTestBase {
       // must fail. Both inputs share the same field 'c
       .where('a === 'd)
       .select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoEqualityJoinPredicate1(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -182,11 +201,13 @@ class JoinValidationTest extends TableTestBase {
       .where('d === 'f)
       .select('c, 'g)
       .toRetractStream[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoEqualityJoinPredicate2(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -195,20 +216,24 @@ class JoinValidationTest extends TableTestBase {
       .where('a < 'd)
       .select('c, 'g)
       .toRetractStream[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNoEquiJoin(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.join(ds1, 'b < 'd).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinTablesFromDifferentEnvs(): Unit = {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv1 = StreamTableEnvironment.create(env, settings)
     val tEnv2 = StreamTableEnvironment.create(env, settings)
@@ -219,11 +244,13 @@ class JoinValidationTest extends TableTestBase {
 
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where('b === 'e).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinTablesFromDifferentEnvsJava() {
-    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv1 = StreamTableEnvironment.create(env, settings)
     val tEnv2 = StreamTableEnvironment.create(env, settings)
@@ -233,7 +260,8 @@ class JoinValidationTest extends TableTestBase {
     val in2 = tEnv2.fromDataStream(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where($"a" === $"d").select($"g".count)
-  }
+        }
+    }
 
   /**
     * Currently only the inner join condition can support the Python UDF taking the inputs from

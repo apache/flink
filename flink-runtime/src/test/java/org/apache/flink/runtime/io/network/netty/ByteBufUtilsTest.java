@@ -18,18 +18,16 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.util.TestLogger;
+
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
-import org.apache.flink.util.TestLogger;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** Tests the methods in {@link ByteBufUtils}. */
 public class ByteBufUtilsTest extends TestLogger {
@@ -128,9 +126,9 @@ public class ByteBufUtilsTest extends TestLogger {
         for (int i = 0; i < length; ++i) {
             byte b = buf.getByte(start + i);
             assertEquals(
-                    String.format("The byte at position %d is not right.", start + i),
                     ACCUMULATION_BYTE,
-                    b);
+                    b,
+                    String.format("The byte at position %d is not right.", start + i));
         }
     }
 }

@@ -19,7 +19,6 @@
 
 package org.apache.flink.graph.drivers;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -30,6 +29,8 @@ import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.Channel;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.PlanNode;
+
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,8 +103,8 @@ public class TestUtils {
                 // Data sources may have parallelism of 1, so simply check that the node
                 // parallelism has not been increased by setting the default parallelism
                 assertTrue(
-                        "Wrong parallelism for " + node.toString(),
-                        node.getParallelism() <= parallelism);
+                        node.getParallelism() <= parallelism,
+                        "Wrong parallelism for " + node.toString());
             }
 
             for (Channel channel : node.getInputs()) {

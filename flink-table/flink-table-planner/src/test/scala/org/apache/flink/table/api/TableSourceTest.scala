@@ -29,8 +29,7 @@ import org.apache.flink.table.sources.{CsvTableSource, TableSource}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.{TableTestBase, TestFilterableTableSource}
 import org.apache.flink.types.Row
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import java.sql.{Date, Time, Timestamp}
 import java.util.{HashMap => JHashMap, Map => JMap}
@@ -168,9 +167,9 @@ class TableSourceTest extends TableTestBase {
       .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
-        .scan(tableName)
-        .select('price, 'id, 'amount)
-        .where($"price" * 2 < 32)
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where($"price" * 2 < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -223,9 +222,9 @@ class TableSourceTest extends TableTestBase {
       .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
-        .scan(tableName)
-        .select('price, 'id, 'amount)
-        .where($"amount" > 2 && $"amount" < 32)
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where($"amount" > 2 && $"amount" < 32)
 
     val expected = batchFilterableSourceTableNode(
       tableName,
@@ -245,10 +244,10 @@ class TableSourceTest extends TableTestBase {
       .registerTableSourceInternal(tableName, tableSource)
 
     val result = tableEnv
-        .scan(tableName)
-        .select('price, 'id, 'amount)
-        .where($"amount" > 2 && $"id" < 1.2 &&
-          ($"amount" < 32 || $"amount".cast(Types.LONG) > 10)) // cast can not be converted
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where($"amount" > 2 && $"id" < 1.2 &&
+        ($"amount" < 32 || $"amount".cast(Types.LONG) > 10)) // cast can not be converted
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -275,9 +274,9 @@ class TableSourceTest extends TableTestBase {
     tableEnv.registerFunction("func0", func)
 
     val result = tableEnv
-        .scan(tableName)
-        .select('price, 'id, 'amount)
-        .where($"amount" > 2 && call("func0", $"amount") < 32)
+      .scan(tableName)
+      .select('price, 'id, 'amount)
+      .where($"amount" > 2 && call("func0", $"amount") < 32)
 
     val expected = unaryNode(
       "DataSetCalc",
@@ -394,12 +393,12 @@ class TableSourceTest extends TableTestBase {
         context
       }
     }).withSchema(
-        new Schema()
-          .schema(TableSchema.builder()
-            .field("id", DataTypes.INT())
-            .field("name", DataTypes.STRING())
-            .build())
-      ).createTemporaryTable(path)
+      new Schema()
+        .schema(TableSchema.builder()
+          .field("id", DataTypes.INT())
+          .field("name", DataTypes.STRING())
+          .build())
+    ).createTemporaryTable(path)
 
     val result = tableEnv.from(path)
 
@@ -439,43 +438,43 @@ class TableSourceTest extends TableTestBase {
     Assertions.assertEquals(source1, source2)
   }
 
-// TODO enable this test once we expose the feature through the table environment
-//  @Test
-//  def testCsvTableSourceDescriptor(): Unit = {
-//    val util = streamTestUtil()
-//    val source1 = util.tableEnv
-//      .from(
-//        FileSystem()
-//          .path("/path/to/csv"))
-//      .withFormat(
-//        Csv()
-//          .field("myfield", Types.STRING)
-//          .field("myfield2", Types.INT)
-//          .quoteCharacter(';')
-//          .fieldDelimiter("#")
-//          .lineDelimiter("\r\n")
-//          .commentPrefix("%%")
-//          .ignoreFirstLine()
-//          .ignoreParseErrors())
-//        .withSchema(
-//          Schema()
-//          .field("myfield", Types.STRING)
-//          .field("myfield2", Types.INT))
-//      .toTableSource
-//
-//    val source2 = new CsvTableSource(
-//      "/path/to/csv",
-//      Array("myfield", "myfield2"),
-//      Array(Types.STRING, Types.INT),
-//      "#",
-//      "\r\n",
-//      ';',
-//      true,
-//      "%%",
-//      true)
-//
-//    Assertions.assertEquals(source1, source2)
-//  }
+  // TODO enable this test once we expose the feature through the table environment
+  //  @Test
+  //  def testCsvTableSourceDescriptor(): Unit = {
+  //    val util = streamTestUtil()
+  //    val source1 = util.tableEnv
+  //      .from(
+  //        FileSystem()
+  //          .path("/path/to/csv"))
+  //      .withFormat(
+  //        Csv()
+  //          .field("myfield", Types.STRING)
+  //          .field("myfield2", Types.INT)
+  //          .quoteCharacter(';')
+  //          .fieldDelimiter("#")
+  //          .lineDelimiter("\r\n")
+  //          .commentPrefix("%%")
+  //          .ignoreFirstLine()
+  //          .ignoreParseErrors())
+  //        .withSchema(
+  //          Schema()
+  //          .field("myfield", Types.STRING)
+  //          .field("myfield2", Types.INT))
+  //      .toTableSource
+  //
+  //    val source2 = new CsvTableSource(
+  //      "/path/to/csv",
+  //      Array("myfield", "myfield2"),
+  //      Array(Types.STRING, Types.INT),
+  //      "#",
+  //      "\r\n",
+  //      ';',
+  //      true,
+  //      "%%",
+  //      true)
+  //
+  //    Assertions.assertEquals(source1, source2)
+  //  }
 
   @Test
   def testTimeLiteralExpressionPushdown(): Unit = {
@@ -488,17 +487,17 @@ class TableSourceTest extends TableTestBase {
 
     val sqlQuery =
       s"""
-        |SELECT id from $tableName
-        |WHERE
-        |  tv > TIME '14:25:02' AND
-        |  dv > DATE '2017-02-03' AND
-        |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
+         |SELECT id from $tableName
+         |WHERE
+         |  tv > TIME '14:25:02' AND
+         |  dv > DATE '2017-02-03' AND
+         |  tsv > TIMESTAMP '2017-02-03 14:25:02.000'
       """.stripMargin
 
     val result = tableEnv.sqlQuery(sqlQuery)
 
     val expectedFilter =
-        "'tv > 14:25:02.toTime && " +
+      "'tv > 14:25:02.toTime && " +
         "'dv > 2017-02-03.toDate && " +
         "'tsv > 2017-02-03 14:25:02.0.toTimestamp"
     val expected = batchFilterableSourceTableNode(
@@ -512,12 +511,12 @@ class TableSourceTest extends TableTestBase {
 
   // utils
 
-  def filterableTableSource:(TableSource[_], String) = {
+  def filterableTableSource: (TableSource[_], String) = {
     val tableSource = TestFilterableTableSource()
     (tableSource, "filterableTable")
   }
 
-  def filterableTableSourceTimeTypes:(TableSource[_], String) = {
+  def filterableTableSourceTimeTypes: (TableSource[_], String) = {
     val rowTypeInfo = new RowTypeInfo(
       Array[TypeInformation[_]](
         BasicTypeInfo.INT_TYPE_INFO,
@@ -550,18 +549,18 @@ class TableSourceTest extends TableTestBase {
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
-  def streamSourceTableNode(sourceName: String, fields: Array[String] ): String = {
+  def streamSourceTableNode(sourceName: String, fields: Array[String]): String = {
     s"StreamTableSourceScan(table=[[default_catalog, default_database, $sourceName]], " +
       s"fields=[${fields.mkString(", ")}], " +
       s"source=[CsvTableSource(read fields: ${fields.mkString(", ")})])"
   }
 
   def batchFilterableSourceTableNode(
-      sourceName: String,
-      fields: Array[String],
-      isPushedDown: Boolean,
-      exp: String)
-    : String = {
+                                      sourceName: String,
+                                      fields: Array[String],
+                                      isPushedDown: Boolean,
+                                      exp: String)
+  : String = {
     "BatchTableSourceScan(" +
       s"table=[[default_catalog, default_database, $sourceName]], fields=[${
         fields
@@ -570,11 +569,11 @@ class TableSourceTest extends TableTestBase {
   }
 
   def streamFilterableSourceTableNode(
-      sourceName: String,
-      fields: Array[String],
-      isPushedDown: Boolean,
-      exp: String)
-    : String = {
+                                       sourceName: String,
+                                       fields: Array[String],
+                                       isPushedDown: Boolean,
+                                       exp: String)
+  : String = {
     "StreamTableSourceScan(" +
       s"table=[[default_catalog, default_database, $sourceName]], fields=[${
         fields

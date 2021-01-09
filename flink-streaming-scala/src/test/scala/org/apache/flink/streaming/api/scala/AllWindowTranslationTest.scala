@@ -63,9 +63,10 @@ class AllWindowTranslationTest {
     * .reduce() does not support [[RichReduceFunction]], since the reduce function is used
     * internally in a [[org.apache.flink.api.common.state.ReducingState]].
     */
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testReduceWithRichReducerFails() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[UnsupportedOperationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
     source
@@ -75,15 +76,17 @@ class AllWindowTranslationTest {
       })
 
     fail("exception was not thrown")
-  }
+        }
+    }
 
   /**
    * .aggregate() does not support [[RichAggregateFunction]], since the reduce function is used
    * internally in a [[org.apache.flink.api.common.state.AggregatingState]].
    */
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testAggregateWithRichFunctionFails() {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[UnsupportedOperationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val source = env.fromElements(("hello", 1), ("hello", 2))
 
     source
@@ -91,7 +94,8 @@ class AllWindowTranslationTest {
       .aggregate(new DummyRichAggregator())
 
     fail("exception was not thrown")
-  }
+        }
+    }
 
   // ------------------------------------------------------------------------
   //  merging window precondition

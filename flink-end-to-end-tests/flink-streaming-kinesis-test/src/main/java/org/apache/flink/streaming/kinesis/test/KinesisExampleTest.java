@@ -92,9 +92,9 @@ public class KinesisExampleTest {
 
         LOG.info("results: {}", results);
         Assertions.assertEquals(
-                "Results received from '" + outputStream + "': " + results,
                 messages.length,
-                results.size());
+                results.size(),
+                "Results received from '" + outputStream + "': " + results);
 
         String[] expectedResults = {
             "elephant,5,45218",

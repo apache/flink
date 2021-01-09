@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
-import org.apache.flink.table.planner.plan.utils.ExpandUtil
-
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{GREATER_THAN, LESS_THAN_OR_EQUAL, MULTIPLY, PLUS}
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalExpand
+import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -33,19 +32,18 @@ class FlinkRelMdUniqueGroupsTest extends FlinkRelMdHandlerTestBase {
 
   @Test
   def testGetUniqueGroupsOnTableScanWithNullColumns(): Unit = {
-        assertThrows(classOf[IllegalArgumentException], () -> {
-                mq.getUniqueGroups(studentLogicalScan, null)
-  }
+    Assertions
 
-  @Test
-  def testGetUniqueGroupsOnTableScan(): Unit = {
-    Array(studentLogicalScan, empFlinkLogicalScan, studentBatchScan, studentStreamScan,
-      empFlinkLogicalScan, empFlinkLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
-      assertEquals(ImmutableBitSet.of(), mq.getUniqueGroups(scan, ImmutableBitSet.of()))
-      (0 until scan.getRowType.getFieldCount).foreach { idx =>
-        assertEquals(ImmutableBitSet.of(idx), mq.getUniqueGroups(scan, ImmutableBitSet.of(idx)))
+    @Test
+    def testGetUniqueGroupsOnTableScan(): Unit = {
+      Array(studentLogicalScan, empFlinkLogicalScan, studentBatchScan, studentStreamScan,
+        empFlinkLogicalScan, empFlinkLogicalScan, empBatchScan, empStreamScan).foreach { scan =>
+        assertEquals(ImmutableBitSet.of(), mq.getUniqueGroups(scan, ImmutableBitSet.of()))
+        (0 until scan.getRowType.getFieldCount).foreach { idx =>
+          assertEquals(ImmutableBitSet.of(idx), mq.getUniqueGroups(scan, ImmutableBitSet.of(idx)))
+        }
       }
-        });
+      );
     }
 
     Array(studentLogicalScan, studentFlinkLogicalScan, studentBatchScan, studentStreamScan)

@@ -19,11 +19,10 @@
 package org.apache.flink.api.scala.actions
 
 import org.apache.flink.api.scala._
-import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
-
-import org.junit.jupiter.api.Test
+import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -55,8 +54,8 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
     val input1 = 1 to 10
     val input2 = 1 to 10
 
-    val inputDS1 = env.fromElements(input1:_*)
-    val inputDS2 = env.fromElements(input2:_*)
+    val inputDS1 = env.fromElements(input1: _*)
+    val inputDS2 = env.fromElements(input2: _*)
 
     val result = inputDS1 cross inputDS2
 
@@ -67,9 +66,9 @@ class CountCollectITCase(mode: TestExecutionMode) extends MultipleProgramsTestBa
 
     val marker = Array.fill(input1.length, input2.length)(false)
 
-    for((x,y) <- list) {
-      assertFalse(s"Element ($x,$y) seen twice.", marker(x-1)(y-1))
-      marker(x-1)(y-1) = true
+    for ((x, y) <- list) {
+      assertFalse(marker(x - 1)(y - 1), s"Element ($x,$y) seen twice.")
+      marker(x - 1)(y - 1) = true
     }
   }
 }

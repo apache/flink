@@ -18,11 +18,9 @@
 
 package org.apache.flink.table.planner.plan.common
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
-
 import org.junit.{Before, Test}
 
 abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTestBase {
@@ -33,6 +31,7 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
     util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String, String, String)]("MyTable2", 'a, 'b, 'c, 'd, 'e)
   }
+
   @Test
   def testSingleDistinctAgg(): Unit = {
     verifyPlan("SELECT COUNT(DISTINCT a) FROM MyTable")
@@ -192,24 +191,17 @@ abstract class DistinctAggregateTestBase(withExecPlan: Boolean) extends TableTes
 
   @Test
   def testTooManyDistinctAggOnDifferentColumn(): Unit = {
-        assertThrows(classOf[RuntimeException], () -> {
-                // max group count must be less than 64
-    val fieldNames = (0 until 64).map(i => s"f$i").toArray
-    val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
-    util.addTableSource("MyTable64", fieldTypes, fieldNames)
+    Assertions
 
-    val distinctList = fieldNames.map(f => s"COUNT(DISTINCT $f)").mkString(", ")
-    val maxList = fieldNames.map(f => s"MAX($f)").mkString(", ")
-    val sqlQuery = s"SELECT $distinctList, $maxList FROM MyTable64"
+    private def verifyPlan(sqlQuery: String): Unit = {
+      if (withExecPlan) {
+        util.verifyExecPlan(sqlQuery)
+      }
+      );
+    }
 
-    verifyPlan(sqlQuery)
-  }
-
-  private def verifyPlan(sqlQuery: String): Unit = {
-    if (withExecPlan) {
-      util.verifyExecPlan(sqlQuery)
-        });
-    } else {
+    else
+    {
       util.verifyRelPlan(sqlQuery)
     }
   }

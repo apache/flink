@@ -26,8 +26,9 @@ import org.junit.jupiter.api.Test
 
 class CalcValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
+        assertThrows[ValidationException] {
 
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -35,5 +36,6 @@ class CalcValidationTest extends TableTestBase {
     val sqlQuery = "SELECT a, foo FROM MyTable"
 
     util.tableEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 }

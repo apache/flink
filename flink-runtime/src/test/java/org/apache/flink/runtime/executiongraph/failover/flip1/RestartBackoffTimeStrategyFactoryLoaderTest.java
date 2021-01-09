@@ -25,16 +25,11 @@ import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Unit tests for {@link RestartBackoffTimeStrategyFactoryLoader}. */
 public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
@@ -178,13 +173,15 @@ public class RestartBackoffTimeStrategyFactoryLoaderTest extends TestLogger {
 
     @Test
     public void testInvalidStrategySpecifiedInClusterConfig() {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
                     final Configuration conf = new Configuration();
-        conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
+                    conf.setString(RestartStrategyOptions.RESTART_STRATEGY, "invalid-strategy");
 
-        RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
-                DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
-        });
+                    RestartBackoffTimeStrategyFactoryLoader.createRestartBackoffTimeStrategyFactory(
+                            DEFAULT_JOB_LEVEL_RESTART_CONFIGURATION, conf, false);
+                });
     }
 
     @Test

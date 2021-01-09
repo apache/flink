@@ -31,6 +31,7 @@ import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.File;
 import java.math.BigDecimal;

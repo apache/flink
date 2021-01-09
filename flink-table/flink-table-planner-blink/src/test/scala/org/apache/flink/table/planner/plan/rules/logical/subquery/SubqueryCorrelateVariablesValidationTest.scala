@@ -57,9 +57,10 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testWithProjectJoinCorrelate(): Unit = {
-    val sqlQuery =
+        assertThrows[RuntimeException] {
+                val sqlQuery =
       """
         |SELECT (SELECT max(t2h) FROM t2
         |    LEFT OUTER JOIN t1 ttt
@@ -68,11 +69,13 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    WHERE  t1a = 'val1b'
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterJoinCorrelate(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       """
         |SELECT t1a
         |FROM   t1
@@ -81,11 +84,13 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |               ON t2.t2a=t1.t1a)
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterInCorrelate(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       """
         |SELECT * FROM t1
         |WHERE t1a
@@ -95,11 +100,13 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    IN (select t2e from t2))
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithFilterExistsCorrelate(): Unit = {
-    val sqlQuery =
+        assertThrows[TableException] {
+                val sqlQuery =
       """
         |SELECT *
         |FROM t1
@@ -108,12 +115,14 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |              WHERE EXISTS(select * from t3 WHERE t1.t1a = t3.t3a))
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   // TODO some bugs in RelDecorrelator.AdjustProjectForCountAggregateRule
   def testWithProjectCaseWhenCorrelate(): Unit = {
-    val sqlQuery =
+        assertThrows[AssertionError] {
+                val sqlQuery =
       """
         |SELECT
         |    (CASE WHEN EXISTS (SELECT min(t3d)
@@ -124,6 +133,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |    WHERE  t1a = 'test'
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
 }

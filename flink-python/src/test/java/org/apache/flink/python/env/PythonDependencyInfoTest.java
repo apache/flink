@@ -27,6 +27,8 @@ import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.junit.Assume;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;

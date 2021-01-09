@@ -27,6 +27,8 @@ import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;

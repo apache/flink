@@ -91,6 +91,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -711,21 +712,21 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             content = FileUtils.readFileToString(jobmanagerLog);
             String expected = "Starting TaskManagers";
             Assertions.assertTrue(
+                    content.contains(expected),
                     "Expected string '"
                             + expected
                             + "' not found in JobManager log: '"
                             + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
+                            + "'");
             expected = " (2/2) (attempt #0) with attempt id ";
             Assertions.assertTrue(
+                    content.contains(expected),
                     "Expected string '"
                             + expected
                             + "' not found in JobManager log."
                             + "This string checks that the job has been started with a parallelism of 2. Log contents: '"
                             + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
+                            + "'");
 
             // make sure the detached app is really finished.
             LOG.info("Checking again that app has finished");

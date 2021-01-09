@@ -32,16 +32,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test of the PubSub SINK with the Google PubSub emulator. */
 public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
@@ -99,14 +96,14 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
         List<ReceivedMessage> receivedMessages =
                 pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 100);
 
-        assertEquals("Wrong number of elements", input.size(), receivedMessages.size());
+        assertEquals(input.size(), receivedMessages.size(), "Wrong number of elements");
 
         // Check output strings
         List<String> output = new ArrayList<>();
         receivedMessages.forEach(msg -> output.add(msg.getMessage().getData().toStringUtf8()));
 
         for (String test : input) {
-            assertTrue("Missing " + test, output.contains(StringUtils.reverse(test)));
+            assertTrue(output.contains(StringUtils.reverse(test)), "Missing " + test);
         }
     }
 

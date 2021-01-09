@@ -29,9 +29,10 @@ import org.junit._
 
 class JoinValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinNonExistingKey(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -39,11 +40,13 @@ class JoinValidationTest extends TableTestBase {
       // must fail. Field 'foo does not exist
       .where('foo === 'e)
       .select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithNonMatchingKeyTypes(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -52,11 +55,13 @@ class JoinValidationTest extends TableTestBase {
       .where('a === 'g)
       .select('c, 'g)
 
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithAmbiguousFields(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'c)
 
@@ -64,11 +69,13 @@ class JoinValidationTest extends TableTestBase {
       // must fail. Both inputs share the same field 'c
       .where('a === 'd)
       .select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoEqualityJoinPredicate1(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -77,11 +84,13 @@ class JoinValidationTest extends TableTestBase {
       .where('d === 'f)
       .select('c, 'g)
       .toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoEqualityJoinPredicate2(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
@@ -90,38 +99,46 @@ class JoinValidationTest extends TableTestBase {
       .where('a < 'd)
       .select('c, 'g)
       .toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.leftOuterJoin(ds1, 'b < 'd).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRightJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.rightOuterJoin(ds1, 'b < 'd).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFullJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val ds1 = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
     val ds2 = util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     ds2.fullOuterJoin(ds1, 'b < 'd).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinTablesFromDifferentEnvs(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = BatchTableEnvironment.create(env)
     val tEnv2 = BatchTableEnvironment.create(env)
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
@@ -131,11 +148,13 @@ class JoinValidationTest extends TableTestBase {
 
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where('b === 'e).select('c, 'g)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinTablesFromDifferentEnvsJava() {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = BatchTableEnvironment.create(env)
     val tEnv2 = BatchTableEnvironment.create(env)
     val ds1 = CollectionDataSets.getSmall3TupleDataSet(env)
@@ -144,5 +163,6 @@ class JoinValidationTest extends TableTestBase {
     val in2 = tEnv2.fromDataSet(ds2, 'd, 'e, 'f, 'g, 'c)
     // Must fail. Tables are bound to different TableEnvironments.
     in1.join(in2).where($"a" === $"d").select($"g".count)
-  }
+        }
+    }
 }

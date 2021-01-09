@@ -48,6 +48,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -1293,8 +1295,8 @@ public class NonReusingHashJoinIteratorITCase extends TestLogger {
             }
 
             Assertions.assertTrue(
-                    "Produced match was not contained: " + key + " - " + value1 + ":" + value2,
-                    matches.remove(new TupleMatch(value1, value2)));
+                    matches.remove(new TupleMatch(value1, value2)),
+                    "Produced match was not contained: " + key + " - " + value1 + ":" + value2);
 
             if (matches.isEmpty()) {
                 this.toRemoveFrom.remove(key);
@@ -1330,8 +1332,8 @@ public class NonReusingHashJoinIteratorITCase extends TestLogger {
             }
 
             Assertions.assertTrue(
-                    "Produced match was not contained: " + key + " - " + v + ":" + value,
-                    matches.remove(new TupleIntPairMatch(v, value)));
+                    matches.remove(new TupleIntPairMatch(v, value)),
+                    "Produced match was not contained: " + key + " - " + v + ":" + value);
 
             if (matches.isEmpty()) {
                 this.toRemoveFrom.remove(key);

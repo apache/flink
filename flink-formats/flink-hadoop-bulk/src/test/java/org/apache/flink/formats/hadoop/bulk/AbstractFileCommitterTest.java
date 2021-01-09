@@ -20,16 +20,17 @@ package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.IOUtils;
+
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.*;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -37,7 +38,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests the behaviors of {@link HadoopFileCommitter}. */
 @RunWith(Parameterized.class)
@@ -227,8 +234,8 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBase {
         FileSystem fileSystem = FileSystem.get(basePath.toUri(), configuration);
         for (String targetFileName : targetFileNames) {
             assertFalse(
-                    "Pre-committed file should not exists: " + targetFileName,
-                    fileSystem.exists(new Path(basePath, targetFileName)));
+                    fileSystem.exists(new Path(basePath, targetFileName)),
+                    "Pre-committed file should not exists: " + targetFileName);
         }
     }
 
@@ -240,8 +247,8 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBase {
         for (String targetFileName : targetFileNames) {
             Path targetFilePath = new Path(basePath, targetFileName);
             assertTrue(
-                    "Committed file should exists: " + targetFileName,
-                    fileSystem.exists(targetFilePath));
+                    fileSystem.exists(targetFilePath),
+                    "Committed file should exists: " + targetFileName);
             List<String> written = readFile(fileSystem, targetFilePath);
             assertEquals("Unexpected file content for file " + targetFilePath, CONTENTS, written);
         }

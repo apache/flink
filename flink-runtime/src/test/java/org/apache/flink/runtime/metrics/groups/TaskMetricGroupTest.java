@@ -30,17 +30,15 @@ import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link TaskMetricGroup}. */
 public class TaskMetricGroupTest extends TestLogger {
@@ -116,8 +114,8 @@ public class TaskMetricGroupTest extends TestLogger {
                 taskGroup.getScopeComponents());
 
         assertEquals(
-                String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId),
-                taskGroup.getMetricIdentifier("name"));
+                taskGroup.getMetricIdentifier("name"),
+                String.format("test-tm-id.%s.%s.%s.name", jid, vertexId, executionId));
         registry.shutdown().get();
     }
 

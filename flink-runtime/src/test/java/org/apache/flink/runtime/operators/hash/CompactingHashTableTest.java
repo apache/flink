@@ -299,8 +299,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -346,8 +346,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -358,8 +358,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -408,8 +408,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -420,8 +420,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -432,8 +432,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -507,7 +507,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
             assertTrue(b);
 
             for (int i = 0; i < NUM_LISTS; i++) {
-                assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
+                assertNotNull(prober.getMatchFor(overwriteLists[i], target), "" + i);
                 assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
             }
 

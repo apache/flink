@@ -384,9 +384,9 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 }
 
                 Assertions.assertTrue(
+                        expected.isEmpty(),
                         "Failed to bootstrap all state elements: "
-                                + Arrays.toString(expected.toArray()),
-                        expected.isEmpty());
+                                + Arrays.toString(expected.toArray()));
             }
         }
 

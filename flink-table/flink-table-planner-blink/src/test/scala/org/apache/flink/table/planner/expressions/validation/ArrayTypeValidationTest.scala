@@ -25,63 +25,85 @@ import org.junit.jupiter.api.Test
 
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testImplicitTypeCastArraySql(): Unit = {
-    testSqlApi("ARRAY['string', 12]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("ARRAY['string', 12]", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testObviousInvalidIndexTableApi(): Unit = {
-    testTableApi('f2.at(0), "FAIL", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi('f2.at(0), "FAIL", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testEmptyArraySql(): Unit = {
-    testSqlApi("ARRAY[]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("ARRAY[]", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testEmptyArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array()", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("FAIL", "array()", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNullArraySql(): Unit = {
-    testSqlApi("ARRAY[NULL]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("ARRAY[NULL]", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDifferentTypesArraySql(): Unit = {
-    testSqlApi("ARRAY[1, TRUE]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("ARRAY[1, TRUE]", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDifferentTypesArrayTableApi(): Unit = {
-    testTableApi("FAIL", "array(1, true)", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("FAIL", "array(1, true)", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testElementNonArray(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f0.element(),
       "FAIL",
       "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testElementNonArraySql(): Unit = {
-    testSqlApi(
+        assertThrows[ValidationException] {
+                testSqlApi(
       "ELEMENT(f0)",
       "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCardinalityOnNonArray(): Unit = {
-    testTableApi('f0.cardinality(), "FAIL", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi('f0.cardinality(), "FAIL", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCardinalityOnNonArraySql(): Unit = {
-    testSqlApi("CARDINALITY(f0)", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("CARDINALITY(f0)", "FAIL")
+        }
+    }
 }

@@ -32,42 +32,53 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Math functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testInvalidLog1(): Unit = {
-    // invalid arithmetic argument
+        assertThrows[IllegalArgumentException] {
+                // invalid arithmetic argument
     testSqlApi(
       "LOG(1, 100)",
       "FAIL"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testInvalidLog2(): Unit = {
-    // invalid arithmetic argument
+        assertThrows[IllegalArgumentException] {
+                // invalid arithmetic argument
     testSqlApi(
       "LOG(-1)",
       "FAIL"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin1(): Unit = {
-    testSqlApi("BIN(f12)", "101010") // float type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f12)", "101010") // float type
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin2(): Unit = {
-    testSqlApi("BIN(f15)", "101010") // BigDecimal type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f15)", "101010") // BigDecimal type
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin3(): Unit = {
-    testSqlApi("BIN(f16)", "101010") // Date type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f16)", "101010") // Date type
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidTruncate1(): Unit = {
-    // All arguments are string type
+        assertThrows[ValidationException] {
+                // All arguments are string type
     testSqlApi(
       "TRUNCATE('abc', 'def')",
       "FAIL")
@@ -91,130 +102,167 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi(
       "TRUNCATE(f12,f15)",
       "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test
   def testInvalidTruncate2(): Unit = {
-    // The one argument is of type String
+        assertThrows[CodeGenException] {
+                // The one argument is of type String
     testSqlApi(
       "TRUNCATE('abc')",
       "FAIL")
-  }
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
   // String functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidSubstring1(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a Double.
+        assertThrows[ValidationException] {
+                // Must fail. Parameter of substring must be an Integer not a Double.
     testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidSubstring2(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a String.
+        assertThrows[ValidationException] {
+                // Must fail. Parameter of substring must be an Integer not a String.
     testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
-  }
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testTimestampAddWithWrongTimestampInterval(): Unit = {
-    testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
-  }
+        assertThrows[SqlParserException] {
+                testSqlApi("TIMESTAMPADD(XXX, 1, timestamp '2016-02-24'))", "2016-06-16")
+        }
+    }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testTimestampAddWithWrongTimestampFormat(): Unit = {
-    testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
-  }
+        assertThrows[SqlParserException] {
+                testSqlApi("TIMESTAMPADD(YEAR, 1, timestamp '2016-02-24'))", "2016-06-16")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTimestampAddWithWrongQuantity(): Unit = {
-    testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("TIMESTAMPADD(YEAR, 1.0, timestamp '2016-02-24 12:42:25')", "2016-06-16")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTimestampDiffWithWrongTime(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTimestampDiffWithWrongTimeAndUnit(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDOWWithTimeWhichIsUnsupported(): Unit = {
-    testSqlApi("EXTRACT(DOW FROM TIME '12:42:25')", "0")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("EXTRACT(DOW FROM TIME '12:42:25')", "0")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDOYWithTimeWhichIsUnsupported(): Unit = {
-    testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("EXTRACT(DOY FROM TIME '12:42:25')", "0")
+        }
+    }
 
   private def testExtractFromTimeZeroResult(unit: TimeUnit): Unit = {
     testSqlApi("EXTRACT(" + unit + " FROM TIME '00:00:00')", "0")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMillenniumWithTime(): Unit = {
-    testExtractFromTimeZeroResult(TimeUnit.MILLENNIUM)
-  }
+        assertThrows[ValidationException] {
+                testExtractFromTimeZeroResult(TimeUnit.MILLENNIUM)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testCenturyWithTime(): Unit = {
-    testExtractFromTimeZeroResult(TimeUnit.CENTURY)
-  }
+        assertThrows[ValidationException] {
+                testExtractFromTimeZeroResult(TimeUnit.CENTURY)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testYearWithTime(): Unit = {
-    testExtractFromTimeZeroResult(TimeUnit.YEAR)
-  }
+        assertThrows[ValidationException] {
+                testExtractFromTimeZeroResult(TimeUnit.YEAR)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMonthWithTime(): Unit = {
-    testExtractFromTimeZeroResult(TimeUnit.MONTH)
-  }
+        assertThrows[ValidationException] {
+                testExtractFromTimeZeroResult(TimeUnit.MONTH)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDayWithTime(): Unit = {
-    testExtractFromTimeZeroResult(TimeUnit.DAY)
-  }
+        assertThrows[ValidationException] {
+                testExtractFromTimeZeroResult(TimeUnit.DAY)
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInValidationExceptionMoreThanOneTypes(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f2.in('f3, 'f4, 4),
       "f2.in(f3, f4, 4)",
       "true"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f1.in("Hi", "Hello world", "Comment#1"),
       "true",
       "true"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def javaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       true,
       "f1.in('Hi','Hello world','Comment#1')",
       "true"
     )
-  }
+        }
+    }
 }

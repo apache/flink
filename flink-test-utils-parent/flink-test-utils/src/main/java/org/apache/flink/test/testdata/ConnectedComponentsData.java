@@ -20,6 +20,8 @@ package org.apache.flink.test.testdata;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.List;
@@ -94,8 +96,8 @@ public class ConnectedComponentsData {
         String line;
         while ((line = result.readLine()) != null) {
             String[] res = split.split(line);
-            Assertions.assertEquals(2, res.length,
-                    "Malformed result: Wrong number of tokens in line.");
+            Assertions.assertEquals(
+                    2, res.length, "Malformed result: Wrong number of tokens in line.");
             try {
                 int vertex = Integer.parseInt(res[0]);
                 int component = Integer.parseInt(res[1]);

@@ -47,6 +47,8 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Duration;
 import java.util.Arrays;

@@ -475,14 +475,16 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testInWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
-    // TODO java.lang.RuntimeException: While invoking method
+        assertThrows[AssertionError] {
+                // TODO java.lang.RuntimeException: While invoking method
     // 'public RelDecorrelator$Frame RelDecorrelator.decorrelateRel(LogicalProject)'
     val sqlQuery = "SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE l.b IN (SELECT j FROM t) " +
       "AND l.c = r.f)"
     util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
-  }
+        }
+    }
 
   @Test
   def testInWithCorrelatedOnWhere_Case1(): Unit = {
@@ -603,14 +605,16 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testInWithCorrelatedOnWhere_ScalarQuery8(): Unit = {
-    // nested correlation can not be converted joinType=[semi] now
+        assertThrows[AssertionError] {
+                // nested correlation can not be converted joinType=[semi] now
     // TODO There are some bugs when decorrelating in RelDecorrelator
     val sqlQuery = "SELECT b FROM x WHERE a IN (SELECT c FROM y WHERE x.b = y.d AND c > " +
       "(SELECT 0.5 * SUM(e) FROM z WHERE x.a = z.e AND z.f < 100))"
     util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
-  }
+        }
+    }
 
   @Test
   def testInWithCorrelatedOnWhere_Aggregate1(): Unit = {
@@ -1258,13 +1262,15 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[semi]")
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
-    val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
+        assertThrows[AssertionError] {
+                val sqlQuery = "SELECT * FROM l WHERE EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
       "LEFT JOIN t ON s.f = t.k AND l.b = t.j)"
     util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
-  }
+        }
+    }
 
   @Test
   def testExistsWithCorrelatedOnWhere_Aggregate1(): Unit = {

@@ -37,20 +37,23 @@ class OverWindowValidationTest extends TableTestBase {
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addDataStream[(Long, Int, String)]("T1", 'a, 'b, 'c)
     val overAgg = new OverAgg0
     table.select(overAgg('a, 'b))
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addDataStream[(Long, Int, String)]("T1", 'long, 'int, 'string, 'proctime)
 
     val overAgg = new OverAgg0
@@ -58,84 +61,103 @@ class OverWindowValidationTest extends TableTestBase {
       .window(Tumble over 2.rows on 'proctime as 'w)
       .groupBy('w, 'string)
       .select(overAgg('long, 'int))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowAlias(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'x)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testOrderBy(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over partitionBy 'c orderBy 'abc preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testPrecedingAndFollowingUsingIsLiteral(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2 following "xx" as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testPrecedingAndFollowingUsingSameType(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_RANGE as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testPartitionByWithUnresolved(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over partitionBy 'a + 'b orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testPartitionByWithNotKeyType(): Unit = {
-    val table2 = streamUtil.addTableSource[(Int, String, Either[Long, String])](
+        assertThrows[ValidationException] {
+                val table2 = streamUtil.addTableSource[(Int, String, Either[Long, String])](
       "MyTable2", 'a, 'b, 'c)
 
     val result = table2
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testPrecedingValue(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over orderBy 'rowtime preceding -1.rows as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testFollowingValue(): Unit = {
-    val result = table
+        assertThrows[ValidationException] {
+                val result = table
       .window(Over orderBy 'rowtime preceding 1.rows following -2.rows as 'w)
       .select('c, 'b.count over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUdAggWithInvalidArgs(): Unit = {
-    val weightedAvg = new WeightedAvgWithRetract
+        assertThrows[ValidationException] {
+                val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
       .window(Over orderBy 'rowtime preceding 1.minutes as 'w)
       .select('c, weightedAvg('b, 'a) over 'w)
     optimize(TableTestUtil.toRelNode(result))
-  }
+        }
+    }
 
   @Test
   def testAccessesWindowProperties(): Unit = {

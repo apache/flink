@@ -33,9 +33,10 @@ class InsertIntoValidationTest {
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInconsistentLengthInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
+        assertThrows[ValidationException] {
+                val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e")
@@ -50,11 +51,13 @@ class InsertIntoValidationTest {
     tEnv.sqlUpdate(sql)
     // trigger translation
     tEnv.execute("job name")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnmatchedTypesInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
+        assertThrows[ValidationException] {
+                val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
@@ -69,11 +72,13 @@ class InsertIntoValidationTest {
     tEnv.sqlUpdate(sql)
     // trigger translation
     tEnv.execute("job name")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnsupportedPartialInsert(): Unit = {
-    val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
+        assertThrows[ValidationException] {
+                val t = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("sourceTable", t)
 
     val fieldNames = Array("d", "e", "f")
@@ -86,5 +91,6 @@ class InsertIntoValidationTest {
 
     // must fail because we don't support partial insert yet.
     tEnv.sqlUpdate(sql)
-  }
+        }
+    }
 }

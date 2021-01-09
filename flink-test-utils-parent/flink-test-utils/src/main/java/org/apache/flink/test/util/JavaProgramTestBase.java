@@ -23,6 +23,8 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Base class for unit tests that run a single test with object reuse enabled/disabled and against

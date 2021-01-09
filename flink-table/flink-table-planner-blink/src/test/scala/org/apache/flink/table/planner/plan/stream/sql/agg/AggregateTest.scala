@@ -45,15 +45,19 @@ class AggregateTest extends TableTestBase {
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
-  }
+        assertThrows[ValidationException] {
+                util.verifyExecPlan("SELECT COUNT(*) FROM MyTable GROUP BY foo")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
-  }
+        assertThrows[ValidationException] {
+                util.verifyExecPlan("SELECT b FROM MyTable GROUP BY a")
+        }
+    }
 
   @Test
   def testCannotCountOnMultiFields(): Unit = {

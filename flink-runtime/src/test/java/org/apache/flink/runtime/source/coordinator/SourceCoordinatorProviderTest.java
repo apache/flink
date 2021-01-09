@@ -27,13 +27,16 @@ import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorCo
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link SourceCoordinatorProvider}. */
@@ -90,14 +93,16 @@ public class SourceCoordinatorProviderTest {
         final SourceCoordinator<?, ?> restoredSourceCoordinator =
                 (SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
         assertNotEquals(
-                "The restored source coordinator should be a different instance",
                 restoredSourceCoordinator,
-                sourceCoordinator);
+                sourceCoordinator,
+                "The restored source coordinator should be a different instance");
         assertEquals(
                 1,
                 restoredSourceCoordinator.getContext().registeredReaders().size(),
                 "There should only be one registered reader.");
-        assertNotNull(                restoredSourceCoordinator.getContext().registeredReaders().get(0),                "The only registered reader should be reader 0");
+        assertNotNull(
+                restoredSourceCoordinator.getContext().registeredReaders().get(0),
+                "The only registered reader should be reader 0");
     }
 
     @Test

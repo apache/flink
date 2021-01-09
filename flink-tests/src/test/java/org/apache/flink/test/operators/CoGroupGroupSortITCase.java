@@ -28,6 +28,8 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.NullValue;
 import org.apache.flink.util.Collector;
 
+import org.junit.jupiter.api.Assertions;
+
 /** Integration tests for {@link CoGroupFunction}. */
 @SuppressWarnings({"serial", "unchecked"})
 public class CoGroupGroupSortITCase extends JavaProgramTestBase {

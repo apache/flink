@@ -59,9 +59,10 @@ class TemporalFunctionJoinTest extends TableTestBase {
     * Important thing here is that we have complex OR join condition
     * and there are some columns that are not being used (are being pruned).
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testComplexJoin(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addDataStream[(String, Int)]("Table3", 't3_comment, 't3_secondary_key)
     util.addDataStream[(Timestamp, String, Long, String, Int)](
       "Orders", 'o_rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
@@ -83,7 +84,8 @@ class TemporalFunctionJoinTest extends TableTestBase {
         "WHERE t3_secondary_key = secondary_key"
 
     util.verifyExplain(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testUncorrelatedJoin(): Unit = {

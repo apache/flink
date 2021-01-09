@@ -27,14 +27,10 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
@@ -42,7 +38,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
 
 public class DataSourceTaskTest extends TaskTestBase {
 
@@ -84,24 +84,24 @@ public class DataSourceTaskTest extends TaskTestBase {
             formatField.setAccessible(true);
             MockInputFormat inputFormat = (MockInputFormat) formatField.get(testTask);
             Assertions.assertTrue(
+                    inputFormat.opened,
                     "Invalid status of the input format. Expected for opened: true, Actual: "
-                            + inputFormat.opened,
-                    inputFormat.opened);
+                            + inputFormat.opened);
             Assertions.assertTrue(
+                    inputFormat.closed,
                     "Invalid status of the input format. Expected for closed: true, Actual: "
-                            + inputFormat.closed,
-                    inputFormat.closed);
+                            + inputFormat.closed);
         } catch (Exception e) {
             System.err.println(e);
             Assertions.fail("Reflection error while trying to validate inputFormat status.");
         }
 
         Assertions.assertTrue(
+                this.outList.size() == keyCnt * valCnt,
                 "Invalid output size. Expected: "
                         + (keyCnt * valCnt)
                         + " Actual: "
-                        + this.outList.size(),
-                this.outList.size() == keyCnt * valCnt);
+                        + this.outList.size());
 
         HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
@@ -117,21 +117,21 @@ public class DataSourceTaskTest extends TaskTestBase {
         }
 
         Assertions.assertTrue(
+                keyValueCountMap.keySet().size() == keyCnt,
                 "Invalid key count in out file. Expected: "
                         + keyCnt
                         + " Actual: "
-                        + keyValueCountMap.keySet().size(),
-                keyValueCountMap.keySet().size() == keyCnt);
+                        + keyValueCountMap.keySet().size());
 
         for (Integer mapKey : keyValueCountMap.keySet()) {
             Assertions.assertTrue(
+                    keyValueCountMap.get(mapKey).size() == valCnt,
                     "Invalid value count for key: "
                             + mapKey
                             + ". Expected: "
                             + valCnt
                             + " Actual: "
-                            + keyValueCountMap.get(mapKey).size(),
-                    keyValueCountMap.get(mapKey).size() == valCnt);
+                            + keyValueCountMap.get(mapKey).size());
         }
     }
 
@@ -267,18 +267,18 @@ public class DataSourceTaskTest extends TaskTestBase {
         public void openInputFormat() {
             // ensure this is called only once
             Assertions.assertFalse(
+                    opened,
                     "Invalid status of the input format. Expected for opened: false, Actual: "
-                            + opened,
-                    opened);
+                            + opened);
             opened = true;
         }
 
         public void closeInputFormat() {
             // ensure this is called only once
             Assertions.assertFalse(
+                    closed,
                     "Invalid status of the input format. Expected for closed: false, Actual: "
-                            + closed,
-                    closed);
+                            + closed);
             closed = true;
         }
     }

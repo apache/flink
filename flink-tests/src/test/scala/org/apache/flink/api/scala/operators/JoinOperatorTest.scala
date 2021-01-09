@@ -17,14 +17,14 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.util
-
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.operators.Keys
-import Keys.IncompatibleKeysException
+import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
+import org.scalatest.Matchers.assertThrows
+
+import java.util
 
 class JoinOperatorTest {
 
@@ -49,53 +49,62 @@ class JoinOperatorTest {
 
   @Test
   def testJoinKeyIndices2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, incompatible key types
-    ds1.join(ds2).where(0).equalTo(2)
+      // should not work, incompatible key types
+      ds1.join(ds2).where(0).equalTo(2)
+    }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testJoinKeyIndices3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, non-matching number of key indices
-    ds1.join(ds2).where(0, 1).equalTo(2)
+      // should not work, non-matching number of key indices
+      ds1.join(ds2).where(0, 1).equalTo(2)
+    }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testJoinKeyIndices4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, index out of range
-    ds1.join(ds2).where(5).equalTo(0)
+      // should not work, index out of range
+      ds1.join(ds2).where(5).equalTo(0)
+    }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testJoinKeyIndices5(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, negative position
-    ds1.join(ds2).where(-1).equalTo(-1)
+      // should not work, negative position
+      ds1.join(ds2).where(-1).equalTo(-1)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinKeyIndices6(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, key index on custom type
-    ds1.join(ds2).where(4).equalTo(0)
+      // should not work, key index on custom type
+      ds1.join(ds2).where(4).equalTo(0)
+    }
   }
 
   @Test
@@ -107,7 +116,6 @@ class JoinOperatorTest {
     // should work
     try {
       ds1.join(ds2).where("_1").equalTo("_1")
-        });
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -116,8 +124,7 @@ class JoinOperatorTest {
 
   @Test
   def testJoinKeyFields2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
+    val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
 
@@ -125,45 +132,54 @@ class JoinOperatorTest {
     ds1.join(ds2).where("_1").equalTo("_3")
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+
+  @Test
   def testJoinKeyFields3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    org.scalatest.Matchers.assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, non-matching number of key indices
+      // should not work, non-matching number of key indices
 
-    ds1.join(ds2).where("_1", "_2").equalTo("_3")
+      ds1.join(ds2).where("_1", "_2").equalTo("_3")
+    }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testJoinKeyFields4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    org.scalatest.Matchers.assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, non-existent key
-    ds1.join(ds2).where("foo").equalTo("_1")
+      // should not work, non-existent key
+      ds1.join(ds2).where("foo").equalTo("_1")
+    }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testJoinKeyFields5(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    org.scalatest.Matchers.assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // should not work, non-matching number of key indices
-    ds1.join(ds2).where("_1").equalTo("bar")
+      // should not work, non-matching number of key indices
+      ds1.join(ds2).where("_1").equalTo("bar")
+    }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testJoinKeyFields6(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+    org.scalatest.Matchers.assertThrows[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, field key on custom type
-    ds1.join(ds2).where("_2").equalTo("_1")
+      // should not work, field key on custom type
+      ds1.join(ds2).where("_2").equalTo("_1")
+    }
   }
 
   @Test
@@ -175,7 +191,6 @@ class JoinOperatorTest {
     // should work
     try {
       ds1.join(ds2).where("myInt").equalTo("myInt")
-        });
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -184,33 +199,38 @@ class JoinOperatorTest {
 
   @Test
   def testJoinKeyExpressions2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, incompatible join key types
-    ds1.join(ds2).where("myInt").equalTo("myString")
+      // should not work, incompatible join key types
+      ds1.join(ds2).where("myInt").equalTo("myString")
+    }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testJoinKeyExpressions3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, incompatible number of keys
-    ds1.join(ds2).where("myInt", "myString").equalTo("myInt")
+      // should not work, incompatible number of keys
+      ds1.join(ds2).where("myInt", "myString").equalTo("myInt")
+    }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testJoinKeyExpressions4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, join key non-existent
-    ds1.join(ds2).where("myNonExistent").equalTo("i")
+      // should not work, join key non-existent
+      ds1.join(ds2).where("myNonExistent").equalTo("i")
+    }
   }
 
   @Test
@@ -221,8 +241,11 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where { _.myLong} equalTo { _.myLong }
-        });
+      ds1.join(ds2).where {
+        _.myLong
+      } equalTo {
+        _.myLong
+      }
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -237,7 +260,9 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where { _.myLong }.equalTo(3)
+      ds1.join(ds2).where {
+        _.myLong
+      }.equalTo(3)
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -252,31 +277,41 @@ class JoinOperatorTest {
 
     // should work
     try {
-      ds1.join(ds2).where(3).equalTo { _.myLong }
+      ds1.join(ds2).where(3).equalTo {
+        _.myLong
+      }
     }
     catch {
       case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testJoinKeyMixing3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, incompatible types
-    ds1.join(ds2).where(2).equalTo { _.myLong }
+      // should not work, incompatible types
+      ds1.join(ds2).where(2).equalTo {
+        _.myLong
+      }
+    }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testJoinKeyMixing4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, more than one field position key
-    ds1.join(ds2).where(1, 3) equalTo { _.myLong }
+      // should not work, more than one field position key
+      ds1.join(ds2).where(1, 3) equalTo {
+        _.myLong
+      }
+    }
   }
 
   @Test
@@ -288,58 +323,70 @@ class JoinOperatorTest {
     ds1.join(ds2).where(1).equalTo("*")
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyLongData)
 
-    ds1.join(ds2).where(1).equalTo("invalidKey")
+      ds1.join(ds2).where(1).equalTo("invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyLongData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyLongData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    ds1.join(ds2).where("invalidKey").equalTo(1)
+      ds1.join(ds2).where("invalidKey").equalTo(1)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyLongData)
 
-    ds1.join(ds2).where(1).equalTo("_", "invalidKey")
+      ds1.join(ds2).where(1).equalTo("_", "invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyLongData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyLongData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    ds1.join(ds2).where("_", "invalidKey").equalTo(1)
+      ds1.join(ds2).where("_", "invalidKey").equalTo(1)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic5(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromElements(new util.ArrayList[Integer]())
-    val ds2 = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromElements(new util.ArrayList[Integer]())
+      val ds2 = env.fromCollection(emptyLongData)
 
-    ds1.join(ds2).where("*")
+      ds1.join(ds2).where("*")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testJoinWithInvalidAtomic6(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyLongData)
-    val ds2 = env.fromElements(new util.ArrayList[Integer]())
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyLongData)
+      val ds2 = env.fromElements(new util.ArrayList[Integer]())
 
-    ds1.join(ds2).where("*").equalTo("*")
+      ds1.join(ds2).where("*").equalTo("*")
+    }
   }
 }
 

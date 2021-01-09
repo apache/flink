@@ -333,9 +333,9 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -455,12 +455,12 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
                             ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                     * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                             : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -586,12 +586,12 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
                             ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                     * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                             : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1061,9 +1061,9 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1177,12 +1177,12 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
                             ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                     * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                             : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -1302,12 +1302,12 @@ public class HashTableITCase extends TestLogger {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2)
                             ? (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                     * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                             : PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------

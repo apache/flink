@@ -25,6 +25,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
+import org.junit.jupiter.api.Assertions;
+
 /** Integration tests for custom {@link Partitioner}. */
 @SuppressWarnings("serial")
 public class CustomPartitioningITCase extends JavaProgramTestBase {

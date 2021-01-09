@@ -30,9 +30,10 @@ import org.junit.jupiter.api.Test
 
 class InsertIntoValidationTest {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInconsistentLengthInsert(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -52,11 +53,13 @@ class InsertIntoValidationTest {
 
     // trigger translation
     tEnv.execute("job name")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnmatchedTypesInsert(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -76,5 +79,6 @@ class InsertIntoValidationTest {
 
     // trigger translation
     tEnv.execute("job name")
-  }
+        }
+    }
 }

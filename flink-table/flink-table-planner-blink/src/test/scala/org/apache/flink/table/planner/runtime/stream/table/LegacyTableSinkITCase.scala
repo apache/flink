@@ -479,9 +479,10 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToAppendStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -495,11 +496,13 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
 
     r.toAppendStream[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToRetractStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -513,7 +516,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
 
     r.toRetractStream[Row]
-  }
+        }
+    }
 
   @Test
   def testDecimalAppendStreamTableSink(): Unit = {

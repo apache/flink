@@ -26,6 +26,7 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import java.util.concurrent.Future;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -60,14 +61,14 @@ class CheckpointSequenceValidator extends AbstractInvokable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics) {
         assertTrue(
+                i < checkpointIDs.length,
                 "Unexpected triggerCheckpointOnBarrier("
                         + checkpointMetaData.getCheckpointId()
-                        + ")",
-                i < checkpointIDs.length);
+                        + ")");
 
         final long expectedId = checkpointIDs[i++];
         if (expectedId >= 0) {
-            assertEquals(expectedId, "wrong checkpoint id");
+            assertEquals(expectedId, checkpointMetaData.getCheckpointId(), "wrong checkpoint id");
             assertTrue(checkpointMetaData.getTimestamp() > 0);
         } else {
             fail(

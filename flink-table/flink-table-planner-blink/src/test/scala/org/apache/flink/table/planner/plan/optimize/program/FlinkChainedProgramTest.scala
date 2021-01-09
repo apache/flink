@@ -148,9 +148,11 @@ class FlinkChainedProgramTest {
     assertTrue(p1.get eq programs.getFlinkRuleSetProgram("o1").get)
   }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testAddNullProgram(): Unit = {
-    val programs = new FlinkChainedProgram[BatchOptimizeContext]
+        assertThrows[NullPointerException] {
+                val programs = new FlinkChainedProgram[BatchOptimizeContext]
     programs.addLast("o1", null)
-  }
+        }
+    }
 }

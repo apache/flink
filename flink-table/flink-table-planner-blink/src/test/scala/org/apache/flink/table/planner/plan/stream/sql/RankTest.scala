@@ -183,9 +183,10 @@ class RankTest extends TableTestBase {
     util.verifyExecPlan(sql)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithOutOrderBy(): Unit = {
-    val sql =
+        assertThrows[RuntimeException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -194,11 +195,13 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithOutOrderBy(): Unit = {
-    val sql =
+        assertThrows[ValidationException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -207,11 +210,13 @@ class RankTest extends TableTestBase {
         |WHERE rk <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithOutOrderBy(): Unit = {
-    val sql =
+        assertThrows[ValidationException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -220,11 +225,13 @@ class RankTest extends TableTestBase {
         |WHERE rk <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithMultiGroups(): Unit = {
-    val sql =
+        assertThrows[RuntimeException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -234,11 +241,13 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithMultiGroups(): Unit = {
-    val sql =
+        assertThrows[ValidationException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -248,11 +257,13 @@ class RankTest extends TableTestBase {
         |WHERE rk <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithMultiGroups(): Unit = {
-    val sql =
+        assertThrows[ValidationException] {
+                val sql =
       """
         |SELECT *
         |FROM (
@@ -262,7 +273,8 @@ class RankTest extends TableTestBase {
         |WHERE rk <= a
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   @Test
   def testTopN(): Unit = {
@@ -610,10 +622,11 @@ class RankTest extends TableTestBase {
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   // FIXME remove expected exception after ADD added
   def testTopNForVariableSize(): Unit = {
-    val subquery =
+        assertThrows[ValidationException] {
+                val subquery =
       """
         |SELECT a, b, add(max_c) as c
         |FROM (
@@ -634,7 +647,8 @@ class RankTest extends TableTestBase {
       """.stripMargin
 
     util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
-  }
+        }
+    }
 
   @Test
   def testCreateViewWithRowNumber(): Unit = {

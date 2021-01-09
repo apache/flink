@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.testdata;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -367,7 +369,7 @@ public class KMeansData {
             StringTokenizer isRecord = new StringTokenizer(is[i], "|");
 
             Assertions.assertEquals(
-                    "Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
+                    shouldRecord.countTokens(), isRecord.countTokens(), "Records don't match.");
 
             // first token is ID
             String shouldToken = shouldRecord.nextToken();
@@ -383,13 +385,13 @@ public class KMeansData {
                 double isDouble = Double.parseDouble(isToken);
 
                 Assertions.assertTrue(
+                        shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble,
                         "Value "
                                 + isDouble
                                 + " is out of range of "
                                 + shouldDouble
                                 + " +/- "
-                                + maxDelta,
-                        shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble);
+                                + maxDelta);
             }
         }
     }

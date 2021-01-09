@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.Path;
 import org.junit.After;
 import org.junit.AssumptionViolatedException;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.File;
 import java.io.IOException;

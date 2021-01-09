@@ -62,6 +62,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
@@ -328,8 +330,8 @@ public class RegionFailoverITCase extends TestLogger {
                 } else {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
                     Assertions.assertTrue(
-                            "list state should not be empty for subtask-" + indexOfThisSubtask,
-                            ((List<Integer>) listState.get()).size() > 0);
+                            ((List<Integer>) listState.get()).size() > 0,
+                            "list state should not be empty for subtask-" + indexOfThisSubtask);
 
                     if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
                         index = listState.get().iterator().next();

@@ -20,6 +20,8 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.CompletableFuture;
 

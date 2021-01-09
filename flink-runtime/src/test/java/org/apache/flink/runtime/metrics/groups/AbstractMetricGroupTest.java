@@ -40,7 +40,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -267,7 +266,6 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, this));
             // the metric name however is still affected by the filter as it is not cached
             assertEquals(
-                    "A-B-C-D-4",
                     group.getMetricIdentifier(
                             metricName,
                             new CharacterFilter() {
@@ -275,7 +273,8 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 public String filterCharacters(String input) {
                                     return input.replace("B", "X").replace("1", "4");
                                 }
-                            }));
+                            }),
+                    "A-B-C-D-4");
         }
     }
 
@@ -295,7 +294,6 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, FILTER_C));
             // the metric name however is still affected by the filter as it is not cached
             assertEquals(
-                    "A!B!X!D!3",
                     group.getMetricIdentifier(
                             metricName,
                             new CharacterFilter() {
@@ -303,7 +301,8 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 public String filterCharacters(String input) {
                                     return input.replace("A", "X").replace("1", "3");
                                 }
-                            }));
+                            }),
+                    "A!B!X!D!3");
         }
     }
 

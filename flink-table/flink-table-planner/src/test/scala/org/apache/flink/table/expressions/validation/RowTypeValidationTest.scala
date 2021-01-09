@@ -25,18 +25,24 @@ import org.junit.jupiter.api.Test
 
 class RowTypeValidationTest extends RowTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testEmptyRowType(): Unit = {
-    testAllApis("FAIL", "row()", "Row()", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testAllApis("FAIL", "row()", "Row()", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNullRowType(): Unit = {
-    testAllApis("FAIL", "row(null)", "Row(NULL)", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testAllApis("FAIL", "row(null)", "Row(NULL)", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSqlRowIllegalAccess(): Unit = {
-    testAllApis('f5.get("f2"), "f5.get('f2')", "f5.f2", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testAllApis('f5.get("f2"), "f5.get('f2')", "f5.f2", "FAIL")
+        }
+    }
 }

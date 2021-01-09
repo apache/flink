@@ -55,65 +55,82 @@ class TableEnvironmentValidationTest extends TableTestBase {
 
   val genericRowType = new GenericTypeInfo[Row](classOf[Row])
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidAliasInRefByPosMode(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // all references must happen position-based
     util.addTable('a, 'b, 'f2 as 'c)(tupleType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidAliasOnAtomicType(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // alias not allowed
     util.addTable('g as 'c)(atomicType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoPojoNames1(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // duplicate name
     util.addTable('name1, 'name1, 'name3)(pojoType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoAtomicName2(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // must be only one name
     util.addTable('name1, 'name2)(atomicType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoTupleAlias3(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(tupleType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoCClassAlias3(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(caseClassType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoPojoAlias3(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // fields do not exist
     util.addTable('xxx as 'name1, 'yyy as 'name2, 'zzz as 'name3)(pojoType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGetFieldInfoGenericRowAlias(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // unsupported generic row type
     util.addTable('first)(genericRowType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRegisterExistingDataSet(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     val ds1 = CollectionDataSets.get3TupleDataSet(env)
@@ -121,19 +138,23 @@ class TableEnvironmentValidationTest extends TableTestBase {
     val ds2 = CollectionDataSets.get5TupleDataSet(env)
     // Must fail. Name is already in use.
     tEnv.createTemporaryView("MyTable", ds2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testScanUnregisteredTable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
     // Must fail. No table registered under that name.
     tEnv.scan("someTable")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRegisterExistingTable(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     val t1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv)
@@ -141,62 +162,74 @@ class TableEnvironmentValidationTest extends TableTestBase {
     val t2 = CollectionDataSets.get5TupleDataSet(env).toTable(tEnv)
     // Must fail. Name is already in use.
     tEnv.createTemporaryView("MyTable", t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testRegisterTableFromOtherEnv(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = BatchTableEnvironment.create(env)
     val tEnv2 = BatchTableEnvironment.create(env)
 
     val t1 = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv1)
     // Must fail. Table is bound to different TableEnvironment.
     tEnv2.registerTable("MyTable", t1)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testToTableWithTooManyFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     CollectionDataSets.get3TupleDataSet(env)
       // Must fail. Number of fields does not match.
       .toTable(tEnv, 'a, 'b, 'c, 'd)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testToTableWithAmbiguousFields(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     CollectionDataSets.get3TupleDataSet(env)
       // Must fail. Field names not unique.
       .toTable(tEnv, 'a, 'b, 'b)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testToTableWithNonFieldReference1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     // Must fail. as() can only have field references
     CollectionDataSets.get3TupleDataSet(env)
       .toTable(tEnv, 'a + 1, 'b, 'c)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testToTableWithNonFieldReference2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
     // Must fail. as() can only have field references
     CollectionDataSets.get3TupleDataSet(env)
       .toTable(tEnv, 'a as 'foo, 'b, 'c)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGenericRow() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env)
 
     // use null value the enforce GenericType
@@ -206,11 +239,13 @@ class TableEnvironmentValidationTest extends TableTestBase {
 
     // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
     tableEnv.fromDataSet(dataSet)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGenericRowWithAlias() {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tableEnv = BatchTableEnvironment.create(env)
 
     // use null value the enforce GenericType
@@ -220,5 +255,6 @@ class TableEnvironmentValidationTest extends TableTestBase {
 
     // Must fail. Cannot import DataSet<Row> with GenericTypeInfo.
     tableEnv.fromDataSet(dataSet, "nullField")
-  }
+        }
+    }
 }

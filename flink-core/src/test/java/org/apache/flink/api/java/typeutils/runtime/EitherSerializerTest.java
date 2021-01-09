@@ -34,14 +34,13 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 
-import static junit.framework.TestCase.assertSame;
 import static org.apache.flink.types.Either.Left;
 import static org.apache.flink.types.Either.Right;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.fail;
 
 public class EitherSerializerTest {

@@ -870,11 +870,11 @@ public class RemoteInputChannelTest {
                 inputChannel.onSenderBacklog(8);
                 verify(bufferPool, times(1)).addBufferListener(inputChannel.getBufferManager());
                 assertEquals(
+                        numExclusiveBuffers,
+                        inputChannel.getNumberOfAvailableBuffers(),
                         "There should be "
                                 + numExclusiveBuffers
-                                + " buffers available in the channel",
-                        numExclusiveBuffers,
-                        inputChannel.getNumberOfAvailableBuffers());
+                                + " buffers available in the channel");
             }
 
             // Recycle three floating buffers to trigger notify buffer available
@@ -1079,11 +1079,11 @@ public class RemoteInputChannelTest {
                     });
 
             assertEquals(
+                    inputChannel.getNumberOfRequiredBuffers(),
+                    inputChannel.getNumberOfAvailableBuffers(),
                     "There should be "
                             + inputChannel.getNumberOfRequiredBuffers()
-                            + " buffers available in channel.",
-                    inputChannel.getNumberOfRequiredBuffers(),
-                    inputChannel.getNumberOfAvailableBuffers());
+                            + " buffers available in channel.");
             assertEquals(
                     0,
                     bufferPool.getNumberOfAvailableMemorySegments(),
@@ -1149,11 +1149,11 @@ public class RemoteInputChannelTest {
                     bufferPool.getNumberOfAvailableMemorySegments(),
                     "There should be " + numFloatingBuffers + " buffers available in local pool.");
             assertEquals(
+                    numExclusiveSegments,
+                    networkBufferPool.getNumberOfAvailableMemorySegments(),
                     "There should be "
                             + numExclusiveSegments
-                            + " buffers available in global pool.",
-                    numExclusiveSegments,
-                    networkBufferPool.getNumberOfAvailableMemorySegments());
+                            + " buffers available in global pool.");
         } catch (Throwable t) {
             thrown = t;
         } finally {

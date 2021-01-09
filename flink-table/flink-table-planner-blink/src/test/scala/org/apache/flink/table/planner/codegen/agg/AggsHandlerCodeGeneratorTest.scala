@@ -23,8 +23,7 @@ import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.generated.AggsHandleFunction
 import org.apache.flink.table.types.utils.TypeConversions
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import java.lang
 

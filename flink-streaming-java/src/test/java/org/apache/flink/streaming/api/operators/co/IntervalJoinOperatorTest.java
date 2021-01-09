@@ -26,8 +26,6 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -36,14 +34,12 @@ import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -53,6 +49,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for {@link IntervalJoinOperator}. Those tests cover correctness and cleaning of state */
 @RunWith(Parameterized.class)
@@ -576,7 +574,7 @@ public class IntervalJoinOperatorTest {
                             + Arrays.toString(ts)
                             + "\n Actual:   "
                             + state.keys();
-            Assertions.assertTrue(message, state.contains(t));
+            Assertions.assertTrue(state.contains(t), message);
         }
 
         String message =
@@ -584,7 +582,7 @@ public class IntervalJoinOperatorTest {
                         + Arrays.toString(ts)
                         + "\n Actual:   "
                         + state.keys();
-        Assertions.assertEquals(message, ts.length, Iterables.size(state.keys()));
+        Assertions.assertEquals(ts.length, Iterables.size(state.keys()), message);
     }
 
     private void assertOutput(
@@ -599,8 +597,8 @@ public class IntervalJoinOperatorTest {
 
         int expectedSize = Iterables.size(expectedOutput);
 
-        Assertions.assertEquals(expectedSize, actualSize,
-                "Expected and actual size of stream records different");
+        Assertions.assertEquals(
+                expectedSize, actualSize, "Expected and actual size of stream records different");
 
         for (StreamRecord<Tuple2<TestElem, TestElem>> record : expectedOutput) {
             Assertions.assertTrue(actualOutput.contains(record));

@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.Collector;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.HashMap;
 import java.util.HashSet;

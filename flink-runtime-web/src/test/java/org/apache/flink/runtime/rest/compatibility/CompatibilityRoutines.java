@@ -21,13 +21,24 @@ package org.apache.flink.runtime.rest.compatibility;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
 import org.apache.flink.runtime.rest.messages.UntypedResponseMessageHeaders;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 
-import java.util.*;
+import org.junit.jupiter.api.Assertions;
+
+import java.util.ArrayDeque;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -42,28 +53,28 @@ enum CompatibilityRoutines {
                     "url",
                     String.class,
                     RestHandlerSpecification::getTargetRestEndpointURL,
-                    Assert::assertEquals);
+                    Assertions::assertEquals);
 
     private static final CompatibilityRoutine<String> METHOD_ROUTINE =
             new CompatibilityRoutine<>(
                     "method",
                     String.class,
                     header -> header.getHttpMethod().getNettyHttpMethod().name(),
-                    Assert::assertEquals);
+                    Assertions::assertEquals);
 
     private static final CompatibilityRoutine<String> STATUS_CODE_ROUTINE =
             new CompatibilityRoutine<>(
                     "status-code",
                     String.class,
                     header -> header.getResponseStatusCode().toString(),
-                    Assert::assertEquals);
+                    Assertions::assertEquals);
 
     private static final CompatibilityRoutine<Boolean> FILE_UPLOAD_ROUTINE =
             new CompatibilityRoutine<>(
                     "file-upload",
                     Boolean.class,
                     UntypedResponseMessageHeaders::acceptsFileUploads,
-                    Assert::assertEquals);
+                    Assertions::assertEquals);
 
     private static final CompatibilityRoutine<PathParameterContainer> PATH_PARAMETER_ROUTINE =
             new CompatibilityRoutine<>(

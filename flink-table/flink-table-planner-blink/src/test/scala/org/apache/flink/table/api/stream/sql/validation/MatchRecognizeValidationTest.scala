@@ -42,18 +42,22 @@ class MatchRecognizeValidationTest extends TableTestBase {
   streamUtil.addFunction("ToMillis", new ToMillis)
 
   /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE **/
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMatchRowtimeInSelect(): Unit = {
-    val sql = "SELECT MATCH_ROWTIME() FROM MyTable"
+        assertThrows[ValidationException] {
+                val sql = "SELECT MATCH_ROWTIME() FROM MyTable"
     streamUtil.verifyExplain(sql)
-  }
+        }
+    }
 
   /** Function 'MATCH_PROCTIME()' can only be used in MATCH_RECOGNIZE **/
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMatchProctimeInSelect(): Unit = {
-    val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
+        assertThrows[ValidationException] {
+                val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
     streamUtil.verifyExplain(sql)
-  }
+        }
+    }
 
   @Test
   def testSortProcessingTimeDesc(): Unit = {

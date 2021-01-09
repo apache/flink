@@ -23,6 +23,8 @@ import org.apache.flink.table.data.DecimalData;
 import org.hamcrest.MatcherAssert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 

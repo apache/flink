@@ -173,12 +173,14 @@ class CalcITCase extends BatchTestBase {
       data3)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    checkResult(
+        assertThrows[ValidationException] {
+                checkResult(
       "SELECT a, foo FROM Table3",
       data3)
-  }
+        }
+    }
 
   @Test
   def testAllRejectingFilter(): Unit = {
@@ -1209,9 +1211,10 @@ class CalcITCase extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testOrderByBinary(): Unit = {
-    registerCollection(
+        assertThrows[UnsupportedOperationException] {
+                registerCollection(
       "BinaryT",
       nullData3.map((r) => row(r.getField(0), r.getField(1),
         r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
@@ -1230,7 +1233,8 @@ class CalcITCase extends BatchTestBase {
           r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       isSorted = true
     )
-  }
+        }
+    }
 
   @Test
   def testGroupByBinary(): Unit = {

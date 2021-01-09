@@ -1009,13 +1009,13 @@ public abstract class YarnTestBase extends TestLogger {
             throw new RuntimeException("Runner failed", runner.getRunnerError());
         }
         Assertions.assertTrue(
+                expectedStringSeen,
                 "During the timeout period of "
                         + startTimeoutSeconds
                         + " seconds the "
                         + "expected string \""
                         + terminateAfterString
-                        + "\" did not show up.",
-                expectedStringSeen);
+                        + "\" did not show up.");
 
         LOG.info("Test was successful");
     }

@@ -41,39 +41,47 @@ class SetOperatorsTest extends TableTestBase {
     util.addTableSource[(Int, Long, Int, String, Long)]("T3", 'a, 'b, 'd, 'c, 'e)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionDifferentColumnSize(): Unit = {
-    // must fail. Union inputs have different column size.
+        assertThrows[ValidationException] {
+                // must fail. Union inputs have different column size.
     util.verifyExecPlan("SELECT * FROM T1 UNION ALL SELECT * FROM T3")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionDifferentFieldTypes(): Unit = {
-    // must fail. Union inputs have different field types.
+        assertThrows[ValidationException] {
+                // must fail. Union inputs have different field types.
     util.verifyExecPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3")
-  }
+        }
+    }
 
   @Test
   def testIntersectAll(): Unit = {
     util.verifyExecPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersectDifferentFieldTypes(): Unit = {
-    // must fail. Intersect inputs have different field types.
+        assertThrows[ValidationException] {
+                // must fail. Intersect inputs have different field types.
     util.verifyExecPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3")
-  }
+        }
+    }
 
   @Test
   def testMinusAll(): Unit = {
     util.verifyExecPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinusDifferentFieldTypes(): Unit = {
-    // must fail. Minus inputs have different field types.
+        assertThrows[ValidationException] {
+                // must fail. Minus inputs have different field types.
     util.verifyExecPlan("SELECT a, b, c FROM T1 EXCEPT SELECT d, c, e FROM T3")
-  }
+        }
+    }
 
   @Test
   def testIntersect(): Unit = {

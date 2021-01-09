@@ -99,21 +99,25 @@ class PythonAggregateTest extends TableTestBase {
     assertEquals(expected(1).getFieldIndex, specs(1).getFieldIndex)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testExtractSecondLevelDataViewSpecs(): Unit = {
-    val accType = DataTypes.ROW(
+        assertThrows[TableException] {
+                val accType = DataTypes.ROW(
       DataTypes.FIELD("f0", DataTypes.ROW(
         DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))))
     TestCommonPythonAggregate.extractDataViewSpecs(accType)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testExtractDataViewSpecsFromStructuredType(): Unit = {
-    val accType = DataTypes.STRUCTURED(
+        assertThrows[TableException] {
+                val accType = DataTypes.STRUCTURED(
       classOf[Tuple1[_]],
       DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))
     TestCommonPythonAggregate.extractDataViewSpecs(accType)
-  }
+        }
+    }
 }
 
 object TestCommonPythonAggregate extends CommonExecPythonAggregate {

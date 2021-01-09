@@ -31,20 +31,23 @@ class GroupWindowValidationTest extends TableTestBase {
   // Common test
   //===============================================================================================
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupByWithoutWindowAlias(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
       .window(Tumble over 5.milli on 'long as 'w)
       .groupBy('string)
       .select('string, 'int.count)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidRowTimeRef(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     table
@@ -54,36 +57,44 @@ class GroupWindowValidationTest extends TableTestBase {
       .window(Slide over 5.milli every 1.milli on 'int as 'w2) // 'Int  does not exist in input.
       .groupBy('w2)
       .select('string)
-  }
+        }
+    }
 
   //===============================================================================================
   // Tumbling Windows
   //===============================================================================================
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidProcessingTimeDefinition(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // proctime is not allowed
     util.addTable[(Long, Int, String)]('long.proctime, 'int, 'string)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidProcessingTimeDefinition2(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // proctime is not allowed
     util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidEventTimeDefinition(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     // definition must not extend schema
     util.addTable[(Long, Int, String)]('long, 'int, 'string, 'rowtime.rowtime)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTumblingGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -93,11 +104,13 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAllTumblingGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -107,15 +120,17 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 
   //===============================================================================================
   // Sliding Windows
   //===============================================================================================
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSlidingGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -125,11 +140,13 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAllSlidingGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -139,11 +156,13 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testSessionGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -153,11 +172,13 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w, 'long)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAllSessionGroupWindowWithInvalidUdAggArgs(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val table = util.addTable[(Long, Int, String)]('long, 'int, 'string)
 
     val myWeightedAvg = new WeightedAvgWithMerge
@@ -167,5 +188,6 @@ class GroupWindowValidationTest extends TableTestBase {
       .groupBy('w)
       // invalid function arguments
       .select(myWeightedAvg('int, 'string))
-  }
+        }
+    }
 }

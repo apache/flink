@@ -27,14 +27,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.ClassRule;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -481,7 +477,7 @@ public class LocalStreamingFileSinkTest extends TestLogger {
 
             Assertions.assertTrue(bucketId >= 1 && bucketId <= 4);
             Assertions.assertEquals(
-                    String.format("test%d@%d\n", bucketId, bucketId), fileContents.getValue());
+                    fileContents.getValue(), String.format("test%d@%d\n", bucketId, bucketId));
         }
     }
 

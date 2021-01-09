@@ -37,20 +37,23 @@ class IntervalJoinTest extends TableTestBase {
     "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   /** There should exist exactly two time conditions **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravlJoinSingleTimeCondition(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND t1.proctime > t2.proctime - INTERVAL '5' SECOND
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   /** Both time attributes in a join condition must be of the same type **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravalDiffTimeIndicator(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND
@@ -58,12 +61,14 @@ class IntervalJoinTest extends TableTestBase {
         |  t1.proctime < t2.rowtime + INTERVAL '5' SECOND
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   /** The time conditions should be an And condition **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testInteravalNotCnfCondition(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON
         |  t1.a = t2.a AND
@@ -71,12 +76,14 @@ class IntervalJoinTest extends TableTestBase {
         |   t1.proctime < t2.rowtime + INTERVAL '5' SECOND)
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   /** Validates that no rowtime attribute is in the output schema **/
-  @Test(expected = classOf[TableException])
+  @Test
   def testNoRowtimeAttributeInResult(): Unit = {
-    val sql =
+        assertThrows[TableException] {
+                val sql =
       """
         |SELECT * FROM MyTable t1, MyTable2 t2 WHERE
         |  t1.a = t2.a AND
@@ -84,15 +91,17 @@ class IntervalJoinTest extends TableTestBase {
       """.stripMargin
 
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   /**
     * Currently only the inner join condition can support the Python UDF taking the inputs from
     * the left table and the right table at the same time.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testWindowOuterJoinWithPythonFunctionInCondition(): Unit = {
-    util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
+        assertThrows[TableException] {
+                util.addFunction("pyFunc", new PythonScalarFunction("pyFunc"))
     val sql =
       """
         |SELECT t1.a, t2.b FROM MyTable t1 LEFT OUTER JOIN MyTable2 t2 ON
@@ -100,7 +109,8 @@ class IntervalJoinTest extends TableTestBase {
         |    t1.proctime BETWEEN t2.proctime - INTERVAL '1' HOUR AND t2.proctime + INTERVAL '1' HOUR
       """.stripMargin
     util.verifyExecPlan(sql)
-  }
+        }
+    }
 
   @Test
   def testProcessingTimeInnerJoinWithOnClause(): Unit = {

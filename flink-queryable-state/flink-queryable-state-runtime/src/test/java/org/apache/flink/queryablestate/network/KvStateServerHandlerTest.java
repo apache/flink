@@ -67,6 +67,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.net.InetAddress;
 import java.util.Collections;
@@ -557,8 +559,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         buf.release();
 
         assertTrue(
-                "Unexpected failure cause " + response.getClass().getName(),
-                response instanceof IllegalArgumentException);
+                response instanceof IllegalArgumentException,
+                "Unexpected failure cause " + response.getClass().getName());
 
         assertEquals(0L, stats.getNumRequests());
         assertEquals(0L, stats.getNumFailed());

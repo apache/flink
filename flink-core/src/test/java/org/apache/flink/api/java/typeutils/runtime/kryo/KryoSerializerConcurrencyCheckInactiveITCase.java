@@ -21,6 +21,8 @@ package org.apache.flink.api.java.typeutils.runtime.kryo;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 
 import static org.junit.Assume.assumeFalse;

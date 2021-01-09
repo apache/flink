@@ -31,22 +31,28 @@ abstract class JoinTestBase extends TableTestBase {
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addTableSource[(Int, Long, Int, String, Long)]("MyTable2", 'd, 'e, 'f, 'g, 'h)
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinNonExistingKey(): Unit = {
-    util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
-  }
+        assertThrows[ValidationException] {
+                util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE foo = e")
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testJoinNonMatchingKeyTypes(): Unit = {
-    // INTEGER and VARCHAR(65536) does not have common type now
+        assertThrows[TableException] {
+                // INTEGER and VARCHAR(65536) does not have common type now
     util.verifyExecPlan("SELECT c, g FROM MyTable1, MyTable2 WHERE a = g")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithAmbiguousFields(): Unit = {
-    util.addTableSource[(Int, Long, String)]("MyTable0", 'a0, 'b0, 'c)
+        assertThrows[ValidationException] {
+                util.addTableSource[(Int, Long, String)]("MyTable0", 'a0, 'b0, 'c)
     util.verifyExecPlan("SELECT a, c FROM MyTable1, MyTable0 WHERE a = a0")
-  }
+        }
+    }
 
   @Test
   def testInnerJoinWithEquiPred(): Unit = {

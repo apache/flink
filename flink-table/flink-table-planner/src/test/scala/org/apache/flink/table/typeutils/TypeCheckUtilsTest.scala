@@ -38,20 +38,26 @@ class TypeCheckUtilsTest {
     validateEqualsHashCode("", Types.PRIMITIVE_ARRAY(Types.LONG))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType(): Unit = {
-    validateEqualsHashCode("", ScalaTypes.NOTHING)
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", ScalaTypes.NOTHING)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType2(): Unit = {
-    validateEqualsHashCode("", Types.ROW(ScalaTypes.NOTHING))
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", Types.ROW(ScalaTypes.NOTHING))
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType3(): Unit = {
-    validateEqualsHashCode("", Types.OBJECT_ARRAY[Nothing](ScalaTypes.NOTHING))
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", Types.OBJECT_ARRAY[Nothing](ScalaTypes.NOTHING))
+        }
+    }
 
   @Test
   def testPrimitiveWrapper (): Unit = {

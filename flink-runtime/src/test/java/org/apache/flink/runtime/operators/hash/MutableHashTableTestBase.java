@@ -256,7 +256,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
+            assertNotNull(prober.getMatchFor(overwriteLists[i], target), "" + i);
             assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
         }
 
@@ -299,7 +299,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(lists[i], target));
+            assertNotNull(prober.getMatchFor(lists[i], target), "" + i);
             assertArrayEquals(lists[i].getValue(), target.getValue());
         }
 
@@ -391,7 +391,7 @@ public abstract class MutableHashTableTestBase {
             }
 
             for (int i = 0; i < NUM_LISTS; i++) {
-                assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
+                assertNotNull(prober.getMatchFor(overwriteLists[i], target), "" + i);
                 assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
             }
         }
@@ -422,13 +422,13 @@ public abstract class MutableHashTableTestBase {
         IntList target = new IntList();
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(lists[i], target));
+            assertNotNull(prober.getMatchFor(lists[i], target), "" + i);
             assertArrayEquals(lists[i].getValue(), target.getValue());
             prober.updateMatch(overwriteLists[i]);
         }
 
         for (int i = 0; i < NUM_LISTS; i++) {
-            assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
+            assertNotNull(prober.getMatchFor(overwriteLists[i], target), "" + i);
             assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
         }
 
@@ -465,7 +465,7 @@ public abstract class MutableHashTableTestBase {
                 table.getProber(comparatorS, pairComparatorS);
         StringPair temp = new StringPair();
         while (probeTester.next(target) != null) {
-            assertNotNull("" + target.getKey(), prober.getMatchFor(target, temp));
+            assertNotNull(prober.getMatchFor(target, temp), "" + target.getKey());
             assertEquals(temp.getValue(), target.getValue());
         }
 

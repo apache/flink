@@ -28,26 +28,24 @@ import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 import org.apache.flink.types.Row
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import java.math.{BigDecimal => JBigDecimal}
-
 import scala.collection.Seq
 
 /**
-  * Conformance test of TableApi type Decimal(p,s).
-  * Served also as documentation of our Decimal behaviors.
-  */
+ * Conformance test of TableApi type Decimal(p,s).
+ * Served also as documentation of our Decimal behaviors.
+ */
 class DecimalITCase extends BatchTestBase {
 
   private def checkQuery(
-      sourceColTypes: Seq[LogicalType],
-      sourceRows: Seq[Row],
-      tableTransfer: Table => Table,
-      expectedColTypes: Seq[LogicalType],
-      expectedRows: Seq[Row],
-      isSorted: Boolean = false): Unit = {
+                          sourceColTypes: Seq[LogicalType],
+                          sourceRows: Seq[Row],
+                          tableTransfer: Table => Table,
+                          expectedColTypes: Seq[LogicalType],
+                          expectedRows: Seq[Row],
+                          isSorted: Boolean = false): Unit = {
     val rowTypeInfo = new RowTypeInfo(sourceColTypes.toArray.map(fromLogicalTypeToTypeInfo): _*)
     val fieldNames = rowTypeInfo.getFieldNames.mkString(",")
     val t = BatchTableEnvUtil.fromCollection(tEnv, sourceRows, rowTypeInfo, fieldNames)
@@ -126,14 +124,14 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(10, 2)),
       s1r(d"0.12"),
-      table => table.select('f0.sin, 'f0.cos, 'f0.tan, 'f0.cot ),
+      table => table.select('f0.sin, 'f0.cos, 'f0.tan, 'f0.cot),
       Seq(DOUBLE, DOUBLE, DOUBLE, DOUBLE),
       s1r(sin(0.12), cos(0.12), tan(0.12), 1.0 / tan(0.12)))
 
     checkQuery(
       Seq(DECIMAL(10, 2)),
       s1r(d"0.12"),
-      table => table.select('f0.asin, 'f0.acos, 'f0.atan ),
+      table => table.select('f0.asin, 'f0.acos, 'f0.atan),
       Seq(DOUBLE, DOUBLE, DOUBLE),
       s1r(asin(0.12), acos(0.12), atan(0.12)))
 
@@ -152,14 +150,14 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(6, 3)),
       (0 until 100).map(_ => row(d"1.000")),
-      table => table.select('f0.sum ),
+      table => table.select('f0.sum),
       Seq(DECIMAL(38, 3)),
       s1r(d"100.000"))
 
     checkQuery(
       Seq(DECIMAL(37, 0)),
       (0 until 100).map(_ => row(d"1e36")),
-      table => table.select('f0.sum ),
+      table => table.select('f0.sum),
       Seq(DECIMAL(38, 0)),
       s1r(null))
   }
@@ -171,7 +169,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(6, 3), DECIMAL(20, 10)),
       (0 until 100).map(_ => row(d"100.000", d"1${10}")),
-      table => table.select('f0.avg, 'f1.avg ),
+      table => table.select('f0.avg, 'f1.avg),
       Seq(DECIMAL(38, 6), DECIMAL(38, 10)),
       s1r(d"100.000000", d"1${10}"))
 
@@ -190,7 +188,7 @@ class DecimalITCase extends BatchTestBase {
     checkQuery(
       Seq(DECIMAL(6, 3)),
       (10 to 90).map(i => row(java.math.BigDecimal.valueOf(i))),
-      table => table.select('f0.min, 'f0.max, 'f0.count ),
+      table => table.select('f0.min, 'f0.max, 'f0.count),
       Seq(DECIMAL(6, 3), DECIMAL(6, 3), LONG),
       s1r(d"10.000", d"90.000", 81L))
   }

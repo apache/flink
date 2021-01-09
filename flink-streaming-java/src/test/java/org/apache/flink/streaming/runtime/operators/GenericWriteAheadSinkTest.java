@@ -26,13 +26,10 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,11 +66,11 @@ public class GenericWriteAheadSinkTest
             list.remove(i);
         }
         Assertions.assertTrue(
-                "The following ID's where not found in the result list: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's where not found in the result list: " + list.toString());
         Assertions.assertTrue(
-                "The sink emitted to many values: " + (sink.values.size() - 60),
-                sink.values.size() == 60);
+                sink.values.size() == 60,
+                "The sink emitted to many values: " + (sink.values.size() - 60));
     }
 
     @Override
@@ -88,11 +85,11 @@ public class GenericWriteAheadSinkTest
             list.remove(i);
         }
         Assertions.assertTrue(
-                "The following ID's where not found in the result list: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's where not found in the result list: " + list.toString());
         Assertions.assertTrue(
-                "The sink emitted to many values: " + (sink.values.size() - 60),
-                sink.values.size() == 60);
+                sink.values.size() == 60,
+                "The sink emitted to many values: " + (sink.values.size() - 60));
     }
 
     @Override
@@ -110,11 +107,11 @@ public class GenericWriteAheadSinkTest
             list.remove(i);
         }
         Assertions.assertTrue(
-                "The following ID's where not found in the result list: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's where not found in the result list: " + list.toString());
         Assertions.assertTrue(
-                "The sink emitted to many values: " + (sink.values.size() - 40),
-                sink.values.size() == 40);
+                sink.values.size() == 40,
+                "The sink emitted to many values: " + (sink.values.size() - 40));
     }
 
     @Override

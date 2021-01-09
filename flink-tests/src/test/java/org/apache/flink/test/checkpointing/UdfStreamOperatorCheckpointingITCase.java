@@ -33,6 +33,8 @@ import org.apache.flink.streaming.api.operators.StreamGroupedReduceOperator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.EvictingQueue;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;

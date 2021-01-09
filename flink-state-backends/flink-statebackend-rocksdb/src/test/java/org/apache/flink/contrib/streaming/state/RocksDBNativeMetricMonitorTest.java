@@ -78,7 +78,7 @@ public class RocksDBNativeMetricMonitorTest {
         view.update();
 
         Assertions.assertNotEquals(
-                "Failed to pull metric from RocksDB", BigInteger.ZERO, view.getValue());
+                BigInteger.ZERO, view.getValue(), "Failed to pull metric from RocksDB");
 
         view.setValue(0L);
 

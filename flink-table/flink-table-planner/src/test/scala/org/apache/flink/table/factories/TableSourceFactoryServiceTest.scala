@@ -48,13 +48,15 @@ class TableSourceFactoryServiceTest {
       .isInstanceOf[TestFixedFormatTableFactory])
   }
 
-  @Test(expected = classOf[NoMatchingTableFactoryException])
+  @Test
   def testInvalidContext(): Unit = {
-    val props = properties()
+        assertThrows[NoMatchingTableFactoryException] {
+                val props = properties()
     props.put(CONNECTOR_TYPE, "unknown-connector-type")
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
-  }
+        }
+    }
 
   @Test
   def testDifferentContextVersion(): Unit = {
@@ -67,14 +69,16 @@ class TableSourceFactoryServiceTest {
       .isInstanceOf[TestFixedFormatTableFactory])
   }
 
-  @Test(expected = classOf[NoMatchingTableFactoryException])
+  @Test
   def testUnsupportedProperty(): Unit = {
-    val props = properties()
+        assertThrows[NoMatchingTableFactoryException] {
+                val props = properties()
     props.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_FIXED)
     props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST)
     props.put("format.unknown-format-type-property", "/new/path")
     TableFactoryService.find(classOf[StreamTableSourceFactory[_]], props)
-  }
+        }
+    }
 
   @Test
   def testWildcardFormat(): Unit = {

@@ -96,10 +96,12 @@ class CalcTest extends TableTestBase {
     util.verifyExecPlan("SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
-    util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable")
-  }
+        assertThrows[ValidationException] {
+                util.tableEnv.sqlQuery("SELECT a, foo FROM MyTable")
+        }
+    }
 
   @Test
   def testPrimitiveMapType(): Unit = {

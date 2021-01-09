@@ -41,12 +41,6 @@ import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -54,7 +48,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.util.Collections.singletonList;
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedNoTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.alignedWithTimeout;
 import static org.apache.flink.runtime.checkpoint.CheckpointOptions.unaligned;
@@ -70,6 +63,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** {@link AlternatingController} test. */
 public class AlternatingControllerTest {
@@ -414,13 +408,13 @@ public class AlternatingControllerTest {
         }
 
         assertEquals(
+                1,
+                triggeredCount,
                 String.format(
                         "Checkpoint should be triggered exactly once, but [%s, %s, %s] was found instead",
                         preProcessTrigger.isPresent(),
                         processTrigger.isPresent(),
-                        postProcessTrigger.isPresent()),
-                1,
-                triggeredCount);
+                        postProcessTrigger.isPresent()));
 
         if (unalignedCheckpoint) {
             // check that we can add output data if we are in unaligned checkpoint mode. In other
@@ -666,8 +660,8 @@ public class AlternatingControllerTest {
         if (checkpointType.isSavepoint()) {
             for (InputChannel channel : gate.getInputChannels().values()) {
                 assertFalse(
-                        String.format("channel %d should be resumed", channel.getChannelIndex()),
-                        ((TestInputChannel) channel).isBlocked());
+                        ((TestInputChannel) channel).isBlocked(),
+                        String.format("channel %d should be resumed", channel.getChannelIndex()));
             }
         }
     }
@@ -796,8 +790,8 @@ public class AlternatingControllerTest {
             CheckpointedInputGate gate, Class<T> clazz) throws IOException, InterruptedException {
         Optional<BufferOrEvent> bufferOrEvent = assertPoll(gate);
         assertTrue(
-                "expected event, got data buffer on " + bufferOrEvent.get().getChannelInfo(),
-                bufferOrEvent.get().isEvent());
+                bufferOrEvent.get().isEvent(),
+                "expected event, got data buffer on " + bufferOrEvent.get().getChannelInfo());
         assertEquals(clazz, bufferOrEvent.get().getEvent().getClass());
     }
 
@@ -805,11 +799,11 @@ public class AlternatingControllerTest {
             throws IOException, InterruptedException {
         Optional<BufferOrEvent> bufferOrEvent = assertPoll(gate);
         assertTrue(
+                bufferOrEvent.get().isBuffer(),
                 "expected data, got "
                         + bufferOrEvent.get().getEvent()
                         + "  on "
-                        + bufferOrEvent.get().getChannelInfo(),
-                bufferOrEvent.get().isBuffer());
+                        + bufferOrEvent.get().getChannelInfo());
     }
 
     private static Optional<BufferOrEvent> assertPoll(CheckpointedInputGate gate)

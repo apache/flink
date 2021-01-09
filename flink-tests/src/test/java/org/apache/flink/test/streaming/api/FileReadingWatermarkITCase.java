@@ -25,14 +25,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -68,7 +61,7 @@ public class FileReadingWatermarkITCase {
 
         int actual = result.getAccumulatorResult(NUM_WATERMARKS_ACC_NAME);
 
-        assertTrue("too few watermarks emitted: " + actual, actual >= MIN_EXPECTED_WATERMARKS);
+        assertTrue(actual >= MIN_EXPECTED_WATERMARKS, "too few watermarks emitted: " + actual);
     }
 
     private File getSourceFile() throws IOException {

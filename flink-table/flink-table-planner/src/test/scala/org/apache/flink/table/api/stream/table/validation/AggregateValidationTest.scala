@@ -26,31 +26,36 @@ import org.junit.jupiter.api.Test
 
 class AggregateValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     val ds = table
       // must fail. '_foo is not a valid field
       .groupBy('_foo)
       .select('a.avg)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     table
       .groupBy('a, 'b)
       // must fail. 'c is not a grouping key or aggregation
       .select('c)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidAggregationInSelection(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -58,11 +63,13 @@ class AggregateValidationTest extends TableTestBase {
       .aggregate('b.sum as 'd)
       // must fail. Cannot use AggregateFunction in select right after aggregate
       .select('d.sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidWindowPropertiesInSelection(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -70,11 +77,13 @@ class AggregateValidationTest extends TableTestBase {
       .aggregate('b.sum as 'd)
       // must fail. Cannot use window properties in select right after aggregate
       .select('d.start)
-  }
+        }
+    }
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testTableFunctionInSelection(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[UnsupportedOperationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     util.tableEnv.registerFunction("func", new TableFunc0)
@@ -85,11 +94,13 @@ class AggregateValidationTest extends TableTestBase {
       .select("func('abc')")
 
     util.verifyTable(resultTable, "")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidScalarFunctionInAggregate(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -97,11 +108,13 @@ class AggregateValidationTest extends TableTestBase {
       // must fail. Only AggregateFunction can be used in aggregate
       .aggregate('c.upperCase as 'd)
       .select('a, 'd)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidTableFunctionInAggregate(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     util.tableEnv.registerFunction("func", new TableFunc0)
@@ -110,11 +123,13 @@ class AggregateValidationTest extends TableTestBase {
       // must fail. Only AggregateFunction can be used in aggregate
       .aggregate(call("func", $"c") as "d")
       .select('a, 'd)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ExpressionParserException])
+  @Test
   def testMultipleAggregateExpressionInAggregate(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ExpressionParserException] {
+                val util = streamTestUtil()
     val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
 
     util.tableEnv.registerFunction("func", new TableFunc0)
@@ -122,7 +137,8 @@ class AggregateValidationTest extends TableTestBase {
       .groupBy('a)
       // must fail. Only one AggregateFunction can be used in aggregate
       .aggregate("sum(c), count(b)")
-  }
+        }
+    }
 
   @Test
   def testInvalidAlias(): Unit = {

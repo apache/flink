@@ -25,30 +25,40 @@ import org.junit.jupiter.api.Test
 
 class MapTypeValidationTest extends MapTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongKeyType(): Unit = {
-    testAllApis('f2.at(12), "f2.at(12)", "f2[12]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testAllApis('f2.at(12), "f2.at(12)", "f2[12]", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIncorrectMapTypeComparison(): Unit = {
-    testAllApis('f1 === 'f3, "f1 === f3", "f1 = f3", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testAllApis('f1 === 'f3, "f1 === f3", "f1 = f3", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnsupportedComparisonType(): Unit = {
-    testAllApis('f6 !== 'f2, "f6 !== f2", "f6 != f2", "FAIL")
+        assertThrows[ValidationException] {
+                testAllApis('f6 !== 'f2, "f6 !== f2", "f6 != f2", "FAIL")
     testSqlApi("f6 <> f2", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testEmptyMap(): Unit = {
-    testAllApis("FAIL", "map()", "MAP[]", "FAIL")
+        assertThrows[ValidationException] {
+                testAllApis("FAIL", "map()", "MAP[]", "FAIL")
     testSqlApi("MAP[]", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnsupportedMapImplicitTypeCastSql(): Unit = {
-    testSqlApi("MAP['k1', 'string', 'k2', 12]", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("MAP['k1', 'string', 'k2', 12]", "FAIL")
+        }
+    }
 }

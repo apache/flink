@@ -18,13 +18,10 @@
 package org.apache.flink.streaming.api.windowing.deltafunction;
 
 import org.apache.flink.streaming.api.functions.windowing.delta.EuclideanDistance;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link EuclideanDistance}. */
 public class EuclideanDistanceTest {
@@ -51,13 +48,13 @@ public class EuclideanDistanceTest {
 
         for (int i = 0; i < testdata.length; i++) {
             assertEquals(
+                    referenceSolutions[i],
+                    new EuclideanDistance().getDelta(testdata[i][0], testdata[i][1]),
+                    0.000001,
                     "Wrong result for inputs "
                             + arrayToString(testdata[i][0])
                             + " and "
-                            + arrayToString(testdata[i][0]),
-                    referenceSolutions[i],
-                    new EuclideanDistance().getDelta(testdata[i][0], testdata[i][1]),
-                    0.000001);
+                            + arrayToString(testdata[i][0]));
         }
     }
 

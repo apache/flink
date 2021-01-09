@@ -30,14 +30,13 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.types.Row
 import org.apache.flink.util.{Collector, InstantiationUtil, TestLogger}
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 class CRowSerializerTest extends TestLogger {
 
   /**
-    * This empty constructor is required for deserializing the configuration.
-    */
+   * This empty constructor is required for deserializing the configuration.
+   */
   @Test
   def testDefaultConstructor(): Unit = {
     new CRowSerializer.CRowSerializerConfigSnapshot()
@@ -50,14 +49,16 @@ class CRowSerializerTest extends TestLogger {
 
     class IKeyedProcessFunction extends KeyedProcessFunction[Integer, Integer, Integer] {
       var state: ListState[CRow] = _
+
       override def open(parameters: Configuration): Unit = {
         val stateDesc = new ListStateDescriptor[CRow]("CRow",
           new CRowTypeInfo(new RowTypeInfo(Types.INT)))
         state = getRuntimeContext.getListState(stateDesc)
       }
+
       override def processElement(value: Integer,
-          ctx: KeyedProcessFunction[Integer, Integer, Integer]#Context,
-          out: Collector[Integer]): Unit = {
+                                  ctx: KeyedProcessFunction[Integer, Integer, Integer]#Context,
+                                  out: Collector[Integer]): Unit = {
         state.add(new CRow(Row.of(value), true))
       }
     }
@@ -67,7 +68,7 @@ class CRowSerializerTest extends TestLogger {
     var testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, Integer](
       operator,
       new KeySelector[Integer, Integer] {
-        override def getKey(value: Integer): Integer= -1
+        override def getKey(value: Integer): Integer = -1
       },
       Types.INT, 1, 1, 0)
     testHarness.setup()
@@ -85,7 +86,7 @@ class CRowSerializerTest extends TestLogger {
     testHarness = new KeyedOneInputStreamOperatorTestHarness[Integer, Integer, Integer](
       operator,
       new KeySelector[Integer, Integer] {
-        override def getKey(value: Integer): Integer= -1
+        override def getKey(value: Integer): Integer = -1
       },
       Types.INT, 1, 1, 0)
     testHarness.setup()

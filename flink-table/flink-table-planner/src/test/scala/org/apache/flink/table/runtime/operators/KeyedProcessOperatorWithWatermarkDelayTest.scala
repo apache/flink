@@ -57,11 +57,13 @@ class KeyedProcessOperatorWithWatermarkDelayTest extends TestLogger {
     testHarness.close()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testDelayParameter(): Unit = {
-    new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
+        assertThrows[IllegalArgumentException] {
+                new KeyedProcessOperatorWithWatermarkDelay[Integer, Integer, String](
       new EmptyProcessFunction, -1)
-  }
+        }
+    }
 }
 
 private class EmptyProcessFunction extends ProcessFunction[Integer, String] {

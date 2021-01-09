@@ -18,6 +18,18 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -35,19 +47,6 @@ import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
-
-import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.file.FileReader;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.avro.util.Utf8;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
@@ -62,17 +61,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -413,7 +404,7 @@ public class AvroRecordInputFormatTest {
             assertNotNull(newRec);
             assertEquals(TEST_NAME, "name not equal");
             assertEquals(
-                    "enum not equal", TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString());
+                    TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString(), "enum not equal");
         }
     }
 
@@ -467,7 +458,7 @@ public class AvroRecordInputFormatTest {
 
             // check enums
             GenericData.EnumSymbol enumValue = (GenericData.EnumSymbol) u.get("type_enum");
-            assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), enumValue.toString());
+            assertEquals(TEST_ENUM_COLOR.toString(), enumValue.toString(), "enum not equal");
 
             // check maps
             Map<CharSequence, Long> lm = (Map<CharSequence, Long>) u.get("type_map");

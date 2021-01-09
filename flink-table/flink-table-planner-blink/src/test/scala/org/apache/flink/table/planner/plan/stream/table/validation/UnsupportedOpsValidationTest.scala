@@ -30,57 +30,69 @@ import org.junit.jupiter.api.Test
 
 class UnsupportedOpsValidationTest extends AbstractTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.join(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnion(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.union(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersect(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.intersect(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersectAll(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.intersectAll(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinus(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.minus(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinusAll(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val t1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     val t2 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv)
     t1.minusAll(t2)
-  }
+        }
+    }
 }

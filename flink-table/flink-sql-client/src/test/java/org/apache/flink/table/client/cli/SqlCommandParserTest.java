@@ -26,21 +26,20 @@ import org.apache.flink.table.client.cli.SqlCommandParser.SqlCommandCall;
 import org.apache.flink.table.client.cli.utils.SqlParserHelper;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Parser;
+
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link SqlCommandParser}. */
 public class SqlCommandParserTest {
@@ -405,9 +404,9 @@ public class SqlCommandParserTest {
         SqlCommandCall actualCall = checkFlagAndActualCall.f1;
         assertNotNull(item.expectedCmd);
         assertEquals(
-                "test statement: " + item.sql,
                 new SqlCommandCall(item.expectedCmd, item.expectedOperands),
-                actualCall);
+                actualCall,
+                "test statement: " + item.sql);
 
         String stmtWithComment = "-- comments \n " + item.sql;
         try {

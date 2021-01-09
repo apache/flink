@@ -31,9 +31,10 @@ class CorrelateValidationTest extends TableTestBase{
     * join predicate can only be empty or literal true (the restriction should be removed in
     * FLINK-7865).
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testLeftOuterJoinWithPredicates(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[ValidationException] {
+                val util = streamTestUtil()
     val func1 = new TableFunc1
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     util.addFunction("func1", func1)
@@ -41,5 +42,6 @@ class CorrelateValidationTest extends TableTestBase{
     val sqlQuery = "SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON c = s"
 
     util.verifySql(sqlQuery, "n/a")
-  }
+        }
+    }
 }

@@ -34,7 +34,6 @@ import org.junit.Rule;
 import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
@@ -169,9 +168,9 @@ public class StreamingKafkaITCase extends TestLogger {
             // verify that our assumption that the new partition actually has written messages is
             // correct
             Assertions.assertNotEquals(
-                    "The newly created partition does not have any new messages, and therefore partition discovery cannot be verified.",
                     0L,
-                    kafka.getPartitionOffset(inputTopic, 1));
+                    kafka.getPartitionOffset(inputTopic, 1),
+                    "The newly created partition does not have any new messages, and therefore partition discovery cannot be verified.");
 
             LOG.info("Verifying messages from Kafka topic [{}] ...", outputTopic);
             {
@@ -183,21 +182,21 @@ public class StreamingKafkaITCase extends TestLogger {
                 final List<String> giraffes = filterMessages(messages, "giraffe");
 
                 Assertions.assertEquals(
-                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("elephant,27,64213"),
-                        elephants);
+                        elephants,
+                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages));
                 Assertions.assertEquals(
-                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("squirrel,52,66413"),
-                        squirrels);
+                        squirrels,
+                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages));
                 Assertions.assertEquals(
-                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("bee,18,65647"),
-                        bees);
+                        bees,
+                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages));
                 Assertions.assertEquals(
-                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages),
                         Arrays.asList("giraffe,9,65555"),
-                        giraffes);
+                        giraffes,
+                        String.format("Messages from Kafka %s: %s", kafkaVersion, messages));
             }
         }
     }

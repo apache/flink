@@ -157,8 +157,9 @@ class CalcITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
+        assertThrows[ValidationException] {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
@@ -169,7 +170,8 @@ class CalcITCase(
     tEnv.registerTable("MyTable", ds)
 
     tEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testAllRejectingFilter(): Unit = {

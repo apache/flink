@@ -17,12 +17,11 @@
  */
 package org.apache.flink.api.scala.operators
 
-import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.junit.jupiter.api.Assertions
 import org.apache.flink.api.common.InvalidProgramException
-import org.junit.jupiter.api.Test
-
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
+import org.junit.jupiter.api.{Assertions, Test}
+import org.scalatest.Matchers.assertThrows
 
 class DistinctOperatorTest {
 
@@ -46,21 +45,24 @@ class DistinctOperatorTest {
 
   @Test
   def testDistinctByKeyIndices2(): Unit = {
-        assertThrows(classOf[InvalidProgramException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val longDs = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val longDs = env.fromCollection(emptyLongData)
 
-    // should not work: distinct on basic type
-    longDs.distinct(0)
+      // should not work: distinct on basic type
+      longDs.distinct(0)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testDistinctByKeyIndices3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val customDs = env.fromCollection(customTypeData)
 
-    // should not work: field position key on custom type
-    customDs.distinct(0)
+      // should not work: field position key on custom type
+      customDs.distinct(0)
+    }
   }
 
   @Test
@@ -72,13 +74,15 @@ class DistinctOperatorTest {
     tupleDs.distinct()
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testDistinctByKeyIndices6(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, negative field position key
-    tupleDs.distinct(-1)
+      // should not work, negative field position key
+      tupleDs.distinct(-1)
+    }
   }
 
   @Test
@@ -89,7 +93,6 @@ class DistinctOperatorTest {
     // should work
     try {
       longDs.distinct()
-        });
     } catch {
       case e: Exception => Assertions.fail()
     }
@@ -97,6 +100,7 @@ class DistinctOperatorTest {
 
   @Test
   def testDistinctByKeyFields1(): Unit = {
+
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tupleDs = env.fromCollection(emptyTupleData)
 
@@ -111,30 +115,35 @@ class DistinctOperatorTest {
 
   @Test
   def testDistinctByKeyFields2(): Unit = {
-        assertThrows(classOf[RuntimeException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val longDs = env.fromCollection(emptyLongData)
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val longDs = env.fromCollection(emptyLongData)
 
-    // should not work: distinct on basic type
-    longDs.distinct("_1")
+      // should not work: distinct on basic type
+      longDs.distinct("_1")
+    }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testDistinctByKeyFields3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val customDs = env.fromCollection(customTypeData)
 
-    // should not work: invalid fields
-    customDs.distinct("_1")
+      // should not work: invalid fields
+      customDs.distinct("_1")
+    }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testDistinctByKeyFields4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, invalid field
-    tupleDs.distinct("foo")
+      // should not work, invalid field
+      tupleDs.distinct("foo")
+    }
   }
 
   @Test
@@ -154,8 +163,8 @@ class DistinctOperatorTest {
     // should work
     try {
       longDs.distinct("_")
-        });
-    } catch {
+    }
+    catch {
       case e: Exception => Assertions.fail()
     }
   }
@@ -165,7 +174,9 @@ class DistinctOperatorTest {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     try {
       val customDs = env.fromCollection(customTypeData)
-      customDs.distinct {_.myLong}
+      customDs.distinct {
+        _.myLong
+      }
     }
     catch {
       case e: Exception => Assertions.fail()

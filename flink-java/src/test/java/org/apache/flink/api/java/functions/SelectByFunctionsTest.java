@@ -24,6 +24,8 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 
 /** Tests for {@link SelectByMaxFunction} and {@link SelectByMinFunction}. */

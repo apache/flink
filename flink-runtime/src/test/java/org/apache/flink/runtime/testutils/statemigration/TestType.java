@@ -26,7 +26,10 @@ import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.runtime.state.PriorityComparable;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 
+import org.junit.jupiter.api.Assertions;
+
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.util.Objects;
 

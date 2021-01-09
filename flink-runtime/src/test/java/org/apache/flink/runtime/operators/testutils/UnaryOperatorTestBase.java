@@ -44,7 +44,9 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -397,7 +399,9 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assertions.assertTrue(                    memMan.verifyEmpty(),                    "Memory Manager managed memory was not completely freed.");
+            Assertions.assertTrue(
+                    memMan.verifyEmpty(),
+                    "Memory Manager managed memory was not completely freed.");
             memMan.shutdown();
         }
     }

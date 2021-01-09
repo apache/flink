@@ -42,13 +42,8 @@ import org.apache.flink.util.FileUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedReader;
@@ -218,7 +213,7 @@ public class HiveCatalogITCase {
         String readLine;
         for (int i = 0; i < 3; i++) {
             readLine = reader.readLine();
-            assertEquals(String.format("%d,%d", i + 1, i + 1), readLine);
+            assertEquals(readLine, String.format("%d,%d", i + 1, i + 1));
         }
 
         // No more line

@@ -35,6 +35,8 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ErrorLi
 import org.apache.flink.shaded.curator4.org.apache.curator.utils.EnsurePath;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;

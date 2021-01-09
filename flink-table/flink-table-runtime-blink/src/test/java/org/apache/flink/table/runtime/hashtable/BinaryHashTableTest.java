@@ -318,9 +318,9 @@ public class BinaryHashTableTest {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     probeValsPerKey * buildValsPerKey,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -411,12 +411,12 @@ public class BinaryHashTableTest {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == repeatedValue1 || key == repeatedValue2)
                             ? (probeValsPerKey + repeatedValueCountProbe)
                                     * (buildValsPerKey + repeatedValueCountBuild)
                             : probeValsPerKey * buildValsPerKey,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------
@@ -543,12 +543,12 @@ public class BinaryHashTableTest {
             int key = entry.getKey();
 
             Assertions.assertEquals(
-                    "Wrong number of values in per-key cross product for key " + key,
                     (key == repeatedValue1 || key == repeatedValue2)
                             ? (probeValsPerKey + repeatedValueCountProbe)
                                     * (buildValsPerKey + repeatedValueCountBuild)
                             : probeValsPerKey * buildValsPerKey,
-                    val);
+                    val,
+                    "Wrong number of values in per-key cross product for key " + key);
         }
 
         // ----------------------------------------------------------------------------------------

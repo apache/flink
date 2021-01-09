@@ -20,11 +20,11 @@ package org.apache.flink.streaming.api.scala
 
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 /**
-  * Unit test for [[org.apache.flink.streaming.api.scala.CoGroupedStreams]]
-  */
+ * Unit test for [[org.apache.flink.streaming.api.scala.CoGroupedStreams]]
+ */
 class CoGroupedStreamsTest {
   private val env = StreamExecutionEnvironment.getExecutionEnvironment
 

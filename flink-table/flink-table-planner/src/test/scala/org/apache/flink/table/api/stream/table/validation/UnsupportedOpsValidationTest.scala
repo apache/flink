@@ -32,45 +32,57 @@ class UnsupportedOpsValidationTest extends AbstractTestBase {
   val settings: EnvironmentSettings = EnvironmentSettings.newInstance().useOldPlanner().build()
   val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env, settings)
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoin(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.join(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnion(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.union(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersect(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.intersect(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIntersectAll(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.intersectAll(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinus(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.minus(t2)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMinusAll(): Unit = {
-    val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+        assertThrows[ValidationException] {
+                val t1 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     val t2 = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
     t1.minusAll(t2)
-  }
+        }
+    }
 }

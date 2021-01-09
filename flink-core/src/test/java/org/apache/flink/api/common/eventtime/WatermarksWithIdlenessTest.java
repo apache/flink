@@ -22,6 +22,8 @@ import org.apache.flink.api.common.eventtime.WatermarksWithIdleness.IdlenessTime
 import org.apache.flink.util.clock.ManualClock;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;

@@ -278,15 +278,19 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "null")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testHashFunctionsUnsupportedLength(): Unit = {
-    testSqlApi("SHA2('', 333)", "")
-  }
+        assertThrows[RuntimeException] {
+                testSqlApi("SHA2('', 333)", "")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testHashFunctionSha2NoParam(): Unit = {
-    testSqlApi("SHA2('')", "")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("SHA2('')", "")
+        }
+    }
 
   override def testData: Any = new Row(0)
 

@@ -1213,14 +1213,14 @@ public class StreamTaskTest extends TestLogger {
         }
 
         assertTrue(
-                RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is still running",
                 Thread.getAllStackTraces().keySet().stream()
                         .noneMatch(
                                 thread ->
                                         thread.getName()
                                                 .startsWith(
                                                         RecordWriter
-                                                                .DEFAULT_OUTPUT_FLUSH_THREAD_NAME)));
+                                                                .DEFAULT_OUTPUT_FLUSH_THREAD_NAME)),
+                RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is still running");
     }
 
     @Test

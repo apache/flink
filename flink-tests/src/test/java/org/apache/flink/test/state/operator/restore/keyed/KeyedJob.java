@@ -39,6 +39,8 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -241,11 +243,11 @@ public class KeyedJob {
                 case MIGRATE:
                 case RESTORE:
                     Assertions.assertEquals(
+                            1,
+                            state.size(),
                             "Failed for "
                                     + valueToStore
-                                    + getRuntimeContext().getIndexOfThisSubtask(),
-                            1,
-                            state.size());
+                                    + getRuntimeContext().getIndexOfThisSubtask());
                     String value = state.get(0);
                     Assertions.assertEquals(
                             valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);

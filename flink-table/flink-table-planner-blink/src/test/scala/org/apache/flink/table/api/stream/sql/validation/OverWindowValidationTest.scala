@@ -35,8 +35,9 @@ class OverWindowValidationTest extends TableTestBase {
   /**
     * All aggregates must be computed on the same window.
     */
-  @Test(expected = classOf[TableException])
+  @Test
   def testMultiWindow(): Unit = {
+        assertThrows[TableException] {
 
     val sqlQuery = "SELECT " +
       "c, " +
@@ -45,17 +46,20 @@ class OverWindowValidationTest extends TableTestBase {
       "from T1"
 
     streamUtil.tableEnv.sqlQuery(sqlQuery).toAppendStream[Row]
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    streamUtil.addFunction("overAgg", new OverAgg0)
+        assertThrows[ValidationException] {
+                streamUtil.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(c, a) FROM MyTable"
 
     streamUtil.tableEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 }

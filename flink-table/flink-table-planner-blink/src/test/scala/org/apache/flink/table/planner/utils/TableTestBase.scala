@@ -17,6 +17,10 @@
  */
 package org.apache.flink.table.planner.utils
 
+import org.apache.calcite.avatica.util.TimeUnit
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.sql.parser.SqlParserPos
+import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
 import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
@@ -62,19 +66,13 @@ import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.types.Row
-
-import org.apache.calcite.avatica.util.TimeUnit
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.parser.SqlParserPos
-import org.apache.calcite.sql.{SqlExplainLevel, SqlIntervalQualifier}
-import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.Rule
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder, TestName}
 
 import _root_.java.math.{BigDecimal => JBigDecimal}
 import _root_.java.util
 import java.time.Duration
-
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
 
@@ -117,7 +115,7 @@ abstract class TableTestBase {
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
     val expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
     val actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
-    assertEquals(      LogicalPlanFormatUtils.formatTempTableId(expectedString),
+    assertEquals(LogicalPlanFormatUtils.formatTempTableId(expectedString),
       LogicalPlanFormatUtils.formatTempTableId(actualString))
   }
 }
@@ -158,7 +156,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Create a [[DataStream]] with the given schema,
    * and registers this DataStream under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
+   * @param name   table name
    * @param fields field names
    * @tparam T field types
    * @return returns the registered [[Table]].
@@ -178,7 +176,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * @tparam T field types
    * @return returns the registered [[Table]].
    */
-  def addTableSource[T: TypeInformation](fields: Expression*,       "Logical plans do not match"): Table = {
+  def addTableSource[T: TypeInformation](fields: Expression*,
+
+  "Logical plans do not match"):
+  Table = {
     addTableSource[T](s"Table$getNextId", fields: _*)
   }
 
@@ -186,7 +187,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Create a [[TestTableSource]] with the given schema,
    * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
+   * @param name   table name
    * @param fields field names
    * @tparam T field types
    * @return returns the registered [[Table]].
@@ -216,15 +217,15 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
    * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
-   * @param types field types
+   * @param name   table name
+   * @param types  field types
    * @param fields field names
    * @return returns the registered [[Table]].
    */
   def addTableSource(
-      name: String,
-      types: Array[TypeInformation[_]],
-      fields: Array[String]): Table = {
+                      name: String,
+                      types: Array[TypeInformation[_]],
+                      fields: Array[String]): Table = {
     val schema = new TableSchema(fields, types)
     val tableSource = new TestTableSource(isBounded, schema)
     addTableSource(name, tableSource)
@@ -233,13 +234,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Register this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
+   * @param name        table name
    * @param tableSource table source
    * @return returns the registered [[Table]].
    */
   def addTableSource(
-      name: String,
-      tableSource: TableSource[_]): Table = {
+                      name: String,
+                      tableSource: TableSource[_]): Table = {
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSourceInternal(
       name, tableSource)
     getTableEnv.from(name)
@@ -361,10 +362,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * Note: An exception will be thrown if the given sql can't be translated to exec plan.
    */
   def verifyPlanInsert(
-      table: Table,
-      sink: TableSink[_],
-      targetPath: String,
-      extraDetails: ExplainDetail*): Unit = {
+                        table: Table,
+                        sink: TableSink[_],
+                        targetPath: String,
+                        extraDetails: ExplainDetail*): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
@@ -471,10 +472,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * with the given sink table name. The plans will contain the extra [[ExplainDetail]]s.
    */
   def verifyRelPlanInsert(
-      table: Table,
-      sink: TableSink[_],
-      targetPath: String,
-      extraDetails: ExplainDetail*): Unit = {
+                           table: Table,
+                           sink: TableSink[_],
+                           targetPath: String,
+                           extraDetails: ExplainDetail*): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     stmtSet.addInsert(targetPath, table)
@@ -564,7 +565,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val optimizedPlan = getOptimizedRelPlan(Array(optimizedRel), Array.empty, withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
     val message = s"\nactual plan:\n$optimizedPlan\nnot expected:\n${notExpected.mkString(", ")}"
-    assertTrue(message, result)
+    assertTrue(result, message)
   }
 
   /**
@@ -698,10 +699,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
    * See more about [[StatementSet#explain()]].
    */
   def verifyExplainInsert(
-      table: Table,
-      sink: TableSink[_],
-      targetPath: String,
-      extraDetails: ExplainDetail*): Unit = {
+                           table: Table,
+                           sink: TableSink[_],
+                           targetPath: String,
+                           extraDetails: ExplainDetail*): Unit = {
     getTableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(targetPath, sink)
     val stmtSet = getTableEnv.createStatementSet()
     stmtSet.addInsert(targetPath, table)
@@ -729,16 +730,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the given query and the expected plans translated from the SELECT query.
    *
-   * @param query the SELECT query to check
-   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType whether the rel plans contain the output type
+   * @param query         the SELECT query to check
+   * @param extraDetails  the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType   whether the rel plans contain the output type
    * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlan(
-      query: String,
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      expectedPlans: Array[PlanKind]): Unit = {
+                    query: String,
+                    extraDetails: Array[ExplainDetail],
+                    withRowType: Boolean,
+                    expectedPlans: Array[PlanKind]): Unit = {
     val table = getTableEnv.sqlQuery(query)
     val relNode = TableTestUtil.toRelNode(table)
 
@@ -753,16 +754,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the given query and the expected plans translated from the INSERT statement.
    *
-   * @param insert the INSERT statement to check
-   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType whether the rel plans contain the output type
+   * @param insert        the INSERT statement to check
+   * @param extraDetails  the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType   whether the rel plans contain the output type
    * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlanInsert(
-      insert: String,
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      expectedPlans: Array[PlanKind]): Unit = {
+                          insert: String,
+                          extraDetails: Array[ExplainDetail],
+                          withRowType: Boolean,
+                          expectedPlans: Array[PlanKind]): Unit = {
     val stmtSet = getTableEnv.createStatementSet()
     stmtSet.addInsertSql(insert)
     doVerifyPlan(
@@ -776,16 +777,16 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[Table]].
    *
-   * @param table the [[Table]] to check
-   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType whether the rel plans contain the output type
+   * @param table         the [[Table]] to check
+   * @param extraDetails  the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType   whether the rel plans contain the output type
    * @param expectedPlans the expected [[PlanKind]]s to check
    */
   def doVerifyPlan(
-      table: Table,
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean = false,
-      expectedPlans: Array[PlanKind]): Unit = {
+                    table: Table,
+                    extraDetails: Array[ExplainDetail],
+                    withRowType: Boolean = false,
+                    expectedPlans: Array[PlanKind]): Unit = {
     val relNode = TableTestUtil.toRelNode(table)
     assertPlanEquals(Array(relNode), extraDetails, withRowType, expectedPlans, () => {})
   }
@@ -793,19 +794,19 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[StatementSet]].
    *
-   * @param stmtSet the [[StatementSet]] to check
-   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType whether the rel plans contain the output type
-   * @param expectedPlans the expected [[PlanKind]]s to check
+   * @param stmtSet                     the [[StatementSet]] to check
+   * @param extraDetails                the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType                 whether the rel plans contain the output type
+   * @param expectedPlans               the expected [[PlanKind]]s to check
    * @param assertSqlEqualsOrExpandFunc the function to check whether the sql equals to the expected
-   * if the `stmtSet` is only translated from sql
+   *                                    if the `stmtSet` is only translated from sql
    */
   def doVerifyPlan(
-      stmtSet: StatementSet,
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+                    stmtSet: StatementSet,
+                    extraDetails: Array[ExplainDetail],
+                    withRowType: Boolean,
+                    expectedPlans: Array[PlanKind],
+                    assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
     val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
@@ -826,19 +827,19 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   /**
    * Verify the expected plans translated from the given [[RelNode]]s.
    *
-   * @param relNodes the original (un-optimized) [[RelNode]]s to check
-   * @param extraDetails the extra [[ExplainDetail]]s the plans should contain
-   * @param withRowType whether the rel plans contain the output type
-   * @param expectedPlans the expected [[PlanKind]]s to check
+   * @param relNodes                    the original (un-optimized) [[RelNode]]s to check
+   * @param extraDetails                the extra [[ExplainDetail]]s the plans should contain
+   * @param withRowType                 whether the rel plans contain the output type
+   * @param expectedPlans               the expected [[PlanKind]]s to check
    * @param assertSqlEqualsOrExpandFunc the function to check whether the sql equals to the expected
-   * if the `relNodes` are translated from sql
+   *                                    if the `relNodes` are translated from sql
    */
   private def assertPlanEquals(
-      relNodes: Array[RelNode],
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean,
-      expectedPlans: Array[PlanKind],
-      assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
+                                relNodes: Array[RelNode],
+                                extraDetails: Array[ExplainDetail],
+                                withRowType: Boolean,
+                                expectedPlans: Array[PlanKind],
+                                assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
 
     // build ast plan
     val astBuilder = new StringBuilder
@@ -889,9 +890,9 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   protected def getOptimizedRelPlan(
-      optimizedRels: Array[RelNode],
-      extraDetails: Array[ExplainDetail],
-      withRowType: Boolean): String = {
+                                     optimizedRels: Array[RelNode],
+                                     extraDetails: Array[ExplainDetail],
+                                     withRowType: Boolean): String = {
     require(optimizedRels.nonEmpty)
     val explainLevel = if (extraDetails.contains(ExplainDetail.ESTIMATED_COST)) {
       SqlExplainLevel.ALL_ATTRIBUTES
@@ -949,11 +950,11 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
 }
 
 abstract class TableTestUtil(
-    test: TableTestBase,
-    // determines if the table environment should work in a batch or streaming mode
-    isStreamingMode: Boolean,
-    catalogManager: Option[CatalogManager] = None,
-    val tableConfig: TableConfig)
+                              test: TableTestBase,
+                              // determines if the table environment should work in a batch or streaming mode
+                              isStreamingMode: Boolean,
+                              catalogManager: Option[CatalogManager] = None,
+                              val tableConfig: TableConfig)
   extends TableTestUtilBase(test, isStreamingMode) {
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
@@ -972,17 +973,17 @@ abstract class TableTestUtil(
    * Create a [[TestTableSource]] with the given schema, table stats and unique keys,
    * and registers this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
-   * @param types field types
-   * @param fields field names
+   * @param name      table name
+   * @param types     field types
+   * @param fields    field names
    * @param statistic statistic of current table
    * @return returns the registered [[Table]].
    */
   def addTableSource(
-      name: String,
-      types: Array[TypeInformation[_]],
-      fields: Array[String],
-      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
+                      name: String,
+                      types: Array[TypeInformation[_]],
+                      fields: Array[String],
+                      statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
     val schema = new TableSchema(fields, types)
     val tableSource = new TestTableSource(isBounded, schema)
     addTableSource(name, tableSource, statistic)
@@ -991,15 +992,15 @@ abstract class TableTestUtil(
   /**
    * Register this TableSource under given name into the TableEnvironment's catalog.
    *
-   * @param name table name
+   * @param name        table name
    * @param tableSource table source
-   * @param statistic statistic of current table
+   * @param statistic   statistic of current table
    * @return returns the registered [[Table]].
    */
   def addTableSource(
-      name: String,
-      tableSource: TableSource[_],
-      statistic: FlinkStatistic): Table = {
+                      name: String,
+                      tableSource: TableSource[_],
+                      statistic: FlinkStatistic): Table = {
     // TODO RichTableSourceQueryOperation should be deleted and use registerTableSourceInternal
     //  method instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
@@ -1021,31 +1022,31 @@ abstract class TableTestUtil(
    */
   @deprecated
   def addFunction[T: TypeInformation](
-      name: String,
-      function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
+                                       name: String,
+                                       function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
    * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
   @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
+                                                             name: String,
+                                                             function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
   /**
    * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
   @deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = {
+                                                             name: String,
+                                                             function: TableAggregateFunction[T, ACC]): Unit = {
     testingTableEnv.registerFunction(name, function)
   }
 }
 
 abstract class ScalaTableTestUtil(
-    test: TableTestBase,
-    isStreamingMode: Boolean)
+                                   test: TableTestBase,
+                                   isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
@@ -1058,27 +1059,27 @@ abstract class ScalaTableTestUtil(
    * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation](
-      name: String,
-      function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
+                                       name: String,
+                                       function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
   /**
    * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+                                                             name: String,
+                                                             function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
   /**
    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+                                                             name: String,
+                                                             function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(
-    test: TableTestBase,
-    isStreamingMode: Boolean)
+                                  test: TableTestBase,
+                                  isStreamingMode: Boolean)
   extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
@@ -1093,46 +1094,46 @@ abstract class JavaTableTestUtil(
    * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation](
-      name: String,
-      function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
+                                       name: String,
+                                       function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
   /**
    * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+                                                             name: String,
+                                                             function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
   /**
    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
    */
   def addFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+                                                             name: String,
+                                                             function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 /**
  * Utility for stream table test.
  */
 case class StreamTableTestUtil(
-    test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+                                test: TableTestBase,
+                                catalogManager: Option[CatalogManager] = None,
+                                conf: TableConfig = new TableConfig)
   extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
 
   /**
    * Register a table with specific row time field and offset.
    *
-   * @param tableName table name
-   * @param sourceTable table to register
+   * @param tableName    table name
+   * @param sourceTable  table to register
    * @param rowtimeField row time field
-   * @param offset offset to the row time field value
+   * @param offset       offset to the row time field value
    */
   def addTableWithWatermark(
-      tableName: String,
-      sourceTable: Table,
-      rowtimeField: String,
-      offset: Long): Unit = {
+                             tableName: String,
+                             sourceTable: Table,
+                             rowtimeField: String,
+                             offset: Long): Unit = {
     val sourceRel = TableTestUtil.toRelNode(sourceTable)
     val rowtimeFieldIdx = sourceRel.getRowType.getFieldNames.indexOf(rowtimeField)
     if (rowtimeFieldIdx < 0) {
@@ -1194,25 +1195,25 @@ case class StreamTableTestUtil(
   }
 
   def createAppendTableSink(
-      fieldNames: Array[String],
-      fieldTypes: Array[LogicalType]): AppendStreamTableSink[Row] = {
+                             fieldNames: Array[String],
+                             fieldTypes: Array[LogicalType]): AppendStreamTableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
     val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingAppendTableSink().configure(fieldNames, typeInfos)
   }
 
   def createUpsertTableSink(
-      keys: Array[Int],
-      fieldNames: Array[String],
-      fieldTypes: Array[LogicalType]): UpsertStreamTableSink[RowData] = {
+                             keys: Array[Int],
+                             fieldNames: Array[String],
+                             fieldTypes: Array[LogicalType]): UpsertStreamTableSink[RowData] = {
     require(fieldNames.length == fieldTypes.length)
     val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingUpsertTableSink(keys).configure(fieldNames, typeInfos)
   }
 
   def createRetractTableSink(
-      fieldNames: Array[String],
-      fieldTypes: Array[LogicalType]): RetractStreamTableSink[Row] = {
+                              fieldNames: Array[String],
+                              fieldTypes: Array[LogicalType]): RetractStreamTableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
     val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new TestingRetractTableSink().configure(fieldNames, typeInfos)
@@ -1235,9 +1236,9 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
  * Utility for batch table test.
  */
 case class BatchTableTestUtil(
-    test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+                               test: TableTestBase,
+                               catalogManager: Option[CatalogManager] = None,
+                               conf: TableConfig = new TableConfig)
   extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
@@ -1270,8 +1271,8 @@ case class BatchTableTestUtil(
   }
 
   def createCollectTableSink(
-      fieldNames: Array[String],
-      fieldTypes: Array[LogicalType]): TableSink[Row] = {
+                              fieldNames: Array[String],
+                              fieldTypes: Array[LogicalType]): TableSink[Row] = {
     require(fieldNames.length == fieldTypes.length)
     val typeInfos = fieldTypes.map(fromLogicalTypeToTypeInfo)
     new CollectRowTableSink().configure(fieldNames, typeInfos)
@@ -1310,10 +1311,10 @@ class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
 
 object TestTableSource {
   def createTemporaryTable(
-      tEnv: TableEnvironment,
-      isBounded: Boolean,
-      tableSchema: TableSchema,
-      tableName: String): Unit = {
+                            tEnv: TableEnvironment,
+                            isBounded: Boolean,
+                            tableSchema: TableSchema,
+                            tableName: String): Unit = {
     tEnv.connect(
       new CustomConnectorDescriptor("TestTableSource", 1, false)
         .property("is-bounded", if (isBounded) "true" else "false"))
@@ -1325,7 +1326,7 @@ object TestTableSource {
 
 class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
   override def createStreamTableSource(
-      properties: util.Map[String, String]): StreamTableSource[Row] = {
+                                        properties: util.Map[String, String]): StreamTableSource[Row] = {
     val dp = new DescriptorProperties
     dp.putProperties(properties)
     val tableSchema = dp.getTableSchema(SCHEMA)
@@ -1347,14 +1348,14 @@ class TestTableSourceFactory extends StreamTableSourceFactory[Row] {
 }
 
 class TestingTableEnvironment private(
-    catalogManager: CatalogManager,
-    moduleManager: ModuleManager,
-    tableConfig: TableConfig,
-    executor: Executor,
-    functionCatalog: FunctionCatalog,
-    planner: PlannerBase,
-    isStreamingMode: Boolean,
-    userClassLoader: ClassLoader)
+                                       catalogManager: CatalogManager,
+                                       moduleManager: ModuleManager,
+                                       tableConfig: TableConfig,
+                                       executor: Executor,
+                                       functionCatalog: FunctionCatalog,
+                                       planner: PlannerBase,
+                                       isStreamingMode: Boolean,
+                                       userClassLoader: ClassLoader)
   extends TableEnvironmentImpl(
     catalogManager,
     moduleManager,
@@ -1382,8 +1383,8 @@ class TestingTableEnvironment private(
   // `<T> void registerFunction(String name, TableFunction<T> tableFunction);`
   // is added into TableEnvironment
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: AggregateFunction[T, ACC]): Unit = {
+                                                                  name: String,
+                                                                  f: AggregateFunction[T, ACC]): Unit = {
     registerImperativeAggregateFunction(name, f)
   }
 
@@ -1391,14 +1392,14 @@ class TestingTableEnvironment private(
   // `<T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggFunc);`
   // is added into TableEnvironment
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: TableAggregateFunction[T, ACC]): Unit = {
+                                                                  name: String,
+                                                                  f: TableAggregateFunction[T, ACC]): Unit = {
     registerImperativeAggregateFunction(name, f)
   }
 
   private def registerImperativeAggregateFunction[T: TypeInformation, ACC: TypeInformation](
-      name: String,
-      f: ImperativeAggregateFunction[T, ACC]): Unit = {
+                                                                                             name: String,
+                                                                                             f: ImperativeAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserDefinedFunctionHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserDefinedFunctionHelper
@@ -1473,9 +1474,9 @@ class TestingStatementSet(tEnv: TestingTableEnvironment) extends StatementSet {
 object TestingTableEnvironment {
 
   def create(
-      settings: EnvironmentSettings,
-      catalogManager: Option[CatalogManager] = None,
-      tableConfig: TableConfig): TestingTableEnvironment = {
+              settings: EnvironmentSettings,
+              catalogManager: Option[CatalogManager] = None,
+              tableConfig: TableConfig): TestingTableEnvironment = {
 
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
@@ -1549,12 +1550,12 @@ object TableTestUtil {
   }
 
   def createTemporaryView[T](
-      tEnv: TableEnvironment,
-      name: String,
-      dataStream: DataStream[T],
-      fields: Option[Array[Expression]] = None,
-      fieldNullables: Option[Array[Boolean]] = None,
-      statistic: Option[FlinkStatistic] = None): Unit = {
+                              tEnv: TableEnvironment,
+                              name: String,
+                              dataStream: DataStream[T],
+                              fields: Option[Array[Expression]] = None,
+                              fieldNullables: Option[Array[Boolean]] = None,
+                              statistic: Option[FlinkStatistic] = None): Unit = {
     val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
     val execEnv = planner.getExecEnv
     val streamType = dataStream.getType

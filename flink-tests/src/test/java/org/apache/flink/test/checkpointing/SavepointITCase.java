@@ -93,6 +93,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -237,7 +238,7 @@ public class SavepointITCase extends TestLogger {
             String errMsg =
                     "Did not write expected number of savepoint/checkpoint files to directory: "
                             + Arrays.toString(savepointFiles);
-            assertEquals(errMsg, 1 + parallelism, savepointFiles.length);
+            assertEquals(1 + parallelism, savepointFiles.length, errMsg);
         } else {
             fail(String.format("Returned savepoint path (%s) is not valid.", savepointPath));
         }

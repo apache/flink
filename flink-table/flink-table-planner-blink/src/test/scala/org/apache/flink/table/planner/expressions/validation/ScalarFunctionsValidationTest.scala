@@ -48,25 +48,32 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     )
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin1(): Unit = {
-    testSqlApi("BIN(f12)", "101010") // float type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f12)", "101010") // float type
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin2(): Unit = {
-    testSqlApi("BIN(f15)", "101010") // BigDecimal type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f15)", "101010") // BigDecimal type
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidBin3(): Unit = {
-    testSqlApi("BIN(f16)", "101010") // Date type
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("BIN(f16)", "101010") // Date type
+        }
+    }
 
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidTruncate1(): Unit = {
-    // All arguments are string type
+        assertThrows[ValidationException] {
+                // All arguments are string type
     testSqlApi(
       "TRUNCATE('abc', 'def')",
       "FAIL")
@@ -90,7 +97,8 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
     testSqlApi(
       "TRUNCATE(f12,f15)",
       "FAIL")
-  }
+        }
+    }
 
   @Test
   def testInvalidTruncate2(): Unit = {
@@ -105,17 +113,21 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // String functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidSubstring1(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a Double.
+        assertThrows[ValidationException] {
+                // Must fail. Parameter of substring must be an Integer not a Double.
     testTableApi("test".substring(2.0.toExpr), "FAIL", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidSubstring2(): Unit = {
-    // Must fail. Parameter of substring must be an Integer not a String.
+        assertThrows[ValidationException] {
+                // Must fail. Parameter of substring must be an Integer not a String.
     testTableApi("test".substring("test".toExpr), "FAIL", "FAIL")
-  }
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
   // Temporal functions
@@ -140,9 +152,10 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInValidationExceptionMoreThanOneTypes(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f2.in('f3, 'f8),
       "f2.in(f3, f8)",
       "true"
@@ -152,37 +165,46 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
       "f2.in(f3, f4, 4)",
       "false"  // OK if all numeric
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def scalaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f1.in("Hi", "Hello world", "Comment#1"),
       "true",
       "true"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def javaInValidationExceptionDifferentOperandsTest(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       true,
       "f1.in('Hi','Hello world','Comment#1')",
       "true"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTimestampDiffWithWrongTime(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       timestampDiff(TimePointUnit.DAY, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testTimestampDiffWithWrongTimeAndUnit(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       timestampDiff(TimePointUnit.MINUTE, "2016-02-24", "2016-02-27"), "FAIL", "FAIL")
-  }
+        }
+    }
 
   @Test
   def testDOWWithTimeWhichIsUnsupported(): Unit = {

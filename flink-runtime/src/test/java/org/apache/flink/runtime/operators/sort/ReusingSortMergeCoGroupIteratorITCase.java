@@ -140,7 +140,7 @@ public class ReusingSortMergeCoGroupIteratorITCase {
 
                 // assert that matches for this key exist
                 Assertions.assertTrue(
-                        "No matches for key " + key, expectedCoGroupsMap.containsKey(key));
+                        expectedCoGroupsMap.containsKey(key), "No matches for key " + key);
 
                 Collection<String> expValues1 = expectedCoGroupsMap.get(key).get(0);
                 Collection<String> expValues2 = expectedCoGroupsMap.get(key).get(1);

@@ -28,65 +28,77 @@ class RankTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c)
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithoutOrderBy(): Unit = {
-    val sqlQuery =
+        assertThrows[RuntimeException] {
+                val sqlQuery =
       """
         |SELECT ROW_NUMBER() over (partition by a) FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testRowNumberWithMultiGroups(): Unit = {
-    val sqlQuery =
+        assertThrows[RuntimeException] {
+                val sqlQuery =
       """
         |SELECT ROW_NUMBER() over (partition by a order by b) as a,
         |       ROW_NUMBER() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithoutOrderBy(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT RANK() over (partition by a) FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRankWithMultiGroups(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT RANK() over (partition by a order by b) as a,
         |       RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithoutOrderBy(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT dense_rank() over (partition by a) FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDenseRankWithMultiGroups(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT DENSE_RANK() over (partition by a order by b) as a,
         |       DENSE_RANK() over (partition by b) as b
         |       FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
   
   @Test
   def testRankValueFilterWithUpperValue(): Unit = {

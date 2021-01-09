@@ -21,6 +21,8 @@ package org.apache.flink.types;
 import org.apache.flink.util.StringUtils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

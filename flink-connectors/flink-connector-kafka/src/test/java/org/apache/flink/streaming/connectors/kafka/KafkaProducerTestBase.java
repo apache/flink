@@ -47,6 +47,8 @@ import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;

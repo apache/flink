@@ -349,17 +349,17 @@ public class KeyedStateInputFormatTest {
                 throws Exception {
             Set<Long> eventTimers = ctx.registeredEventTimeTimers();
             Assertions.assertEquals(
-                    "Each key should have exactly one event timer for key " + key,
                     1,
-                    eventTimers.size());
+                    eventTimers.size(),
+                    "Each key should have exactly one event timer for key " + key);
 
             out.collect(eventTimers.iterator().next().intValue());
 
             Set<Long> procTimers = ctx.registeredProcessingTimeTimers();
             Assertions.assertEquals(
-                    "Each key should have exactly one processing timer for key " + key,
                     1,
-                    procTimers.size());
+                    procTimers.size(),
+                    "Each key should have exactly one processing timer for key " + key);
 
             out.collect(procTimers.iterator().next().intValue());
         }

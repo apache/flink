@@ -25,35 +25,47 @@ import org.junit.jupiter.api.Test
 
 class CompositeAccessValidationTest extends CompositeTypeTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongSqlFieldFull(): Unit = {
-    testSqlApi("testTable.f5.test", "13")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("testTable.f5.test", "13")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongSqlField(): Unit = {
-    testSqlApi("f5.test", "13")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("f5.test", "13")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongIntKeyField(): Unit = {
-    testTableApi('f0.get(555), "'fail'", "fail")
-  }
+        assertThrows[ValidationException] {
+                testTableApi('f0.get(555), "'fail'", "fail")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongIntKeyField2(): Unit = {
-    testTableApi("fail", "f0.get(555)", "fail")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("fail", "f0.get(555)", "fail")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongStringKeyField(): Unit = {
-    testTableApi('f0.get("fghj"), "'fail'", "fail")
-  }
+        assertThrows[ValidationException] {
+                testTableApi('f0.get("fghj"), "'fail'", "fail")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongStringKeyField2(): Unit = {
-    testTableApi("fail", "f0.get('fghj')", "fail")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("fail", "f0.get('fghj')", "fail")
+        }
+    }
 }
 
 

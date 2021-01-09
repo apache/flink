@@ -98,12 +98,6 @@ import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -125,6 +119,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link StreamingJobGraphGenerator}. */
@@ -199,7 +194,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
-        assertFalse(                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),                "Checkpointing enabled");
+        assertFalse(
+                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),
+                "Checkpointing enabled");
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
@@ -221,7 +218,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
-        assertFalse(                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),                "Checkpointing enabled");
+        assertFalse(
+                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),
+                "Checkpointing enabled");
         env.getCheckpointConfig().enableUnalignedCheckpoints(true);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
@@ -1205,7 +1204,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                         vertex ->
                                 vertex.getInvokableClassName()
                                         .equals(MultipleInputStreamTask.class.getName()));
-        assertFalse(head.getName(), head.getName().contains("source-1"));
+        assertFalse(head.getName().contains("source-1"), head.getName());
     }
 
     public JobGraph createGraphWithMultipleInputs(boolean chain, String... inputNames) {

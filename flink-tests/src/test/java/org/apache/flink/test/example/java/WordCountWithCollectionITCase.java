@@ -27,6 +27,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.examples.java.wordcount.WordCount;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +50,10 @@ public class WordCountWithCollectionITCase extends JavaProgramTestBase {
         String[] expected = WordCountData.COUNTS_AS_TUPLES.split("\n");
         Arrays.sort(expected);
 
-        Assertions.assertEquals(                expected.length,                result.length,                 "Different number of lines in expected and obtained result.");
+        Assertions.assertEquals(
+                expected.length,
+                result.length,
+                "Different number of lines in expected and obtained result.");
         Assertions.assertArrayEquals(expected, result);
     }
 

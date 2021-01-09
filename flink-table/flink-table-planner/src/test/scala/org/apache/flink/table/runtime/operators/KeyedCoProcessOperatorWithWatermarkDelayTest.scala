@@ -60,11 +60,13 @@ class KeyedCoProcessOperatorWithWatermarkDelayTest extends TestLogger {
     testHarness.close()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testDelayParameter(): Unit = {
-    new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
+        assertThrows[IllegalArgumentException] {
+                new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
       new EmptyCoProcessFunction, -1)
-  }
+        }
+    }
 }
 
 private class EmptyCoProcessFunction extends CoProcessFunction[Integer, String, String] {

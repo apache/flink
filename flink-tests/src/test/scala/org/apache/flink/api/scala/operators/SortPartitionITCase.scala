@@ -17,22 +17,22 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.io.Serializable
-import java.lang
-
-import scala.collection.JavaConverters._
-
+import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.functions.MapPartitionFunction
 import org.apache.flink.api.common.operators.Order
-import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.util.Collector
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.jupiter.api.Test
+import org.scalatest.Matchers.assertThrows
+
+import java.io.Serializable
+import java.lang
+import scala.collection.JavaConverters._
 
 @RunWith(classOf[Parameterized])
 class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -66,7 +66,7 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val result = ds
       .map { x => x }.setParallelism(2)
       .sortPartition(4, Order.ASCENDING)
-        .sortPartition(2, Order.DESCENDING)
+      .sortPartition(2, Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple5Checker))
       .distinct()
       .collect()
@@ -103,7 +103,7 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val result = ds
       .map { x => x }.setParallelism(2)
       .sortPartition("_5", Order.ASCENDING)
-        .sortPartition("_3", Order.DESCENDING)
+      .sortPartition("_3", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new Tuple5Checker))
       .distinct()
       .collect()
@@ -122,7 +122,7 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val result = ds
       .map { x => x }.setParallelism(3)
       .sortPartition("_1._2", Order.ASCENDING)
-        .sortPartition("_2", Order.DESCENDING)
+      .sortPartition("_2", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new NestedTupleChecker))
       .distinct()
       .collect()
@@ -141,7 +141,7 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
     val result = ds
       .map { x => x }.setParallelism(3)
       .sortPartition("nestedTupleWithCustom._2.myString", Order.ASCENDING)
-        .sortPartition("number", Order.DESCENDING)
+      .sortPartition("number", Order.DESCENDING)
       .mapPartition(new OrderCheckMapper(new PojoChecker))
       .distinct()
       .collect()
@@ -203,21 +203,22 @@ class SortPartitionITCase(mode: TestExecutionMode) extends MultipleProgramsTestB
 
   @Test
   def testSortPartitionWithKeySelector3(): Unit = {
-        assertThrows(classOf[InvalidProgramException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    env.setParallelism(4)
-    val ds = CollectionDataSets.get3TupleDataSet(env)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      env.setParallelism(4)
+      val ds = CollectionDataSets.get3TupleDataSet(env)
 
-    val result = ds
-      .map { x => x }.setParallelism(4)
-      .sortPartition(x => (x._2, x._1), Order.DESCENDING)
-      .sortPartition(0, Order.DESCENDING)
-      .mapPartition(new OrderCheckMapper(new Tuple3Checker))
-      .distinct()
-      .collect()
+      val result = ds
+        .map { x => x }.setParallelism(4)
+        .sortPartition(x => (x._2, x._1), Order.DESCENDING)
+        .sortPartition(0, Order.DESCENDING)
+        .mapPartition(new OrderCheckMapper(new Tuple3Checker))
+        .distinct()
+        .collect()
 
-    val expected: String = "(true)\n"
-    TestBaseUtils.compareResultAsText(result.asJava, expected)
+      val expected: String = "(true)\n"
+      TestBaseUtils.compareResultAsText(result.asJava, expected)
+    }
   }
 
 }
@@ -265,8 +266,8 @@ class OrderCheckMapper[T](checker: OrderChecker[T])
     val it = values.iterator()
     if (!it.hasNext) {
       out.collect(new Tuple1(true))
-        });
     }
+
     else {
       var last: T = it.next()
       while (it.hasNext) {

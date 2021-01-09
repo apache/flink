@@ -17,15 +17,14 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.util
-
 import org.apache.flink.api.common.InvalidProgramException
-import org.apache.flink.api.common.operators.Keys
-import Keys.IncompatibleKeysException
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Test
+import org.apache.flink.api.common.operators.Keys.IncompatibleKeysException
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
+import org.junit.jupiter.api.{Assertions, Test}
+import org.scalatest.Matchers.assertThrows
+
+import java.util
 
 class CoGroupOperatorTest {
 
@@ -33,7 +32,7 @@ class CoGroupOperatorTest {
   private var customTypeData = Array[CustomType](new CustomType())
 
   @Test
-  def testCoGroupKeyFields1(): Unit =  {
+  def testCoGroupKeyFields1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -49,57 +48,66 @@ class CoGroupOperatorTest {
 
   @Test
   def testCoGroupKeyFields2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // Should not work, incompatible key types
-    ds1.coGroup(ds2).where(0).equalTo(2)
-  }
-
-  @Test(expected = classOf[IncompatibleKeysException])
-  def testCoGroupKeyFields3(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, incompatible number of key fields
-    ds1.coGroup(ds2).where(0, 1).equalTo(2)
-  }
-
-  @Test(expected = classOf[IndexOutOfBoundsException])
-  def testCoGroupKeyFields4(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, field position out of range
-    ds1.coGroup(ds2).where(5).equalTo(0)
-  }
-
-  @Test(expected = classOf[IndexOutOfBoundsException])
-  def testCoGroupKeyFields5(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, negative field position
-    ds1.coGroup(ds2).where(-1).equalTo(-1)
-  }
-
-  @Test(expected = classOf[InvalidProgramException])
-  def testCoGroupKeyFields6(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
-
-    // Should not work, field position key on custom data type
-    ds1.coGroup(ds2).where(4).equalTo(0)
+      // Should not work, incompatible key types
+      ds1.coGroup(ds2).where(0).equalTo(2)
+    }
   }
 
   @Test
-  def testCoGroupKeyFieldNames1(): Unit =  {
+  def testCoGroupKeyFields3(): Unit = {
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, incompatible number of key fields
+      ds1.coGroup(ds2).where(0, 1).equalTo(2)
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFields4(): Unit = {
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, field position out of range
+      ds1.coGroup(ds2).where(5).equalTo(0)
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFields5(): Unit = {
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, negative field position
+      ds1.coGroup(ds2).where(-1).equalTo(-1)
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFields6(): Unit = {
+    assertThrows[InvalidProgramException] {
+      val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
+
+      // Should not work, field position key on custom data type
+      ds1.coGroup(ds2).where(4).equalTo(0)
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFieldNames1(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(emptyTupleData)
@@ -107,7 +115,6 @@ class CoGroupOperatorTest {
     // Should work
     try {
       ds1.coGroup(ds2).where("_1").equalTo("_1")
-        });
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -116,101 +123,115 @@ class CoGroupOperatorTest {
 
   @Test
   def testCoGroupKeyFieldNames2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    // Should not work, incompatible key types
-    ds1.coGroup(ds2).where("_1").equalTo("_3")
-  }
-
-  @Test(expected = classOf[IncompatibleKeysException])
-  def testCoGroupKeyFieldNames3(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, incompatible number of key fields
-    ds1.coGroup(ds2).where("_1", "_2").equalTo("_3")
-  }
-
-  @Test(expected = classOf[RuntimeException])
-  def testCoGroupKeyFieldNames4(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, invalid field name
-    ds1.coGroup(ds2).where("_6").equalTo("_1")
-  }
-
-  @Test(expected = classOf[RuntimeException])
-  def testCoGroupKeyFieldNames5(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(emptyTupleData)
-
-    // Should not work, invalid field name
-    ds1.coGroup(ds2).where("_1").equalTo("bar")
-  }
-
-  @Test(expected = classOf[RuntimeException])
-  def testCoGroupKeyFieldNames6(): Unit = {
-    val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
-
-    // Should not work, field position key on custom data type
-    ds1.coGroup(ds2).where("_3").equalTo("_1")
+      // Should not work, incompatible key types
+      ds1.coGroup(ds2).where("_1").equalTo("_3")
+    }
   }
 
   @Test
-  def testCoGroupKeyExpressions1(): Unit =  {
+  def testCoGroupKeyFieldNames3(): Unit = {
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, incompatible number of key fields
+      ds1.coGroup(ds2).where("_1", "_2").equalTo("_3")
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFieldNames4(): Unit = {
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, invalid field name
+      ds1.coGroup(ds2).where("_6").equalTo("_1")
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFieldNames5(): Unit = {
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(emptyTupleData)
+
+      // Should not work, invalid field name
+      ds1.coGroup(ds2).where("_1").equalTo("bar")
+    }
+  }
+
+  @Test
+  def testCoGroupKeyFieldNames6(): Unit = {
+    assertThrows[RuntimeException] {
+      val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
+
+      // Should not work, field position key on custom data type
+      ds1.coGroup(ds2).where("_3").equalTo("_1")
+    }
+  }
+
+  @Test
+  def testCoGroupKeyExpressions1(): Unit = {
     val env: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(customTypeData)
     val ds2 = env.fromCollection(customTypeData)
 
     // Should work
     try {
-//      ds1.coGroup(ds2).where("i").equalTo("i");
+      //      ds1.coGroup(ds2).where("i").equalTo("i");
 
-        });
-    }catch {
+    }
+    catch {
       case e: Exception => Assertions.fail()
     }
   }
 
   @Test
   def testCoGroupKeyExpressions2(): Unit = {
-        assertThrows(classOf[IncompatibleKeysException], () -> {
-                val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, incompatible key types
-    ds1.coGroup(ds2).where("myInt").equalTo("myString")
+      // should not work, incompatible key types
+      ds1.coGroup(ds2).where("myInt").equalTo("myString")
+    }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testCoGroupKeyExpressions3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // should not work, incompatible number of keys
-    ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString")
+      // should not work, incompatible number of keys
+      ds1.coGroup(ds2).where("myInt", "myString").equalTo("myString")
+    }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testCoGroupKeyExpressions4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(customTypeData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(customTypeData)
+      val ds2 = env.fromCollection(customTypeData)
 
 
-    // should not work, key non-existent
-    ds1.coGroup(ds2).where("myNonExistent").equalTo("i")
+      // should not work, key non-existent
+      ds1.coGroup(ds2).where("myNonExistent").equalTo("i")
+    }
   }
 
   @Test
@@ -221,8 +242,11 @@ class CoGroupOperatorTest {
 
     // Should work
     try {
-      ds1.coGroup(ds2).where { _.myLong } equalTo { _.myLong }
-        });
+      ds1.coGroup(ds2).where {
+        _.myLong
+      } equalTo {
+        _.myLong
+      }
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -237,7 +261,9 @@ class CoGroupOperatorTest {
 
     // Should work
     try {
-      ds1.coGroup(ds2).where { _.myLong }.equalTo(3)
+      ds1.coGroup(ds2).where {
+        _.myLong
+      }.equalTo(3)
     }
     catch {
       case e: Exception => Assertions.fail()
@@ -245,38 +271,48 @@ class CoGroupOperatorTest {
   }
 
   @Test
-  def testCoGroupKeyMixing2(): Unit =  {
+  def testCoGroupKeyMixing2(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds1 = env.fromCollection(emptyTupleData)
     val ds2 = env.fromCollection(customTypeData)
 
     // Should work
     try {
-      ds1.coGroup(ds2).where(3).equalTo { _.myLong }
+      ds1.coGroup(ds2).where(3).equalTo {
+        _.myLong
+      }
     }
     catch {
       case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
-  def testCoGroupKeyMixing3(): Unit =  {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+  @Test
+  def testCoGroupKeyMixing3(): Unit = {
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // Should not work, incompatible types
-    ds1.coGroup(ds2).where(2).equalTo { _.myLong }
+      // Should not work, incompatible types
+      ds1.coGroup(ds2).where(2).equalTo {
+        _.myLong
+      }
+    }
   }
 
-  @Test(expected = classOf[IncompatibleKeysException])
+  @Test
   def testCoGroupKeyMixing4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromCollection(customTypeData)
+    assertThrows[IncompatibleKeysException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromCollection(customTypeData)
 
-    // Should not work, more than one field position key
-    ds1.coGroup(ds2).where(1, 3).equalTo { _.myLong }
+      // Should not work, more than one field position key
+      ds1.coGroup(ds2).where(1, 3).equalTo {
+        _.myLong
+      }
+    }
   }
 
   @Test
@@ -297,40 +333,48 @@ class CoGroupOperatorTest {
     ds1.coGroup(ds2).where("*").equalTo(0)
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCoGroupWithInvalidAtomic1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromElements(0, 1, 2)
-    val ds2 = env.fromCollection(emptyTupleData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromElements(0, 1, 2)
+      val ds2 = env.fromCollection(emptyTupleData)
 
-    ds1.coGroup(ds2).where("invalidKey")
+      ds1.coGroup(ds2).where("invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCoGroupWithInvalidAtomic2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromCollection(emptyTupleData)
-    val ds2 = env.fromElements(0, 1, 2)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromCollection(emptyTupleData)
+      val ds2 = env.fromElements(0, 1, 2)
 
-    ds1.coGroup(ds2).where(0).equalTo("invalidKey")
+      ds1.coGroup(ds2).where(0).equalTo("invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCoGroupWithInvalidAtomic3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromElements(new util.ArrayList[Integer]())
-    val ds2 = env.fromElements(0, 0, 0)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromElements(new util.ArrayList[Integer]())
+      val ds2 = env.fromElements(0, 0, 0)
 
-    ds1.coGroup(ds2).where("*")
+      ds1.coGroup(ds2).where("*")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testCoGroupWithInvalidAtomic4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds1 = env.fromElements(0, 0, 0)
-    val ds2 = env.fromElements(new util.ArrayList[Integer]())
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds1 = env.fromElements(0, 0, 0)
+      val ds2 = env.fromElements(new util.ArrayList[Integer]())
 
-    ds1.coGroup(ds2).where("*").equalTo("*")
+      ds1.coGroup(ds2).where("*").equalTo("*")
+    }
   }
 }
 

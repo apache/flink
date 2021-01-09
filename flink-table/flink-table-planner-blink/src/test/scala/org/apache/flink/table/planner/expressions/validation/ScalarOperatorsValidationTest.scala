@@ -25,63 +25,79 @@ import org.junit.jupiter.api.Test
 
 class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIfInvalidTypesScala(): Unit = {
-    testTableApi(('f6 && true).?(5, "false"), "FAIL", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi(('f6 && true).?(5, "false"), "FAIL", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testIfInvalidTypesJava(): Unit = {
-    testTableApi("FAIL", "(f8 && true).?(5, 'false')", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("FAIL", "(f8 && true).?(5, 'false')", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidStringComparison1(): Unit = {
-    testTableApi("w" === 4, "FAIL", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("w" === 4, "FAIL", "FAIL")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidStringComparison2(): Unit = {
-    testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
-  }
+        assertThrows[ValidationException] {
+                testTableApi("w" > 4.toExpr, "FAIL", "FAIL")
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInMoreThanOneTypes(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f2.in('f3, 'f4, 4),
       "FAIL",
       "FAIL"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInDifferentOperands(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       'f1.in("Hi", "Hello world", "Comment#1"),
       "FAIL",
       "FAIL"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testBetweenWithDifferentOperandTypeScala(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       2.between(1, "a"),
       "FAIL",
       "FAIL"
     )
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testBetweenWithDifferentOperandTypeJava(): Unit = {
-    testTableApi(
+        assertThrows[ValidationException] {
+                testTableApi(
       "FAIL",
       "2.between(1, 'a')",
       "FAIL"
     )
-  }
+        }
+    }
 }

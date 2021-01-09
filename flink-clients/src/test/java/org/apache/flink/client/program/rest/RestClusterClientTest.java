@@ -103,13 +103,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 import org.apache.commons.cli.CommandLine;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -460,9 +455,9 @@ public class RestClusterClientTest extends TestLogger {
                 JobStatusMessage job1 = jobDetailsIterator.next();
                 JobStatusMessage job2 = jobDetailsIterator.next();
                 Assertions.assertNotEquals(
-                        "The job status should not be equal.",
                         job1.getJobState(),
-                        job2.getJobState());
+                        job2.getJobState(),
+                        "The job status should not be equal.");
             } finally {
                 restClusterClient.close();
             }

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.io.IOException;
 
 /**

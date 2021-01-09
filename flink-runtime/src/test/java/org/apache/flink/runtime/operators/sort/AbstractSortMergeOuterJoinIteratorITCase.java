@@ -39,7 +39,12 @@ import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.CollectionIterator;
+import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+import org.apache.flink.runtime.operators.testutils.Match;
+import org.apache.flink.runtime.operators.testutils.MatchRemovingJoiner;
+import org.apache.flink.runtime.operators.testutils.SimpleTupleJoinFunction;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleConstantValueIterator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -49,10 +54,18 @@ import org.apache.flink.runtime.util.ResettableMutableObjectIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogger {
@@ -105,7 +118,9 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
         }
 
         if (this.memoryManager != null) {
-            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory Leak: Not all memory has been returned to the memory manager.");
+            Assertions.assertTrue(
+                    this.memoryManager.verifyEmpty(),
+                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }

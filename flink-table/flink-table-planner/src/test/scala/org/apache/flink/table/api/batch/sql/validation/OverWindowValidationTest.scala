@@ -32,8 +32,9 @@ class OverWindowValidationTest extends TableTestBase {
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
+        assertThrows[ValidationException] {
 
     val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("T", 'a, 'b, 'c)
@@ -42,19 +43,22 @@ class OverWindowValidationTest extends TableTestBase {
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T"
     util.tableEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
     util.addFunction("overAgg", new OverAgg0)
 
     val sqlQuery = "SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)"
 
     util.tableEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 }

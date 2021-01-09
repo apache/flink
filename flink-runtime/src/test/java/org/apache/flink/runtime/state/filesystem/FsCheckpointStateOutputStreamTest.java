@@ -456,7 +456,7 @@ public class FsCheckpointStateOutputStreamTest {
 
             assertEquals(holder.length, pos, "not enough data");
             assertEquals(-1, "too much data");
-            assertArrayEquals("wrong data", data, holder);
+            assertArrayEquals(data, holder, "wrong data");
         } finally {
             is.close();
         }

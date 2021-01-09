@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
+
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 
 import java.util.UUID;

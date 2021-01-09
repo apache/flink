@@ -40,6 +40,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
 /**
  * An abstract test class for all the unit tests of {@link SourceReader} to inherit.
  *
@@ -200,18 +203,18 @@ public abstract class SourceReaderTestBase<SplitT extends SourceSplit> extends T
         public void validate() {
 
             assertEquals(
-                    String.format("Should be %d distinct elements in total", TOTAL_NUM_RECORDS),
                     TOTAL_NUM_RECORDS,
-                    consumedValues.size());
+                    consumedValues.size(),
+                    String.format("Should be %d distinct elements in total", TOTAL_NUM_RECORDS));
             assertEquals(
-                    String.format("Should be %d elements in total", TOTAL_NUM_RECORDS),
                     TOTAL_NUM_RECORDS,
-                    count);
+                    count,
+                    String.format("Should be %d elements in total", TOTAL_NUM_RECORDS));
             assertEquals(0, min, "The min value should be 0");
             assertEquals(
-                    "The max value should be " + (TOTAL_NUM_RECORDS - 1),
                     TOTAL_NUM_RECORDS - 1,
-                    max);
+                    max,
+                    "The max value should be " + (TOTAL_NUM_RECORDS - 1));
         }
 
         public int count() {

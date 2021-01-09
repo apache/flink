@@ -67,15 +67,19 @@ class PartitionableSinkTest extends TableTestBase {
     util.verifyExecPlanInsert("INSERT INTO sink PARTITION (b=1) SELECT a, c FROM MyTable")
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongStatic(): Unit = {
-    util.verifyExecPlanInsert("INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable")
-  }
+        assertThrows[ValidationException] {
+                util.verifyExecPlanInsert("INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongFields(): Unit = {
-    util.verifyExecPlanInsert("INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable")
-  }
+        assertThrows[ValidationException] {
+                util.verifyExecPlanInsert("INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable")
+        }
+    }
 
   @Test
   def testStaticWithValues(): Unit = {

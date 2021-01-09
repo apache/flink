@@ -18,8 +18,6 @@
 
 package org.apache.flink.api.scala.migration
 
-import java.util
-
 import org.apache.flink.api.common.accumulators.IntCounter
 import org.apache.flink.api.common.functions.RichFlatMapFunction
 import org.apache.flink.api.common.state._
@@ -42,10 +40,12 @@ import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
 import org.apache.flink.testutils.migration.MigrationVersion
 import org.apache.flink.util.Collector
+import org.junit.jupiter.api.Assertions
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Assert, Ignore, Test}
+import org.junit.{Ignore, Test}
 
+import java.util
 import scala.util.{Failure, Try}
 
 object StatefulJobWBroadcastStateMigrationITCase {
@@ -80,11 +80,11 @@ object StatefulJobWBroadcastStateMigrationITCase {
 }
 
 /**
-  * ITCase for migration Scala state types across different Flink versions.
-  */
+ * ITCase for migration Scala state types across different Flink versions.
+ */
 @RunWith(classOf[Parameterized])
 class StatefulJobWBroadcastStateMigrationITCase(
-                                        migrationVersionAndBackend: (MigrationVersion, String))
+                                                 migrationVersionAndBackend: (MigrationVersion, String))
   extends SavepointMigrationTestBase with Serializable {
 
   @Test

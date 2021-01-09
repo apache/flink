@@ -18,16 +18,16 @@
 
 package org.apache.flink.api.scala.typeutils
 
+import org.apache.flink.util.{InstantiationUtil, TestLogger}
+import org.hamcrest.{MatcherAssert, Matchers}
+import org.junit.jupiter.api.Test
+
 import java.io.ByteArrayOutputStream
 
-import org.apache.flink.util.{InstantiationUtil, TestLogger}
-import org.hamcrest.Matchers
-import org.junit.{Assert, Test}
-
 /**
-  * Serialization/Deserialization tests of Scala types using the
-  * [[org.apache.flink.util.InstantiationUtil]].
-  */
+ * Serialization/Deserialization tests of Scala types using the
+ * [[org.apache.flink.util.InstantiationUtil]].
+ */
 class InstantiationUtilTest extends TestLogger {
 
   @Test
@@ -72,11 +72,13 @@ class InstantiationUtilTest extends TestLogger {
 }
 
 object Foo extends Serializable {
+
   trait FooTrait extends Serializable {
     def value(): Int
   }
 
   object Bar extends Serializable {
+
     class Foobar(val x: Int) extends Serializable {
       override def hashCode(): Int = 37 * x
 
@@ -91,4 +93,5 @@ object Foo extends Serializable {
     }
 
   }
+
 }

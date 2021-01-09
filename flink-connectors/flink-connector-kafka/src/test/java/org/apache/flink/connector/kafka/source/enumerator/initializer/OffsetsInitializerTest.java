@@ -29,12 +29,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link OffsetsInitializer}. */
@@ -136,7 +131,7 @@ public class OffsetsInitializerTest {
             long expectedOffset =
                     tp.equals(missingPartition) ? 0L : committedOffsets.get(tp).offset();
             assertEquals(
-                    String.format("%s has incorrect offset.", tp), expectedOffset, (long) offset);
+                    expectedOffset, (long) offset, String.format("%s has incorrect offset.", tp));
         }
     }
 

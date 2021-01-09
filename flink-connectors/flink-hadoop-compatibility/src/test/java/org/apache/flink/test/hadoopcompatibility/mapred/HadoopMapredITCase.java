@@ -22,7 +22,6 @@ import org.apache.flink.test.hadoopcompatibility.mapred.example.HadoopMapredComp
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.OperatingSystem;
-
 import org.junit.Assume;
 import org.junit.Before;
 

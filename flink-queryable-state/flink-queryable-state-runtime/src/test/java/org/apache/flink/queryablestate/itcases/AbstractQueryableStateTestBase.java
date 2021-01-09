@@ -23,19 +23,7 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.state.AggregatingState;
-import org.apache.flink.api.common.state.AggregatingStateDescriptor;
-import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.api.common.state.ReducingStateDescriptor;
-import org.apache.flink.api.common.state.State;
-import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -67,7 +55,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Assertions;
@@ -75,29 +62,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Base class for queryable state integration tests with a configurable state backend. */
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
@@ -239,7 +211,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
             // All should be non-zero
             for (int i = 0; i < numKeys; i++) {
                 long count = counts.get(i);
-                assertTrue("Count at position " + i + " is " + count, count > 0);
+                assertTrue(count > 0, "Count at position " + i + " is " + count);
             }
         }
     }
@@ -430,16 +402,16 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 fail(); // by now the request must have failed.
             } catch (ExecutionException e) {
                 Assertions.assertTrue(
-                        "GOT: " + e.getCause().getMessage(),
-                        e.getCause() instanceof RuntimeException);
+                        e.getCause() instanceof RuntimeException,
+                        "GOT: " + e.getCause().getMessage());
                 Assertions.assertTrue(
-                        "GOT: " + e.getCause().getMessage(),
                         e.getCause()
                                 .getMessage()
                                 .contains(
                                         "FlinkJobNotFoundException: Could not find Flink job ("
                                                 + wrongJobId
-                                                + ")"));
+                                                + ")"),
+                        "GOT: " + e.getCause().getMessage());
             } catch (Exception f) {
                 fail("Unexpected type of exception: " + f.getMessage());
             }
@@ -457,14 +429,14 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 fail(); // by now the request must have failed.
             } catch (ExecutionException e) {
                 Assertions.assertTrue(
-                        "GOT: " + e.getCause().getMessage(),
-                        e.getCause() instanceof RuntimeException);
+                        e.getCause() instanceof RuntimeException,
+                        "GOT: " + e.getCause().getMessage());
                 Assertions.assertTrue(
-                        "GOT: " + e.getCause().getMessage(),
                         e.getCause()
                                 .getMessage()
                                 .contains(
-                                        "UnknownKvStateLocation: No KvStateLocation found for KvState instance with name 'wrong-hakuna'."));
+                                        "UnknownKvStateLocation: No KvStateLocation found for KvState instance with name 'wrong-hakuna'."),
+                        "GOT: " + e.getCause().getMessage());
             } catch (Exception f) {
                 fail("Unexpected type of exception: " + f.getMessage());
             }

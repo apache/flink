@@ -19,13 +19,9 @@
 package org.apache.flink.runtime.rest.versioning;
 
 import org.apache.flink.util.TestLogger;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -48,9 +44,9 @@ public class RestAPIVersionTest extends TestLogger {
                         .collect(Collectors.toList());
 
         Assertions.assertEquals(
-                "Only one RestAPIVersion should be marked as the default. Defaults: "
-                        + defaultVersions,
                 1,
-                defaultVersions.size());
+                defaultVersions.size(),
+                "Only one RestAPIVersion should be marked as the default. Defaults: "
+                        + defaultVersions);
     }
 }

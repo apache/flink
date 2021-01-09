@@ -218,16 +218,18 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testOverWindowRangeProhibitType(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT
         |    COUNT(*) OVER (PARTITION BY c ORDER BY c RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testOverWindowRangeType(): Unit = {
@@ -255,16 +257,18 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testRowsWindowWithNegative(): Unit = {
-    val sqlQuery =
+        assertThrows[ValidationException] {
+                val sqlQuery =
       """
         |SELECT
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testRangeWindowWithNegative1(): Unit = {
@@ -310,34 +314,40 @@ class OverAggregateTest extends TableTestBase {
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testDistinct(): Unit = {
-    val sqlQuery =
+        assertThrows[RuntimeException] {
+                val sqlQuery =
       """
         |SELECT SUM(DISTINCT a)
         |    OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation(): Unit = {
-    util.addFunction("overAgg", new OverAgg0)
+        assertThrows[ValidationException] {
+                util.addFunction("overAgg", new OverAgg0)
     util.verifyExecPlan("SELECT overAgg(b, a) FROM MyTable")
-  }
+        }
+    }
 
   /**
     * OVER clause is necessary for [[OverAgg0]] window function.
     */
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidOverAggregation2(): Unit = {
-    util.addTableSource[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
+        assertThrows[ValidationException] {
+                util.addTableSource[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
     util.addFunction("overAgg", new OverAgg0)
 
     util.verifyExecPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)")
-  }
+        }
+    }
 }

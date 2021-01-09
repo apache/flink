@@ -527,9 +527,10 @@ class MiscITCase extends BatchTestBase {
       Seq(row(false, 1), row(true, 3)))
   }
 
-  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  @Test
   def testTableGenerateFunction(): Unit = {
-    checkResult("SELECT f, g, v FROM testTable," +
+        assertThrows[org.apache.flink.table.api.ValidationException] {
+                checkResult("SELECT f, g, v FROM testTable," +
         "LATERAL TABLE(STRING_SPLIT(f, ' ')) AS T(v)",
       Seq(
         row("abcd", "f%g", "abcd"),
@@ -584,20 +585,23 @@ class MiscITCase extends BatchTestBase {
         row(null, "hij_k", "b1"),
         row("e fg", null, "b1"),
         row("e fg", null, "b3")))
-  }
+        }
+    }
 
   /**
     * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
     * join predicate can only be empty or literal true (the restriction should be removed in
     * FLINK-7865).
     */
-  @Test(expected = classOf[org.apache.flink.table.api.ValidationException])
+  @Test
   def testTableGenerateFunctionLeftJoin(): Unit = {
-    checkResult("SELECT f, g, v FROM " +
+        assertThrows[org.apache.flink.table.api.ValidationException] {
+                checkResult("SELECT f, g, v FROM " +
         "testTable LEFT OUTER JOIN LATERAL TABLE(GENERATE_SERIES(0, CAST(b AS INTEGER))) AS T(v) " +
         "ON LENGTH(f) = v + 2 OR LENGTH(g) = v + 4",
       Seq(
         row(null, "hij_k", 1),
         row("e fg", null, 2)))
-  }
+        }
+    }
 }

@@ -63,6 +63,8 @@ import org.junit.ClassRule;
 import org.junit.experimental.categories.Category;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -288,8 +290,8 @@ public class CassandraConnectorITCase
             list.remove(new Integer(s.getInt("counter")));
         }
         Assertions.assertTrue(
-                "The following ID's were not found in the ResultSet: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's were not found in the ResultSet: " + list.toString());
     }
 
     @Override
@@ -306,8 +308,8 @@ public class CassandraConnectorITCase
             list.remove(new Integer(s.getInt("counter")));
         }
         Assertions.assertTrue(
-                "The following ID's were not found in the ResultSet: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's were not found in the ResultSet: " + list.toString());
     }
 
     @Override
@@ -327,8 +329,8 @@ public class CassandraConnectorITCase
             list.remove(new Integer(s.getInt("counter")));
         }
         Assertions.assertTrue(
-                "The following ID's were not found in the ResultSet: " + list.toString(),
-                list.isEmpty());
+                list.isEmpty(),
+                "The following ID's were not found in the ResultSet: " + list.toString());
     }
 
     @Override

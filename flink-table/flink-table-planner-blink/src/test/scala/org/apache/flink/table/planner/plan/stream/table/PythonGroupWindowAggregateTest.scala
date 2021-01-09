@@ -87,9 +87,10 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeSessionGroupWindowOverTime(): Unit = {
-    val util = streamTestUtil()
+        assertThrows[TableException] {
+                val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
       "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
@@ -99,5 +100,6 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .groupBy('w, 'b)
       .select('b, 'w.start, 'w.end, func('a, 'c))
     util.verifyExecPlan(windowedTable)
-  }
+        }
+    }
 }

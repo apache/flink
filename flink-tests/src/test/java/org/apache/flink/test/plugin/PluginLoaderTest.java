@@ -22,6 +22,8 @@ import org.apache.flink.core.plugin.PluginDescriptor;
 import org.apache.flink.core.plugin.PluginLoader;
 import org.apache.flink.test.plugin.jar.plugina.TestServiceA;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;

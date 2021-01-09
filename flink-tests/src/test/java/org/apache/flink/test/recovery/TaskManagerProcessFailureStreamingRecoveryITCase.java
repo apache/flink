@@ -220,8 +220,8 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase
             long expected = collected * stepSize + congruence;
 
             Assertions.assertTrue(
-                    "Value did not match expected value. " + expected + " != " + value,
-                    value.equals(expected));
+                    value.equals(expected),
+                    "Value did not match expected value. " + expected + " != " + value);
 
             collected++;
 

@@ -28,91 +28,107 @@ import org.junit.jupiter.api.Test
 
 class JoinValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinNonExistingKey(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE foo = e"
 
     util.tableEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testJoinNonMatchingKeyTypes(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE a = g"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testJoinWithAmbiguousFields(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'c)
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE a = d"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testJoinNoEqualityPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3, Table5 WHERE d = f"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testCrossJoin(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, String)]("Table4", 'a1, 'b1, 'c1)
 
     val sqlQuery = "SELECT a, a1 FROM Table3 CROSS JOIN Table4"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testRightOuterJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3 RIGHT OUTER JOIN Table5 ON b < e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testLeftOuterJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3 LEFT OUTER JOIN Table5 ON b > e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testFullOuterJoinNoEquiJoinPredicate(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
     util.addTable[(Int, Long, Int, String, Long)]("Table5", 'd, 'e, 'f, 'g, 'h)
 
     val sqlQuery = "SELECT c, g FROM Table3 FULL OUTER JOIN Table5 ON b <> e"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 }

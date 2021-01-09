@@ -28,11 +28,18 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.types.IntValue;
+
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
 
 import static org.hamcrest.Matchers.is;
 
@@ -185,7 +192,7 @@ public class OverwriteObjects {
 
             Collections.sort(disabledResult, comparator);
 
-            Assertions.assertEquals("JoinHint=" + joinHint, disabledResult, enabledResult);
+            Assertions.assertEquals(disabledResult, enabledResult, "JoinHint=" + joinHint);
 
             // Left outer join
 

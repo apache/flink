@@ -36,12 +36,6 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +50,7 @@ import static org.apache.flink.test.util.TestUtils.tryExecute;
  * downstream are tasks restart.
  */
 @Ignore("Approximate local recovery has currently no scheduler support")
+@Timeout(300)
 public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
     private static final int BUFFER_SIZE = 4096;
 
@@ -67,8 +62,6 @@ public class ApproximateLocalRecoveryDownstreamITCase extends TestLogger {
                             .setNumberTaskManagers(4)
                             .setNumberSlotsPerTaskManager(1)
                             .build());
-
-    @Rule public final Timeout timeout = Timeout.millis(300000L);
 
     /**
      * Test the following topology.

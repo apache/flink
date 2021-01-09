@@ -27,19 +27,23 @@ import scala.collection.JavaConverters._
 
 class SchemaTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType(): Unit = {
-    addPropertyAndVerify(
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(
       descriptors().get(0),
       "schema.1.data-type", "dfghj")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testBothRowtimeAndProctime(): Unit = {
-    addPropertyAndVerify(
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(
       descriptors().get(0),
       "schema.2.rowtime.watermarks.type", "from-source")
-  }
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
 

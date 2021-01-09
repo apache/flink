@@ -22,14 +22,13 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
-
 import org.junit.jupiter.api.Assertions.{assertTrue, fail}
 import org.junit.jupiter.api.Test
 
 class CorrelateValidationTest extends TableTestBase {
 
   @Test
-  def testRegisterFunctionException(): Unit ={
+  def testRegisterFunctionException(): Unit = {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('a, 'b, 'c)
 
@@ -87,11 +86,11 @@ class CorrelateValidationTest extends TableTestBase {
   }
 
   /**
-    * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
-    * join predicate can only be empty or literal true (the restriction should be removed in
-    * FLINK-7865).
-    */
-  @Test (expected = classOf[ValidationException])
+   * Due to the improper translation of TableFunction left outer join (see CALCITE-2004), the
+   * join predicate can only be empty or literal true (the restriction should be removed in
+   * FLINK-7865).
+   */
+  @Test(expected = classOf[ValidationException])
   def testLeftOuterJoinWithPredicates(): Unit = {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
@@ -106,63 +105,70 @@ class CorrelateValidationTest extends TableTestBase {
 
   @Test
   def testInvalidMapFunctionTypeAggregation(): Unit = {
-        assertThrows(classOf[ValidationException], () -> {
-                val util = streamTestUtil()
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
-      .flatMap('int.sum) // do not support AggregateFunction as input
-  }
+    Assertions
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidMapFunctionTypeUDAGG(): Unit = {
-    val util = streamTestUtil()
+    @Test
+    def testInvalidMapFunctionTypeUDAGG(): Unit = {
+      assertThrows[ValidationException] {
+        val util = streamTestUtil()
 
-    val weightedAvg = new WeightedAvg
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
-      .flatMap(weightedAvg('int, 'int)) // do not support AggregateFunction as input
-  }
+        val weightedAvg = new WeightedAvg
+        util.addTableSource[(Int)](
+          "MyTable", 'int)
+          .flatMap(weightedAvg('int, 'int)) // do not support AggregateFunction as input
+      }
+    }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidMapFunctionTypeUDAGG2(): Unit = {
-    val util = streamTestUtil()
+    @Test
+    def testInvalidMapFunctionTypeUDAGG2(): Unit = {
+      assertThrows[ValidationException] {
+        val util = streamTestUtil()
 
-    util.addFunction("weightedAvg", new WeightedAvg)
-    util.addTableSource[(Int)](
-      "MyTable", 'int)
-      .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
-  }
+        util.addFunction("weightedAvg", new WeightedAvg)
+        util.addTableSource[(Int)](
+          "MyTable", 'int)
+          .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
+      }
+    }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidMapFunctionTypeScalarFunction(): Unit = {
-    val util = streamTestUtil()
+    @Test
+    def testInvalidMapFunctionTypeScalarFunction(): Unit = {
+      assertThrows[ValidationException] {
+        val util = streamTestUtil()
 
-    util.addTableSource[(String)](
-      "MyTable", 'string)
-      .flatMap(Func15('string)) // do not support ScalarFunction as input
-  }
+        util.addTableSource[(String)](
+          "MyTable", 'string)
+          .flatMap(Func15('string)) // do not support ScalarFunction as input
+      }
+    }
 
-  @Test(expected = classOf[ValidationException])
-  def testInvalidFlatMapFunctionTypeFieldReference(): Unit = {
-    val util = batchTestUtil()
+    @Test
+    def testInvalidFlatMapFunctionTypeFieldReference(): Unit = {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
 
-    util.addTableSource[(String)](
-      "MyTable", 'string)
-      .flatMap('string) // Only TableFunction can be used in flatMap
-  }
+        util.addTableSource[(String)](
+          "MyTable", 'string)
+          .flatMap('string) // Only TableFunction can be used in flatMap
+      }
+    }
 
-  // ----------------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------------------------------
 
-  private def expectExceptionThrown(
-      function: => Unit,
-      keywords: String,
-      clazz: Class[_ <: Throwable] = classOf[ValidationException])
+    private def expectExceptionThrown(
+                                       function: => Unit,
+                                       keywords: String,
+                                       clazz: Class[_ <: Throwable] = classOf[ValidationException])
     : Unit = {
-    try {
-      function
-      fail(s"Expected a $clazz, but no exception is thrown.")
-        });
-    } catch {
+      try {
+        function
+        fail(s"Expected a $clazz, but no exception is thrown.")
+      }
+      );
+    }
+
+    catch
+    {
       case e if e.getClass == clazz =>
         if (keywords != null) {
           assertTrue(

@@ -31,9 +31,10 @@ import org.junit.jupiter.api.Test
 
 class SetOperatorsValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -46,11 +47,13 @@ class SetOperatorsValidationTest extends TableTestBase {
     env.execute()
 
     assertEquals(true, sink.getAppendResults.isEmpty)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(TestData.smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
@@ -63,11 +66,13 @@ class SetOperatorsValidationTest extends TableTestBase {
     env.execute()
 
     assertEquals(true, sink.getAppendResults.isEmpty)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionTablesFromDifferentEnv(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv1 = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     val tEnv2 = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -76,5 +81,6 @@ class SetOperatorsValidationTest extends TableTestBase {
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.unionAll(ds2)
-  }
+        }
+    }
 }

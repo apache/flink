@@ -29,6 +29,8 @@ import org.apache.flink.types.Record;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -103,7 +105,7 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             Assertions.fail("Test failed due to an exception.");
         }
 
-        Assertions.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, this.output.getNumberOfRecords(), "Wrong result size.");
     }
 
     @Test

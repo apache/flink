@@ -47,7 +47,6 @@ import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -918,9 +917,9 @@ public class UnalignedControllerTest {
     private void assertInflightData(BufferOrEvent... expected) {
         Collection<BufferOrEvent> andResetInflightData = getAndResetInflightData();
         assertEquals(
-                "Unexpected in-flight sequence: " + andResetInflightData,
                 getIds(Arrays.asList(expected)),
-                getIds(andResetInflightData));
+                getIds(andResetInflightData),
+                "Unexpected in-flight sequence: " + andResetInflightData);
     }
 
     private Collection<BufferOrEvent> getAndResetInflightData() {

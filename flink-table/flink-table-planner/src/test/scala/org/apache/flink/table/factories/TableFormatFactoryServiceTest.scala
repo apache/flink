@@ -93,27 +93,33 @@ class TableFormatFactoryServiceTest {
         .isInstanceOf[TestAmbiguousTableFormatFactory])
   }
 
-  @Test(expected = classOf[NoMatchingTableFactoryException])
+  @Test
   def testInvalidContext(): Unit = {
-    val props = properties()
+        assertThrows[NoMatchingTableFactoryException] {
+                val props = properties()
     // no context specifies this
     props.put(FORMAT_TYPE, "unknown_format_type")
     TableFactoryService.find(classOf[TableFormatFactory[_]], props)
-  }
+        }
+    }
 
-  @Test(expected = classOf[NoMatchingTableFactoryException])
+  @Test
   def testUnsupportedProperty(): Unit = {
-    val props = properties()
+        assertThrows[NoMatchingTableFactoryException] {
+                val props = properties()
     props.put("format.property_not_defined_by_any_factory", "/new/path")
     TableFactoryService.find(classOf[TableFormatFactory[_]], props)
-  }
+        }
+    }
 
-  @Test(expected = classOf[AmbiguousTableFactoryException])
+  @Test
   def testAmbiguousFactory(): Unit = {
-    val props = properties()
+        assertThrows[AmbiguousTableFactoryException] {
+                val props = properties()
     props.remove(UNIQUE_PROPERTY) // now both factories match
     TableFactoryService.find(classOf[TableFormatFactory[_]], props)
-  }
+        }
+    }
 
   private def properties(): JMap[String, String] = {
     val properties = new JHashMap[String, String]()

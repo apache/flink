@@ -34,6 +34,8 @@ import java.io.File;
 import java.time.Duration;
 
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Tests the logic of {@link FileChannelManagerImpl}. */
 public class FileChannelManagerImplTest extends TestLogger {
@@ -98,16 +100,16 @@ public class FileChannelManagerImplTest extends TestLogger {
             }
 
             assertFalse(
+                    fileChannelManagerTestProcess.isAlive(),
                     "The file channel manager test process does not terminate in time, its output is: \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileChannelManagerTestProcess.isAlive());
+                            + fileChannelManagerTestProcess.getProcessOutput());
 
             // Checks if the directories are cleared.
             assertFalse(
+                    fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX),
                     "The file channel manager test process does not remove the tmp shuffle directories after termination, "
                             + "its output is \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
+                            + fileChannelManagerTestProcess.getProcessOutput());
         } finally {
             fileChannelManagerTestProcess.destroy();
         }

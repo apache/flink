@@ -43,9 +43,11 @@ class FlinkVolcanoProgramTest {
       .build()
   }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testNullRequiredOutputTraits(): Unit = {
-    FlinkVolcanoProgramBuilder.newBuilder.setRequiredOutputTraits(null)
-  }
+        assertThrows[NullPointerException] {
+                FlinkVolcanoProgramBuilder.newBuilder.setRequiredOutputTraits(null)
+        }
+    }
 
 }

@@ -21,6 +21,8 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.metrics.util.SystemResourcesCounter;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

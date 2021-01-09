@@ -31,26 +31,32 @@ class SortValidationTest extends TableTestBase {
       'proctime.proctime, 'rowtime.rowtime)
 
   // test should fail because time order is descending
-  @Test(expected = classOf[TableException])
+  @Test
   def testSortProcessingTimeDesc(): Unit = {
+        assertThrows[TableException] {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY proctime DESC, c"
     streamUtil.verifySql(sqlQuery, "")
-  }
+        }
+    }
 
   // test should fail because time is not the primary order field
-  @Test(expected = classOf[TableException])
+  @Test
   def testSortProcessingTimeSecondaryField(): Unit = {
+        assertThrows[TableException] {
 
     val sqlQuery = "SELECT a FROM MyTable ORDER BY c, proctime"
     streamUtil.verifySql(sqlQuery, "")
-  }
+        }
+    }
 
   // test should fail because LIMIT is not supported without sorting
-  @Test(expected = classOf[TableException])
+  @Test
   def testLimitWithoutSorting(): Unit = {
+        assertThrows[TableException] {
 
     val sqlQuery = "SELECT a FROM MyTable LIMIT 3"
     streamUtil.verifySql(sqlQuery, "")
-  }
+        }
+    }
 }

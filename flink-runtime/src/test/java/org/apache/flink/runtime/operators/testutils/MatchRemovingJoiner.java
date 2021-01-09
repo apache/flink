@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 
+import org.junit.jupiter.api.Assertions;
+
 import java.util.Collection;
 import java.util.Map;
 

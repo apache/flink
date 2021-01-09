@@ -53,13 +53,8 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.*;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -603,14 +598,14 @@ public class SortCodeGeneratorTest {
             for (int j = 0; j < keys.length; j++) {
                 boolean isNull1 = data.get(i).isNullAt(keys[j]);
                 boolean isNull2 = result.get(i).isNullAt(keys[j]);
-                Assertions.assertEquals(msg, isNull1, isNull2);
+                Assertions.assertEquals(isNull1, isNull2, msg);
                 if (!isNull1 || !isNull2) {
                     RowData.FieldGetter fieldGetter =
                             RowData.createFieldGetter(keyTypes[j], keys[j]);
                     Object o1 = fieldGetter.getFieldOrNull(data.get(i));
                     Object o2 = fieldGetter.getFieldOrNull(result.get(i));
                     if (keyTypes[j] instanceof VarBinaryType) {
-                        Assertions.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
+                        Assertions.assertArrayEquals((byte[]) o1, (byte[]) o2, msg);
                     } else if (keyTypes[j] instanceof TypeInformationRawType) {
                         assertThat(
                                 msg,
@@ -619,7 +614,7 @@ public class SortCodeGeneratorTest {
                                         (RawValueData) o2,
                                         new RawValueDataSerializer<>(IntSerializer.INSTANCE)));
                     } else {
-                        Assertions.assertEquals(msg, o1, o2);
+                        Assertions.assertEquals(o1, o2, msg);
                     }
                 }
             }

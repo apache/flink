@@ -129,9 +129,10 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testTooManyGroupingFields(): Unit = {
-    // max group count must be less than 64
+        assertThrows[RuntimeException] {
+                // max group count must be less than 64
     val fieldNames = (0 until 64).map(i => s"f$i").toArray
     val fieldTypes: Array[TypeInformation[_]] = Array.fill(fieldNames.length)(Types.INT)
     util.addTableSource("MyTable64", fieldTypes, fieldNames)
@@ -140,5 +141,6 @@ class DecomposeGroupingSetsRuleTest extends TableTestBase {
     val sqlQuery = s"SELECT $fields FROM MyTable64 GROUP BY GROUPING SETS ($fields)"
 
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 }

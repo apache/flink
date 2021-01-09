@@ -20,18 +20,13 @@ package org.apache.flink.test.state;
 
 import org.apache.flink.runtime.state.StateObject;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -63,9 +58,9 @@ public class StateHandleSerializationTest {
         // all non-interface types must have a serial version UID
         if (!clazz.isInterface()) {
             assertFalse(
+                    clazz.isAnonymousClass(),
                     "Anonymous state handle classes have problematic serialization behavior: "
-                            + clazz,
-                    clazz.isAnonymousClass());
+                            + clazz);
 
             try {
                 Field versionUidField = clazz.getDeclaredField("serialVersionUID");
