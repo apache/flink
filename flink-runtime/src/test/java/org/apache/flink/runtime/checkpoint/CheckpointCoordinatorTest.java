@@ -64,12 +64,8 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
 
@@ -2323,7 +2319,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         if (oldParallelism != newParallelism) {
             int maxLoadDiff = maxCount - minCount;
             Assertions.assertTrue(
-                    "Difference in partition load is > 1 : " + maxLoadDiff, maxLoadDiff <= 1);
+                    maxLoadDiff <= 1, "Difference in partition load is > 1 : " + maxLoadDiff);
         }
         Assertions.assertEquals(expectedTotalPartitions, actualTotalPartitions);
         Assertions.assertEquals(expected, actual);
@@ -2811,8 +2807,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     public CompletableFuture<Integer> triggerCheckpoint(
                             long checkpointId, long timestamp, Executor executor) throws Exception {
                         assertTrue(
-                                "The coordinator checkpoint should have finished.",
-                                coordCheckpointDone.get());
+                                coordCheckpointDone.get(),
+                                "The coordinator checkpoint should have finished.");
                         // Acknowledge the checkpoint in the master hooks so the task snapshots
                         // complete before
                         // the master state snapshot completes.
@@ -3004,8 +3000,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     public CompletableFuture<Integer> triggerCheckpoint(
                             long checkpointId, long timestamp, Executor executor) throws Exception {
                         assertTrue(
-                                "The coordinator checkpoint should have finished.",
-                                coordCheckpointDone.get());
+                                coordCheckpointDone.get(),
+                                "The coordinator checkpoint should have finished.");
                         // Acknowledge the checkpoint in the master hooks so the task snapshots
                         // complete before
                         // the master state snapshot completes.

@@ -98,6 +98,7 @@ import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -198,9 +199,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
-        assertFalse(
-                "Checkpointing enabled",
-                streamGraph.getCheckpointConfig().isCheckpointingEnabled());
+        assertFalse(                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),                "Checkpointing enabled");
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
@@ -222,9 +221,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(0).print();
         StreamGraph streamGraph = env.getStreamGraph();
-        assertFalse(
-                "Checkpointing enabled",
-                streamGraph.getCheckpointConfig().isCheckpointingEnabled());
+        assertFalse(                streamGraph.getCheckpointConfig().isCheckpointingEnabled(),                "Checkpointing enabled");
         env.getCheckpointConfig().enableUnalignedCheckpoints(true);
 
         JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);

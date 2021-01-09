@@ -25,6 +25,7 @@ import org.apache.flink.runtime.operators.testutils.*;
 import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

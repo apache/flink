@@ -21,9 +21,8 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.StringUtils;
-
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -136,9 +135,9 @@ public class StringValueSerializationTest {
             deser.read(deserializer);
 
             assertEquals(
-                    "DeserializedString differs from original string.",
                     values[num],
-                    deser.getValue());
+                    deser.getValue(),
+                    "DeserializedString differs from original string.");
             num++;
         }
 
@@ -177,9 +176,9 @@ public class StringValueSerializationTest {
             sValue.read(validate);
 
             assertEquals(
-                    "DeserializedString differs from original string.",
                     values[num],
-                    sValue.getValue());
+                    sValue.getValue(),
+                    "DeserializedString differs from original string.");
             num++;
         }
 

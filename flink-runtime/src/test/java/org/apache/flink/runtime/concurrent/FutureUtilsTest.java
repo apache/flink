@@ -29,6 +29,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -271,9 +272,7 @@ public class FutureUtilsTest extends TestLogger {
         long completionTime = System.currentTimeMillis() - start;
 
         assertTrue(result);
-        assertTrue(
-                "The completion time should be at least retries times delay between retries.",
-                completionTime >= retries * delay.toMilliseconds());
+        assertTrue(                completionTime >= retries * delay.toMilliseconds(),                "The completion time should be at least retries times delay between retries.");
     }
 
     /**
@@ -307,9 +306,7 @@ public class FutureUtilsTest extends TestLogger {
         long completionTime = System.currentTimeMillis() - start;
 
         assertTrue(result);
-        assertTrue(
-                "The completion time should be at least retries times delay between retries.",
-                completionTime >= (2 + 4 + 5 + 5));
+        assertTrue(                completionTime >= (2 + 4 + 5 + 5),                "The completion time should be at least retries times delay between retries.");
     }
 
     /** Tests that all scheduled tasks are canceled if the retry future is being cancelled. */

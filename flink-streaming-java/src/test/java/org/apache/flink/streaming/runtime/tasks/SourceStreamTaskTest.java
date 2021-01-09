@@ -49,12 +49,9 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.CheckedSupplier;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
 
@@ -112,7 +109,8 @@ public class SourceStreamTaskTest {
         Assertions.assertEquals(10, resultElements.size());
     }
 
-    @Test(timeout = 60_000)
+    @Test
+    @Timeout(60)
     public void testMetrics() throws Exception {
         long sleepTime = 42;
         StreamTaskMailboxTestHarnessBuilder<String> builder =
@@ -364,8 +362,8 @@ public class SourceStreamTaskTest {
                     .execute(
                             () ->
                                     assertFalse(
-                                            "This should never execute before task cancelation",
-                                            testHarness.getTask().isRunning()),
+                                            testHarness.getTask().isRunning(),
+                                            "This should never execute before task cancelation"),
                             "Test");
         }
 

@@ -117,9 +117,7 @@ abstract class TableTestBase {
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
     val expectedString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(expected))
     val actualString = FlinkRelOptUtil.toString(TableTestUtil.toRelNode(actual))
-    assertEquals(
-      "Logical plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(expectedString),
+    assertEquals(      LogicalPlanFormatUtils.formatTempTableId(expectedString),
       LogicalPlanFormatUtils.formatTempTableId(actualString))
   }
 }
@@ -174,14 +172,13 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   }
 
   /**
-   * Create a [[TestTableSource]] with the given schema,
-   * and registers this TableSource under a unique name into the TableEnvironment's catalog.
+   * Create a [[TestTableSource]] with the given schema,   * and registers this TableSource under a unique name into the TableEnvironment's catalog.
    *
    * @param fields field names
    * @tparam T field types
    * @return returns the registered [[Table]].
    */
-  def addTableSource[T: TypeInformation](fields: Expression*): Table = {
+  def addTableSource[T: TypeInformation](fields: Expression*,       "Logical plans do not match"): Table = {
     addTableSource[T](s"Table$getNextId", fields: _*)
   }
 

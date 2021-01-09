@@ -30,15 +30,10 @@ import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.runtime.io.AlignedControllerTest;
 import org.apache.flink.streaming.runtime.io.AlignedControllerTest.CheckpointExceptionMatcher;
 
-import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -46,9 +41,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /** Test checkpoint cancellation barrier. */
+@Timeout(10)
 public class StreamTaskCancellationBarrierTest {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
 
     /**
      * This test verifies (for onw input tasks) that the Stream tasks react the following way to
@@ -96,8 +90,7 @@ public class StreamTaskCancellationBarrierTest {
         Object result = testHarness.getOutput().poll();
         assertNotNull(result, "nothing emitted");
         assertTrue(result instanceof CancelCheckpointMarker, "wrong type emitted");
-        assertEquals(
-                "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
+        assertEquals(2L, "wrong checkpoint id");
 
         // cancel and shutdown
         testHarness.endInput();
@@ -149,8 +142,7 @@ public class StreamTaskCancellationBarrierTest {
         Object result = testHarness.getOutput().poll();
         assertNotNull(result, "nothing emitted");
         assertTrue(result instanceof CancelCheckpointMarker, "wrong type emitted");
-        assertEquals(
-                "wrong checkpoint id", 2L, ((CancelCheckpointMarker) result).getCheckpointId());
+        assertEquals(2L, "wrong checkpoint id");
 
         // cancel and shutdown
         testHarness.endInput();

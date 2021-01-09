@@ -28,15 +28,19 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
-import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.*;
+import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** */
 public class ReusingSortMergeCoGroupIteratorITCase {
@@ -150,19 +154,19 @@ public class ReusingSortMergeCoGroupIteratorITCase {
                 while (iter1.hasNext()) {
                     Tuple2<Integer, String> rec = iter1.next();
                     Assertions.assertTrue(
-                            "String not in expected set of first input", expValues1.remove(rec.f1));
+                            expValues1.remove(rec.f1), "String not in expected set of first input");
                 }
                 Assertions.assertTrue(
-                        "Expected set of first input not empty", expValues1.isEmpty());
+                        expValues1.isEmpty(), "Expected set of first input not empty");
 
                 while (iter2.hasNext()) {
                     Tuple2<Integer, String> rec = iter2.next();
                     Assertions.assertTrue(
-                            "String not in expected set of second input",
-                            expValues2.remove(rec.f1));
+                            expValues2.remove(rec.f1),
+                            "String not in expected set of second input");
                 }
                 Assertions.assertTrue(
-                        "Expected set of second input not empty", expValues2.isEmpty());
+                        expValues2.isEmpty(), "Expected set of second input not empty");
 
                 expectedCoGroupsMap.remove(key);
             }

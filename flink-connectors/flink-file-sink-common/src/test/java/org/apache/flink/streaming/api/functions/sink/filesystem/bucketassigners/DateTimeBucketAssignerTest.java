@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners
 
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

@@ -23,13 +23,9 @@ import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +90,7 @@ public class FileChannelManagerImplTest extends TestLogger {
                     Runtime.getRuntime()
                             .exec("kill " + fileChannelManagerTestProcess.getProcessId());
             kill.waitFor();
-            assertEquals("Failed to send SIG_TERM to process", 0, kill.exitValue());
+            assertEquals(0, "Failed to send SIG_TERM to process");
 
             Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
             while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {

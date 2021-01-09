@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 import org.apache.flink.api.java.tuple.*;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -108,7 +109,7 @@ public class ArrayFromTupleTest {
     }
 
     private void arrayEqualityCheck(Object[] array1, Object[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
+        assertEquals(array1.length, array2.length, "The result arrays must have the same length");
         for (int i = 0; i < array1.length; i++) {
             assertEquals("Unequal fields at position " + i, array1[i], array2[i]);
         }

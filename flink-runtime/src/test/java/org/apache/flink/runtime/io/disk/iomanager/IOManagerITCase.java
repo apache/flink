@@ -30,6 +30,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,9 +70,7 @@ public class IOManagerITCase extends TestLogger {
     public void afterTest() throws Exception {
         ioManager.close();
 
-        Assertions.assertTrue(
-                "Not all memory was returned to the memory manager in the test.",
-                memoryManager.verifyEmpty());
+        Assertions.assertTrue(                memoryManager.verifyEmpty(),                "Not all memory was returned to the memory manager in the test.");
         memoryManager.shutdown();
         memoryManager = null;
     }
@@ -151,20 +150,14 @@ public class IOManagerITCase extends TestLogger {
                         Assertions.fail(
                                 "Invalid value read from reader. Valid decimal number expected.");
                     }
-                    Assertions.assertEquals(
-                            "Written and read values do not match during sequential read.",
-                            nextVal,
-                            intValue);
+                    Assertions.assertEquals(                            nextVal,                            intValue,                             "Written and read values do not match during sequential read.");
                     nextVal++;
                 }
             } catch (EOFException eofex) {
                 // expected
             }
 
-            Assertions.assertEquals(
-                    "NUmber of written numbers differs from number of read numbers.",
-                    writingCounters[i],
-                    nextVal);
+            Assertions.assertEquals(                    writingCounters[i],                    nextVal,                     "NUmber of written numbers differs from number of read numbers.");
 
             this.memoryManager.release(in.close());
         }
@@ -197,10 +190,7 @@ public class IOManagerITCase extends TestLogger {
                             return;
                         }
 
-                        Assertions.assertEquals(
-                                "Written and read values do not match.",
-                                readingCounters[channel]++,
-                                intValue);
+                        Assertions.assertEquals(                                readingCounters[channel]++,                                intValue,                                 "Written and read values do not match.");
 
                         break;
                     } catch (EOFException eofex) {

@@ -26,6 +26,7 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -126,9 +127,7 @@ public class CoStreamFlatMapTest implements Serializable {
 
         testHarness.close();
 
-        Assertions.assertTrue(
-                "RichFunction methods where not called.",
-                TestOpenCloseCoFlatMapFunction.closeCalled);
+        Assertions.assertTrue(                TestOpenCloseCoFlatMapFunction.closeCalled,                "RichFunction methods where not called.");
         Assertions.assertTrue(testHarness.getOutput().size() > 0, "Output contains no elements.");
     }
 

@@ -73,7 +73,7 @@ public class HBaseTestingClusterAutoStarter {
             createdTables.add(tableName);
             assertTrue(admin.tableExists(tableName), "Fail to create the table");
         } catch (IOException e) {
-            assertNull("Exception found while creating table", e);
+            assertNull(e, "Exception found while creating table");
         }
     }
 
@@ -92,7 +92,7 @@ public class HBaseTestingClusterAutoStarter {
                         admin.deleteTable(tableName);
                     }
                 } catch (IOException e) {
-                    assertNull("Exception found deleting the table", e);
+                    assertNull(e, "Exception found deleting the table");
                 }
             }
         }
@@ -113,11 +113,11 @@ public class HBaseTestingClusterAutoStarter {
         try {
             admin = TEST_UTIL.getAdmin();
         } catch (MasterNotRunningException e) {
-            assertNull("Master is not running", e);
+            assertNull(e, "Master is not running");
         } catch (ZooKeeperConnectionException e) {
-            assertNull("Cannot connect to ZooKeeper", e);
+            assertNull(e, "Cannot connect to ZooKeeper");
         } catch (IOException e) {
-            assertNull("IOException", e);
+            assertNull(e, "IOException");
         }
     }
 

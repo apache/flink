@@ -157,9 +157,7 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         streamMockEnvironment.getIOManager().close();
         MemoryManager memMan = this.streamMockEnvironment.getMemoryManager();
         if (memMan != null) {
-            assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            assertTrue(                    memMan.verifyEmpty(),                    "Memory Manager managed memory was not completely freed.");
             memMan.shutdown();
         }
     }

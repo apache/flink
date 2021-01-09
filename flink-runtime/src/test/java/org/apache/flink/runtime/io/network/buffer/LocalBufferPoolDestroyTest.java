@@ -18,16 +18,9 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -35,8 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
+@Timeout(10)
 public class LocalBufferPoolDestroyTest {
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     /**
      * Tests that a blocking request fails properly if the buffer pool is destroyed.
@@ -133,7 +126,7 @@ public class LocalBufferPoolDestroyTest {
         public void run() {
             try {
                 String msg = "Test assumption violated: expected no available buffer";
-                assertNull(msg, bufferPool.requestBuffer());
+                assertNull(bufferPool.requestBuffer(), msg);
 
                 bufferPool.requestBufferBuilderBlocking();
             } catch (Exception t) {

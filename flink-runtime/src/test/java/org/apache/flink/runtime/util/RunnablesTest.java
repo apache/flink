@@ -20,6 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -51,9 +52,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assertions.assertTrue(
-                "Expected handler to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS),                "Expected handler to be called.");
     }
 
     @Test
@@ -71,9 +70,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assertions.assertFalse(
-                "Expected handler not to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        Assertions.assertFalse(                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS),                "Expected handler not to be called.");
     }
 
     // ------------------------------------------------------------------------

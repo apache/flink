@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,9 +83,7 @@ public class RpcConnectionTest extends TestLogger {
         } catch (ExecutionException e) {
             // that is what we want
             assertTrue(e.getCause() instanceof RpcConnectionException);
-            assertTrue(
-                    "wrong error message",
-                    e.getCause().getMessage().contains("foo.bar.com.test.invalid"));
+            assertTrue(                    e.getCause().getMessage().contains("foo.bar.com.test.invalid"),                    "wrong error message");
         } catch (Throwable t) {
             fail("wrong exception: " + t);
         } finally {

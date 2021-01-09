@@ -22,6 +22,7 @@ import org.apache.flink.api.java.summarize.NumericColumnSummary;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /** Tests for {@link IntegerSummaryAggregator}. */
 public class IntegerSummaryAggregatorTest {

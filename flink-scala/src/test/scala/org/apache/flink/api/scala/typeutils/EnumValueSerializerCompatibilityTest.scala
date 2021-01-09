@@ -116,9 +116,7 @@ class EnumValueSerializerCompatibilityTest extends TestLogger with JUnitSuiteLik
     */
   @Test
   def checkDifferentIds(): Unit = {
-    assertTrue(
-      "Different ids should be incompatible.",
-      checkCompatibility(enumA, enumE).isIncompatible)
+    assertTrue(      checkCompatibility(enumA, enumE).isIncompatible,      "Different ids should be incompatible.")
   }
 
   def checkCompatibility(enumSourceA: String, enumSourceB: String)

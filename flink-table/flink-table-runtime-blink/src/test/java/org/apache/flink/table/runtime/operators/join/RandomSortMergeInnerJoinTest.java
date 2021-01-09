@@ -48,6 +48,7 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -123,9 +124,7 @@ public class RandomSortMergeInnerJoinTest {
 
         // assert that each expected match was seen
         for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-            Assertions.assertTrue(
-                    "Collection for key " + entry.getKey() + " is not empty",
-                    entry.getValue().isEmpty());
+            Assertions.assertTrue(                    entry.getValue().isEmpty(),                    "Collection for key " + entry.getKey() + " is not empty");
         }
     }
 

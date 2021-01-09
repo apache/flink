@@ -98,7 +98,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             // check for avro ext in dir.
             for (File avroOutput : Objects.requireNonNull(output1)) {
                 Assertions.assertTrue(
-                        "Expect extension '.avro'", avroOutput.toString().endsWith(".avro"));
+                        avroOutput.toString().endsWith(".avro"), "Expect extension '.avro'");
             }
         } else {
             output1 = new File[] {file1};
@@ -121,8 +121,8 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
         }
         for (String expectedResult : userData.split("\n")) {
             Assertions.assertTrue(
-                    "expected user " + expectedResult + " not found.",
-                    result1.contains(expectedResult));
+                    result1.contains(expectedResult),
+                    "expected user " + expectedResult + " not found.");
         }
 
         // compare result for reflect user type
@@ -151,8 +151,8 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
         }
         for (String expectedResult : userData.split("\n")) {
             Assertions.assertTrue(
-                    "expected user " + expectedResult + " not found.",
-                    result2.contains(expectedResult));
+                    result2.contains(expectedResult),
+                    "expected user " + expectedResult + " not found.");
         }
     }
 

@@ -242,7 +242,7 @@ public class MultipartUploadResource extends ExternalResource {
             actualUploadDir = files.get(0);
         }
         try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
-            assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
+            assertEquals(0, "Not all files were cleaned up.");
         }
     }
 

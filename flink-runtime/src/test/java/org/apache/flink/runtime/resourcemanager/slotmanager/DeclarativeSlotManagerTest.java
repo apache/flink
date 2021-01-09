@@ -46,11 +46,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -58,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -149,9 +146,9 @@ public class DeclarativeSlotManagerTest extends TestLogger {
                     taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
             assertEquals(
-                    "The number registered slots does not equal the expected number.",
                     2,
-                    slotManager.getNumberRegisteredSlots());
+                    slotManager.getNumberRegisteredSlots(),
+                    "The number registered slots does not equal the expected number.");
 
             slotManager.processResourceRequirements(resourceRequirements);
 
@@ -325,9 +322,9 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             DeclarativeTaskManagerSlot slot = slotTracker.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     jobId,
-                    slot.getJobId());
+                    slot.getJobId(),
+                    "The slot has not been allocated to the expected allocation id.");
         }
     }
 
@@ -454,9 +451,9 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             DeclarativeTaskManagerSlot slot = slotTracker.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected job id.",
                     resourceRequirements1.getJobId(),
-                    slot.getJobId());
+                    slot.getJobId(),
+                    "The slot has not been allocated to the expected job id.");
 
             if (secondRequirementDeclarationTime == SecondRequirementDeclarationTime.BEFORE_FREE) {
                 slotManager.processResourceRequirements(resourceRequirements2);
@@ -476,9 +473,9 @@ public class DeclarativeSlotManagerTest extends TestLogger {
             }
 
             assertEquals(
-                    "The slot has not been allocated to the expected job id.",
                     resourceRequirements2.getJobId(),
-                    slot.getJobId());
+                    slot.getJobId(),
+                    "The slot has not been allocated to the expected job id.");
         }
     }
 

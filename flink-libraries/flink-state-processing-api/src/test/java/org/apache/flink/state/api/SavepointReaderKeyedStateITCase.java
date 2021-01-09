@@ -30,14 +30,16 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /** IT case for reading state. */
 public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
@@ -80,8 +82,7 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         Set<Pojo> expected = new HashSet<>(elements);
 
-        Assertions.assertEquals(
-                "Unexpected results from keyed state", expected, new HashSet<>(results));
+        Assertions.assertEquals(expected, "Unexpected results from keyed state");
     }
 
     private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {

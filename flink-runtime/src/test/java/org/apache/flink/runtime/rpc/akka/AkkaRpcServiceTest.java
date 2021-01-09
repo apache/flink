@@ -33,11 +33,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -46,6 +42,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.*;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -147,7 +144,8 @@ public class AkkaRpcServiceTest extends TestLogger {
     }
 
     /** Tests that we can wait for the termination of the rpc service. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testTerminationFuture() throws Exception {
         final AkkaRpcService rpcService = startAkkaRpcService();
 
@@ -164,7 +162,8 @@ public class AkkaRpcServiceTest extends TestLogger {
      * Tests a simple scheduled runnable being executed by the RPC services scheduled executor
      * service.
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testScheduledExecutorServiceSimpleSchedule() throws Exception {
         ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
@@ -183,7 +182,8 @@ public class AkkaRpcServiceTest extends TestLogger {
      * Tests that the RPC service's scheduled executor service can execute runnables at a fixed
      * rate.
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testScheduledExecutorServicePeriodicSchedule() throws Exception {
         ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 
@@ -216,7 +216,8 @@ public class AkkaRpcServiceTest extends TestLogger {
      * Tests that the RPC service's scheduled executor service can execute runnable with a fixed
      * delay.
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testScheduledExecutorServiceWithFixedDelaySchedule() throws Exception {
         ScheduledExecutor scheduledExecutor = akkaRpcService.getScheduledExecutor();
 

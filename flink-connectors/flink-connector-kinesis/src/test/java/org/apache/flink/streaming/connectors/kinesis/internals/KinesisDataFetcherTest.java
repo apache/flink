@@ -52,6 +52,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -996,9 +997,7 @@ public class KinesisDataFetcherTest extends TestLogger {
             fail("Expected exception from deserializer, but got: " + e);
         }
 
-        assertTrue(
-                "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.",
-                fetcher.wasInterrupted);
+        assertTrue(                fetcher.wasInterrupted,                "Expected Fetcher to have been interrupted. This test didn't accomplish its goal.");
     }
 
     @Test

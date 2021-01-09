@@ -41,6 +41,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -236,15 +237,9 @@ public class TableEnvHiveConnectorITCase {
                     "create table db1.tbl (x int,y bigint not null enable rely,z string not null enable norely)");
             CatalogBaseTable catalogTable = hiveCatalog.getTable(new ObjectPath("db1", "tbl"));
             TableSchema tableSchema = catalogTable.getSchema();
-            assertTrue(
-                    "By default columns should be nullable",
-                    tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
-            assertFalse(
-                    "NOT NULL columns should be reflected in table schema",
-                    tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
-            assertTrue(
-                    "NOT NULL NORELY columns should be considered nullable",
-                    tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+            assertTrue(                    tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable(),                    "By default columns should be nullable");
+            assertFalse(                    tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable(),                    "NOT NULL columns should be reflected in table schema");
+            assertTrue(                    tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable(),                    "NOT NULL NORELY columns should be considered nullable");
         } finally {
             tableEnv.executeSql("drop database db1 cascade");
         }

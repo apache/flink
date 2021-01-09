@@ -20,12 +20,8 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.runtime.testutils.TestJvmProcess;
 import org.apache.flink.util.OperatingSystem;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +29,7 @@ import java.io.File;
 import java.util.UUID;
 
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test that verifies the behavior of blocking shutdown hooks and of the {@link
@@ -64,7 +61,7 @@ public class BlockingShutdownTest {
             // send it a regular kill command (SIG_TERM)
             Process kill = Runtime.getRuntime().exec("kill " + pid);
             kill.waitFor();
-            assertEquals("failed to send SIG_TERM to process", 0, kill.exitValue());
+            assertEquals(0, "failed to send SIG_TERM to process");
 
             // minimal delay until the Java process object notices that the process is gone
             // this will not let the test fail predictably if the process is actually in fact going
@@ -75,8 +72,8 @@ public class BlockingShutdownTest {
 
             // the process should not go away by itself
             assertTrue(
-                    "Test broken, process shutdown blocking does not work",
-                    blockingProcess.isAlive());
+                    blockingProcess.isAlive(),
+                    "Test broken, process shutdown blocking does not work");
         } finally {
             blockingProcess.destroy();
 
@@ -109,7 +106,7 @@ public class BlockingShutdownTest {
             // send it a regular kill command (SIG_TERM)
             Process kill = Runtime.getRuntime().exec("kill " + pid);
             kill.waitFor();
-            assertEquals("failed to send SIG_TERM to process", 0, kill.exitValue());
+            assertEquals(0, "failed to send SIG_TERM to process");
 
             // the process should eventually go away
             final long deadline = System.nanoTime() + 30_000_000_000L; // 30 secs in nanos
@@ -118,8 +115,8 @@ public class BlockingShutdownTest {
             }
 
             assertFalse(
-                    "shutdown blocking process does not properly terminate itself",
-                    blockingProcess.isAlive());
+                    blockingProcess.isAlive(),
+                    "shutdown blocking process does not properly terminate itself");
         } finally {
             blockingProcess.destroy();
 

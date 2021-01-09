@@ -67,7 +67,7 @@ class CheckpointSequenceValidator extends AbstractInvokable {
 
         final long expectedId = checkpointIDs[i++];
         if (expectedId >= 0) {
-            assertEquals("wrong checkpoint id", expectedId, checkpointMetaData.getCheckpointId());
+            assertEquals(expectedId, "wrong checkpoint id");
             assertTrue(checkpointMetaData.getTimestamp() > 0);
         } else {
             fail(
@@ -80,12 +80,12 @@ class CheckpointSequenceValidator extends AbstractInvokable {
     @Override
     public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
         assertTrue(
-                "Unexpected abortCheckpointOnBarrier(" + checkpointId + ")",
-                i < checkpointIDs.length);
+                i < checkpointIDs.length,
+                "Unexpected abortCheckpointOnBarrier(" + checkpointId + ")");
 
         final long expectedId = checkpointIDs[i++];
         if (expectedId < 0) {
-            assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
+            assertEquals(-expectedId, checkpointId, "wrong checkpoint id for checkpoint abort");
         } else {
             fail(
                     String.format(

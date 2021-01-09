@@ -31,11 +31,7 @@ import org.apache.flink.util.StateMigrationException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,6 +45,8 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assume.assumeThat;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** State TTL base test suite. */
 @RunWith(Parameterized.class)
@@ -262,9 +260,9 @@ public abstract class TtlStateTestBase {
 
         timeProvider.time = 120;
         assertEquals(
-                "Unexpired state should be available after read",
                 ctx().getUpdateEmpty,
-                ctx().get());
+                ctx().get(),
+                "Unexpired state should be available after read");
 
         takeAndRestoreSnapshot();
 
@@ -339,9 +337,9 @@ public abstract class TtlStateTestBase {
         mctx().ttlState.mergeNamespaces("targetNamespace", TtlMergingStateTestContext.NAMESPACES);
         mctx().ttlState.setCurrentNamespace("targetNamespace");
         assertEquals(
-                "Unexpected result of merge operation",
                 mctx().getMergeResult(unexpiredUpdatesToMerge, finalUpdatesToMerge),
-                mctx().get());
+                mctx().get(),
+                "Unexpected result of merge operation");
     }
 
     @Test

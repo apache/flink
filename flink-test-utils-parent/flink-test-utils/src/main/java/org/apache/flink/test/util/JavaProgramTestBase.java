@@ -21,12 +21,8 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 /**
  * Base class for unit tests that run a single test with object reuse enabled/disabled and against
@@ -119,7 +115,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
             }
 
             Assertions.assertNotNull(
-                    "The test program never triggered an execution.", this.latestExecutionResult);
+                    this.latestExecutionResult, "The test program never triggered an execution.");
         }
 
         // post-submit
@@ -165,7 +161,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
             }
 
             Assertions.assertNotNull(
-                    "The test program never triggered an execution.", this.latestExecutionResult);
+                    this.latestExecutionResult, "The test program never triggered an execution.");
         }
 
         // post-submit
@@ -214,7 +210,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         }
 
         Assertions.assertNotNull(
-                "The test program never triggered an execution.", this.latestExecutionResult);
+                this.latestExecutionResult, "The test program never triggered an execution.");
 
         // post-submit
         try {

@@ -46,12 +46,8 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Collector;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
@@ -260,10 +256,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 
                 if (checkHashJoinStrategies(join, reducer, true)) {
                     Assertions.assertTrue(
-                            "Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
+                            hashJoinFirstOkay, "Hash join (build orders) incorrectly chosen");
                 } else if (checkHashJoinStrategies(join, reducer, false)) {
                     Assertions.assertTrue(
-                            "Hash join (build lineitem) incorrectly chosen", hashJoinSecondOkay);
+                            hashJoinSecondOkay, "Hash join (build lineitem) incorrectly chosen");
                 } else if (checkBroadcastMergeJoin(join, reducer)) {
                     Assertions.assertTrue(mergeJoinOkay, "Merge join incorrectly chosen");
                 } else {
@@ -274,10 +270,10 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
 
                 if (checkHashJoinStrategies(join, reducer, true)) {
                     Assertions.assertTrue(
-                            "Hash join (build orders) incorrectly chosen", hashJoinFirstOkay);
+                            hashJoinFirstOkay, "Hash join (build orders) incorrectly chosen");
                 } else if (checkHashJoinStrategies(join, reducer, false)) {
                     Assertions.assertTrue(
-                            "Hash join (build lineitem) incorrectly chosen", hashJoinSecondOkay);
+                            hashJoinSecondOkay, "Hash join (build lineitem) incorrectly chosen");
                 } else if (checkRepartitionMergeJoin(join, reducer)) {
                     Assertions.assertTrue(mergeJoinOkay, "Merge join incorrectly chosen");
                 } else {
@@ -341,7 +337,7 @@ public class RelationalQueryCompilerTest extends CompilerTestBase {
                 && ShipStrategyType.FORWARD == reducer.getInput().getShipStrategy()) {
 
             // check combiner
-            Assertions.assertNull("Plan should not have a combiner", combiner);
+            Assertions.assertNull(combiner, "Plan should not have a combiner");
             return true;
         } else {
             return false;

@@ -420,10 +420,10 @@ public abstract class YarnTestBase extends TestLogger {
             final String[] prohibited, final Pattern[] whitelisted) {
         File cwd = new File("target/" + YARN_CONFIGURATION.get(TEST_CLUSTER_NAME_KEY));
         Assertions.assertTrue(
-                "Expecting directory " + cwd.getAbsolutePath() + " to exist", cwd.exists());
+                cwd.exists(), "Expecting directory " + cwd.getAbsolutePath() + " to exist");
         Assertions.assertTrue(
-                "Expecting directory " + cwd.getAbsolutePath() + " to be a directory",
-                cwd.isDirectory());
+                cwd.isDirectory(),
+                "Expecting directory " + cwd.getAbsolutePath() + " to be a directory");
 
         List<String> prohibitedExcerpts = new ArrayList<>();
         File foundFile =

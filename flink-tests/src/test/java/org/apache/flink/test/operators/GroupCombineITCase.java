@@ -33,6 +33,7 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -292,10 +293,7 @@ public class GroupCombineITCase extends MultipleProgramsTestBase {
         }
         Arrays.sort(resultAsStringArray);
 
-        Assertions.assertEquals(
-                "The two arrays were identical.",
-                false,
-                Arrays.equals(localExpected, resultAsStringArray));
+        Assertions.assertEquals(                false,                Arrays.equals(localExpected, resultAsStringArray),                 "The two arrays were identical.");
     }
 
     @Test

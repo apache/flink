@@ -253,9 +253,9 @@ public class TestBaseUtils extends TestLogger {
         String[] expected = expectedResultStr.split("\n");
 
         Assertions.assertEquals(
-                "Different number of lines in expected and obtained result.",
                 expected.length,
-                result.length);
+                result.length,
+                "Different number of lines in expected and obtained result.");
         Assertions.assertArrayEquals(expected, result);
     }
 
@@ -299,7 +299,7 @@ public class TestBaseUtils extends TestLogger {
         String[] result = list.toArray(new String[list.size()]);
         String[] expected = expectedLines.isEmpty() ? new String[0] : expectedLines.split("\n");
 
-        Assertions.assertEquals("Wrong number of result lines.", expected.length, result.length);
+        Assertions.assertEquals(expected.length, result.length, "Wrong number of result lines.");
 
         Arrays.sort(result);
         Arrays.sort(expected);
@@ -312,8 +312,8 @@ public class TestBaseUtils extends TestLogger {
             double resultPayLoad = Double.parseDouble(resultFields[1]);
 
             Assertions.assertTrue(
-                    "Values differ by more than the permissible delta",
-                    Math.abs(expectedPayLoad - resultPayLoad) < maxDelta);
+                    Math.abs(expectedPayLoad - resultPayLoad) < maxDelta,
+                    "Values differ by more than the permissible delta");
         }
     }
 

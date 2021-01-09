@@ -56,12 +56,9 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -87,9 +84,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
@@ -534,7 +531,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testDetachedPerJobYarnCluster() throws Exception {
         runTest(
                 () -> {
@@ -549,7 +547,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
         runTest(
                 () -> {
@@ -617,7 +616,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
         // it should usually be 2, but on slow machines, the number varies
         Assertions.assertTrue(
-                "There should be at most 2 containers running", getRunningContainers() <= 2);
+                getRunningContainers() <= 2, "There should be at most 2 containers running");
         // give the runner some time to detach
         for (int attempt = 0; runner.isAlive() && attempt < 5; attempt++) {
             try {
@@ -681,13 +680,19 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             // String content = FileUtils.readFileToString(taskmanagerOut);
             // check for some of the wordcount outputs.
             Assertions.assertTrue(
-                    "Expected string 'da 5' or '(all,2)' not found in string '" + content + "'",
-                    content.contains("da 5")
+                    content.contains(
+                                    "da 5",
+                                    "Expected string 'da 5' or '(all,2)' not found in string '"
+                                            + content
+                                            + "'")
                             || content.contains("(da,5)")
                             || content.contains("(all,2)"));
             Assertions.assertTrue(
-                    "Expected string 'der 29' or '(mind,1)' not found in string'" + content + "'",
-                    content.contains("der 29")
+                    content.contains(
+                                    "der 29",
+                                    "Expected string 'der 29' or '(mind,1)' not found in string'"
+                                            + content
+                                            + "'")
                             || content.contains("(der,29)")
                             || content.contains("(mind,1)"));
 

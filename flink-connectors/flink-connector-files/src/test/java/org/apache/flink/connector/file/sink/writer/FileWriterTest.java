@@ -35,18 +35,22 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.util.ExceptionUtils;
+
 import org.junit.ClassRule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -213,13 +217,13 @@ public class FileWriterTest {
 
         FileWriterBucket<String> test1Bucket = fileWriter.getActiveBuckets().get("test1");
         assertNull(
-                "The in-progress part of test1 should be rolled", test1Bucket.getInProgressPart());
+                test1Bucket.getInProgressPart(), "The in-progress part of test1 should be rolled");
         assertEquals(1, test1Bucket.getPendingFiles().size());
 
         FileWriterBucket<String> test2Bucket = fileWriter.getActiveBuckets().get("test2");
         assertNotNull(
-                "The in-progress part of test2 should not be rolled",
-                test2Bucket.getInProgressPart());
+                test2Bucket.getInProgressPart(),
+                "The in-progress part of test2 should not be rolled");
         assertEquals(0, test2Bucket.getPendingFiles().size());
 
         // Close, pre-commit & clear all the pending records.
@@ -234,13 +238,13 @@ public class FileWriterTest {
 
         test1Bucket = fileWriter.getActiveBuckets().get("test1");
         assertNull(
-                "The in-progress part of test1 should be rolled", test1Bucket.getInProgressPart());
+                test1Bucket.getInProgressPart(), "The in-progress part of test1 should be rolled");
         assertEquals(1, test1Bucket.getPendingFiles().size());
 
         test2Bucket = fileWriter.getActiveBuckets().get("test2");
         assertNotNull(
-                "The in-progress part of test2 should not be rolled",
-                test2Bucket.getInProgressPart());
+                test2Bucket.getInProgressPart(),
+                "The in-progress part of test2 should not be rolled");
         assertEquals(0, test2Bucket.getPendingFiles().size());
     }
 

@@ -27,25 +27,35 @@ import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper.LongRetrievableStateHandle;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -511,16 +521,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         Stat nodeStat = ZOOKEEPER.getClient().checkExists().forPath(statePath);
 
         assertNotNull(
-                "NodeStat should not be null, otherwise the referenced node does not exist.",
-                nodeStat);
+                nodeStat,
+                "NodeStat should not be null, otherwise the referenced node does not exist.");
 
         zkStore2.releaseAndTryRemove(statePath);
 
         nodeStat = ZOOKEEPER.getClient().checkExists().forPath(statePath);
 
         assertNull(
-                "NodeState should be null, because the referenced node should no longer exist.",
-                nodeStat);
+                nodeStat,
+                "NodeState should be null, because the referenced node should no longer exist.");
     }
 
     /**
@@ -561,7 +571,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(lockNodePath);
 
         // zkStore2 should not have created a lock node
-        assertNull("zkStore2 should not have created a lock node.", stat);
+        assertNull(stat, "zkStore2 should not have created a lock node.");
 
         Collection<String> children = ZOOKEEPER.getClient().getChildren().forPath(path);
 
@@ -572,7 +582,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
-        assertNull("The state node should have been removed.", stat);
+        assertNull(stat, "The state node should have been removed.");
     }
 
     /**
@@ -642,13 +652,13 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
         // release should have removed the lock child
-        assertEquals("Expected no lock nodes as children", 0, stat.getNumChildren());
+        assertEquals(0, "Expected no lock nodes as children");
 
         zkStore.releaseAndTryRemove(path);
 
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
-        assertNull("State node should have been removed.", stat);
+        assertNull(stat, "State node should have been removed.");
     }
 
     /**

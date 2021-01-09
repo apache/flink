@@ -22,6 +22,7 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.table.api.ValidationException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

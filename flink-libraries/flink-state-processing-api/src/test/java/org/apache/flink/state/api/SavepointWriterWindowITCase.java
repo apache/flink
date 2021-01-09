@@ -52,13 +52,11 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.hamcrest.Matcher;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -270,7 +268,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         submitJob(savepointPath, sEnv);
 
         Collection<Tuple2<String, Integer>> results = future.get();
-        Assertions.assertEquals("Incorrect number of results", 15, results.size());
+        Assertions.assertEquals(15, "Incorrect number of results");
         MatcherAssert.assertThat(
                 "Incorrect bootstrap state", new HashSet<>(results), STANDARD_MATCHER);
     }
@@ -315,7 +313,7 @@ public class SavepointWriterWindowITCase extends AbstractTestBase {
         submitJob(savepointPath, sEnv);
 
         Collection<Tuple2<String, Integer>> results = future.get();
-        Assertions.assertEquals("Incorrect number of results", 15, results.size());
+        Assertions.assertEquals(15, "Incorrect number of results");
         MatcherAssert.assertThat(
                 "Incorrect bootstrap state", new HashSet<>(results), EVICTOR_MATCHER);
     }

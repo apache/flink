@@ -44,6 +44,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -123,9 +124,7 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
         }
 
         if (this.memoryManager != null) {
-            Assertions.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -195,9 +194,7 @@ public class NonReusingSortMergeInnerJoinIteratorITCase extends TestLogger {
 
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-                Assertions.assertTrue(
-                        "Collection for key " + entry.getKey() + " is not empty",
-                        entry.getValue().isEmpty());
+                Assertions.assertTrue(                        entry.getValue().isEmpty(),                        "Collection for key " + entry.getKey() + " is not empty");
             }
         } catch (Exception e) {
             e.printStackTrace();

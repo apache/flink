@@ -28,6 +28,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.types.Row;
 import org.jline.utils.AttributedString;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -110,9 +111,7 @@ public class CliResultViewTest {
             }
         }
 
-        assertTrue(
-                "Invalid number of cancellations.",
-                cancellationCounterLatch.await(10, TimeUnit.SECONDS));
+        assertTrue(                cancellationCounterLatch.await(10, TimeUnit.SECONDS),                "Invalid number of cancellations.");
     }
 
     private static final class MockExecutor implements Executor {

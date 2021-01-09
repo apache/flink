@@ -64,12 +64,8 @@ import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,7 +227,7 @@ public class SavepointITCase extends TestLogger {
         File savepointDir = new File(new URI(savepointPath));
         assertTrue(savepointDir.exists(), "Savepoint directory does not exist.");
         assertTrue(
-                "Savepoint did not create self-contained directory.", savepointDir.isDirectory());
+                savepointDir.isDirectory(), "Savepoint did not create self-contained directory.");
 
         File[] savepointFiles = savepointDir.listFiles();
 

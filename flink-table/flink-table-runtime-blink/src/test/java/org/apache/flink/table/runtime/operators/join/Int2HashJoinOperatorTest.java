@@ -41,6 +41,7 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.MutableObjectIterator;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -392,7 +393,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 
         Queue<Object> actual = testHarness.getOutput();
 
-        Assertions.assertEquals("Output was not correct.", expectOutSize, actual.size());
+        Assertions.assertEquals(expectOutSize,"Output was not correct.");
 
         // Don't verify the output value when experOutVal is -1
         if (expectOutVal != -1) {
@@ -413,7 +414,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
                     map.put(key, contained);
                 }
 
-                Assertions.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
+                Assertions.assertEquals(expectOutKeySize,"Wrong number of keys");
                 for (Map.Entry<Integer, Long> entry : map.entrySet()) {
                     long val = entry.getValue();
                     int key = entry.getKey();
@@ -451,7 +452,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
                     map.put(key, contained);
                 }
 
-                Assertions.assertEquals("Wrong number of keys", expectOutKeySize, map.size());
+                Assertions.assertEquals(expectOutKeySize,"Wrong number of keys");
                 for (Map.Entry<Integer, Long> entry : map.entrySet()) {
                     long val = entry.getValue();
                     int key = entry.getKey();

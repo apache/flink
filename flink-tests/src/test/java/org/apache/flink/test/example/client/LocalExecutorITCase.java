@@ -33,12 +33,9 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -66,7 +63,8 @@ public class LocalExecutorITCase extends TestLogger {
                         });
     }
 
-    @Test(timeout = 60_000)
+    @Test
+    @Timeout(60)
     public void testLocalExecutorWithWordCount() throws InterruptedException {
         try {
             // set up the files
@@ -96,7 +94,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertThat(miniCluster.isRunning(), is(false));
     }
 
-    @Test(timeout = 60_000)
+    @Test
+    @Timeout(60)
     public void testMiniClusterShutdownOnErrors() throws Exception {
         Plan runtimeExceptionPlan = getRuntimeExceptionPlan();
         runtimeExceptionPlan.setExecutionConfig(new ExecutionConfig());

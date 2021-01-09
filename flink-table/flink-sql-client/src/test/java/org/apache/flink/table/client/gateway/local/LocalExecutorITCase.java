@@ -24,9 +24,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.*;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableResult;
@@ -36,7 +39,12 @@ import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
-import org.apache.flink.table.client.gateway.*;
+import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
+import org.apache.flink.table.client.gateway.ResultDescriptor;
+import org.apache.flink.table.client.gateway.SessionContext;
+import org.apache.flink.table.client.gateway.SqlExecutionException;
+import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
 import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
 import org.apache.flink.table.client.gateway.utils.TestUserClassLoaderJar;
@@ -48,17 +56,16 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
+
 import org.hamcrest.Matcher;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -69,14 +76,29 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.table.client.gateway.local.ExecutionContextTest.CATALOGS_ENVIRONMENT_FILE;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.CoreMatchers.hasItems;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
 @RunWith(Parameterized.class)
@@ -476,7 +498,8 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionChangelog() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -520,7 +543,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -566,7 +590,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -593,7 +618,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -630,7 +656,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionLimitedTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -652,7 +679,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testBatchQueryExecution() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -693,7 +721,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testBatchQueryExecutionMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -736,7 +765,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInStreamingChangelogMode() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -767,7 +797,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertTrue(throwableWithMessage.isPresent());
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInStreamingTableMode() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -798,7 +829,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertTrue(throwableWithMessage.isPresent());
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInBatch() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -846,7 +878,8 @@ public class LocalExecutorITCase extends TestLogger {
         return throwableWithMessage;
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionSink() throws Exception {
         final String csvOutputPath =
                 new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv")

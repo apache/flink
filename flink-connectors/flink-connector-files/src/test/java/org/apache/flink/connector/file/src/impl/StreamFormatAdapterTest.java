@@ -29,11 +29,6 @@ import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.FSDataInputStream;
 
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -111,7 +106,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
                 Configuration config, FSDataInputStream stream, long fileLen, long splitEnd)
                 throws IOException {
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertEquals(0, fileLen % 4, "invalid file length");
 
             // round all positions to the next integer boundary
             // to simulate common split behavior, we round up to the next int boundary even when we
@@ -133,7 +128,7 @@ public class StreamFormatAdapterTest extends AdapterTestBase<StreamFormat<Intege
                 long splitEnd)
                 throws IOException {
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertEquals(0, fileLen % 4, "invalid file length");
 
             // round end position to the next integer boundary
             final long end = splitEnd == fileLen ? fileLen : splitEnd + 4 - splitEnd % 4;

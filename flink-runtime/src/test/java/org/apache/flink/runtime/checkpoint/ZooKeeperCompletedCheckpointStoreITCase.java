@@ -28,17 +28,14 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.util.clock.ManualClock;
+
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
-import org.apache.flink.util.clock.ManualClock;
+
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -51,7 +48,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointRequestDeciderTest.regularCheckpoint;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for basic {@link CompletedCheckpointStore} contract and ZooKeeper state handling. */
 public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpointStoreTest {
@@ -214,7 +215,7 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         Stat stat = client.checkExists().forPath(checkpointPath);
 
         assertNotNull(stat, "The checkpoint node should exist.");
-        assertEquals("The checkpoint node should not be locked.", 0, stat.getNumChildren());
+        assertEquals(0, stat.getNumChildren(), "The checkpoint node should not be locked.");
 
         // Recover again
         sharedStateRegistry.close();
@@ -300,8 +301,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
         // lets wait a little bit to see that no discard operation will be executed
         assertFalse(
-                "The checkpoint should not have been discarded.",
-                recoveredTestCheckpoint.awaitDiscard(waitingTimeout));
+                recoveredTestCheckpoint.awaitDiscard(waitingTimeout),
+                "The checkpoint should not have been discarded.");
 
         // check that we have not discarded the first completed checkpoint
         assertFalse(recoveredTestCheckpoint.isDiscarded());

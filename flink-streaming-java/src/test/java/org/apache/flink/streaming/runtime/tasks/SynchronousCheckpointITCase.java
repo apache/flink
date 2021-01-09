@@ -62,14 +62,9 @@ import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
-import org.junit.Rule;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -77,22 +72,23 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /**
  * Tests that the cached thread pool used by the {@link Task} allows synchronous checkpoints to
  * complete successfully.
  */
+@Timeout(10)
 public class SynchronousCheckpointITCase {
 
     // A thread-safe queue to "log" and monitor events happening in the task's methods. Also, used
     // by the test thread
     // to synchronize actions with the task's threads.
     private static LinkedBlockingQueue<Event> eventQueue = new LinkedBlockingQueue<>();
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(10);
 
     @Test
     public void taskDispatcherThreadPoolAllowsForSynchronousCheckpoints() throws Exception {

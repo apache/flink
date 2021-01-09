@@ -28,12 +28,9 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 public class JoinTaskExternalITCase
         extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
@@ -99,7 +96,7 @@ public class JoinTaskExternalITCase
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -130,7 +127,7 @@ public class JoinTaskExternalITCase
             Assertions.fail("Test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -161,7 +158,7 @@ public class JoinTaskExternalITCase
             Assertions.fail("Test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     public static final class MockMatchStub implements FlatJoinFunction<Record, Record, Record> {

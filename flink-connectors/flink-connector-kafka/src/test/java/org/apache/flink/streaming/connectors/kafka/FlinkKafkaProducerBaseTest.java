@@ -42,11 +42,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -54,6 +50,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -231,7 +228,8 @@ public class FlinkKafkaProducerBaseTest {
      * pending records. The test for that is covered in testAtLeastOnceProducer.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testAsyncErrorRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -292,7 +290,8 @@ public class FlinkKafkaProducerBaseTest {
      * the test will not finish if the logic is broken.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAtLeastOnceProducer() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(
@@ -333,17 +332,17 @@ public class FlinkKafkaProducerBaseTest {
         // this would block forever if the snapshot didn't perform a flush
         producer.waitUntilFlushStarted();
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
 
         // now, complete the callbacks
         producer.getPendingCallbacks().get(0).onCompletion(null, null);
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
         Assertions.assertEquals(2, producer.getPendingSize());
 
         producer.getPendingCallbacks().get(1).onCompletion(null, null);
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
         Assertions.assertEquals(1, producer.getPendingSize());
 
         producer.getPendingCallbacks().get(2).onCompletion(null, null);
@@ -362,7 +361,8 @@ public class FlinkKafkaProducerBaseTest {
      * records; we set a timeout because the test will not finish if the logic is broken.
      */
     @SuppressWarnings("unchecked")
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testDoesNotWaitForPendingRecordsIfFlushingDisabled() throws Throwable {
         final DummyFlinkKafkaProducer<String> producer =
                 new DummyFlinkKafkaProducer<>(

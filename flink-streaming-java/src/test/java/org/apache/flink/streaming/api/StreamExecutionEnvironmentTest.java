@@ -39,23 +39,16 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link StreamExecutionEnvironment}. */
 public class StreamExecutionEnvironmentTest {
@@ -107,13 +100,13 @@ public class StreamExecutionEnvironmentTest {
             streamGraph.getStreamingPlanAsJSON();
 
             assertEquals(
-                    "Parallelism of collection source must be 1.",
                     1,
-                    streamGraph.getStreamNode(dataStream1.getId()).getParallelism());
+                    streamGraph.getStreamNode(dataStream1.getId()).getParallelism(),
+                    "Parallelism of collection source must be 1.");
             assertEquals(
-                    "Parallelism of parallel collection source must be 4.",
                     4,
-                    streamGraph.getStreamNode(dataStream2.getId()).getParallelism());
+                    streamGraph.getStreamNode(dataStream2.getId()).getParallelism(),
+                    "Parallelism of parallel collection source must be 4.");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

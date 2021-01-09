@@ -29,14 +29,12 @@ import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.JobSubmission;
 import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.experimental.categories.Category;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
@@ -154,9 +152,9 @@ public class StreamingKafkaITCase extends TestLogger {
             LOG.info("Repartitioning Kafka topic [{}] ...", inputTopic);
             kafka.setNumPartitions(2, inputTopic);
             Assertions.assertEquals(
-                    "Failed adding a partition to input topic.",
                     2,
-                    kafka.getNumPartitions(inputTopic));
+                    kafka.getNumPartitions(inputTopic),
+                    "Failed adding a partition to input topic.");
 
             // send some more messages to Kafka
             LOG.info("Sending more messages to Kafka topic [{}] ...", inputTopic);

@@ -94,8 +94,8 @@ public class ConnectedComponentsData {
         String line;
         while ((line = result.readLine()) != null) {
             String[] res = split.split(line);
-            Assertions.assertEquals(
-                    "Malformed result: Wrong number of tokens in line.", 2, res.length);
+            Assertions.assertEquals(2, res.length,
+                    "Malformed result: Wrong number of tokens in line.");
             try {
                 int vertex = Integer.parseInt(res[0]);
                 int component = Integer.parseInt(res[1]);
@@ -104,7 +104,7 @@ public class ConnectedComponentsData {
                 if (should == 0) {
                     should = 2;
                 }
-                Assertions.assertEquals("Vertex is in wrong component.", should, component);
+                Assertions.assertEquals(should, component, "Vertex is in wrong component.");
             } catch (NumberFormatException e) {
                 Assertions.fail("Malformed result.");
             }
@@ -120,7 +120,7 @@ public class ConnectedComponentsData {
                 if (should == 0) {
                     should = 2;
                 }
-                Assertions.assertEquals("Vertex is in wrong component.", should, component);
+                Assertions.assertEquals(should, component, "Vertex is in wrong component.");
             } catch (NumberFormatException e) {
                 Assertions.fail("Malformed result.");
             }

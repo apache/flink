@@ -27,6 +27,7 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.CoreMatchers;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -165,9 +166,7 @@ public class BlobCacheCorruptionTest extends TestLogger {
             ExpectedException expectedException)
             throws IOException {
 
-        assertTrue(
-                "corrupt HA file requires a HA setup",
-                !corruptOnHAStore || blobType == PERMANENT_BLOB);
+        assertTrue(                !corruptOnHAStore || blobType == PERMANENT_BLOB,                "corrupt HA file requires a HA setup");
 
         Random rnd = new Random();
 

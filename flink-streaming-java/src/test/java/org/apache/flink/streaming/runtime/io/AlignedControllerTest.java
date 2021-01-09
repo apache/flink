@@ -41,6 +41,7 @@ import org.hamcrest.collection.IsMapContaining;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -1182,9 +1183,7 @@ public class AlignedControllerTest {
             assertEquals(expected.getBuffer().getSize(), present.getBuffer().getSize());
             MemorySegment expectedMem = expected.getBuffer().getMemorySegment();
             MemorySegment presentMem = present.getBuffer().getMemorySegment();
-            assertTrue(
-                    "memory contents differs",
-                    expectedMem.compare(presentMem, 0, 0, pageSize) == 0);
+            assertTrue(                    expectedMem.compare(presentMem, 0, 0, pageSize) == 0,                    "memory contents differs");
         } else {
             assertEquals(expected.getEvent(), present.getEvent());
         }

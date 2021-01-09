@@ -36,15 +36,11 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.runtime.operators.testutils.UnionIterator;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -100,8 +96,8 @@ public class ReOpenableHashTableITCase extends TestLogger {
 
         if (this.memoryManager != null) {
             Assertions.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+                    this.memoryManager.verifyEmpty(),
+                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -203,14 +199,14 @@ public class ReOpenableHashTableITCase extends TestLogger {
                 if ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues = 1;
                     Assertions.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                            key, record.f0, "Probe-side key was different than build-side key.");
                 } else {
                     fail("No build side values found for a probe key.");
                 }
                 while ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues++;
                     Assertions.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                            key, record.f0, "Probe-side key was different than build-side key.");
                 }
 
                 Long contained = map.get(key);
@@ -225,7 +221,7 @@ public class ReOpenableHashTableITCase extends TestLogger {
         }
 
         join.close();
-        Assertions.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        Assertions.assertEquals(NUM_KEYS, "Wrong number of keys");
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();

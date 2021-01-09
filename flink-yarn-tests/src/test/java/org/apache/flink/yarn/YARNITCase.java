@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -198,13 +199,9 @@ public class YARNITCase extends YarnTestBase {
             final Path stagingDirectory =
                     new Path(fs.getHomeDirectory(), ".flink/" + appId.toString());
             if (isProvidedLibDirsConfigured) {
-                assertFalse(
-                        "The provided lib dirs is set, so the lib directory should not be uploaded to staging directory.",
-                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+                assertFalse(                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())),                        "The provided lib dirs is set, so the lib directory should not be uploaded to staging directory.");
             } else {
-                assertTrue(
-                        "The lib directory should be uploaded to staging directory.",
-                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+                assertTrue(                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())),                        "The lib directory should be uploaded to staging directory.");
             }
         }
     }

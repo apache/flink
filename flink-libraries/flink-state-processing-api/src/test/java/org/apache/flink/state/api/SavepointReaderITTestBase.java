@@ -41,12 +41,9 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -122,9 +119,9 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         listResult.sort(Comparator.naturalOrder());
 
         Assertions.assertEquals(
-                "Unexpected elements read from list state",
                 SavepointSource.getElements(),
-                listResult);
+                listResult,
+                "Unexpected elements read from list state");
     }
 
     private void verifyUnionState(String path, ExecutionEnvironment batchEnv) throws Exception {
@@ -133,9 +130,9 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         unionResult.sort(Comparator.naturalOrder());
 
         Assertions.assertEquals(
-                "Unexpected elements read from union state",
                 SavepointSource.getElements(),
-                unionResult);
+                unionResult,
+                "Unexpected elements read from union state");
     }
 
     private void verifyBroadcastState(String path, ExecutionEnvironment batchEnv) throws Exception {
@@ -155,17 +152,17 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
                         .collect(Collectors.toList());
 
         Assertions.assertEquals(
-                "Unexpected element in broadcast state keys",
                 SavepointSource.getElements(),
-                broadcastStateKeys);
+                broadcastStateKeys,
+                "Unexpected element in broadcast state keys");
 
         Assertions.assertEquals(
-                "Unexpected element in broadcast state values",
                 SavepointSource.getElements().stream()
                         .map(Object::toString)
                         .sorted()
                         .collect(Collectors.toList()),
-                broadcastStateValues);
+                broadcastStateValues,
+                "Unexpected element in broadcast state values");
     }
 
     private String takeSavepoint(JobGraph jobGraph) throws Exception {

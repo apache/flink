@@ -44,11 +44,6 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -150,7 +145,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     protected void testProgramWithBackend(AbstractStateBackend stateBackend) throws Exception {
-        assertEquals("Broken test setup", 0, (NUM_STRINGS / 2) % NUM_KEYS);
+        assertEquals(0, "Broken test setup");
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
@@ -265,7 +260,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 
         @Override
         public void restoreState(List<Integer> state) throws Exception {
-            assertEquals("Test failed due to unexpected recovered state size", 1, state.size());
+            assertEquals(1, "Test failed due to unexpected recovered state size");
             lastEmitted = state.get(0);
             checkpointHappened = true;
         }
@@ -326,7 +321,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 
         @Override
         public void restoreState(List<Integer> state) throws Exception {
-            assertEquals("Test failed due to unexpected recovered state size", 1, state.size());
+            assertEquals(1, "Test failed due to unexpected recovered state size");
             count = state.get(0);
             shouldFail = false;
         }

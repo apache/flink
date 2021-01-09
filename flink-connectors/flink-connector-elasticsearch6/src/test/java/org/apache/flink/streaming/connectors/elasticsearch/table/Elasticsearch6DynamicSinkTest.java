@@ -37,6 +37,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionRequest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

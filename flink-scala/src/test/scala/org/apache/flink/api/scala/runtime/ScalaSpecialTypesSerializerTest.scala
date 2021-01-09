@@ -223,7 +223,7 @@ class ScalaSpecialTypesSerializerTestInstance[T](
       assertNotNull(tpe, "The test is corrupt: type class is null.")
       // We cannot check this because Collection Instances are not always of the type
       // that the user writes, they might have generated names.
-      // assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+      // assertEquals(tpe, instance.getClass, "Type of the instantiated object is wrong.")
     }
     catch {
       case e: Exception => {

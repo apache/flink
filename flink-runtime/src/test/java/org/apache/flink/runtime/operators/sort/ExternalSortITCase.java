@@ -36,14 +36,11 @@ import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,8 +91,8 @@ public class ExternalSortITCase extends TestLogger {
 
         if (this.memoryManager != null && testSuccess) {
             Assertions.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+                    this.memoryManager.verifyEmpty(),
+                    "Memory leak: not all segments have been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -343,7 +340,7 @@ public class ExternalSortITCase extends TestLogger {
                     nextStep += PAIRS / 20;
                 }
             }
-            Assertions.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
+            Assertions.assertEquals(PAIRS, pairsRead, "Not all pairs were read back in.");
             merger.close();
             testSuccess = true;
         } catch (Exception e) {
@@ -412,7 +409,7 @@ public class ExternalSortITCase extends TestLogger {
                     nextStep += PAIRS / 20;
                 }
             }
-            Assertions.assertEquals("Not all pairs were read back in.", PAIRS, pairsRead);
+            Assertions.assertEquals(PAIRS, pairsRead, "Not all pairs were read back in.");
             merger.close();
             testSuccess = true;
         } catch (Exception e) {

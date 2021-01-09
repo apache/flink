@@ -21,7 +21,11 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.*;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -31,7 +35,11 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.*;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
+import org.apache.flink.runtime.executiongraph.JobInformation;
+import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -44,20 +52,25 @@ import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskBackPressureResponse;
-import org.apache.flink.runtime.shuffle.*;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.PartitionDescriptorBuilder;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testtasks.OutputBlockedInvokable;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
-import org.apache.flink.util.*;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TestName;
 import org.mockito.Mockito;
 
@@ -67,13 +80,17 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.newBuilder;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -91,7 +108,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testTaskSubmission() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -121,7 +139,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that the TaskManager sends a proper exception back to the sender if the submit task
      * message fails.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testSubmitTaskFailure() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -146,7 +165,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     }
 
     /** Tests that we can cancel the task of the TaskManager given that we've submitted it. */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testTaskSubmissionAndCancelling() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -196,7 +216,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that submitted tasks will fail when attempting to send/receive data if no
      * ResultPartitions/InputGates are set up.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testGateChannelEdgeMismatch() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -244,7 +265,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         }
     }
 
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testRunJobWithForwardChannel() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -309,7 +331,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * This tests creates two tasks. The sender sends data but fails to send the state update back
      * to the job manager. the second one blocks to be canceled
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testCancellingDependentAndStateUpdateFails() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -385,7 +408,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testRemotePartitionNotFound() throws Exception {
         final int dataPort = NetUtils.getAvailablePort();
         Configuration config = new Configuration();
@@ -479,7 +503,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testLocalPartitionNotFound() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor shuffleDescriptor =
@@ -532,7 +557,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * the memory segment, we'll block the invokable and wait for the task failure due to the failed
      * notifyPartitionDataAvailable call.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final Configuration configuration = new Configuration();
 
@@ -596,7 +622,8 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     /** Tests request of task back pressure. */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testRequestTaskBackPressure() throws Exception {
         final NettyShuffleDescriptor shuffleDescriptor = newBuilder().buildLocal();
         final TaskDeploymentDescriptor tdd =
@@ -658,7 +685,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
                 }
             }
 
-            assertEquals("Task was not back pressured in given time.", 1.0, backPressureRatio, 0.0);
+            assertEquals(1.0, backPressureRatio, 0.0, "Task was not back pressured in given time.");
 
             // 3) trigger request for the blocking task, but cancel it before request finishes.
             CompletableFuture<TaskBackPressureResponse> canceledRequestFuture =

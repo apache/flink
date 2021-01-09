@@ -268,8 +268,7 @@ public class SchedulerTestingUtils {
 
     public static void acknowledgeCurrentCheckpoint(DefaultScheduler scheduler) {
         final CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(scheduler);
-        assertEquals(
-                "Coordinator has not ", 1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+        assertEquals(1, "Coordinator has not ");
 
         final PendingCheckpoint pc =
                 checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
@@ -303,9 +302,9 @@ public class SchedulerTestingUtils {
         checkpointCoordinator.triggerCheckpoint(false);
 
         assertEquals(
-                "test setup inconsistent",
                 1,
-                checkpointCoordinator.getNumberOfPendingCheckpoints());
+                checkpointCoordinator.getNumberOfPendingCheckpoints(),
+                "test setup inconsistent");
         final PendingCheckpoint checkpoint =
                 checkpointCoordinator.getPendingCheckpoints().values().iterator().next();
         final CompletableFuture<CompletedCheckpoint> future = checkpoint.getCompletionFuture();

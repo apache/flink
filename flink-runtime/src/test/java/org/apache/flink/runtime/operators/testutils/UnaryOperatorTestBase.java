@@ -397,9 +397,7 @@ public abstract class UnaryOperatorTestBase<S extends Function, IN, OUT> extends
         // last, verify all memory is returned and shutdown mem manager
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
-            Assertions.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+            Assertions.assertTrue(                    memMan.verifyEmpty(),                    "Memory Manager managed memory was not completely freed.");
             memMan.shutdown();
         }
     }

@@ -42,6 +42,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -171,9 +172,7 @@ public class YarnResourceManagerDriverTest extends ResourceManagerDriverTestBase
                 runTest(
                         () -> {
                             getDriver().deregisterApplication(ApplicationStatus.SUCCEEDED, null);
-                            assertFalse(
-                                    "YARN application directory was not removed",
-                                    Files.exists(applicationDir.toPath()));
+                            assertFalse(                                    Files.exists(applicationDir.toPath()),                                    "YARN application directory was not removed");
                         });
             }
         };

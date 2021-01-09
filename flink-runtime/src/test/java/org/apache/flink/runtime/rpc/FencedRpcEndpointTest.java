@@ -29,6 +29,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -86,9 +87,7 @@ public class FencedRpcEndpointTest extends TestLogger {
                 // expected to fail
             }
 
-            assertFalse(
-                    "Setting fencing token from outside the main thread did not fail as expected.",
-                    failed);
+            assertFalse(                    failed,                    "Setting fencing token from outside the main thread did not fail as expected.");
             assertNull(fencedTestingEndpoint.getFencingToken());
 
             CompletableFuture<Acknowledge> setFencingFuture =

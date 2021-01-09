@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
@@ -36,29 +35,17 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /** Suite of tests for {@link ElasticsearchSinkBase}. */
 public class ElasticsearchSinkBaseTest {
@@ -166,7 +153,8 @@ public class ElasticsearchSinkBaseTest {
      * following checkpoint is rethrown; we set a timeout because the test will not finish if the
      * logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testItemFailureRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -317,7 +305,8 @@ public class ElasticsearchSinkBaseTest {
      * following checkpoint is rethrown; we set a timeout because the test will not finish if the
      * logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testBulkFailureRethrownOnOnCheckpointAfterFlush() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -385,7 +374,8 @@ public class ElasticsearchSinkBaseTest {
      * Tests that the sink correctly waits for pending requests (including re-added requests) on
      * checkpoints; we set a timeout because the test will not finish if the logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testAtLeastOnceSink() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -450,7 +440,8 @@ public class ElasticsearchSinkBaseTest {
      * disabled, the snapshot method does indeed finishes without waiting for pending requests; we
      * set a timeout because the test will not finish if the logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testDoesNotWaitForPendingRequestsIfFlushingDisabled() throws Exception {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(

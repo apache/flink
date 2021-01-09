@@ -25,13 +25,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -45,13 +40,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
 import static org.hamcrest.core.IsNot.not;
@@ -60,16 +55,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link NetworkBufferPool}. */
+@Timeout(10)
 public class NetworkBufferPoolTest extends TestLogger {
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
-
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Test
     public void testCreatePoolAfterDestroy() {
@@ -541,7 +535,8 @@ public class NetworkBufferPoolTest extends TestLogger {
      * NetworkBufferPool#requestMemorySegments(int)} and recycled by {@link
      * NetworkBufferPool#recycleMemorySegments(Collection)}.
      */
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments()
             throws InterruptedException, IOException {
         final int numberOfSegmentsToRequest = 5;

@@ -35,14 +35,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.concurrent.BlockingQueue;
 
@@ -53,13 +47,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * A test verifying the termination process (synchronous checkpoint and task termination) at the
  * {@link SourceStreamTask}.
  */
+@Timeout(20)
 public class SourceTaskTerminationTest extends TestLogger {
 
     private static OneShotLatch ready;
     private static MultiShotLatch runLoopStart;
     private static MultiShotLatch runLoopEnd;
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Before
     public void initialize() {
@@ -165,22 +158,21 @@ public class SourceTaskTerminationTest extends TestLogger {
             throws InterruptedException {
         Object next = output.take();
         assertTrue(next instanceof StreamRecord, "next element is not an event");
-        assertEquals(
-                "wrong event", expectedElement, ((StreamRecord<Long>) next).getValue().longValue());
+        assertEquals(expectedElement, "wrong event");
     }
 
     private void verifyWatermark(BlockingQueue<Object> output, Watermark expectedWatermark)
             throws InterruptedException {
         Object next = output.take();
         assertTrue(next instanceof Watermark, "next element is not a watermark");
-        assertEquals("wrong watermark", expectedWatermark, next);
+        assertEquals(expectedWatermark, next, "wrong watermark");
     }
 
     private void verifyCheckpointBarrier(BlockingQueue<Object> output, long checkpointId)
             throws InterruptedException {
         Object next = output.take();
         assertTrue(next instanceof CheckpointBarrier, "next element is not a checkpoint barrier");
-        assertEquals("wrong checkpoint id", checkpointId, ((CheckpointBarrier) next).getId());
+        assertEquals(checkpointId, "wrong checkpoint id");
     }
 
     private static class LockStepSourceWithOneWmPerElement implements SourceFunction<Long> {

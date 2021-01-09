@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 
 import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /** Unit and behavior tests for the {@link FileRecordFormatAdapter}. */
@@ -90,7 +91,7 @@ public class FileRecordFormatAdapterTest extends AdapterTestBase<FileRecordForma
             final long fileLen = status.getLen();
             final long splitEnd = splitOffset + splitLength;
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertEquals(0, fileLen % 4, "invalid file length");
 
             // round all positions to the next integer boundary
             // to simulate common split behavior, we round up to the next int boundary even when we
@@ -118,7 +119,7 @@ public class FileRecordFormatAdapterTest extends AdapterTestBase<FileRecordForma
             final long fileLen = status.getLen();
             final long splitEnd = splitOffset + splitLength;
 
-            assertEquals("invalid file length", 0, fileLen % 4);
+            assertEquals(0, fileLen % 4, "invalid file length");
 
             // round end position to the next integer boundary
             final long end = splitEnd == fileLen ? fileLen : splitEnd + 4 - splitEnd % 4;

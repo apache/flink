@@ -28,6 +28,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -67,10 +68,7 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assertions.assertEquals(
-                "Failed to collect the correct number of elements from the stream",
-                1,
-                results.size());
+        Assertions.assertEquals(                1,                results.size(),                 "Failed to collect the correct number of elements from the stream");
     }
 
     @Test
@@ -105,9 +103,6 @@ public class DataStreamCollectTestITCase extends TestLogger {
         DataStream<Integer> stream = env.fromElements(1, 2, 3, 4, 5);
 
         List<Integer> results = stream.executeAndCollect(1);
-        Assertions.assertEquals(
-                "Failed to collect the correct number of elements from the stream",
-                1,
-                results.size());
+        Assertions.assertEquals(                1,                results.size(),                 "Failed to collect the correct number of elements from the stream");
     }
 }

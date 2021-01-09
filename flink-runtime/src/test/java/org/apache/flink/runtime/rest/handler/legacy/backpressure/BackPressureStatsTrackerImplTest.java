@@ -23,25 +23,22 @@ import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertexTest;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.util.TestLogger;
-import org.junit.Rule;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link BackPressureStatsTrackerImpl}. */
+@Timeout(10)
 public class BackPressureStatsTrackerImplTest extends TestLogger {
 
     private static final int requestId = 0;
@@ -53,8 +50,6 @@ public class BackPressureStatsTrackerImplTest extends TestLogger {
     private static final int cleanUpInterval = 60000;
     private static final int backPressureStatsRefreshInterval = 60000;
     private static final long timeGap = 60000;
-
-    @Rule public Timeout caseTimeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Test
     public void testGetOperatorBackPressureStats() throws Exception {

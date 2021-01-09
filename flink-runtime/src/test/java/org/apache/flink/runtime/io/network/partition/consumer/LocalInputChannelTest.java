@@ -38,6 +38,7 @@ import org.apache.flink.util.function.CheckedSupplier;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -99,9 +100,7 @@ public class LocalInputChannelTest {
         channel.checkpointStarted(barrier);
         // pull data
         channel.getNextBuffer();
-        Assertions.assertTrue(
-                "no data should be persisted after receiving a barrier",
-                stateWriter.getAddedInput().isEmpty());
+        Assertions.assertTrue(                stateWriter.getAddedInput().isEmpty(),                "no data should be persisted after receiving a barrier");
     }
 
     /**

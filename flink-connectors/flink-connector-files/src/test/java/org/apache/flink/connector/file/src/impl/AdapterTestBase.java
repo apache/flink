@@ -32,11 +32,6 @@ import org.apache.flink.core.fs.Path;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.DataOutputStream;
@@ -208,7 +203,7 @@ public abstract class AdapterTestBase<FormatT> {
     // ------------------------------------------------------------------------
 
     protected static void verifyIntListResult(List<Integer> result) {
-        assertEquals("wrong result size", NUM_NUMBERS, result.size());
+        assertEquals(NUM_NUMBERS, "wrong result size");
         int nextExpected = 0;
         for (int next : result) {
             if (next != nextExpected++) {

@@ -21,13 +21,8 @@ package org.apache.flink.connector.jdbc.internal.connection;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.fakedb.FakeDBUtils;
 import org.apache.flink.core.testutils.CheckedThread;
-
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -56,7 +51,8 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingTest {
         return false;
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testDriverClassConcurrentLoading() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 

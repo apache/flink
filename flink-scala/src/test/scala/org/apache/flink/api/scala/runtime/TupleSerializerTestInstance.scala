@@ -79,7 +79,7 @@ class TupleSerializerTestInstance[T <: Product] (
       assertNotNull(tpe, "The test is corrupt: type class is null.")
       // We cannot check this because Tuple1 instances are not actually of type Tuple1
       // but something like Tuple1$mcI$sp
-//      assertEquals("Type of the instantiated object is wrong.", tpe, instance.getClass)
+//      assertEquals(tpe, instance.getClass, "Type of the instantiated object is wrong.")
     }
     catch {
       case e: Exception => {

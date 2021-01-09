@@ -22,6 +22,7 @@ import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.flink.table.data.*;
 import org.apache.flink.table.data.vector.heap.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

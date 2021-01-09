@@ -22,7 +22,13 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
-import org.apache.flink.runtime.io.disk.iomanager.*;
+import org.apache.flink.runtime.io.disk.iomanager.BlockChannelReader;
+import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
+import org.apache.flink.runtime.io.disk.iomanager.ChannelReaderInputView;
+import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
+import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
+import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -32,14 +38,11 @@ import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
@@ -180,11 +183,11 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
-        Assertions.assertEquals("Incorrect number of records", num, count);
+        Assertions.assertEquals(num, count, "Incorrect number of records");
 
         // release the memory occupied by the buffers
         sorter.dispose();
@@ -222,9 +225,9 @@ public class FixedLengthRecordSorterTest {
         } while (sorter.write(record) && num2 < 3354624);
 
         Assertions.assertEquals(
-                "The number of records written after the reset was not the same as before.",
                 num,
-                num2);
+                num2,
+                "The number of records written after the reset was not the same as before.");
 
         // re-read the records
         generator.reset();
@@ -241,8 +244,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers
@@ -292,8 +295,8 @@ public class FixedLengthRecordSorterTest {
             int rv = readTarget.getValue();
             int gv = record.getValue();
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers

@@ -34,11 +34,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -151,9 +147,9 @@ public class StreamOperatorWrapperTest extends TestLogger {
         }
 
         assertArrayEquals(
-                "Output was not correct.",
                 expected.subList(2, expected.size()).toArray(),
-                output.toArray());
+                output.toArray(),
+                "Output was not correct.");
     }
 
     @Test

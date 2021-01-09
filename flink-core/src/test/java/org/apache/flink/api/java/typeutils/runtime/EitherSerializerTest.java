@@ -34,6 +34,7 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 

@@ -23,13 +23,10 @@ import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -171,7 +168,7 @@ public class MergeIteratorTest {
             rec2 = tmp;
         }
 
-        Assertions.assertEquals("Too few elements returned from stream.", 50, elementsFound);
+        Assertions.assertEquals(50, elementsFound, "Too few elements returned from stream.");
     }
 
     @Test

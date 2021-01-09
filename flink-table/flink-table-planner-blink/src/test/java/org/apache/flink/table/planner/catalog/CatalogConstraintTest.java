@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.utils.TableTestUtil;
 import org.apache.flink.table.types.DataType;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

@@ -32,11 +32,7 @@ import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +40,7 @@ import javax.annotation.Nullable;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -158,7 +155,8 @@ public class AkkaRpcActorTest extends TestLogger {
      * @throws ExecutionException
      * @throws InterruptedException
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testRpcEndpointTerminationFuture() throws Exception {
         final DummyRpcEndpoint rpcEndpoint = new DummyRpcEndpoint(akkaRpcService);
         rpcEndpoint.start();

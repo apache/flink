@@ -58,21 +58,33 @@ import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.rules.Timeout;
 
-import java.util.*;
-import java.util.concurrent.*;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link AsyncWaitOperator}. These test that:
@@ -84,10 +96,9 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>Snapshot state and restore state
  * </ul>
  */
+@Timeout(10)
 public class AsyncWaitOperatorTest extends TestLogger {
     private static final long TIMEOUT = 1000L;
-
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.SECONDS);
 
     private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
         private static final long serialVersionUID = 8522411971886428444L;
@@ -275,13 +286,13 @@ public class AsyncWaitOperatorTest extends TestLogger {
             Object[] jobOutputQueue = testHarness.getOutput().toArray();
 
             Assertions.assertEquals(
-                    "Watermark should be at index 2",
                     new Watermark(initialTime + 2),
-                    jobOutputQueue[2]);
+                    jobOutputQueue[2],
+                    "Watermark should be at index 2");
             Assertions.assertEquals(
-                    "StreamRecord 3 should be at the end",
                     new StreamRecord<>(6, initialTime + 3),
-                    jobOutputQueue[3]);
+                    jobOutputQueue[3],
+                    "StreamRecord 3 should be at the end");
 
             TestHarnessUtil.assertOutputEqualsSorted(
                     "Output for StreamRecords does not match",
@@ -785,7 +796,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
      *
      * <p>See FLINK-7949
      */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRestartWithFullQueue() throws Exception {
         final int capacity = 10;
 

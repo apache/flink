@@ -39,12 +39,9 @@ import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.SettableFuture;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.ExpectedException;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -197,7 +194,8 @@ public class FlinkKinesisProducerTest {
      * pending records. The test for that is covered in testAtLeastOnceProducer.
      */
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAsyncErrorRethrownAfterFlush() throws Throwable {
         final DummyFlinkKinesisProducer<String> producer =
                 new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
@@ -254,7 +252,8 @@ public class FlinkKinesisProducerTest {
      * the test will not finish if the logic is broken.
      */
     @SuppressWarnings({"unchecked", "ResultOfMethodCallIgnored"})
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAtLeastOnceProducer() throws Throwable {
         final DummyFlinkKinesisProducer<String> producer =
                 new DummyFlinkKinesisProducer<>(new SimpleStringSchema());
@@ -286,7 +285,7 @@ public class FlinkKinesisProducerTest {
         // this would block forever if the snapshot didn't perform a flush
         producer.waitUntilFlushStarted();
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
 
         // now, complete the callbacks
         UserRecordResult result = mock(UserRecordResult.class);
@@ -294,11 +293,11 @@ public class FlinkKinesisProducerTest {
 
         producer.getPendingRecordFutures().get(0).set(result);
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
 
         producer.getPendingRecordFutures().get(1).set(result);
         Assertions.assertTrue(
-                "Snapshot returned before all records were flushed", snapshotThread.isAlive());
+                snapshotThread.isAlive(), "Snapshot returned before all records were flushed");
 
         producer.getPendingRecordFutures().get(2).set(result);
 
@@ -314,7 +313,8 @@ public class FlinkKinesisProducerTest {
      * drops below the limit; we set a timeout because the test will not finish if the logic is
      * broken.
      */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testBackpressure() throws Throwable {
         final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
 
@@ -386,8 +386,8 @@ public class FlinkKinesisProducerTest {
         moreElementsThread.trySync(deadline.timeLeftIfAny().toMillis());
 
         assertFalse(
-                "Prodcuer still blocks although the queue is flushed",
-                moreElementsThread.isAlive());
+                moreElementsThread.isAlive(),
+                "Prodcuer still blocks although the queue is flushed");
 
         producer.getPendingRecordFutures().get(3).set(result);
 

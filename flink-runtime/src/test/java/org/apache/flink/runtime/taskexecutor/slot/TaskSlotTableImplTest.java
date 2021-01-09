@@ -32,19 +32,17 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link TaskSlotTable}. */
 public class TaskSlotTableImplTest extends TestLogger {
@@ -372,7 +370,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRemoveTaskCallsFreeSlotAction() throws Exception {
         final JobID jobId = new JobID();
         final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -392,7 +391,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testFreeSlotInterruptsSubmittedTask() throws Exception {
         TestingTaskSlotPayload task = new TestingTaskSlotPayload();
         try (final TaskSlotTable<TaskSlotPayload> taskSlotTable =
@@ -403,7 +403,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testTableIsClosedOnlyWhenAllTasksTerminated() throws Exception {
         TestingTaskSlotPayload task = new TestingTaskSlotPayload();
         final TaskSlotTable<TaskSlotPayload> taskSlotTable =

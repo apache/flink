@@ -34,19 +34,15 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the timer service of {@link org.apache.flink.streaming.runtime.tasks.StreamTask}. */
@@ -208,8 +204,8 @@ public class StreamTaskTimerTest extends TestLogger {
         }
 
         assertEquals(
-                "Trigger timer thread did not properly shut down",
                 0,
-                StreamTask.TRIGGER_THREAD_GROUP.activeCount());
+                StreamTask.TRIGGER_THREAD_GROUP.activeCount(),
+                "Trigger timer thread did not properly shut down");
     }
 }

@@ -30,21 +30,33 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.testutils.UniformStringPairGenerator;
-import org.apache.flink.runtime.operators.testutils.types.*;
+import org.apache.flink.runtime.operators.testutils.types.IntList;
+import org.apache.flink.runtime.operators.testutils.types.IntListComparator;
+import org.apache.flink.runtime.operators.testutils.types.IntListPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.IntListSerializer;
+import org.apache.flink.runtime.operators.testutils.types.IntPair;
+import org.apache.flink.runtime.operators.testutils.types.IntPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.IntPairListPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
+import org.apache.flink.runtime.operators.testutils.types.StringPair;
+import org.apache.flink.runtime.operators.testutils.types.StringPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.StringPairPairComparator;
+import org.apache.flink.runtime.operators.testutils.types.StringPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public abstract class MutableHashTableTestBase {
 
@@ -117,7 +129,7 @@ public abstract class MutableHashTableTestBase {
         assertFalse(prober1 == prober2);
 
         table.close(); // (This also tests calling close without calling open first.)
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -145,7 +157,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -174,7 +186,7 @@ public abstract class MutableHashTableTestBase {
         table.close();
 
         assertTrue(sum == result);
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -205,7 +217,7 @@ public abstract class MutableHashTableTestBase {
             assertArrayEquals(lists[i].getValue(), target.getValue());
         }
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -249,7 +261,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -292,7 +304,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -338,7 +350,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -385,7 +397,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -421,7 +433,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     @Test
@@ -468,7 +480,7 @@ public abstract class MutableHashTableTestBase {
         }
 
         table.close();
-        assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+        assertEquals(NUM_MEM_PAGES, "Memory lost");
     }
 
     protected static IntPair[] getRandomizedIntPairs(int num, Random rnd) {

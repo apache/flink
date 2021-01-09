@@ -20,19 +20,21 @@ package org.apache.flink.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
+import org.apache.flink.runtime.operators.testutils.DriverTestBase;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordPairComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -624,7 +626,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
         this.outList.clear();
     }
 
@@ -655,7 +657,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
         this.outList.clear();
     }
 
@@ -686,7 +688,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
         this.outList.clear();
     }
 
@@ -717,7 +719,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
         this.outList.clear();
     }
 
@@ -748,7 +750,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         final int expCnt = valCnt1 * valCnt2 * Math.min(keyCnt1, keyCnt2);
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.outList.size());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
         this.outList.clear();
     }
 
@@ -859,7 +861,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             }
 
             Assertions.assertTrue(
-                    "Test threw an exception even though it was properly canceled.", success.get());
+                    success.get(), "Test threw an exception even though it was properly canceled.");
         } catch (Exception e) {
             e.printStackTrace();
             Assertions.fail(e.getMessage());
@@ -913,7 +915,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
             }
 
             Assertions.assertTrue(
-                    "Test threw an exception even though it was properly canceled.", success.get());
+                    success.get(), "Test threw an exception even though it was properly canceled.");
         } catch (Exception e) {
             e.printStackTrace();
             Assertions.fail(e.getMessage());
@@ -963,7 +965,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -1009,7 +1011,7 @@ public class JoinTaskTest extends DriverTestBase<FlatJoinFunction<Record, Record
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     // =================================================================================================

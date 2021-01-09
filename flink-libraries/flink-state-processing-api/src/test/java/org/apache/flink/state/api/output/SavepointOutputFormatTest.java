@@ -30,6 +30,7 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.junit.Rule;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,20 +70,11 @@ public class SavepointOutputFormatTest {
 
         CheckpointMetadata metadataOnDisk = SavepointLoader.loadSavepointMetadata(path.getPath());
 
-        Assertions.assertEquals(
-                "Incorrect checkpoint id",
-                metadata.getCheckpointId(),
-                metadataOnDisk.getCheckpointId());
+        Assertions.assertEquals(                metadata.getCheckpointId(),                metadataOnDisk.getCheckpointId(),                 "Incorrect checkpoint id");
 
-        Assertions.assertEquals(
-                "Incorrect number of operator states in savepoint",
-                metadata.getOperatorStates().size(),
-                metadataOnDisk.getOperatorStates().size());
+        Assertions.assertEquals(                metadata.getOperatorStates().size(),                metadataOnDisk.getOperatorStates().size(),                 "Incorrect number of operator states in savepoint");
 
-        Assertions.assertEquals(
-                "Incorrect operator state in savepoint",
-                metadata.getOperatorStates().iterator().next(),
-                metadataOnDisk.getOperatorStates().iterator().next());
+        Assertions.assertEquals(                metadata.getOperatorStates().iterator().next(),                metadataOnDisk.getOperatorStates().iterator().next(),                 "Incorrect operator state in savepoint");
     }
 
     private CheckpointMetadata createSavepoint() {

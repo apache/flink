@@ -20,7 +20,11 @@ package org.apache.flink.state.api;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.*;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -46,15 +50,19 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedThrowable;
-import org.junit.Rule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.*;
+import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /** IT test for writing savepoints. */
@@ -163,7 +171,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 t -> {
                     throw new AssertionError("Unexpected exception during bootstrapping", t);
                 });
-        Assertions.assertEquals("Unexpected output", 3, results.get().size());
+        Assertions.assertEquals(3, "Unexpected output");
     }
 
     private void modifySavepoint(StateBackend backend, String savepointPath, String modifyPath)
@@ -212,7 +220,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
                         .getSerializedThrowable();
 
         Assertions.assertFalse(serializedThrowable.isPresent());
-        Assertions.assertEquals("Unexpected output", 3, results.get().size());
+        Assertions.assertEquals(3, "Unexpected output");
     }
 
     /** A simple pojo. */
@@ -406,10 +414,10 @@ public class SavepointWriterITCase extends AbstractTestBase {
         public void processElement(CurrencyRate value, ReadOnlyContext ctx, Collector<Void> out)
                 throws Exception {
             Assertions.assertEquals(
-                    "Incorrect currency rate",
                     value.rate,
                     ctx.getBroadcastState(descriptor).get(value.currency),
-                    0.0001);
+                    0.0001,
+                    "Incorrect currency rate");
         }
 
         @Override

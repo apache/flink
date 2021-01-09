@@ -94,7 +94,7 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
         for (int i = 0; i < PARALLELISM; i++) {
             for (Long value : MinEvictingQueueSink.queues[i]) {
                 Assertions.assertTrue(
-                        "Value different from 1 found, was " + value + ".", value == 1);
+                        value == 1, "Value different from 1 found, was " + value + ".");
             }
         }
 
@@ -106,8 +106,8 @@ public class UdfStreamOperatorCheckpointingITCase extends StreamFaultToleranceTe
                 sum += ++prevCount;
                 Long value = SumEvictingQueueSink.queues[i].remove();
                 Assertions.assertTrue(
-                        "Unexpected reduce value " + value + " instead of " + sum + ".",
-                        value == sum);
+                        value == sum,
+                        "Unexpected reduce value " + value + " instead of " + sum + ".");
             }
         }
     }

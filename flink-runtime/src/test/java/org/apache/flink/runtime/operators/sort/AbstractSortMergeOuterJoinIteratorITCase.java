@@ -105,9 +105,7 @@ public abstract class AbstractSortMergeOuterJoinIteratorITCase extends TestLogge
         }
 
         if (this.memoryManager != null) {
-            Assertions.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }

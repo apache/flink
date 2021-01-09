@@ -34,15 +34,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,8 +102,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
             // Since we already logged in here in @BeforeClass, even a no-op security context will
             // still work.
             Assertions.assertTrue(
-                    "HadoopSecurityContext must be installed",
-                    SecurityUtils.getInstalledContext() instanceof HadoopSecurityContext);
+                    SecurityUtils.getInstalledContext() instanceof HadoopSecurityContext,
+                    "HadoopSecurityContext must be installed");
             SecurityUtils.getInstalledContext()
                     .runSecured(
                             new Callable<Object>() {
@@ -131,7 +129,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         SecureTestEnvironment.cleanup();
     }
 
-    @Test(timeout = 60000) // timeout after a minute.
+    @Test
+    @Timeout(60) // timeout after a minute.
     public void testDetachedModeSecureWithPreInstallKeytab() throws Exception {
         runTest(
                 () -> {
@@ -159,7 +158,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 });
     }
 
-    @Test(timeout = 60000) // timeout after a minute.
+    @Test
+    @Timeout(60) // timeout after a minute.
     @Override
     public void testDetachedMode() throws Exception {
         runTest(

@@ -183,9 +183,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("retractSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("retractSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))) // maybe -U or -D
+    assertFalse(      rawResult.exists(_.startsWith("-")),      "Received retraction messages for append only table") // maybe -U or -D
 
     val result = TestValuesTableFactory.getResults("retractSink")
     val expected = List(
@@ -225,9 +223,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
-    assertTrue(
-      "Results must include delete messages",
-      rawResult.exists(_.startsWith("-D(")))
+    assertTrue(      rawResult.exists(_.startsWith("-D(")),      "Results must include delete messages")
 
     val result = TestValuesTableFactory.getResults("upsertSink")
     val expected = List("1,5,true", "7,1,true", "9,1,true")
@@ -260,9 +256,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))) // maybe -D or -U
+    assertFalse(      rawResult.exists(_.startsWith("-")),      "Received retraction messages for append only table") // maybe -D or -U
 
     val result = TestValuesTableFactory.getResults("upsertSink")
     val expected = List(
@@ -303,9 +297,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))) // may -D or -U
+    assertFalse(      rawResult.exists(_.startsWith("-")),      "Received retraction messages for append only table") // may -D or -U
 
     val rawExpected = List(
       "+I(1970-01-01T00:00:00.005,1)",
@@ -345,9 +337,7 @@ class TableSinkITCase extends StreamingTestBase {
     table.executeInsert("upsertSink").await()
 
     val rawResult = TestValuesTableFactory.getRawResults("upsertSink")
-    assertFalse(
-      "Received retraction messages for append only table",
-      rawResult.exists(_.startsWith("-"))) // may -D or -U
+    assertFalse(      rawResult.exists(_.startsWith("-")),      "Received retraction messages for append only table") // may -D or -U
 
     val expected = List(
       "+I(1,1)",

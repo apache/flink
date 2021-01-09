@@ -21,15 +21,11 @@ package org.apache.flink.runtime.memory;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -39,6 +35,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the memory manager. */
@@ -143,15 +140,15 @@ public class MemoryManagerTest {
                 this.memoryManager.releaseAll(owners[i]);
                 owners[i] = null;
                 Assertions.assertTrue(
-                        "Released memory segments have not been destroyed.",
-                        allMemorySegmentsFreed(mems[i]));
+                        allMemorySegmentsFreed(mems[i]),
+                        "Released memory segments have not been destroyed.");
                 mems[i] = null;
 
                 // check that the owner owners were not affected
                 for (int k = i + 1; k < numOwners; k++) {
                     Assertions.assertTrue(
-                            "Non-released memory segments are accidentaly destroyed.",
-                            allMemorySegmentsValid(mems[k]));
+                            allMemorySegmentsValid(mems[k]),
+                            "Non-released memory segments are accidentaly destroyed.");
                 }
             }
         } catch (Exception e) {
@@ -170,8 +167,8 @@ public class MemoryManagerTest {
             testCannotAllocateAnymore(mockInvoke, 1);
 
             Assertions.assertTrue(
-                    "The previously allocated segments were not valid any more.",
-                    allMemorySegmentsValid(segs));
+                    allMemorySegmentsValid(segs),
+                    "The previously allocated segments were not valid any more.");
 
             this.memoryManager.releaseAll(mockInvoke);
         } catch (Exception e) {
@@ -256,7 +253,7 @@ public class MemoryManagerTest {
         memoryManager.releaseMemory(owner, PAGE_SIZE);
         memoryManager.releaseMemory(owner, PAGE_SIZE);
         long heapMemoryLeft = memoryManager.availableMemory();
-        assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+        assertEquals(totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft, "Memory leak happens");
         memoryManager.releaseAllMemory(owner2);
     }
 
@@ -272,7 +269,7 @@ public class MemoryManagerTest {
         memoryManager.reserveMemory(owner, PAGE_SIZE);
         memoryManager.releaseMemory(owner, PAGE_SIZE * 2);
         long heapMemoryLeft = memoryManager.availableMemory();
-        assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+        assertEquals(totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft, "Memory leak happens");
         memoryManager.releaseAllMemory(owner2);
     }
 

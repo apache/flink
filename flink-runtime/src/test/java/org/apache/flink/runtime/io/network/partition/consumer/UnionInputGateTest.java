@@ -24,14 +24,11 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link UnionInputGate}. */
@@ -44,7 +41,8 @@ public class UnionInputGateTest extends InputGateTestBase {
      * <p>For buffer-or-event instances, it is important to verify that they have been set off to
      * the correct logical index.
      */
-    @Test(timeout = 120 * 1000)
+    @Test
+    @Timeout(120 * 1)
     public void testBasicGetNextLogic() throws Exception {
         // Setup
         final SingleInputGate ig1 = createInputGate(3);

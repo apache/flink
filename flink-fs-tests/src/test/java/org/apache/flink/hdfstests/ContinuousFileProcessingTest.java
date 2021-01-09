@@ -33,7 +33,12 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.functions.source.*;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
+import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -45,6 +50,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.RunnableWithException;
+
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -52,19 +58,24 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -311,7 +322,7 @@ public class ContinuousFileProcessingTest {
         Assertions.assertEquals(expectedFileContents.size(), actualFileContents.size());
         for (Integer fileIdx : expectedFileContents.keySet()) {
             Assertions.assertTrue(
-                    "file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
+                    actualFileContents.keySet().contains(fileIdx), "file" + fileIdx + " not found");
 
             List<String> cntnt = actualFileContents.get(fileIdx);
             Collections.sort(
@@ -427,7 +438,7 @@ public class ContinuousFileProcessingTest {
         Assertions.assertEquals(expectedFileContents.size(), actualFileContents.size());
         for (Integer fileIdx : expectedFileContents.keySet()) {
             Assertions.assertTrue(
-                    "file" + fileIdx + " not found", actualFileContents.keySet().contains(fileIdx));
+                    actualFileContents.keySet().contains(fileIdx), "file" + fileIdx + " not found");
 
             List<String> cntnt = actualFileContents.get(fileIdx);
             Collections.sort(

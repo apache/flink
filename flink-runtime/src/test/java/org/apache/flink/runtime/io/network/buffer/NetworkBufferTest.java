@@ -22,6 +22,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -439,9 +440,7 @@ public class NetworkBufferTest extends AbstractByteBufTest {
         assertNotNull(buf1);
         assertNotNull(buf2);
 
-        assertTrue(
-                "Repeated call to getNioBuffer(int, int) returns the same nio buffer",
-                buf1 != buf2);
+        assertTrue(                buf1 != buf2,                "Repeated call to getNioBuffer(int, int) returns the same nio buffer");
     }
 
     @Test

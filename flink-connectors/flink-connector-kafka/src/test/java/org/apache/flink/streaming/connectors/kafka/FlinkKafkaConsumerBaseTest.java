@@ -20,12 +20,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
-import org.apache.flink.api.common.state.BroadcastState;
-import org.apache.flink.api.common.state.KeyedStateStore;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -46,12 +41,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.kafka.config.OffsetCommitMode;
-import org.apache.flink.streaming.connectors.kafka.internals.AbstractFetcher;
-import org.apache.flink.streaming.connectors.kafka.internals.AbstractPartitionDiscoverer;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaCommitCallback;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaDeserializationSchemaWrapper;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
-import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicsDescriptor;
+import org.apache.flink.streaming.connectors.kafka.internals.*;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestPartitionDiscoverer;
 import org.apache.flink.streaming.connectors.kafka.testutils.TestSourceContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -60,51 +50,26 @@ import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockDeserializationSchema;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.serialization.KeyedDeserializationSchema;
-import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.*;
 import org.apache.flink.util.function.SupplierWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
-
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
-
 import java.io.Serializable;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.collection.IsIn.isIn;
 import static org.hamcrest.collection.IsMapContaining.hasKey;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 
@@ -624,9 +589,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new DummyFlinkKafkaConsumer<>(failingPartitionDiscoverer);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                failingPartitionDiscoverer.isClosed());
+        assertTrue(                failingPartitionDiscoverer.isClosed(),                "partitionDiscoverer should be closed when consumer is closed");
     }
 
     @Test
@@ -643,9 +606,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                         100L);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertTrue(                testPartitionDiscoverer.isClosed(),                "partitionDiscoverer should be closed when consumer is closed");
     }
 
     @Test
@@ -666,9 +627,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new DummyFlinkKafkaConsumer<>(() -> mock, testPartitionDiscoverer, 100L);
 
         testFailingConsumerLifecycle(consumer, failureCause);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertTrue(                testPartitionDiscoverer.isClosed(),                "partitionDiscoverer should be closed when consumer is closed");
     }
 
     private void testFailingConsumerLifecycle(
@@ -698,9 +657,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 new TestingFlinkKafkaConsumer<>(testPartitionDiscoverer, 100L);
 
         testNormalConsumerLifecycle(consumer);
-        assertTrue(
-                "partitionDiscoverer should be closed when consumer is closed",
-                testPartitionDiscoverer.isClosed());
+        assertTrue(                testPartitionDiscoverer.isClosed(),                "partitionDiscoverer should be closed when consumer is closed");
     }
 
     private void testNormalConsumerLifecycle(FlinkKafkaConsumerBase<String> testKafkaConsumer)
@@ -744,9 +701,9 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
                 InstantiationUtil.deserializeFromByteArray(kafkaConsumerSerializer, bytes);
 
         Assertions.assertEquals(
-                "Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.",
                 tuple,
-                actualTuple);
+                actualTuple,
+                "Explicit Serializer is not compatible with previous method of creating Serializer using TypeHint.");
     }
 
     @Test

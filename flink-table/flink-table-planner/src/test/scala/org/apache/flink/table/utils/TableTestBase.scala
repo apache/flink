@@ -71,11 +71,8 @@ class TableTestBase {
   }
 
   def verifyTableEquals(expected: Table, actual: Table): Unit = {
-    assertEquals(
-      "Logical plans do not match",
-      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(
-        TableTestUtil.toRelNode(expected))),
-      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(
+    assertEquals(      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(
+        TableTestUtil.toRelNode(expected))),      LogicalPlanFormatUtils.formatTempTableId(RelOptUtil.toString(
         TableTestUtil.toRelNode(actual))))
   }
 }
@@ -84,7 +81,7 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
 
   private var counter = 0
 
-  def addTable[T: TypeInformation](fields: Expression*): Table = {
+  def addTable[T: TypeInformation](fields: Expression*,       "Logical plans do not match"): Table = {
     counter += 1
     addTable[T](s"Table$counter", fields: _*)
   }

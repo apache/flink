@@ -59,12 +59,9 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
@@ -545,7 +542,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testStreamPartitionReadByPartitionName() throws Exception {
         final String catalogName = "hive";
         final String dbName = "source_db";
@@ -600,7 +598,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         result.getJobClient().get().cancel();
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testStreamPartitionReadByCreateTime() throws Exception {
         final String catalogName = "hive";
         final String dbName = "source_db";
@@ -655,7 +654,8 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         result.getJobClient().get().cancel();
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testStreamPartitionReadByPartitionTime() throws Exception {
         final String catalogName = "hive";
         final String dbName = "source_db";
@@ -717,12 +717,14 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         return strings;
     }
 
-    @Test(timeout = 30000)
+    @Test
+    @Timeout(30)
     public void testNonPartitionStreamingSourceWithMapredReader() throws Exception {
         testNonPartitionStreamingSource(true, "test_mapred_reader");
     }
 
-    @Test(timeout = 30000)
+    @Test
+    @Timeout(30)
     public void testNonPartitionStreamingSourceWithVectorizedReader() throws Exception {
         testNonPartitionStreamingSource(false, "test_vectorized_reader");
     }

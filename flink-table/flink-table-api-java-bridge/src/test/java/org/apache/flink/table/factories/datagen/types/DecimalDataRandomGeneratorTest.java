@@ -20,11 +20,9 @@ package org.apache.flink.table.factories.datagen.types;
 
 import org.apache.flink.table.data.DecimalData;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 
@@ -45,7 +43,7 @@ public class DecimalDataRandomGeneratorTest {
 
                 DecimalData value = gen.next();
                 Assertions.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", value);
+                        value, "Null value for DECIMAL(" + precision + "," + scale + ")");
 
                 String strRepr = String.valueOf(value);
                 if (strRepr.charAt(0) == '-') {
@@ -105,7 +103,7 @@ public class DecimalDataRandomGeneratorTest {
                 DecimalData result = gen.next();
 
                 Assertions.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", result);
+                        result, "Null value for DECIMAL(" + precision + "," + scale + ")");
                 MatcherAssert.assertThat(
                         "value must be greater than or equal to min",
                         result.toBigDecimal(),

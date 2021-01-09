@@ -27,6 +27,7 @@ import org.apache.flink.graph.examples.PageRank;
 import org.apache.flink.graph.examples.data.PageRankData;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -116,9 +117,7 @@ public class PageRankITCase extends MultipleProgramsTestBase {
             double expectedPayLoad = Double.parseDouble(expectedFields[1]);
             double resultPayLoad = Double.parseDouble(resultFields[1]);
 
-            Assertions.assertTrue(
-                    "Values differ by more than the permissible delta",
-                    Math.abs(expectedPayLoad - resultPayLoad) < delta);
+            Assertions.assertTrue(                    Math.abs(expectedPayLoad - resultPayLoad) < delta,                    "Values differ by more than the permissible delta");
         }
     }
 

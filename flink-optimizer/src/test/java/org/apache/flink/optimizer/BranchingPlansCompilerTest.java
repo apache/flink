@@ -34,15 +34,21 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.optimizer.testfunctions.*;
+import org.apache.flink.optimizer.testfunctions.DummyCoGroupFunction;
+import org.apache.flink.optimizer.testfunctions.DummyFlatJoinFunction;
+import org.apache.flink.optimizer.testfunctions.IdentityCoGrouper;
+import org.apache.flink.optimizer.testfunctions.IdentityCrosser;
+import org.apache.flink.optimizer.testfunctions.IdentityGroupReducer;
+import org.apache.flink.optimizer.testfunctions.IdentityJoiner;
+import org.apache.flink.optimizer.testfunctions.IdentityKeyExtractor;
+import org.apache.flink.optimizer.testfunctions.IdentityMapper;
+import org.apache.flink.optimizer.testfunctions.SelectOneReducer;
+import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -119,7 +125,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            assertEquals("Wrong number of data sinks.", 3, oPlan.getDataSinks().size());
+            assertEquals(3, "Wrong number of data sinks.");
 
             // remove matching sinks to check relation
             for (SinkPlanNode sink : oPlan.getDataSinks()) {
@@ -524,7 +530,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            Assertions.assertEquals("Wrong number of data sinks.", 2, oPlan.getDataSinks().size());
+            Assertions.assertEquals(2, "Wrong number of data sinks.");
 
             // sinks contain all sink paths
             Set<String> allSinks = new HashSet<String>();

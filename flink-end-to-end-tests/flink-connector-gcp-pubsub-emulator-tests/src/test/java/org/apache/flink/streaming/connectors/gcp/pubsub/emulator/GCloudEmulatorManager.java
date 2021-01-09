@@ -24,7 +24,11 @@ import com.spotify.docker.client.exceptions.ContainerNotFoundException;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.exceptions.ImageNotFoundException;
-import com.spotify.docker.client.messages.*;
+import com.spotify.docker.client.messages.ContainerConfig;
+import com.spotify.docker.client.messages.ContainerCreation;
+import com.spotify.docker.client.messages.ContainerInfo;
+import com.spotify.docker.client.messages.HostConfig;
+import com.spotify.docker.client.messages.PortBinding;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -145,7 +149,7 @@ public class GCloudEmulatorManager {
         Map<String, List<PortBinding>> ports = containerInfo.networkSettings().ports();
 
         assertNotNull(ports, "Unable to retrieve the ports where to connect to the emulators");
-        assertEquals("We expect 1 port to be mapped", 1, ports.size());
+        assertEquals(1, "We expect 1 port to be mapped");
 
         pubsubPort = getPort(ports, INTERNAL_PUBSUB_PORT, "PubSub");
 
@@ -236,7 +240,7 @@ public class GCloudEmulatorManager {
             // Already have this container running.
 
             assertNotNull(
-                    "We should either get a containerInfo or we get an exception", containerInfo);
+                    containerInfo, "We should either get a containerInfo or we get an exception");
 
             LOG.info("");
             LOG.info("/===========================================");

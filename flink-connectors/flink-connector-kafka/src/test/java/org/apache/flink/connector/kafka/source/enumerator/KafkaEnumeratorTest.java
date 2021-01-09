@@ -34,11 +34,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -101,9 +97,9 @@ public class KafkaEnumeratorTest {
             enumerator.start();
             assertTrue(context.getPeriodicCallables().isEmpty());
             assertEquals(
-                    "A one time partition discovery callable should have been scheduled",
                     1,
-                    context.getOneTimeCallables().size());
+                    context.getOneTimeCallables().size(),
+                    "A one time partition discovery callable should have been scheduled");
         }
     }
 
@@ -119,9 +115,9 @@ public class KafkaEnumeratorTest {
             enumerator.start();
             assertTrue(context.getOneTimeCallables().isEmpty());
             assertEquals(
-                    "A periodic partition discovery callable should have been scheduled",
                     1,
-                    context.getPeriodicCallables().size());
+                    context.getPeriodicCallables().size(),
+                    "A periodic partition discovery callable should have been scheduled");
         }
     }
 
@@ -173,7 +169,8 @@ public class KafkaEnumeratorTest {
         }
     }
 
-    @Test(timeout = 30000L)
+    @Test
+    @Timeout(30)
     public void testDiscoverPartitionsPeriodically() throws Throwable {
         MockSplitEnumeratorContext<KafkaPartitionSplit> context =
                 new MockSplitEnumeratorContext<>(NUM_SUBTASKS);
@@ -189,9 +186,9 @@ public class KafkaEnumeratorTest {
             // invoke partition discovery callable again and there should be no new assignments.
             context.runPeriodicCallable(PARTITION_DISCOVERY_CALLABLE_INDEX);
             assertEquals(
-                    "No assignments should be made because there is no partition change",
                     2,
-                    context.getSplitsAssignmentSequence().size());
+                    context.getSplitsAssignmentSequence().size(),
+                    "No assignments should be made because there is no partition change");
 
             // create the dynamic topic.
             adminClient
@@ -242,9 +239,9 @@ public class KafkaEnumeratorTest {
                     context.getSplitsAssignmentSequence().get(0).assignment().get(READER0),
                     READER0);
             assertEquals(
-                    "The added back splits should have not been assigned",
                     2,
-                    context.getSplitsAssignmentSequence().size());
+                    context.getSplitsAssignmentSequence().size(),
+                    "The added back splits should have not been assigned");
 
             // Simulate a reader recovery.
             registerReader(context, enumerator, READER0);

@@ -98,7 +98,7 @@ public class DriverTestData {
 
     public static final void compareTupleArrays(Object[] expected, Object[] found) {
         if (expected.length != found.length) {
-            Assertions.assertEquals("Length of result is wrong", expected.length, found.length);
+            Assertions.assertEquals(expected.length, found.length, "Length of result is wrong");
         }
 
         for (int i = 0; i < expected.length; i++) {

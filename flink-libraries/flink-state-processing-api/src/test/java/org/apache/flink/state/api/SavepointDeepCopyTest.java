@@ -37,6 +37,7 @@ import org.apache.flink.util.Collector;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -160,9 +161,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
 
         env.execute("bootstrap savepoint1");
 
-        Assertions.assertTrue(
-                "Failed to bootstrap savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath1)).count() > 1);
+        Assertions.assertTrue(                Files.list(Paths.get(savepointPath1)).count() > 1,                "Failed to bootstrap savepoint1 with additional state files");
 
         Set<String> stateFiles1 =
                 Files.list(Paths.get(savepointPath1))
@@ -177,9 +176,7 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
         savepoint2.withOperator("Operator2", transformation).write(savepointPath2);
         env.execute("create savepoint2");
 
-        Assertions.assertTrue(
-                "Failed to create savepoint2 from savepoint1 with additional state files",
-                Files.list(Paths.get(savepointPath2)).count() > 1);
+        Assertions.assertTrue(                Files.list(Paths.get(savepointPath2)).count() > 1,                "Failed to create savepoint2 from savepoint1 with additional state files");
 
         Set<String> stateFiles2 =
                 Files.list(Paths.get(savepointPath2))
@@ -199,9 +196,6 @@ public class SavepointDeepCopyTest extends AbstractTestBase {
                         .readKeyedState("Operator1", new ReadFunction())
                         .count();
         long expectedKeyNum = Arrays.stream(TEXT.split(" ")).distinct().count();
-        Assertions.assertEquals(
-                "Unexpected number of keys in the state of Operator1",
-                expectedKeyNum,
-                actuallyKeyNum);
+        Assertions.assertEquals(                expectedKeyNum,                actuallyKeyNum,                 "Unexpected number of keys in the state of Operator1");
     }
 }

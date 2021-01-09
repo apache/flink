@@ -29,12 +29,8 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.testutils.types.IntList;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.powermock.reflect.Whitebox;
 
 import java.lang.reflect.Field;
@@ -43,7 +39,12 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class CompactingHashTableTest extends MutableHashTableTestBase {
 
@@ -304,8 +305,7 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
             }
 
             table.close();
-            assertEquals(
-                    "Memory lost", NUM_MEM_PAGES + ADDITIONAL_MEM, table.getFreeMemory().size());
+            assertEquals(NUM_MEM_PAGES + ADDITIONAL_MEM, "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -365,9 +365,9 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + ADDITIONAL_MEM + ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -439,9 +439,9 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + 4 * ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -513,9 +513,9 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + 3 * ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());

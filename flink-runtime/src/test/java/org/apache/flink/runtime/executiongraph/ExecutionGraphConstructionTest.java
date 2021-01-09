@@ -31,6 +31,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -559,10 +560,7 @@ public class ExecutionGraphConstructionTest {
                     all.add(v1s[i].getLocationConstraint());
                 }
 
-                assertEquals(
-                        "not all co location constraints are distinct",
-                        v1.getParallelism(),
-                        all.size());
+                assertEquals(                        v1.getParallelism(),                        all.size(),                         "not all co location constraints are distinct");
             }
 
             // check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )
@@ -584,10 +582,7 @@ public class ExecutionGraphConstructionTest {
                     all.add(v3s[i].getLocationConstraint());
                 }
 
-                assertEquals(
-                        "not all co location constraints are distinct",
-                        v3.getParallelism(),
-                        all.size());
+                assertEquals(                        v3.getParallelism(),                        all.size(),                         "not all co location constraints are distinct");
             }
 
             // check the v8 has no co location hints

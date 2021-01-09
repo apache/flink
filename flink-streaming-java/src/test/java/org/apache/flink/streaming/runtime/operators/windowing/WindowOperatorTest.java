@@ -56,6 +56,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -271,7 +272,7 @@ public class WindowOperatorTest extends TestLogger {
         testSlidingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assertions.assertEquals("Close was not called.", 2, closeCalled.get());
+        Assertions.assertEquals(2,"Close was not called.");
     }
 
     private void testTumblingEventTimeWindows(
@@ -449,7 +450,7 @@ public class WindowOperatorTest extends TestLogger {
         testTumblingEventTimeWindows(operator);
 
         // we close once in the rest...
-        Assertions.assertEquals("Close was not called.", 2, closeCalled.get());
+        Assertions.assertEquals(2,"Close was not called.");
     }
 
     @Test

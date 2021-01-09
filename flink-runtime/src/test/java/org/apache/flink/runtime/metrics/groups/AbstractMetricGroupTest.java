@@ -27,19 +27,20 @@ import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
-import org.apache.flink.runtime.metrics.*;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -189,9 +190,9 @@ public class AbstractMetricGroupTest extends TestLogger {
             MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
             tmGroup.counter("1");
             assertEquals(
-                    "Reporters were not properly instantiated",
                     2,
-                    testRegistry.getReporters().size());
+                    testRegistry.getReporters().size(),
+                    "Reporters were not properly instantiated");
             for (MetricReporter reporter : testRegistry.getReporters()) {
                 ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
                 if (typedReporter.failureCause != null) {
@@ -218,9 +219,9 @@ public class AbstractMetricGroupTest extends TestLogger {
                             .addGroup("C");
             tmGroup.counter("1");
             assertEquals(
-                    "Reporters were not properly instantiated",
                     2,
-                    testRegistry.getReporters().size());
+                    testRegistry.getReporters().size(),
+                    "Reporters were not properly instantiated");
             for (MetricReporter reporter : testRegistry.getReporters()) {
                 ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
                 if (typedReporter.failureCause != null) {
@@ -346,7 +347,7 @@ public class AbstractMetricGroupTest extends TestLogger {
         try {
             TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
             assertEquals(
-                    "MetricReporters list should be empty", 0, testRegistry.getReporters().size());
+                    0, testRegistry.getReporters().size(), "MetricReporters list should be empty");
 
             // default delimiter should be used
             assertEquals("A.B.X.D.1", group.getMetricIdentifier("1", FILTER_C));

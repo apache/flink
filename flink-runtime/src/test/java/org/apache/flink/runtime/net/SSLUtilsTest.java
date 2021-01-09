@@ -27,6 +27,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -71,9 +72,7 @@ public class SSLUtilsTest extends TestLogger {
 
     static {
         if (System.getProperty("flink.tests.with-openssl") != null) {
-            assertTrue(
-                    "openSSL not available but required (property 'flink.tests.with-openssl' is set)",
-                    OpenSsl.isAvailable());
+            assertTrue(                    OpenSsl.isAvailable(),                    "openSSL not available but required (property 'flink.tests.with-openssl' is set)");
             AVAILABLE_SSL_PROVIDERS = Arrays.asList("JDK", "OPENSSL");
         } else {
             AVAILABLE_SSL_PROVIDERS = Collections.singletonList("JDK");

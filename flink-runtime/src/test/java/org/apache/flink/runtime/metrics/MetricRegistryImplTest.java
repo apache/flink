@@ -22,7 +22,11 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
-import org.apache.flink.metrics.*;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,14 +41,12 @@ import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
 import org.apache.flink.util.TestLogger;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterators;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -119,7 +121,7 @@ public class MetricRegistryImplTest extends TestLogger {
             }
         }
         Assertions.assertTrue(
-                "metrics query did not return expected result", metricsSuccessfullyQueried);
+                metricsSuccessfullyQueried, "metrics query did not return expected result");
     }
 
     /** Reporter that exposes the {@link MetricConfig} it was given. */
@@ -167,7 +169,7 @@ public class MetricRegistryImplTest extends TestLogger {
              */
             long maxAllowedReports = (curT - start) / 50 + 2;
             Assertions.assertTrue(
-                    "Too many reports were triggered.", maxAllowedReports >= reportCount);
+                    maxAllowedReports >= reportCount, "Too many reports were triggered.");
         }
         Assertions.assertTrue(TestReporter3.reportCount > 0, "No report was triggered.");
 

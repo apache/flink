@@ -45,7 +45,9 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -410,8 +412,8 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger
         MemoryManager memMan = getMemoryManager();
         if (memMan != null) {
             Assertions.assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+                    memMan.verifyEmpty(),
+                    "Memory Manager managed memory was not completely freed.");
             memMan.shutdown();
         }
     }

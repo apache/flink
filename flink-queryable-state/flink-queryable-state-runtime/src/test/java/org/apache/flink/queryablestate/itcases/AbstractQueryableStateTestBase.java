@@ -72,11 +72,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -99,6 +95,7 @@ import java.util.concurrent.atomic.AtomicLongArray;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -223,7 +220,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                                 try {
                                     Tuple2<Integer, Long> res = response.get();
                                     counts.set(key, res.f1);
-                                    assertEquals("Key mismatch", key, res.f0.intValue());
+                                    assertEquals(key, "Key mismatch");
                                 } catch (Exception e) {
                                     Assertions.fail(e.getMessage());
                                 }
@@ -248,7 +245,8 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
     }
 
     /** Tests that duplicate query registrations fail the job at the JobManager. */
-    @Test(timeout = 60_000)
+    @Test
+    @Timeout(60)
     public void testDuplicateRegistrationFailsJob() throws Exception {
         final int numKeys = 256;
 
@@ -725,7 +723,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                     Tuple2<Integer, Long> value =
                             future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get();
 
-                    assertEquals("Key mismatch", key, value.f0.intValue());
+                    assertEquals(key, "Key mismatch");
                     if (expected == value.f1) {
                         success = true;
                     } else {
@@ -827,7 +825,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                                     .get(key);
 
                     if (value != null && value.f0 != null && expected == value.f1) {
-                        assertEquals("Key mismatch", key, value.f0.intValue());
+                        assertEquals(key, "Key mismatch");
                         success = true;
                     } else {
                         // Retry
@@ -1384,7 +1382,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
                 Tuple2<Integer, Long> value =
                         future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).value();
 
-                assertEquals("Key mismatch", key, value.f0.intValue());
+                assertEquals(key, "Key mismatch");
                 if (expected == value.f1) {
                     success = true;
                 } else {

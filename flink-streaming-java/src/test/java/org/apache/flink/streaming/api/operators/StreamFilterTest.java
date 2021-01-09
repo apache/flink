@@ -25,12 +25,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -102,7 +98,7 @@ public class StreamFilterTest {
         testHarness.close();
 
         Assertions.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseFilterFunction.closeCalled);
+                TestOpenCloseFilterFunction.closeCalled, "RichFunction methods where not called.");
         Assertions.assertTrue(testHarness.getOutput().size() > 0, "Output contains no elements.");
     }
 

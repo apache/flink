@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.util.InstantiationUtil;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -119,10 +120,7 @@ public class JobTaskVertexTest {
             } catch (TestException e) {
                 // all good
             }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
+            assertEquals(                    ctxCl,                    Thread.currentThread().getContextClassLoader(),                     "Previous classloader was not restored.");
 
             try {
                 copy.finalizeOnMaster(cl);
@@ -130,10 +128,7 @@ public class JobTaskVertexTest {
             } catch (TestException e) {
                 // all good
             }
-            assertEquals(
-                    "Previous classloader was not restored.",
-                    ctxCl,
-                    Thread.currentThread().getContextClassLoader());
+            assertEquals(                    ctxCl,                    Thread.currentThread().getContextClassLoader(),                     "Previous classloader was not restored.");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());

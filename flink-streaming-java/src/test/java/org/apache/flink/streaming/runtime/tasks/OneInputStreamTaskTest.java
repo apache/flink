@@ -63,34 +63,20 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
-
 import org.hamcrest.collection.IsMapContaining;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import scala.concurrent.duration.Deadline;
+import scala.concurrent.duration.FiniteDuration;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
-import scala.concurrent.duration.Deadline;
-import scala.concurrent.duration.FiniteDuration;
-
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link OneInputStreamTask}.
@@ -895,7 +881,6 @@ public class OneInputStreamTaskTest extends TestLogger {
                         chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
         Assertions.assertEquals(
-                "A metric was registered multiple times.",
                 5,
                 new HashSet<>(
                                 Arrays.asList(
@@ -904,7 +889,8 @@ public class OneInputStreamTaskTest extends TestLogger {
                                         headOutputWatermarkGauge,
                                         chainedInputWatermarkGauge,
                                         chainedOutputWatermarkGauge))
-                        .size());
+                        .size(),
+                "A metric was registered multiple times.");
 
         Assertions.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
         Assertions.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());

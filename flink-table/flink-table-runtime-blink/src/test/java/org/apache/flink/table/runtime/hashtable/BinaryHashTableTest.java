@@ -39,19 +39,20 @@ import org.apache.flink.table.runtime.util.RowIterator;
 import org.apache.flink.table.runtime.util.UniformBinaryRowGenerator;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -146,9 +147,9 @@ public class BinaryHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
 
@@ -250,9 +251,9 @@ public class BinaryHashTableTest {
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
 
@@ -311,7 +312,7 @@ public class BinaryHashTableTest {
 
         table.close();
 
-        Assertions.assertEquals("Wrong number of keys", numKeys, map.size());
+        Assertions.assertEquals(numKeys, "Wrong number of keys");
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
@@ -404,7 +405,7 @@ public class BinaryHashTableTest {
 
         table.close();
 
-        Assertions.assertEquals("Wrong number of keys", numKeys, map.size());
+        Assertions.assertEquals(numKeys, "Wrong number of keys");
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
@@ -434,16 +435,14 @@ public class BinaryHashTableTest {
         if (buildSide.advanceNext()) {
             numBuildValues = 1;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertEquals(key, "Probe-side key was different than build-side key.");
         } else {
             fail("No build side values found for a probe key.");
         }
         while (buildSide.advanceNext()) {
             numBuildValues++;
             record = buildSide.getRow();
-            assertEquals(
-                    "Probe-side key was different than build-side key.", key, record.getInt(0));
+            assertEquals(key, "Probe-side key was different than build-side key.");
         }
 
         Long contained = map.get(key);
@@ -538,7 +537,7 @@ public class BinaryHashTableTest {
 
         table.close();
 
-        Assertions.assertEquals("Wrong number of keys", numKeys, map.size());
+        Assertions.assertEquals(numKeys, "Wrong number of keys");
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
@@ -663,9 +662,9 @@ public class BinaryHashTableTest {
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 expectedNumResults,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
 
@@ -718,9 +717,9 @@ public class BinaryHashTableTest {
                         true);
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 expectedNumResults,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
         table.free();
@@ -761,9 +760,9 @@ public class BinaryHashTableTest {
                         new UniformBinaryRowGenerator(numProbeKeys, numProbeVals, true));
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 expectedNumResults,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
 
@@ -831,9 +830,9 @@ public class BinaryHashTableTest {
         int numRecordsInJoinResult = join(table, buildInput, probeInput);
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
         table.free();
@@ -878,9 +877,9 @@ public class BinaryHashTableTest {
         int numRecordsInJoinResult = join(table, buildInput, probeInput, true);
 
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 2 * numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
         table.free();
@@ -921,9 +920,9 @@ public class BinaryHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput, true);
         Assertions.assertEquals(
-                "Wrong number of records in join result.",
                 numKeys * buildValsPerKey * probeValsPerKey,
-                numRecordsInJoinResult);
+                numRecordsInJoinResult,
+                "Wrong number of records in join result.");
 
         table.close();
         table.free();
@@ -984,7 +983,7 @@ public class BinaryHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput, true);
         Assertions.assertEquals(
-                "Wrong number of records in join result.", 1, numRecordsInJoinResult);
+                1, numRecordsInJoinResult, "Wrong number of records in join result.");
 
         table.close();
         table.free();
@@ -1048,7 +1047,7 @@ public class BinaryHashTableTest {
 
         int numRecordsInJoinResult = join(table, buildInput, probeInput, true);
         Assertions.assertTrue(
-                "Wrong number of records in join result.", numRecordsInJoinResult < numRows);
+                numRecordsInJoinResult < numRows, "Wrong number of records in join result.");
 
         table.close();
         table.free();

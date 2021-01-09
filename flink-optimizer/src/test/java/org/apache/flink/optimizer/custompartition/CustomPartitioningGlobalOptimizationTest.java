@@ -33,6 +33,7 @@ import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -75,9 +76,7 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
 
-            assertTrue(
-                    "Reduce is not chained, property reuse does not happen",
-                    reducer.getInput().getSource() instanceof DualInputPlanNode);
+            assertTrue(                    reducer.getInput().getSource() instanceof DualInputPlanNode,                    "Reduce is not chained, property reuse does not happen");
 
             DualInputPlanNode join = (DualInputPlanNode) reducer.getInput().getSource();
 

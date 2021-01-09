@@ -60,12 +60,9 @@ import org.apache.commons.collections.CollectionUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -144,7 +141,8 @@ public class RegionFailoverITCase extends TestLogger {
      * NUM_OF_RESTARTS} times, and it will verify whether the restored state is identical to last
      * completed checkpoint's.
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testMultiRegionFailover() {
         try {
             JobGraph jobGraph = createJobGraph();
@@ -159,7 +157,7 @@ public class RegionFailoverITCase extends TestLogger {
 
     private void verifyAfterJobExecuted() {
         Assertions.assertTrue(
-                "The test multi-region job has never ever restored state.", restoredState);
+                restoredState, "The test multi-region job has never ever restored state.");
 
         int keyCount = 0;
         for (Map<Integer, Integer> map : ValidatingSink.maps) {
@@ -325,8 +323,8 @@ public class RegionFailoverITCase extends TestLogger {
                 if (indexOfThisSubtask == 0) {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
                     Assertions.assertTrue(
-                            "list state should be empty for subtask-0",
-                            ((List<Integer>) listState.get()).isEmpty());
+                            ((List<Integer>) listState.get()).isEmpty(),
+                            "list state should be empty for subtask-0");
                 } else {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
                     Assertions.assertTrue(

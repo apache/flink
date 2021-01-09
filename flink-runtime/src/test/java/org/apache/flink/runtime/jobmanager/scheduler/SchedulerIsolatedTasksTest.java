@@ -33,11 +33,7 @@ import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +42,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecution;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -133,9 +130,9 @@ public class SchedulerIsolatedTasksTest extends SchedulerTestBase {
         assertTrue(areAllDistinct(slotsAfter.toArray()));
 
         assertEquals(
-                "All slots should be available.",
                 totalSlots,
-                testingSlotProvider.getNumberOfAvailableSlots());
+                testingSlotProvider.getNumberOfAvailableSlots(),
+                "All slots should be available.");
     }
 
     @Test

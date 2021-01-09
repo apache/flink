@@ -33,6 +33,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -141,9 +142,7 @@ public class NettyClientServerSslTest extends TestLogger {
             // session timeout config is in milliseconds but the context returns it in seconds
             assertEquals(sessionTimeout / 1000, sessionContext.getSessionTimeout());
         } else {
-            assertTrue(
-                    "default value (-1) should not be propagated",
-                    sessionContext.getSessionTimeout() >= 0);
+            assertTrue(                    sessionContext.getSessionTimeout() >= 0,                    "default value (-1) should not be propagated");
         }
 
         NettyTestUtil.shutdown(serverAndClient);
@@ -155,9 +154,7 @@ public class NettyClientServerSslTest extends TestLogger {
         if (expected != option.defaultValue()) {
             assertEquals(expected, actual);
         } else {
-            assertTrue(
-                    "default value (" + option.defaultValue() + ") should not be propagated",
-                    actual >= 0);
+            assertTrue(                    actual >= 0,                    "default value (" + option.defaultValue() + ") should not be propagated");
         }
     }
 

@@ -61,12 +61,8 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.experimental.categories.Category;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -526,11 +522,11 @@ public class CassandraConnectorITCase
             cmp.setField(1, o.getInt(2));
             cmp.setField(2, o.getInt(1));
             Assertions.assertTrue(
-                    "Row " + cmp + " was written to Cassandra but not in input.",
-                    input.remove(cmp));
+                    input.remove(cmp),
+                    "Row " + cmp + " was written to Cassandra but not in input.");
         }
         Assertions.assertTrue(
-                "The input data was not completely written to Cassandra", input.isEmpty());
+                input.isEmpty(), "The input data was not completely written to Cassandra");
     }
 
     @Test

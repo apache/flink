@@ -55,11 +55,7 @@ import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
@@ -75,6 +71,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
@@ -84,6 +81,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -333,9 +331,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertArrayEquals(
-                "coordinator should have a restored checkpoint",
                 coordinatorState,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have a restored checkpoint");
     }
 
     @Test
@@ -346,9 +344,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertSame(
-                "coordinator should have null restored state",
                 TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have null restored state");
         assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
     }
 
@@ -400,9 +398,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertNull(                coordinator.getLastRestoredCheckpointState(),                "coordinator should not have a restored checkpoint");
     }
 
     @Test
@@ -414,9 +410,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
 
         assertEquals(
-                "coordinator should be notified of completed checkpoint",
                 checkpointId,
-                coordinator.getLastCheckpointComplete());
+                coordinator.getLastCheckpointComplete(),
+                "coordinator should be notified of completed checkpoint");
     }
 
     // ------------------------------------------------------------------------
@@ -431,9 +427,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertSame(
-                "coordinator should have null restored state",
                 TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have null restored state");
         assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
     }
 
@@ -468,9 +464,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertNull(                coordinator.getLastRestoredCheckpointState(),                "coordinator should not have a restored checkpoint");
     }
 
     // ------------------------------------------------------------------------

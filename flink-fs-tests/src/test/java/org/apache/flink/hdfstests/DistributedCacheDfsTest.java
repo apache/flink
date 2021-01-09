@@ -37,11 +37,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.DataInputStream;
@@ -140,7 +136,8 @@ public class DistributedCacheDfsTest extends TestLogger {
      * RestClusterClient#submitJob(JobGraph)} to submit a job to an existing session. This test will
      * cover this cases.
      */
-    @Test(timeout = 30000)
+    @Test
+    @Timeout(30)
     public void testSubmittingJobViaRestClusterClient() throws Exception {
         RestClusterClient<String> restClusterClient =
                 new RestClusterClient<>(

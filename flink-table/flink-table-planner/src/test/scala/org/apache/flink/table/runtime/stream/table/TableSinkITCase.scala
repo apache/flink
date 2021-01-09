@@ -237,9 +237,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      results.exists(!_.f0))
+    assertFalse(      results.exists(!_.f0),      "Received retraction messages for append only table")
 
     val retracted = RowCollector.retractResults(results).sorted
     val expected = List(
@@ -276,9 +274,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertTrue(
-      "Results must include delete messages",
-      results.exists(_.f0 == false)
+    assertTrue(      results.exists(_.f0 == false,      "Results must include delete messages")
     )
 
     val retracted = RowCollector.upsertResults(results, Array(0, 2)).sorted
@@ -311,9 +307,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      results.exists(!_.f0))
+    assertFalse(      results.exists(!_.f0),      "Received retraction messages for append only table")
 
     val retracted = RowCollector.upsertResults(results, Array(0, 1, 2)).sorted
     val expected = List(
@@ -351,9 +345,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      results.exists(!_.f0))
+    assertFalse(      results.exists(!_.f0),      "Received retraction messages for append only table")
 
     val retracted = RowCollector.upsertResults(results, Array(0, 1, 2)).sorted
     val expected = List(
@@ -390,9 +382,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      results.exists(!_.f0))
+    assertFalse(      results.exists(!_.f0),      "Received retraction messages for append only table")
 
     val retracted = results.map(_.f1.toString).sorted
     val expected = List(
@@ -429,9 +419,7 @@ class TableSinkITCase extends AbstractTestBase {
      tEnv.execute("job name")
     val results = RowCollector.getAndClearValues
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      results.exists(!_.f0))
+    assertFalse(      results.exists(!_.f0),      "Received retraction messages for append only table")
 
     val retracted = results.map(_.f1.toString).sorted
     val expected = List(

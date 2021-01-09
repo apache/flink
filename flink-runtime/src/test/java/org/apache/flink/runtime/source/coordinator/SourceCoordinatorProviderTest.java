@@ -29,11 +29,7 @@ import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCo
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -98,12 +94,10 @@ public class SourceCoordinatorProviderTest {
                 restoredSourceCoordinator,
                 sourceCoordinator);
         assertEquals(
-                "There should only be one registered reader.",
                 1,
-                restoredSourceCoordinator.getContext().registeredReaders().size());
-        assertNotNull(
-                "The only registered reader should be reader 0",
-                restoredSourceCoordinator.getContext().registeredReaders().get(0));
+                restoredSourceCoordinator.getContext().registeredReaders().size(),
+                "There should only be one registered reader.");
+        assertNotNull(                restoredSourceCoordinator.getContext().registeredReaders().get(0),                "The only registered reader should be reader 0");
     }
 
     @Test

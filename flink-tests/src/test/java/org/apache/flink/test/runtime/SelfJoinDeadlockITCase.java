@@ -21,14 +21,11 @@ package org.apache.flink.test.runtime;
 import org.apache.flink.api.common.functions.FlatJoinFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.test.util.JavaProgramTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Rule;
 import org.junit.rules.Timeout;
 
 import java.io.IOException;
@@ -39,11 +36,7 @@ import java.util.Random;
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1141">FLINK-1141</a>
  */
-public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
-
-    protected String resultPath;
-
-    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
+@Timeout(120 * 1000); // Set timeout for deadlocks
 
     @Override
     protected void preSubmit() throws Exception {
@@ -113,7 +106,12 @@ public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
             produced++;
 
             return new Tuple3<Integer, Integer, String>(
-                    rand.nextInt(toProduce), rand.nextInt(toProduce), "aaa");
+                    rand.nextInt(toProduce), rand.nextInt(toProduce), "aaa", unit = TimeUnit.MILLISECONDS)
+public class SelfJoinDeadlockITCase extends JavaProgramTestBase {
+
+    protected String resultPath;
+
+
         }
     }
 }

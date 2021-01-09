@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.Visitor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -80,9 +81,7 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                 && visitable.getProgramOperator()
                                         instanceof GroupReduceOperatorBase) {
                             for (Channel inConn : visitable.getInputs()) {
-                                Assertions.assertTrue(
-                                        "Reduce should just forward the input if it is already partitioned",
-                                        inConn.getShipStrategy() == ShipStrategyType.FORWARD);
+                                Assertions.assertTrue(                                        inConn.getShipStrategy() == ShipStrategyType.FORWARD,                                        "Reduce should just forward the input if it is already partitioned");
                             }
                             // just check latest ReduceNode
                             return false;
@@ -137,12 +136,8 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                 && visitable.getProgramOperator()
                                         instanceof GroupReduceOperatorBase) {
                             final Channel inConn = ((SingleInputPlanNode) visitable).getInput();
-                            Assertions.assertTrue(
-                                    "Union should just forward the Partitioning",
-                                    inConn.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assertions.assertTrue(
-                                    "Union Node should be under Group operator",
-                                    inConn.getSource() instanceof NAryUnionPlanNode);
+                            Assertions.assertTrue(                                    inConn.getShipStrategy() == ShipStrategyType.FORWARD,                                    "Union should just forward the Partitioning");
+                            Assertions.assertTrue(                                    inConn.getSource() instanceof NAryUnionPlanNode,                                    "Union Node should be under Group operator");
                         }
 
                         /* Test on the union input connections
@@ -155,18 +150,12 @@ public class UnionPropertyPropagationTest extends CompilerTestBase {
                                     numberInputs++) {
                                 final Channel inConn = inputs.next();
                                 PlanNode inNode = inConn.getSource();
-                                Assertions.assertTrue(
-                                        "Input of Union should be FlatMapOperators",
-                                        inNode.getProgramOperator() instanceof FlatMapOperatorBase);
-                                Assertions.assertTrue(
-                                        "Shipment strategy under union should partition the data",
-                                        inConn.getShipStrategy()
+                                Assertions.assertTrue(                                        inNode.getProgramOperator() instanceof FlatMapOperatorBase,                                        "Input of Union should be FlatMapOperators");
+                                Assertions.assertTrue(                                        inConn.getShipStrategy(,                                        "Shipment strategy under union should partition the data")
                                                 == ShipStrategyType.PARTITION_HASH);
                             }
 
-                            Assertions.assertTrue(
-                                    "NAryUnion should have " + NUM_INPUTS + " inputs",
-                                    numberInputs == NUM_INPUTS);
+                            Assertions.assertTrue(                                    numberInputs == NUM_INPUTS,                                    "NAryUnion should have " + NUM_INPUTS + " inputs");
                             return false;
                         }
                         return true;

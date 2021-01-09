@@ -366,9 +366,7 @@ public class StreamTaskTestHarness<OUT> {
         if (this.memorySize > 0) {
             MemoryManager memMan = this.mockEnv.getMemoryManager();
             if (memMan != null) {
-                Assertions.assertTrue(
-                        "Memory Manager managed memory was not completely freed.",
-                        memMan.verifyEmpty());
+                Assertions.assertTrue(                        memMan.verifyEmpty(),                        "Memory Manager managed memory was not completely freed.");
                 memMan.shutdown();
             }
         }

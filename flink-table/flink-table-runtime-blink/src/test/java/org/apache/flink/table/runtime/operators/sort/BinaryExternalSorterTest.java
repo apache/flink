@@ -35,6 +35,7 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -99,9 +100,7 @@ public class BinaryExternalSorterTest {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assertions.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory leak: not all segments have been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }

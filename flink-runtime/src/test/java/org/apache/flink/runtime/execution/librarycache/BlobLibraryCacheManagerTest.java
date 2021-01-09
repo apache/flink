@@ -28,6 +28,7 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -394,9 +395,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
             // make sure no further blobs can be downloaded by removing the write
             // permissions from the directory
-            assertTrue(
-                    "Could not remove write permissions from cache directory",
-                    cacheDir.setWritable(false, false));
+            assertTrue(                    cacheDir.setWritable(false, false),                    "Could not remove write permissions from cache directory");
 
             // since we cannot download this library any more, this call should fail
             try {

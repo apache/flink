@@ -19,12 +19,9 @@
 package org.apache.flink.test.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import org.junit.Rule;
 import org.junit.rules.Timeout;
 
 /**
@@ -32,11 +29,7 @@ import org.junit.rules.Timeout;
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1343">FLINK-1343</a>
  */
-public class JoinDeadlockITCase extends JavaProgramTestBase {
-
-    protected String resultPath;
-
-    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
+@Timeout(120 * 1000); // Set timeout for deadlocks
 
     @Override
     protected void preSubmit() throws Exception {
@@ -70,7 +63,12 @@ public class JoinDeadlockITCase extends JavaProgramTestBase {
 
         @Override
         public Tuple1<Long> map(Long l) throws Exception {
-            return new Tuple1<Long>(l);
+            return new Tuple1<Long>(l, unit = TimeUnit.MILLISECONDS)
+public class JoinDeadlockITCase extends JavaProgramTestBase {
+
+    protected String resultPath;
+
+
         }
     }
 }

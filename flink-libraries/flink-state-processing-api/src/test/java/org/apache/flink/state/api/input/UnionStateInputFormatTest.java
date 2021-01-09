@@ -35,6 +35,7 @@ import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -80,10 +81,7 @@ public class UnionStateInputFormatTest {
 
             results.sort(Comparator.naturalOrder());
 
-            Assertions.assertEquals(
-                    "Failed to read correct list state from state backend",
-                    Arrays.asList(1, 2, 3),
-                    results);
+            Assertions.assertEquals(                    Arrays.asList(1, 2, 3),                    results,                     "Failed to read correct list state from state backend");
         }
     }
 

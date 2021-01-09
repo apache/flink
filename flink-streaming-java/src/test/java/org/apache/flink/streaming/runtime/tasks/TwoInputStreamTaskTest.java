@@ -53,12 +53,8 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.hamcrest.collection.IsMapContaining;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -127,7 +123,7 @@ public class TwoInputStreamTaskTest {
         testHarness.waitForTaskCompletion();
 
         Assertions.assertTrue(
-                "RichFunction methods were not called.", TestOpenCloseMapFunction.closeCalled);
+                TestOpenCloseMapFunction.closeCalled, "RichFunction methods were not called.");
 
         TestHarnessUtil.assertOutputEquals(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -623,7 +619,6 @@ public class TwoInputStreamTaskTest {
                         chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
         Assertions.assertEquals(
-                "A metric was registered multiple times.",
                 7,
                 new HashSet<>(
                                 Arrays.asList(
@@ -634,7 +629,8 @@ public class TwoInputStreamTaskTest {
                                         headOutputWatermarkGauge,
                                         chainedInputWatermarkGauge,
                                         chainedOutputWatermarkGauge))
-                        .size());
+                        .size(),
+                "A metric was registered multiple times.");
 
         Assertions.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
         Assertions.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());

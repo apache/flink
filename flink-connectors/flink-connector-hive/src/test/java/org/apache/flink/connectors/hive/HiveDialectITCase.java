@@ -54,6 +54,7 @@ import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -232,15 +233,9 @@ public class HiveDialectITCase {
         TableSchema tableSchema = catalogTable.getSchema();
         assertTrue(tableSchema.getPrimaryKey().isPresent(), "PK not present");
         assertEquals("pk_name", tableSchema.getPrimaryKey().get().getName());
-        assertFalse(
-                "PK cannot be null",
-                tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable());
-        assertFalse(
-                "RELY NOT NULL should be reflected in schema",
-                tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable());
-        assertTrue(
-                "NORELY NOT NULL shouldn't be reflected in schema",
-                tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable());
+        assertFalse(                tableSchema.getFieldDataTypes()[0].getLogicalType().isNullable(),                "PK cannot be null");
+        assertFalse(                tableSchema.getFieldDataTypes()[1].getLogicalType().isNullable(),                "RELY NOT NULL should be reflected in schema");
+        assertTrue(                tableSchema.getFieldDataTypes()[2].getLogicalType().isNullable(),                "NORELY NOT NULL shouldn't be reflected in schema");
     }
 
     @Test

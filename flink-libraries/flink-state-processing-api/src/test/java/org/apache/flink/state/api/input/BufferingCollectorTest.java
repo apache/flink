@@ -18,12 +18,8 @@
 
 package org.apache.flink.state.api.input;
 
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 /** Test of the buffering collector. */
 public class BufferingCollectorTest {
@@ -43,6 +39,6 @@ public class BufferingCollectorTest {
     @Test
     public void testEmptyCollectorReturnsNull() {
         BufferingCollector<Integer> collector = new BufferingCollector<>();
-        Assertions.assertNull("Empty collector did not return null", collector.next());
+        Assertions.assertNull(collector.next(), "Empty collector did not return null");
     }
 }

@@ -28,14 +28,11 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.After;
 import org.junit.Before;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
@@ -68,7 +65,8 @@ public class NormalizedKeySorterTest {
     @After
     public void afterTest() {
         if (!this.memoryManager.verifyEmpty()) {
-            Assertions.fail("Memory Leak: Some memory has not been returned to the memory manager.");
+            Assertions.fail(
+                    "Memory Leak: Some memory has not been returned to the memory manager.");
         }
 
         if (this.memoryManager != null) {
@@ -119,8 +117,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers
@@ -159,8 +157,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers
@@ -203,9 +201,9 @@ public class NormalizedKeySorterTest {
         } while (sorter.write(record));
 
         Assertions.assertEquals(
-                "The number of records written after the reset was not the same as before.",
                 num,
-                num2);
+                num2,
+                "The number of records written after the reset was not the same as before.");
 
         // re-read the records
         generator.reset();
@@ -222,8 +220,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers
@@ -275,8 +273,8 @@ public class NormalizedKeySorterTest {
             String rv = readTarget.f1;
             String gv = record.f1;
 
-            Assertions.assertEquals("The re-read key is wrong", gk, rk);
-            Assertions.assertEquals("The re-read value is wrong", gv, rv);
+            Assertions.assertEquals(gk, rk, "The re-read key is wrong");
+            Assertions.assertEquals(gv, rv, "The re-read value is wrong");
         }
 
         // release the memory occupied by the buffers

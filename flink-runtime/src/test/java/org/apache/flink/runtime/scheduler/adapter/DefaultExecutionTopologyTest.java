@@ -35,6 +35,7 @@ import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -208,9 +209,7 @@ public class DefaultExecutionTopologyTest extends TestLogger {
             assertPartitionsEquals(originalProducedPartitions, adaptedProducedPartitions);
         }
 
-        assertFalse(
-                "Number of adapted vertices exceeds number of original vertices.",
-                adaptedVertices.hasNext());
+        assertFalse(                adaptedVertices.hasNext(),                "Number of adapted vertices exceeds number of original vertices.");
     }
 
     private static void assertPartitionsEquals(

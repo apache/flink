@@ -31,15 +31,11 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,10 +47,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.apache.flink.table.filesystem.FileSystemOptions.PARTITION_TIME_EXTRACTOR_TIMESTAMP_PATTERN;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_DELAY;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_POLICY_KIND;
-import static org.apache.flink.table.filesystem.FileSystemOptions.SINK_PARTITION_COMMIT_SUCCESS_FILE_NAME;
+import static org.apache.flink.table.filesystem.FileSystemOptions.*;
 
 /** Tests {@link HiveTableSink}. */
 public class HiveTableSinkITCase {
@@ -96,12 +89,14 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testDefaultSerPartStreamingWrite() throws Exception {
         testStreamingWrite(true, false, "textfile", this::checkSuccessFiles);
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testPartStreamingWrite() throws Exception {
         testStreamingWrite(true, false, "parquet", this::checkSuccessFiles);
         // disable vector orc writer test for hive 2.x due to dependency conflict
@@ -110,7 +105,8 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testNonPartStreamingWrite() throws Exception {
         testStreamingWrite(false, false, "parquet", (p) -> {});
         // disable vector orc writer test for hive 2.x due to dependency conflict
@@ -119,7 +115,8 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testPartStreamingMrWrite() throws Exception {
         testStreamingWrite(true, true, "parquet", this::checkSuccessFiles);
         // doesn't support writer 2.0 orc table
@@ -128,7 +125,8 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testNonPartStreamingMrWrite() throws Exception {
         testStreamingWrite(false, true, "parquet", (p) -> {});
         // doesn't support writer 2.0 orc table
@@ -137,7 +135,8 @@ public class HiveTableSinkITCase {
         }
     }
 
-    @Test(timeout = 120000)
+    @Test
+    @Timeout(120)
     public void testStreamingAppend() throws Exception {
         testStreamingWrite(
                 false,

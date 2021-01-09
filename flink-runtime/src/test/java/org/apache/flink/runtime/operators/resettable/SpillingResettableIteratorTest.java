@@ -30,6 +30,7 @@ import org.apache.flink.types.IntValue;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -107,13 +108,10 @@ public class SpillingResettableIteratorTest {
             // now test walking through the iterator
             int count = 0;
             while (iterator.hasNext()) {
-                Assertions.assertEquals(
-                        "In initial run, element " + count + " does not match expected value!",
-                        count++,
-                        iterator.next().getValue());
+                Assertions.assertEquals(                        count++,                        iterator.next().getValue(),                         "In initial run, element " + count + " does not match expected value!");
             }
-            Assertions.assertEquals(
-                    "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
+            Assertions.assertEquals(NUM_TESTRECORDS, count,
+                    "Too few elements were deserialzied in initial run!");
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
                 count = 0;
@@ -130,10 +128,7 @@ public class SpillingResettableIteratorTest {
                             count++,
                             iterator.next().getValue());
                 }
-                Assertions.assertEquals(
-                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
-                        NUM_TESTRECORDS,
-                        count);
+                Assertions.assertEquals(                        NUM_TESTRECORDS,                        count,                         "Too few elements were deserialzied after reset nr. " + j + 1 + "!");
             }
             // close the iterator
             iterator.close();
@@ -165,13 +160,10 @@ public class SpillingResettableIteratorTest {
             // now test walking through the iterator
             int count = 0;
             while (iterator.hasNext()) {
-                Assertions.assertEquals(
-                        "In initial run, element " + count + " does not match expected value!",
-                        count++,
-                        iterator.next().getValue());
+                Assertions.assertEquals(                        count++,                        iterator.next().getValue(),                         "In initial run, element " + count + " does not match expected value!");
             }
-            Assertions.assertEquals(
-                    "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
+            Assertions.assertEquals(NUM_TESTRECORDS, count,
+                    "Too few elements were deserialzied in initial run!");
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
                 count = 0;
@@ -188,10 +180,7 @@ public class SpillingResettableIteratorTest {
                             count++,
                             iterator.next().getValue());
                 }
-                Assertions.assertEquals(
-                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
-                        NUM_TESTRECORDS,
-                        count);
+                Assertions.assertEquals(                        NUM_TESTRECORDS,                        count,                         "Too few elements were deserialzied after reset nr. " + j + 1 + "!");
             }
             // close the iterator
             iterator.close();

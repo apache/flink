@@ -20,15 +20,11 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link InFlightRequestTracker}. */
@@ -63,9 +59,9 @@ public class InFlightRequestTrackerTest {
         assertTrue(awaitFuture.isDone());
 
         assertSame(
-                "The reference to the future must not change",
                 awaitFuture,
-                inFlightRequestTracker.awaitAsync());
+                inFlightRequestTracker.awaitAsync(),
+                "The reference to the future must not change");
     }
 
     @Test
@@ -76,9 +72,9 @@ public class InFlightRequestTrackerTest {
         inFlightRequestTracker.registerRequest();
 
         assertSame(
-                "The reference to the future must not change",
                 awaitFuture,
-                inFlightRequestTracker.awaitAsync());
+                inFlightRequestTracker.awaitAsync(),
+                "The reference to the future must not change");
     }
 
     @Test

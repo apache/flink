@@ -38,6 +38,7 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -78,19 +79,11 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                                 GlobalProperties gprops = visitable.getGlobalProperties();
                                 LocalProperties lprops = visitable.getLocalProperties();
 
-                                Assertions.assertTrue(
-                                        "Reduce should just forward the input if it is already partitioned",
-                                        input.getShipStrategy() == ShipStrategyType.FORWARD);
-                                Assertions.assertTrue(
-                                        "Wrong GlobalProperties on Reducer",
-                                        gprops.isPartitionedOnFields(new FieldSet(1)));
-                                Assertions.assertTrue(
-                                        "Wrong GlobalProperties on Reducer",
-                                        gprops.getPartitioning()
+                                Assertions.assertTrue(                                        input.getShipStrategy() == ShipStrategyType.FORWARD,                                        "Reduce should just forward the input if it is already partitioned");
+                                Assertions.assertTrue(                                        gprops.isPartitionedOnFields(new FieldSet(1)),                                        "Wrong GlobalProperties on Reducer");
+                                Assertions.assertTrue(                                        gprops.getPartitioning(,                                        "Wrong GlobalProperties on Reducer")
                                                 == PartitioningProperty.HASH_PARTITIONED);
-                                Assertions.assertTrue(
-                                        "Wrong LocalProperties on Reducer",
-                                        lprops.getGroupedFields().contains(1));
+                                Assertions.assertTrue(                                        lprops.getGroupedFields().contains(1),                                        "Wrong LocalProperties on Reducer");
                             }
                         }
                         if (visitable instanceof SingleInputPlanNode
@@ -99,19 +92,11 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                                 GlobalProperties gprops = visitable.getGlobalProperties();
                                 LocalProperties lprops = visitable.getLocalProperties();
 
-                                Assertions.assertTrue(
-                                        "Map should just forward the input if it is already partitioned",
-                                        input.getShipStrategy() == ShipStrategyType.FORWARD);
-                                Assertions.assertTrue(
-                                        "Wrong GlobalProperties on Mapper",
-                                        gprops.isPartitionedOnFields(new FieldSet(1)));
-                                Assertions.assertTrue(
-                                        "Wrong GlobalProperties on Mapper",
-                                        gprops.getPartitioning()
+                                Assertions.assertTrue(                                        input.getShipStrategy() == ShipStrategyType.FORWARD,                                        "Map should just forward the input if it is already partitioned");
+                                Assertions.assertTrue(                                        gprops.isPartitionedOnFields(new FieldSet(1)),                                        "Wrong GlobalProperties on Mapper");
+                                Assertions.assertTrue(                                        gprops.getPartitioning(,                                        "Wrong GlobalProperties on Mapper")
                                                 == PartitioningProperty.HASH_PARTITIONED);
-                                Assertions.assertTrue(
-                                        "Wrong LocalProperties on Mapper",
-                                        lprops.getGroupedFields().contains(1));
+                                Assertions.assertTrue(                                        lprops.getGroupedFields().contains(1),                                        "Wrong LocalProperties on Mapper");
                             }
                             return false;
                         }
@@ -161,12 +146,8 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                             final Channel inConn1 = node.getInput1();
                             final Channel inConn2 = node.getInput2();
 
-                            Assertions.assertTrue(
-                                    "Join should just forward the input if it is already partitioned",
-                                    inConn1.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assertions.assertTrue(
-                                    "Join should just forward the input if it is already partitioned",
-                                    inConn2.getShipStrategy() == ShipStrategyType.FORWARD);
+                            Assertions.assertTrue(                                    inConn1.getShipStrategy() == ShipStrategyType.FORWARD,                                    "Join should just forward the input if it is already partitioned");
+                            Assertions.assertTrue(                                    inConn2.getShipStrategy() == ShipStrategyType.FORWARD,                                    "Join should just forward the input if it is already partitioned");
                             return false;
                         }
                         return true;

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Collector;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -81,10 +82,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests join program with replicated data source behind map. */
@@ -124,10 +125,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests join program with replicated data source behind filter. */
@@ -167,10 +168,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests join program with replicated data source behind flatMap. */
@@ -210,10 +211,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests join program with replicated data source behind map partition. */
@@ -253,10 +254,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests join program with replicated data source behind multiple map ops. */
@@ -299,10 +300,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType joinIn1 = joinNode.getInput1().getShipStrategy();
         ShipStrategyType joinIn2 = joinNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, joinIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, joinIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests cross program with replicated data source. */
@@ -338,10 +339,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, crossIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, crossIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /** Tests cross program with replicated data source behind map and filter. */
@@ -380,10 +381,10 @@ public class ReplicatingDataSourceTest extends CompilerTestBase {
         ShipStrategyType crossIn1 = crossNode.getInput1().getShipStrategy();
         ShipStrategyType crossIn2 = crossNode.getInput2().getShipStrategy();
 
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn1);
-        Assertions.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, crossIn2);
+        Assertions.assertEquals(ShipStrategyType.FORWARD, crossIn1,
+                "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(ShipStrategyType.FORWARD, crossIn2,
+                "Invalid ship strategy for an operator.");
     }
 
     /**

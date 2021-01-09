@@ -35,6 +35,7 @@ import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -119,9 +120,7 @@ public class ScheduledDropwizardReporterTest {
         assertTrue(reporters.size() == 1);
         MetricReporter metricReporter = reporters.get(0);
 
-        assertTrue(
-                "Reporter should be of type ScheduledDropwizardReporter",
-                metricReporter instanceof ScheduledDropwizardReporter);
+        assertTrue(                metricReporter instanceof ScheduledDropwizardReporter,                "Reporter should be of type ScheduledDropwizardReporter");
 
         TestingScheduledDropwizardReporter reporter =
                 (TestingScheduledDropwizardReporter) metricReporter;

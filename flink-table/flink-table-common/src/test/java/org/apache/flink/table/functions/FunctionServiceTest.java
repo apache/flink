@@ -23,6 +23,7 @@ import org.apache.flink.table.descriptors.ClassInstance;
 import org.apache.flink.table.descriptors.FunctionDescriptor;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;

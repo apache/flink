@@ -21,21 +21,20 @@ package org.apache.flink.queryablestate.network;
 import org.apache.flink.queryablestate.messages.KvStateInternalRequest;
 import org.apache.flink.queryablestate.messages.KvStateResponse;
 import org.apache.flink.queryablestate.network.messages.MessageSerializer;
+
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
+
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.channels.ClosedChannelException;
 
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /** Tests for {@link ClientHandler}. */
 public class KvStateClientHandlerTest {
@@ -66,7 +65,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onRequestResult(eq(1222112277L), any(KvStateResponse.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Request failure
@@ -81,7 +80,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onRequestFailure(eq(1222112278L), isA(RuntimeException.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Server failure
@@ -103,7 +102,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onFailure(isA(IllegalStateException.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Exception caught

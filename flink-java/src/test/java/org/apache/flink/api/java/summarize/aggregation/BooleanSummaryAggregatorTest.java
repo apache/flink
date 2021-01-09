@@ -21,6 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /** Tests for {@link BooleanSummaryAggregator}. */
 public class BooleanSummaryAggregatorTest {

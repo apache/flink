@@ -49,9 +49,7 @@ public class NettyLeakDetectionResource extends ExternalResource {
     private static int refCount = 0;
 
     public NettyLeakDetectionResource() {
-        Assertions.assertTrue(
-                "Error logging must be enabled for the ResourceLeakDetector.",
-                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
+        Assertions.assertTrue(                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled(),                "Error logging must be enabled for the ResourceLeakDetector.");
     }
 
     @Override

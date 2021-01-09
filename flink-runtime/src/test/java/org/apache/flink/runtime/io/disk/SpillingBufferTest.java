@@ -35,6 +35,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.Valu
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,9 +80,7 @@ public class SpillingBufferTest {
         ioManager.close();
 
         if (memoryManager != null) {
-            Assertions.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    memoryManager.verifyEmpty(),                    "Memory leak: not all segments have been returned to the memory manager.");
             memoryManager.shutdown();
             memoryManager = null;
         }
@@ -129,9 +128,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         // re-notifyNonEmpty the data
@@ -149,9 +146,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         this.memoryManager.release(outView.close());
@@ -199,9 +194,7 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assertions.assertTrue(
-                        "The re-generated and the notifyNonEmpty record do not match.",
-                        k1 == k2 && v1.equals(v2));
+                Assertions.assertTrue(                        k1 == k2 && v1.equals(v2),                        "The re-generated and the notifyNonEmpty record do not match.");
             }
             Assertions.fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
@@ -223,9 +216,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         this.memoryManager.release(outView.close());
@@ -274,9 +265,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         // re-notifyNonEmpty the data
@@ -294,9 +283,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         this.memoryManager.release(outView.close());
@@ -344,9 +331,7 @@ public class SpillingBufferTest {
                 int k2 = readRec.f0;
                 String v2 = readRec.f1;
 
-                Assertions.assertTrue(
-                        "The re-generated and the notifyNonEmpty record do not match.",
-                        k1 == k2 && v1.equals(v2));
+                Assertions.assertTrue(                        k1 == k2 && v1.equals(v2),                        "The re-generated and the notifyNonEmpty record do not match.");
             }
             Assertions.fail("Read too much, expected EOFException.");
         } catch (EOFException eofex) {
@@ -368,9 +353,7 @@ public class SpillingBufferTest {
             int k2 = readRec.f0;
             String v2 = readRec.f1;
 
-            Assertions.assertTrue(
-                    "The re-generated and the notifyNonEmpty record do not match.",
-                    k1 == k2 && v1.equals(v2));
+            Assertions.assertTrue(                    k1 == k2 && v1.equals(v2),                    "The re-generated and the notifyNonEmpty record do not match.");
         }
 
         this.memoryManager.release(outView.close());

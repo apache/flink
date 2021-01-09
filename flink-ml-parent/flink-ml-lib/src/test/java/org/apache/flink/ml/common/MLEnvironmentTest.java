@@ -25,6 +25,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.BatchTableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -76,9 +77,6 @@ public class MLEnvironmentTest {
     public void testRemoveDefaultMLEnvironment() {
         MLEnvironment defaultEnv = MLEnvironmentFactory.getDefault();
         MLEnvironmentFactory.remove(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID);
-        assertEquals(
-                "The default MLEnvironment should not have been removed",
-                defaultEnv,
-                MLEnvironmentFactory.get(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID));
+        assertEquals(                defaultEnv,                MLEnvironmentFactory.get(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID),                 "The default MLEnvironment should not have been removed");
     }
 }

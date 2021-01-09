@@ -34,11 +34,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -152,8 +147,8 @@ public class OperatorChainTest {
 
         @Override
         public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-            assertEquals("wrong checkpointId", CHECKPOINT_ID, checkpointId);
-            assertEquals("wrong order", expected, toUpdate.getAndIncrement());
+            assertEquals(CHECKPOINT_ID, checkpointId, "wrong checkpointId");
+            assertEquals(expected, "wrong order");
         }
 
         @Override

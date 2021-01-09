@@ -23,19 +23,17 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link BackPressureSampleService}. */
@@ -62,7 +60,8 @@ public class BackPressureSampleServiceTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testSampleTaskBackPressure() throws Exception {
         final double backPressureRatio =
                 backPressureSampleService.sampleTaskBackPressure(new TestTask()).get();
@@ -70,7 +69,8 @@ public class BackPressureSampleServiceTest extends TestLogger {
         assertEquals(0.5, backPressureRatio, 0.0);
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testTaskStopsWithPartialSampling() throws Exception {
         final double backPressureRatio =
                 backPressureSampleService

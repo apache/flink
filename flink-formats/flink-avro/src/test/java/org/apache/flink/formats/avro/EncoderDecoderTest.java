@@ -25,6 +25,7 @@ import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.StringUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -345,7 +346,7 @@ public class EncoderDecoderTest {
 
                 for (long val : values) {
                     long read = DataInputDecoder.readVarLongCount(dataIn);
-                    assertEquals("Wrong var-len encoded value read.", val, read);
+                    assertEquals(val, read, "Wrong var-len encoded value read.");
                 }
             }
         } catch (Exception e) {

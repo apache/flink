@@ -38,6 +38,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -598,8 +599,8 @@ public class IntervalJoinOperatorTest {
 
         int expectedSize = Iterables.size(expectedOutput);
 
-        Assertions.assertEquals(
-                "Expected and actual size of stream records different", expectedSize, actualSize);
+        Assertions.assertEquals(expectedSize, actualSize,
+                "Expected and actual size of stream records different");
 
         for (StreamRecord<Tuple2<TestElem, TestElem>> record : expectedOutput) {
             Assertions.assertTrue(actualOutput.contains(record));

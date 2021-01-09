@@ -36,17 +36,28 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.datagen.DataGenTableSource;
 import org.apache.flink.util.InstantiationUtil;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import static org.apache.flink.table.factories.DataGenTableSourceFactory.*;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.END;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.FIELDS;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.KIND;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.LENGTH;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.MAX;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.MIN;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.NUMBER_OF_ROWS;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.RANDOM;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.ROWS_PER_SECOND;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.SEQUENCE;
+import static org.apache.flink.table.factories.DataGenTableSourceFactory.START;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
@@ -100,13 +111,13 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putString(NUMBER_OF_ROWS.key(), "10");
 
         List<RowData> results = runGenerator(schema, descriptor);
-        Assertions.assertEquals("Failed to generate all rows", 10, results.size());
+        Assertions.assertEquals(10, "Failed to generate all rows");
 
         for (RowData row : results) {
             for (int i = 0; i < row.getArity(); i++) {
                 Assertions.assertFalse(
-                        "Column " + schema.getFieldNames()[i] + " should not be null",
-                        row.isNullAt(i));
+                        row.isNullAt(i),
+                        "Column " + schema.getFieldNames()[i] + " should not be null");
             }
         }
     }

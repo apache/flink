@@ -22,19 +22,20 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.functions.RichCoGroupFunction;
 import org.apache.flink.runtime.operators.CoGroupTaskExternalITCase.MockCoGroupStub;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
+import org.apache.flink.runtime.operators.testutils.DriverTestBase;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordPairComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -93,7 +94,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -132,7 +133,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -169,7 +170,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -206,7 +207,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -243,7 +244,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             Assertions.fail("The test caused an exception.");
         }
 
-        Assertions.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -329,7 +330,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -383,7 +384,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -437,7 +438,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     public static class MockFailingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {

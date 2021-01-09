@@ -21,15 +21,17 @@ package org.apache.flink.runtime.operators;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.DiscardingOutputCollector;
+import org.apache.flink.runtime.operators.testutils.DriverTestBase;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.InfiniteInputIterator;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,8 +64,7 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             Assertions.fail("Invoke method caused exception.");
         }
 
-        Assertions.assertEquals(
-                "Wrong result set size.", keyCnt * valCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(keyCnt * valCnt, "Wrong result set size.");
     }
 
     @Test
@@ -120,7 +121,7 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     public static class MockMapStub extends RichFlatMapFunction<Record, Record> {

@@ -44,6 +44,7 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
 import org.junit.Rule;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -345,8 +346,8 @@ public class RecordWriterTest {
         assertEquals(0, buffer1.getReaderIndex());
         assertEquals(0, buffer2.getReaderIndex());
         buffer1.setReaderIndex(1);
-        assertEquals(
-                "Buffer 2 shares the same reader index as buffer 1", 0, buffer2.getReaderIndex());
+        assertEquals(0,
+                "Buffer 2 shares the same reader index as buffer 1");
     }
 
     protected void verifyDeserializationResults(

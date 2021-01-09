@@ -55,28 +55,27 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.util.TestLogger;
+
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import org.apache.flink.util.TestLogger;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link KvStateServerHandler}. */
 @Ignore(
@@ -237,8 +236,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(requestId, response.getRequestId());
 
         assertTrue(
-                "Did not respond with expected failure cause",
-                response.getCause() instanceof UnknownKvStateIdException);
+                response.getCause() instanceof UnknownKvStateIdException,
+                "Did not respond with expected failure cause");
 
         assertEquals(1L, stats.getNumRequests());
         assertEquals(1L, stats.getNumFailed());
@@ -309,8 +308,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(requestId, response.getRequestId());
 
         assertTrue(
-                "Did not respond with expected failure cause",
-                response.getCause() instanceof UnknownKeyOrNamespaceException);
+                response.getCause() instanceof UnknownKeyOrNamespaceException,
+                "Did not respond with expected failure cause");
 
         assertEquals(1L, stats.getNumRequests());
         assertEquals(1L, stats.getNumFailed());
@@ -587,7 +586,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
         // Write regular request
         channel.writeInbound(serRequest);
-        assertEquals("Buffer not recycled", 0L, serRequest.refCnt());
+        assertEquals(0L, "Buffer not recycled");
 
         // Write unexpected msg
         ByteBuf unexpected = channel.alloc().buffer(8);
@@ -597,7 +596,7 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(1L, unexpected.refCnt());
 
         channel.writeInbound(unexpected);
-        assertEquals("Buffer not recycled", 0L, unexpected.refCnt());
+        assertEquals(0L, "Buffer not recycled");
         channel.finishAndReleaseAll();
     }
 

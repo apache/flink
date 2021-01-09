@@ -40,17 +40,20 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.util.Collector;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
+
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for keyed state input format. */
 public class KeyedStateInputFormatTest {
@@ -74,7 +77,7 @@ public class KeyedStateInputFormatTest {
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
         KeyGroupRangeInputSplit[] splits = format.createInputSplits(4);
         Assertions.assertEquals(
-                "Failed to properly partition operator state into input splits", 4, splits.length);
+                4, splits.length, "Failed to properly partition operator state into input splits");
     }
 
     @Test
@@ -94,9 +97,9 @@ public class KeyedStateInputFormatTest {
                         new KeyedStateReaderOperator<>(new ReaderFunction(), Types.INT));
         KeyGroupRangeInputSplit[] splits = format.createInputSplits(129);
         Assertions.assertEquals(
-                "Failed to properly partition operator state into input splits",
                 128,
-                splits.length);
+                splits.length,
+                "Failed to properly partition operator state into input splits");
     }
 
     @Test

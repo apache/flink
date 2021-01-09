@@ -24,22 +24,32 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.atMost;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Tests for the generic retrying registration class, validating the failure, retry, and back-off
@@ -167,8 +177,8 @@ public class RetryingRegistrationTest extends TestLogger {
             long duration = System.currentTimeMillis() - start;
 
             assertTrue(
-                    "The registration should have failed the first time. Thus the duration should be longer than at least a single error delay.",
-                    duration > TestRetryingRegistration.DELAY_ON_ERROR);
+                    duration > TestRetryingRegistration.DELAY_ON_ERROR,
+                    "The registration should have failed the first time. Thus the duration should be longer than at least a single error delay.");
 
             // validate correct invocation and result
             assertEquals(testId, success.f1.getCorrelationId());
@@ -178,7 +188,8 @@ public class RetryingRegistrationTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRetriesOnTimeouts() throws Exception {
         final String testId = "rien ne va plus";
         final String testEndpointAddress = "<test-address>";
@@ -267,10 +278,10 @@ public class RetryingRegistrationTest extends TestLogger {
 
             // validate that some retry-delay / back-off behavior happened
             assertTrue(
-                    "retries did not properly back off",
                     elapsedMillis
                             >= 2 * TestRetryingRegistration.INITIAL_TIMEOUT
-                                    + TestRetryingRegistration.DELAY_ON_DECLINE);
+                                    + TestRetryingRegistration.DELAY_ON_DECLINE,
+                    "retries did not properly back off");
         } finally {
             testGateway.stop();
         }
@@ -311,8 +322,8 @@ public class RetryingRegistrationTest extends TestLogger {
 
         // validate that some retry-delay / back-off behavior happened
         assertTrue(
-                "retries did not properly back off",
-                elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR);
+                elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR,
+                "retries did not properly back off");
     }
 
     @Test

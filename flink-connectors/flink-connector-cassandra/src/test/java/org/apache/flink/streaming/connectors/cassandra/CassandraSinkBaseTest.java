@@ -32,11 +32,7 @@ import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -51,6 +47,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -87,7 +84,8 @@ public class CassandraSinkBaseTest {
                 });
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testSuccessfulPath() throws Exception {
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
             casSinkFunc.enqueueCompletableFuture(CompletableFuture.completedFuture(null));
@@ -103,7 +101,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testThrowErrorOnClose() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
@@ -121,7 +120,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testThrowErrorOnInvoke() throws Exception {
         try (TestCassandraSink casSinkFunc = createOpenedTestCassandraSink()) {
             Exception cause = new RuntimeException();
@@ -139,7 +139,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testIgnoreError() throws Exception {
         Exception cause = new RuntimeException();
         CassandraFailureHandler failureHandler = failure -> Assertions.assertEquals(cause, failure);
@@ -154,7 +155,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testThrowErrorOnSnapshot() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
@@ -175,7 +177,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testWaitForPendingUpdatesOnSnapshot() throws Exception {
         final TestCassandraSink casSinkFunc = new TestCassandraSink();
 
@@ -208,7 +211,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testWaitForPendingUpdatesOnClose() throws Exception {
         TestCassandraSink casSinkFunc = new TestCassandraSink();
 
@@ -242,7 +246,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testReleaseOnSuccess() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
@@ -265,7 +270,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testReleaseOnFailure() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
@@ -290,7 +296,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testReleaseOnThrowingSend() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder().setMaxConcurrentRequests(1).build();
@@ -319,7 +326,8 @@ public class CassandraSinkBaseTest {
         }
     }
 
-    @Test(timeout = DEFAULT_TEST_TIMEOUT)
+    @Test
+    @Timeout(value = DEFAULT_TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testTimeoutExceptionOnInvoke() throws Exception {
         final CassandraSinkBaseConfig config =
                 CassandraSinkBaseConfig.newBuilder()

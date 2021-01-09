@@ -34,12 +34,9 @@ import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -81,9 +78,9 @@ public class ListStateInputFormatTest {
             results.sort(Comparator.naturalOrder());
 
             Assertions.assertEquals(
-                    "Failed to read correct list state from state backend",
                     Arrays.asList(1, 2, 3),
-                    results);
+                    results,
+                    "Failed to read correct list state from state backend");
         }
     }
 

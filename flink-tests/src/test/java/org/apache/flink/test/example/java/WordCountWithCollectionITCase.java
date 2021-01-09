@@ -49,10 +49,7 @@ public class WordCountWithCollectionITCase extends JavaProgramTestBase {
         String[] expected = WordCountData.COUNTS_AS_TUPLES.split("\n");
         Arrays.sort(expected);
 
-        Assertions.assertEquals(
-                "Different number of lines in expected and obtained result.",
-                expected.length,
-                result.length);
+        Assertions.assertEquals(                expected.length,                result.length,                 "Different number of lines in expected and obtained result.");
         Assertions.assertArrayEquals(expected, result);
     }
 

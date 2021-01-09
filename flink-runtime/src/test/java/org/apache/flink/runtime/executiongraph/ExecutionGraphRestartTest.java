@@ -47,6 +47,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -245,9 +246,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
             // At this point all resources have been assigned
             for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-                assertNotNull(
-                        "No assigned resource (test instability).",
-                        vertex.getCurrentAssignedResource());
+                assertNotNull(                        vertex.getCurrentAssignedResource(),                        "No assigned resource (test instability).");
                 vertex.getCurrentExecutionAttempt().switchToRunning();
             }
 

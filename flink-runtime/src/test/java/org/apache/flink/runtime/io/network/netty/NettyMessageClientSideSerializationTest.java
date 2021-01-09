@@ -30,6 +30,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -171,9 +172,7 @@ public class NettyMessageClientSideSerializationTest extends TestLogger {
 
         assertTrue(buffer.isRecycled());
         assertTrue(testBuffer.isRecycled());
-        assertNotNull(
-                "The request input channel should always have available buffers in this test.",
-                actual.getBuffer());
+        assertNotNull(                actual.getBuffer(),                "The request input channel should always have available buffers in this test.");
 
         Buffer decodedBuffer = actual.getBuffer();
         if (testCompressedBuffer) {

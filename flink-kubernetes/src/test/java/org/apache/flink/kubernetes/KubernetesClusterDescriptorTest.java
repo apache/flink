@@ -33,6 +33,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorato
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -98,9 +99,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                         .getSpec()
                         .getContainers()
                         .get(0);
-        assertTrue(
-                "Environment " + ENV_FLINK_POD_IP_ADDRESS + " should be set.",
-                jmContainer.getEnv().stream()
+        assertTrue(                jmContainer.getEnv().stream(,                "Environment " + ENV_FLINK_POD_IP_ADDRESS + " should be set.")
                         .map(EnvVar::getName)
                         .collect(Collectors.toList())
                         .contains(ENV_FLINK_POD_IP_ADDRESS));

@@ -30,6 +30,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -63,9 +64,7 @@ public class CheckpointedInputGateTest {
             assertTrue(polled.get().isEvent());
             assertEquals(EndOfChannelStateEvent.INSTANCE, polled.get().getEvent());
             assertEquals(numberOfChannels, resumeCounter.getNumResumed());
-            assertFalse(
-                    "should only be a single event no matter of what is the number of channels",
-                    gate.pollNext().isPresent());
+            assertFalse(                    gate.pollNext().isPresent(),                    "should only be a single event no matter of what is the number of channels");
         } finally {
             bufferPool.destroy();
         }

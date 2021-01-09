@@ -47,11 +47,6 @@ import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -504,7 +499,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         public Integer map(Tuple2<Long, String> value) throws Exception {
             int partition = value.f0.intValue() % numPartitions;
             if (ourPartition != -1) {
-                assertEquals("inconsistent partitioning", ourPartition, partition);
+                assertEquals(ourPartition, partition, "inconsistent partitioning");
             } else {
                 ourPartition = partition;
             }

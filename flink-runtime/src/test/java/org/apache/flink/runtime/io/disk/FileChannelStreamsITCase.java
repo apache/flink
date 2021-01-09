@@ -31,6 +31,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -129,7 +130,7 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertEquals(pair, readPair, "The re-generated and the read record do not match.");
             }
 
             inView.close();
@@ -185,7 +186,7 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_LONG; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertEquals(pair, readPair, "The re-generated and the read record do not match.");
             }
 
             inView.close();
@@ -242,8 +243,8 @@ public class FileChannelStreamsITCase extends TestLogger {
                 for (int i = 0; i < NUM_PAIRS_SHORT + 1; i++) {
                     generator.next(pair);
                     readPair.read(inView);
-                    assertEquals(
-                            "The re-generated and the read record do not match.", pair, readPair);
+                    assertEquals(pair, readPair,
+                            "The re-generated and the read record do not match.");
                 }
                 fail("Expected an EOFException which did not occur.");
             } catch (EOFException eofex) {
@@ -301,7 +302,7 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertEquals(pair, readPair, "The re-generated and the read record do not match.");
             }
 
             inView.close();
@@ -357,7 +358,7 @@ public class FileChannelStreamsITCase extends TestLogger {
             for (int i = 0; i < NUM_PAIRS_SHORT / 2; i++) {
                 generator.next(pair);
                 readPair.read(inView);
-                assertEquals("The re-generated and the read record do not match.", pair, readPair);
+                assertEquals(pair, readPair, "The re-generated and the read record do not match.");
             }
 
             inView.close();

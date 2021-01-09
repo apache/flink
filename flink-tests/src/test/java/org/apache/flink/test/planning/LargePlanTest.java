@@ -24,18 +24,14 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
-import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Timeout;
 
 /** Tests that large programs can be compiled to a Plan in reasonable amount of time. */
 public class LargePlanTest {
 
-    @Test(timeout = 30_000)
+    @Test
+    @Timeout(30)
     public void testPlanningOfLargePlan() throws Exception {
         runProgram(10, 20);
     }

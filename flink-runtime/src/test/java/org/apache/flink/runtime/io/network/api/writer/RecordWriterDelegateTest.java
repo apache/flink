@@ -32,6 +32,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import static org.hamcrest.MatcherAssert.assertThat;
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -58,7 +59,7 @@ public class RecordWriterDelegateTest extends TestLogger {
 
     @Before
     public void setup() {
-        assertEquals("Illegal memory segment size,", 0, memorySegmentSize % recordSize);
+        assertEquals(0, memorySegmentSize % recordSize, "Illegal memory segment size,");
         globalPool = new NetworkBufferPool(numberOfBuffers, memorySegmentSize);
     }
 

@@ -24,19 +24,21 @@ import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
 import org.apache.flink.runtime.operators.sort.Sorter;
-import org.apache.flink.runtime.operators.testutils.*;
+import org.apache.flink.runtime.operators.testutils.DelayingInfinitiveInputIterator;
+import org.apache.flink.runtime.operators.testutils.DriverTestBase;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
+import org.apache.flink.runtime.operators.testutils.NirvanaOutputList;
+import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
+import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparator;
 import org.apache.flink.runtime.testutils.recordutils.RecordSerializerFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
-import org.junit.jupiter.api.Test;
-import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.junit.jupiter.api.Assertions;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.hamcrest.MatcherAssert;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,14 +83,14 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
         }
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
             Assertions.assertTrue(
-                    "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
-                            == valCnt - record.getField(0, IntValue.class).getValue());
+                            == valCnt - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -114,14 +116,14 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
         }
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
             Assertions.assertTrue(
-                    "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
-                            == valCnt - record.getField(0, IntValue.class).getValue());
+                            == valCnt - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -172,14 +174,14 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
         }
 
         Assertions.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
             Assertions.assertTrue(
-                    "Incorrect result",
                     record.getField(1, IntValue.class).getValue()
-                            == expSum - record.getField(0, IntValue.class).getValue());
+                            == expSum - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -254,7 +256,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
         }
 
         Assertions.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test

@@ -202,7 +202,7 @@ public class KafkaSourceTestEnv extends KafkaTestBase {
                                                 new ArrayList<>(committedOffsets.keySet())))
                         .partitionsToOffsetAndMetadata()
                         .get();
-        assertEquals("The offsets are not committed", committedOffsets, toVerify);
+        assertEquals(committedOffsets, toVerify, "The offsets are not committed");
     }
 
     public static void produceToKafka(Collection<ProducerRecord<String, Integer>> records)
