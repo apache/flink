@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 
 /** This class holds configuration constants used by Flink's kubernetes runners. */
@@ -195,9 +196,16 @@ public class KubernetesConfigOptions {
                     .stringType()
                     .defaultValue(getDefaultFlinkImage())
                     .withDescription(
-                            "Image to use for Flink containers. "
-                                    + "The specified image must be based upon the same Apache Flink and Scala versions as used by the application. "
-                                    + "Visit https://hub.docker.com/_/flink?tab=tags for the official docker images provided by the Flink project. The Flink project also publishes docker images here: https://hub.docker.com/r/apache/flink");
+                            Description.builder()
+                                    .text(
+                                            "Image to use for Flink containers. "
+                                                    + "The specified image must be based upon the same Apache Flink and Scala versions as used by the application. "
+                                                    + "Visit %s for the official docker images provided by the Flink project. The Flink project also publishes docker images to %s.",
+                                            link("https://hub.docker.com/_/flink?tab=tags", "here"),
+                                            link(
+                                                    "https://hub.docker.com/r/apache/flink/tags",
+                                                    "apache/flink DockerHub repository"))
+                                    .build());
 
     /** The following config options need to be set according to the image. */
     public static final ConfigOption<String> KUBERNETES_ENTRY_PATH =
