@@ -51,10 +51,10 @@ All Table API and SQL programs for batch and streaming follow the same pattern. 
 // create a TableEnvironment for specific planner batch or streaming
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-// create a Table
-tableEnv.connect(...).createTemporaryTable("table1");
+// create an input Table
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )");
 // register an output Table
-tableEnv.connect(...).createTemporaryTable("outputTable");
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )");
 
 // create a Table object from a Table API query
 Table tapiResult = tableEnv.from("table1").select(...);
@@ -74,10 +74,10 @@ tableResult...
 // create a TableEnvironment for specific planner batch or streaming
 val tableEnv = ... // see "Create a TableEnvironment" section
 
-// create a Table
-tableEnv.connect(...).createTemporaryTable("table1")
+// create an input Table
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )")
 // register an output Table
-tableEnv.connect(...).createTemporaryTable("outputTable")
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.from("table1").select(...)
@@ -97,11 +97,10 @@ tableResult...
 # create a TableEnvironment for specific planner batch or streaming
 table_env = ... # see "Create a TableEnvironment" section
 
-# register a Table
-table_env.connect(...).create_temporary_table("table1")
-
+# register an input Table
+table_env.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )")
 # register an output Table
-table_env.connect(...).create_temporary_table("outputTable")
+table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
 
 # create a Table from a Table API query
 tapi_result = table_env.from_path("table1").select(...)
