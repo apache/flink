@@ -30,6 +30,7 @@ import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexWindowBound}
 import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 object OverAggregateUtil {
 
@@ -65,23 +66,77 @@ object OverAggregateUtil {
       windowGroup.getAggregateCalls(window))
   }
 
+  /**
+   * Split the given window groups into different groups based on window framing flag.
+   */
+  def splitOutOffsetOrInsensitiveGroup(windowGroups: Seq[Window.Group]): Seq[Window.Group] = {
+
+    def compareAggCall(c1: Window.RexWinAggCall, c2: Window.RexWinAggCall): Boolean = {
+      val allowsFraming1 = c1.getOperator.allowsFraming
+      val allowsFraming2 = c2.getOperator.allowsFraming
+      if (!allowsFraming1 && !allowsFraming2) {
+        c1.getOperator.getClass == c2.getOperator.getClass
+      } else {
+        allowsFraming1 == allowsFraming2
+      }
+    }
+
+    def createNewGroup(
+        windowGroup: Window.Group,
+        newAggCalls: Seq[Window.RexWinAggCall]): Window.Group = {
+      new Window.Group(
+        windowGroup.keys,
+        windowGroup.isRows,
+        windowGroup.lowerBound,
+        windowGroup.upperBound,
+        windowGroup.orderKeys,
+        newAggCalls)
+    }
+
+    val newWindowGroups = ArrayBuffer[Window.Group]()
+    windowGroups.foreach { group =>
+      var lastAggCall: Window.RexWinAggCall = null
+      val aggCallsBuffer = ArrayBuffer[Window.RexWinAggCall]()
+      group.aggCalls.foreach { aggCall =>
+        if (lastAggCall != null && !compareAggCall(lastAggCall, aggCall)) {
+          newWindowGroups.add(createNewGroup(group, aggCallsBuffer))
+          aggCallsBuffer.clear()
+        }
+        aggCallsBuffer.add(aggCall)
+        lastAggCall = aggCall
+      }
+      if (aggCallsBuffer.nonEmpty) {
+        newWindowGroups.add(createNewGroup(group, aggCallsBuffer))
+        aggCallsBuffer.clear()
+      }
+    }
+    newWindowGroups
+  }
+
   def calcOriginalInputFields(logicWindow: Window): Int = {
     logicWindow.getRowType.getFieldCount - logicWindow.groups.flatMap(_.aggCalls).size
   }
 
   /**
-    * Calculate the bound value and cast to long value.
-    */
+   * Calculate the bound value and cast to long value.
+   */
   def getLongBoundary(logicWindow: Window, windowBound: RexWindowBound): Long = {
     getBoundary(logicWindow, windowBound).asInstanceOf[Long].longValue()
   }
 
   /**
-    * Calculate the bound value.
-    * The return type only is Long for the ROWS OVER WINDOW.
-    * The return type can be Long or BigDecimal for the RANGE OVER WINDOW.
-    * NOTE: returns a signed value, considering whether it is preceding.
-    */
+   * Calculate the bound value and cast to long value.
+   */
+  def getLongBoundary(overSpec: OverSpec, windowBound: RexWindowBound): Long = {
+    getBoundary(overSpec, windowBound).asInstanceOf[Long].longValue()
+  }
+
+  /**
+   * Calculate the bound value.
+   * The return type only is Long for the ROWS OVER WINDOW.
+   * The return type can be Long or BigDecimal for the RANGE OVER WINDOW.
+   * NOTE: returns a signed value, considering whether it is preceding.
+   */
   def getBoundary(logicWindow: Window, windowBound: RexWindowBound): Any = {
     getBoundary(windowBound, logicWindow.getConstants, calcOriginalInputFields(logicWindow))
   }
