@@ -1327,15 +1327,12 @@ public class DataStream<T> {
     }
 
     /**
-     * Triggers the distributed execution of the streaming dataflow and returns
-     * <li>an iterator over the elements of the given DataStream.
-     * <li>and a {@link JobClient} scoped to the exeuted job.
+     * Triggers the distributed execution of the streaming dataflow and returns an iterator over the
+     * elements of the given DataStream and a {@link JobClient} scoped to the executed job.
      *
-     *     <p>
-     *
-     *     <p>The DataStream application is executed in the regular distributed manner on the target
-     *     environment, and the events from the stream are polled back to this application process
-     *     and thread through Flink's REST API.
+     * <p>The DataStream application is executed in the regular distributed manner on the target
+     * environment, and the events from the stream are polled back to this application process and
+     * thread through Flink's REST API.
      */
     public ClientAndIterator<T> executeAndCollectWithClient(String jobExecutionName)
             throws Exception {
