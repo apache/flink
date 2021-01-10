@@ -55,9 +55,9 @@ Table API 和 SQL 程序的结构
 TableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )");
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )");
 // register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )");
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )");
 
 // create a Table object from a Table API query
 Table table2 = tableEnv.from("table1").select(...);
@@ -78,9 +78,9 @@ tableResult...
 val tableEnv = ... // see "Create a TableEnvironment" section
 
 // create an input Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )")
+tableEnv.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
 // register an output Table
-tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
+tableEnv.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
 
 // create a Table from a Table API query
 val table2 = tableEnv.from("table1").select(...)
@@ -101,9 +101,9 @@ tableResult...
 table_env = ... # see "Create a TableEnvironment" section
 
 # register an input Table
-table_env.executeSql("CREATE TEMPORARY TABLE table1 ... with ( 'connector' = ... )")
+table_env.executeSql("CREATE TEMPORARY TABLE table1 ... WITH ( 'connector' = ... )")
 # register an output Table
-table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... with ( 'connector' = ... )")
+table_env.executeSql("CREATE TEMPORARY TABLE outputTable ... WITH ( 'connector' = ... )")
 
 # create a Table from a Table API query
 table2 = table_env.from_path("table1").select(...)
