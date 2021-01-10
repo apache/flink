@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -264,7 +263,7 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             ExecutionGraph executionGraph) {
 
         final Map<CoLocationConstraintDesc, DefaultSchedulingPipelinedRegion> constraintToRegion =
-                new IdentityHashMap<>();
+                new HashMap<>();
         for (DefaultSchedulingPipelinedRegion region : pipelinedRegions) {
             for (DefaultExecutionVertex vertex : region.getVertices()) {
                 final CoLocationConstraintDesc constraint =
