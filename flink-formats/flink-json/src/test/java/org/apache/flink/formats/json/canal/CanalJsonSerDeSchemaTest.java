@@ -217,7 +217,8 @@ public class CanalJsonSerDeSchemaTest {
                         (RowType) PHYSICAL_DATA_TYPE.getLogicalType(),
                         TimestampFormat.ISO_8601,
                         JsonOptions.MapNullKeyMode.LITERAL,
-                        "null");
+                        "null",
+                        true);
         serializationSchema.open(null);
 
         List<String> result = new ArrayList<>();
