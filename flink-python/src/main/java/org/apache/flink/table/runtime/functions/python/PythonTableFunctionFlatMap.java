@@ -20,133 +20,155 @@ package org.apache.flink.table.runtime.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.table.PythonTableFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.calcite.rel.core.JoinRelType;
 
-import java.io.IOException;
-
 /**
- * The {@link RichFlatMapFunction} used to invoke Python {@link TableFunction} functions for the
- * old planner.
+ * The {@link RichFlatMapFunction} used to invoke Python {@link TableFunction} functions for the old
+ * planner.
  */
 @Internal
 public final class PythonTableFunctionFlatMap extends AbstractPythonStatelessFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The Python {@link TableFunction} to be executed.
-	 */
-	private final PythonFunctionInfo tableFunction;
+    private static final String TABLE_FUNCTION_SCHEMA_CODER_URN =
+            "flink:coder:schema:table_function:v1";
 
-	/**
-	 * The correlate join type.
-	 */
-	private final JoinRelType joinType;
+    private static final String TABLE_FUNCTION_URN = "flink:transform:table_function:v1";
 
-	public PythonTableFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo tableFunction,
-		RowType inputType,
-		RowType outputType,
-		int[] udtfInputOffsets,
-		JoinRelType joinType) {
-		super(config, inputType, outputType, udtfInputOffsets);
-		this.tableFunction = Preconditions.checkNotNull(tableFunction);
-		Preconditions.checkArgument(
-			joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
-			"The join type should be inner join or left join");
-		this.joinType = joinType;
-	}
+    /** The Python {@link TableFunction} to be executed. */
+    private final PythonFunctionInfo tableFunction;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		super.open(parameters);
+    /** The correlate join type. */
+    private final JoinRelType joinType;
 
-		RowTypeInfo forwardedInputTypeInfo = (RowTypeInfo) TypeConversions.fromDataTypeToLegacyInfo(
-			TypeConversions.fromLogicalToDataType(inputType));
-		forwardedInputSerializer = forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
-	}
+    /** The TypeSerializer for udf input elements. */
+    private transient TypeSerializer<Row> userDefinedFunctionInputTypeSerializer;
 
-	@Override
-	public PythonEnv getPythonEnv() {
-		return tableFunction.getPythonFunction().getPythonEnv();
-	}
+    /** The TypeSerializer for user-defined function execution results. */
+    private transient TypeSerializer<Row> userDefinedFunctionOutputTypeSerializer;
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
+    public PythonTableFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo tableFunction,
+            RowType inputType,
+            RowType outputType,
+            int[] udtfInputOffsets,
+            JoinRelType joinType) {
+        super(config, inputType, outputType, udtfInputOffsets);
+        this.tableFunction = Preconditions.checkNotNull(tableFunction);
+        Preconditions.checkArgument(
+                joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT,
+                "The join type should be inner join or left join");
+        this.joinType = joinType;
+    }
 
-		return new PythonTableFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			userDefinedFunctionResultReceiver,
-			tableFunction,
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
 
-	@Override
-	public void bufferInput(Row input) {
-		// If the input node is a DataSetCalc node, the RichFlatMapFunction generated by codegen
-		// will reuse the output Row, so here we always copy the input Row to solve this problem.
-		input = forwardedInputSerializer.copy(input);
-		forwardedInputQueue.add(input);
-	}
+        RowTypeInfo forwardedInputTypeInfo =
+                (RowTypeInfo)
+                        TypeConversions.fromDataTypeToLegacyInfo(
+                                TypeConversions.fromLogicalToDataType(inputType));
+        forwardedInputSerializer =
+                forwardedInputTypeInfo.createSerializer(getRuntimeContext().getExecutionConfig());
+        userDefinedFunctionInputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+        userDefinedFunctionOutputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
 
-	@Override
-	public void emitResults() throws IOException {
-		Row input = null;
-		byte[] rawUdtfResult;
-		boolean lastIsFinishResult = true;
-		while ((rawUdtfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			if (input == null) {
-				input = forwardedInputQueue.poll();
-			}
-			boolean isFinishResult = isFinishResult(rawUdtfResult);
-			if (isFinishResult && (!lastIsFinishResult || joinType == JoinRelType.INNER)) {
-				input = forwardedInputQueue.poll();
-			} else if (input != null) {
-				if (!isFinishResult) {
-					bais.setBuffer(rawUdtfResult, 0, rawUdtfResult.length);
-					Row udtfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
-					this.resultCollector.collect(Row.join(input, udtfResult));
-				} else {
-					Row udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
-					for (int i = 0; i < udtfResult.getArity(); i++) {
-						udtfResult.setField(0, null);
-					}
-					this.resultCollector.collect(Row.join(input, udtfResult));
-					input = forwardedInputQueue.poll();
-				}
-			}
-			lastIsFinishResult = isFinishResult;
-		}
-	}
+    @Override
+    public PythonEnv getPythonEnv() {
+        return tableFunction.getPythonFunction().getPythonEnv();
+    }
 
-	@Override
-	public int getForwardedFieldsCount() {
-		return inputType.getFieldCount();
-	}
+    @Override
+    public void bufferInput(Row input) {
+        // If the input node is a DataSetCalc node, the RichFlatMapFunction generated by codegen
+        // will reuse the output Row, so here we always copy the input Row to solve this problem.
+        input = forwardedInputSerializer.copy(input);
+        forwardedInputQueue.add(input);
+    }
 
-	private boolean isFinishResult(byte[] rawUdtfResult) {
-		return rawUdtfResult.length == 1 && rawUdtfResult[0] == 0x00;
-	}
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws Exception {
+        Row input = forwardedInputQueue.poll();
+        byte[] rawUdtfResult;
+        int length;
+        boolean isFinishResult;
+        boolean hasJoined = false;
+        Row udtfResult;
+        do {
+            rawUdtfResult = resultTuple.f0;
+            length = resultTuple.f1;
+            isFinishResult = isFinishResult(rawUdtfResult, length);
+            if (!isFinishResult) {
+                bais.setBuffer(rawUdtfResult, 0, length);
+                udtfResult = userDefinedFunctionOutputTypeSerializer.deserialize(baisWrapper);
+                this.resultCollector.collect(Row.join(input, udtfResult));
+                resultTuple = pythonFunctionRunner.pollResult();
+                hasJoined = true;
+            } else if (joinType == JoinRelType.LEFT && !hasJoined) {
+                udtfResult = new Row(userDefinedFunctionOutputType.getFieldCount());
+                for (int i = 0; i < udtfResult.getArity(); i++) {
+                    udtfResult.setField(0, null);
+                }
+                this.resultCollector.collect(Row.join(input, udtfResult));
+            }
+        } while (!isFinishResult);
+    }
+
+    @Override
+    public int getForwardedFieldsCount() {
+        return inputType.getFieldCount();
+    }
+
+    @Override
+    public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+        FlinkFnApi.UserDefinedFunctions.Builder builder =
+                FlinkFnApi.UserDefinedFunctions.newBuilder();
+        builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(tableFunction));
+        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        return builder.build();
+    }
+
+    @Override
+    public String getInputOutputCoderUrn() {
+        return TABLE_FUNCTION_SCHEMA_CODER_URN;
+    }
+
+    @Override
+    public String getFunctionUrn() {
+        return TABLE_FUNCTION_URN;
+    }
+
+    @Override
+    public void processElementInternal(Row value) throws Exception {
+        userDefinedFunctionInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+        pythonFunctionRunner.process(baos.toByteArray());
+        baos.reset();
+    }
+
+    private boolean isFinishResult(byte[] rawUdtfResult, int length) {
+        return length == 1 && rawUdtfResult[0] == 0x00;
+    }
 }

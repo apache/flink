@@ -19,8 +19,9 @@
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.{BinaryRow, Decimal, SqlTimestamp}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
+import org.apache.flink.table.data.{DecimalData, TimestampData}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.sort.SortUtil
@@ -150,7 +151,7 @@ class SortCodeGenerator(
         }
 
         @Override
-        public void putKey($BASE_ROW record, $SEGMENT target, int offset) {
+        public void putKey($ROW_DATA record, $SEGMENT target, int offset) {
           ${putKeys.mkString}
           ${reverseKeys.mkString}
         }
@@ -189,10 +190,10 @@ class SortCodeGenerator(
   def generatePutNormalizedKeys(numKeyBytes: Int): mutable.ArrayBuffer[String] = {
     /* Example generated code, for int:
     if (record.isNullAt(0)) {
-      org.apache.flink.table.dataformat.util.BinaryRowUtil.minNormalizedKey(target, offset+0, 5);
+      org.apache.flink.table.data.binary.BinaryRowDataUtil.minNormalizedKey(target, offset+0, 5);
     } else {
       target.put(offset+0, (byte) 1);
-      org.apache.flink.table.dataformat.util.BinaryRowUtil.putIntNormalizedKey(
+      org.apache.flink.table.data.binary.BinaryRowDataUtil.putIntNormalizedKey(
         record.getInt(0), target, offset+1, 4);
     }
      */
@@ -217,7 +218,7 @@ class SortCodeGenerator(
              |
          """.stripMargin
         case _ =>
-          // It is BinaryString/byte[].., we can omit the null aware byte(zero is the smallest),
+          // It is StringData/byte[].., we can omit the null aware byte(zero is the smallest),
           // because there is no other field behind, and is not keyFullyDetermines.
           s"""
              |$SORT_UTIL.put${prefixPutNormalizedKey(t)}NormalizedKey(
@@ -281,7 +282,7 @@ class SortCodeGenerator(
      */
     val reverseKeys = new mutable.ArrayBuffer[String]
     // If it is big endian, it would be better, no reverse.
-    if (BinaryRow.LITTLE_ENDIAN) {
+    if (BinaryRowData.LITTLE_ENDIAN) {
       var reverseOffset = 0
       for (chunk <- chunks) {
         val operator = BYTE_OPERATOR_MAPPING(chunk)
@@ -442,8 +443,8 @@ class SortCodeGenerator(
            DATE | TIME_WITHOUT_TIME_ZONE => true
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         // TODO: support normalize key for non-compact timestamp
-        SqlTimestamp.isCompact(t.asInstanceOf[TimestampType].getPrecision)
-      case DECIMAL => Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision)
+        TimestampData.isCompact(t.asInstanceOf[TimestampType].getPrecision)
+      case DECIMAL => DecimalData.isCompact(t.asInstanceOf[DecimalType].getPrecision)
       case _ => false
     }
   }
@@ -458,12 +459,12 @@ class SortCodeGenerator(
       case DOUBLE => 8
       case BIGINT => 8
       case TIMESTAMP_WITHOUT_TIME_ZONE
-        if SqlTimestamp.isCompact(t.asInstanceOf[TimestampType].getPrecision) => 8
+        if TimestampData.isCompact(t.asInstanceOf[TimestampType].getPrecision) => 8
       case INTERVAL_YEAR_MONTH => 4
       case INTERVAL_DAY_TIME => 8
       case DATE => 4
       case TIME_WITHOUT_TIME_ZONE => 4
-      case DECIMAL if Decimal.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
+      case DECIMAL if DecimalData.isCompact(t.asInstanceOf[DecimalType].getPrecision) => 8
       case VARCHAR | CHAR | VARBINARY | BINARY => Int.MaxValue
     }
   }

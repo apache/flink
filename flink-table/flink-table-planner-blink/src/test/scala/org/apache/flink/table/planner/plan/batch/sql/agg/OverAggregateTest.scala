@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
+import org.apache.flink.table.api._
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -36,17 +35,17 @@ class OverAggregateTest extends TableTestBase {
 
   @Test
   def testOverWindowWithoutPartitionByOrderBy(): Unit = {
-    util.verifyPlan("SELECT c, COUNT(*) OVER () FROM MyTable")
+    util.verifyExecPlan("SELECT c, COUNT(*) OVER () FROM MyTable")
   }
 
   @Test
   def testOverWindowWithoutFrame(): Unit = {
-    util.verifyPlan("SELECT c, COUNT(*) OVER (PARTITION BY c) FROM MyTable")
+    util.verifyExecPlan("SELECT c, COUNT(*) OVER (PARTITION BY c) FROM MyTable")
   }
 
   @Test
   def testOverWindowWithoutPartitionBy(): Unit = {
-    util.verifyPlan("SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable")
+    util.verifyExecPlan("SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable")
   }
 
   @Test
@@ -58,7 +57,7 @@ class OverAggregateTest extends TableTestBase {
         |    MAX(a) OVER (PARTITION BY c ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -73,7 +72,7 @@ class OverAggregateTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY c ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -88,7 +87,7 @@ class OverAggregateTest extends TableTestBase {
         |    AVG(a) OVER (ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -103,7 +102,7 @@ class OverAggregateTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -118,7 +117,7 @@ class OverAggregateTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -130,7 +129,7 @@ class OverAggregateTest extends TableTestBase {
         |    MAX(a) OVER (PARTITION BY b ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -143,7 +142,7 @@ class OverAggregateTest extends TableTestBase {
         |    MAX(a) OVER (PARTITION BY b ORDER BY a)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -158,7 +157,7 @@ class OverAggregateTest extends TableTestBase {
         |    MIN(a) OVER (PARTITION BY b ORDER BY a DESC)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -170,7 +169,7 @@ class OverAggregateTest extends TableTestBase {
         |    RANK() OVER (PARTITION BY b ORDER BY a ASC)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -183,7 +182,7 @@ class OverAggregateTest extends TableTestBase {
         |    RANK() OVER (PARTITION BY b ORDER BY c, b)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -194,7 +193,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN 0 PRECEDING AND 0 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -205,7 +204,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN CURRENT ROW AND 0 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -216,7 +215,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN 0 PRECEDING AND CURRENT ROW)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -227,7 +226,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY c RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -238,7 +237,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -253,7 +252,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY c ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING)
         | FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -264,7 +263,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a ROWS BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -275,7 +274,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -286,17 +285,17 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(*) OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testRankRangeWindowWithCompositeOrders(): Unit = {
-    util.verifyPlan("SELECT RANK() OVER (PARTITION BY c ORDER BY a, c) FROM MyTable")
+    util.verifyExecPlan("SELECT RANK() OVER (PARTITION BY c ORDER BY a, c) FROM MyTable")
   }
 
   @Test
   def testRankRangeWindowWithConstants1(): Unit = {
-    util.verifyPlan("SELECT COUNT(1) OVER () FROM MyTable")
+    util.verifyExecPlan("SELECT COUNT(1) OVER () FROM MyTable")
   }
 
   @Test
@@ -308,7 +307,7 @@ class OverAggregateTest extends TableTestBase {
         |    COUNT(1) OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 FOLLOWING and 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -319,7 +318,7 @@ class OverAggregateTest extends TableTestBase {
         |    OVER (PARTITION BY c ORDER BY a RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING)
         |FROM MyTable
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   /**
@@ -328,7 +327,7 @@ class OverAggregateTest extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidOverAggregation(): Unit = {
     util.addFunction("overAgg", new OverAgg0)
-    util.verifyPlan("SELECT overAgg(b, a) FROM MyTable")
+    util.verifyExecPlan("SELECT overAgg(b, a) FROM MyTable")
   }
 
   /**
@@ -339,6 +338,6 @@ class OverAggregateTest extends TableTestBase {
     util.addTableSource[(Int, Long, String, Timestamp)]("T", 'a, 'b, 'c, 'ts)
     util.addFunction("overAgg", new OverAgg0)
 
-    util.verifyPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)")
+    util.verifyExecPlan("SELECT overAgg(b, a) FROM T GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)")
   }
 }

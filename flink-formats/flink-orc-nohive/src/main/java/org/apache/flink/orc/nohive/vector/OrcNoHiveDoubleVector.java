@@ -21,26 +21,27 @@ package org.apache.flink.orc.nohive.vector;
 import org.apache.orc.storage.ql.exec.vector.DoubleColumnVector;
 
 /**
- * This column vector is used to adapt hive's DoubleColumnVector to Flink's float and double ColumnVector.
+ * This column vector is used to adapt hive's DoubleColumnVector to Flink's float and double
+ * ColumnVector.
  */
-public class OrcNoHiveDoubleVector extends AbstractOrcNoHiveVector implements
-		org.apache.flink.table.dataformat.vector.DoubleColumnVector,
-		org.apache.flink.table.dataformat.vector.FloatColumnVector {
+public class OrcNoHiveDoubleVector extends AbstractOrcNoHiveVector
+        implements org.apache.flink.table.data.vector.DoubleColumnVector,
+                org.apache.flink.table.data.vector.FloatColumnVector {
 
-	private DoubleColumnVector vector;
+    private DoubleColumnVector vector;
 
-	public OrcNoHiveDoubleVector(DoubleColumnVector vector) {
-		super(vector);
-		this.vector = vector;
-	}
+    public OrcNoHiveDoubleVector(DoubleColumnVector vector) {
+        super(vector);
+        this.vector = vector;
+    }
 
-	@Override
-	public double getDouble(int i) {
-		return vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public double getDouble(int i) {
+        return vector.vector[vector.isRepeating ? 0 : i];
+    }
 
-	@Override
-	public float getFloat(int i) {
-		return (float) vector.vector[vector.isRepeating ? 0 : i];
-	}
+    @Override
+    public float getFloat(int i) {
+        return (float) vector.vector[vector.isRepeating ? 0 : i];
+    }
 }

@@ -32,35 +32,35 @@ import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 
 /**
- * Function that materializes a processing time attribute.
- * After materialization the result can be used in regular arithmetical calculations.
+ * Function that materializes a processing time attribute. After materialization the result can be
+ * used in regular arithmetical calculations.
  */
 public class ProctimeMaterializeSqlFunction extends SqlFunction {
 
-	public ProctimeMaterializeSqlFunction() {
-		super(
-			"PROCTIME_MATERIALIZE",
-			SqlKind.OTHER_FUNCTION,
-			ReturnTypes.cascade(
-					ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 3),
-					SqlTypeTransforms.TO_NULLABLE),
-			InferTypes.RETURN_TYPE,
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-			SqlFunctionCategory.SYSTEM);
-	}
+    public ProctimeMaterializeSqlFunction() {
+        super(
+                "PROCTIME_MATERIALIZE",
+                SqlKind.OTHER_FUNCTION,
+                ReturnTypes.cascade(
+                        ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 3),
+                        SqlTypeTransforms.TO_NULLABLE),
+                InferTypes.RETURN_TYPE,
+                OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+                SqlFunctionCategory.SYSTEM);
+    }
 
-	@Override
-	public SqlSyntax getSyntax() {
-		return SqlSyntax.FUNCTION;
-	}
+    @Override
+    public SqlSyntax getSyntax() {
+        return SqlSyntax.FUNCTION;
+    }
 
-	@Override
-	public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
-		return SqlMonotonicity.INCREASING;
-	}
+    @Override
+    public SqlMonotonicity getMonotonicity(SqlOperatorBinding call) {
+        return SqlMonotonicity.INCREASING;
+    }
 
-	@Override
-	public boolean isDeterministic() {
-		return false;
-	}
+    @Override
+    public boolean isDeterministic() {
+        return false;
+    }
 }

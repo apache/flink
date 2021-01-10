@@ -19,9 +19,6 @@ tmp
 *.pyc
 .DS_Store
 build-target
-flink-end-to-end-tests/flink-datastream-allround-test/src/main/java/org/apache/flink/streaming/tests/avro/
-flink-formats/flink-avro/src/test/java/org/apache/flink/formats/avro/generated/
-flink-formats/flink-parquet/src/test/java/org/apache/flink/formats/parquet/generated/
 flink-runtime-web/web-dashboard/node/
 flink-runtime-web/web-dashboard/node_modules/
 flink-runtime-web/web-dashboard/web/
@@ -36,6 +33,7 @@ flink-python/dev/.conda/
 flink-python/dev/log/
 flink-python/dev/.stage.txt
 flink-python/.eggs/
+flink-python/apache-flink-*.dev0/
 flink-python/**/*.c
 flink-python/**/*.so
 atlassian-ide-plugin.xml

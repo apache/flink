@@ -22,37 +22,39 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
 
 /**
- * ProcessFunction to copy a timestamp from a {@link BaseRow} field into the
- * {@link org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
+ * ProcessFunction to copy a timestamp from a {@link RowData} field into the {@link
+ * org.apache.flink.streaming.runtime.streamrecord.StreamRecord}.
  */
-public class RowtimeProcessFunction
-	extends ProcessFunction<BaseRow, BaseRow> implements ResultTypeQueryable<BaseRow> {
+public class RowtimeProcessFunction extends ProcessFunction<RowData, RowData>
+        implements ResultTypeQueryable<RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private final int rowtimeIdx;
-	private final int precision;
-	private transient TypeInformation<BaseRow> returnType;
+    private final int rowtimeIdx;
+    private final int precision;
+    private transient TypeInformation<RowData> returnType;
 
-	public RowtimeProcessFunction(int rowtimeIdx, TypeInformation<BaseRow> returnType, int precision) {
-		this.rowtimeIdx = rowtimeIdx;
-		this.returnType = returnType;
-		this.precision = precision;
-	}
+    public RowtimeProcessFunction(
+            int rowtimeIdx, TypeInformation<RowData> returnType, int precision) {
+        this.rowtimeIdx = rowtimeIdx;
+        this.returnType = returnType;
+        this.precision = precision;
+    }
 
-	@Override
-	public void processElement(BaseRow value, Context ctx, Collector<BaseRow> out) throws Exception {
-		long timestamp = value.getTimestamp(rowtimeIdx, precision).getMillisecond();
-		((TimestampedCollector<BaseRow>) out).setAbsoluteTimestamp(timestamp);
-		out.collect(value);
-	}
+    @Override
+    public void processElement(RowData value, Context ctx, Collector<RowData> out)
+            throws Exception {
+        long timestamp = value.getTimestamp(rowtimeIdx, precision).getMillisecond();
+        ((TimestampedCollector<RowData>) out).setAbsoluteTimestamp(timestamp);
+        out.collect(value);
+    }
 
-	@Override
-	public TypeInformation<BaseRow> getProducedType() {
-		return returnType;
-	}
+    @Override
+    public TypeInformation<RowData> getProducedType() {
+        return returnType;
+    }
 }

@@ -32,19 +32,218 @@ example write the data to files, or to standard output (for example the command 
 terminal). Flink programs run in a variety of contexts, standalone, or embedded in other programs.
 The execution can happen in a local JVM, or on clusters of many machines.
 
-Please see [basic concepts]({{ site.baseurl }}/dev/api_concepts.html) for an introduction
-to the basic concepts of the Flink API.
-
-In order to create your own Flink DataStream program, we encourage you to start with
-[anatomy of a Flink Program]({{ site.baseurl }}/dev/api_concepts.html#anatomy-of-a-flink-program)
-and gradually add your own
-[stream transformations]({{ site.baseurl }}/dev/stream/operators/index.html). The remaining sections act as references for additional
-operations and advanced features.
+In order to create your own Flink DataStream program, we encourage you to start
+with [anatomy of a Flink Program](#anatomy-of-a-flink-program) and gradually
+add your own [stream transformations]({% link dev/stream/operators/index.zh.md %}). The remaining sections act as references
+for additional operations and advanced features.
 
 
 * This will be replaced by the TOC
 {:toc}
 
+What is a DataStream?
+----------------------
+
+The DataStream API gets its name from the special `DataStream` class that is
+used to represent a collection of data in a Flink program. You can think of
+them as immutable collections of data that can contain duplicates. This data
+can either be finite or unbounded, the API that you use to work on them is the
+same.
+
+A `DataStream` is similar to a regular Java `Collection` in terms of usage but
+is quite different in some key ways. They are immutable, meaning that once they
+are created you cannot add or remove elements. You can also not simply inspect
+the elements inside but only work on them using the `DataStream` API
+operations, which are also called transformations.
+
+You can create an initial `DataStream` by adding a source in a Flink program.
+Then you can derive new streams from this and combine them by using API methods
+such as `map`, `filter`, and so on.
+
+Anatomy of a Flink Program
+--------------------------
+
+Flink programs look like regular programs that transform `DataStreams`.  Each
+program consists of the same basic parts:
+
+1. Obtain an `execution environment`,
+2. Load/create the initial data,
+3. Specify transformations on this data,
+4. Specify where to put the results of your computations,
+5. Trigger the program execution
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+
+We will now give an overview of each of those steps, please refer to the
+respective sections for more details. Note that all core classes of the Java
+DataStream API can be found in {% gh_link
+/flink-streaming-java/src/main/java/org/apache/flink/streaming/api
+"org.apache.flink.streaming.api" %}.
+
+The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
+obtain one using these static methods on `StreamExecutionEnvironment`:
+
+{% highlight java %}
+getExecutionEnvironment()
+
+createLocalEnvironment()
+
+createRemoteEnvironment(String host, int port, String... jarFiles)
+{% endhighlight %}
+
+Typically, you only need to use `getExecutionEnvironment()`, since this will do
+the right thing depending on the context: if you are executing your program
+inside an IDE or as a regular Java program it will create a local environment
+that will execute your program on your local machine. If you created a JAR file
+from your program, and invoke it through the [command line]({% link deployment/cli.zh.md %}), the Flink cluster manager will execute your main method and
+`getExecutionEnvironment()` will return an execution environment for executing
+your program on a cluster.
+
+For specifying data sources the execution environment has several methods to
+read from files using various methods: you can just read them line by line, as
+CSV files, or using any of the other provided sources. To just read a text file
+as a sequence of lines, you can use:
+
+{% highlight java %}
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+DataStream<String> text = env.readTextFile("file:///path/to/file");
+{% endhighlight %}
+
+This will give you a DataStream on which you can then apply transformations to create new
+derived DataStreams.
+
+You apply transformations by calling methods on DataStream with a
+transformation functions. For example, a map transformation looks like this:
+
+{% highlight java %}
+DataStream<String> input = ...;
+
+DataStream<Integer> parsed = input.map(new MapFunction<String, Integer>() {
+    @Override
+    public Integer map(String value) {
+        return Integer.parseInt(value);
+    }
+});
+{% endhighlight %}
+
+This will create a new DataStream by converting every String in the original
+collection to an Integer.
+
+Once you have a DataStream containing your final results, you can write it to
+an outside system by creating a sink. These are just some example methods for
+creating a sink:
+
+{% highlight java %}
+writeAsText(String path)
+
+print()
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+
+We will now give an overview of each of those steps, please refer to the
+respective sections for more details. Note that all core classes of the Scala
+DataStream API can be found in {% gh_link
+/flink-streaming-scala/src/main/scala/org/apache/flink/streaming/api/scala
+"org.apache.flink.streaming.api.scala" %}.
+
+The `StreamExecutionEnvironment` is the basis for all Flink programs. You can
+obtain one using these static methods on `StreamExecutionEnvironment`:
+
+{% highlight scala %}
+getExecutionEnvironment()
+
+createLocalEnvironment()
+
+createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
+{% endhighlight %}
+
+Typically, you only need to use `getExecutionEnvironment()`, since this will do
+the right thing depending on the context: if you are executing your program
+inside an IDE or as a regular Java program it will create a local environment
+that will execute your program on your local machine. If you created a JAR file
+from your program, and invoke it through the [command line]({% link deployment/cli.zh.md %}), the Flink cluster manager will execute your main method and
+`getExecutionEnvironment()` will return an execution environment for executing
+your program on a cluster.
+
+For specifying data sources the execution environment has several methods to
+read from files using various methods: you can just read them line by line, as
+CSV files, or using any of the other provided sources. To just read a text file
+as a sequence of lines, you can use:
+
+{% highlight scala %}
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+
+val text: DataStream[String] = env.readTextFile("file:///path/to/file")
+{% endhighlight %}
+
+This will give you a DataStream on which you can then apply transformations to
+create new derived DataStreams.
+
+You apply transformations by calling methods on DataStream with a
+transformation functions. For example, a map transformation looks like this:
+
+{% highlight scala %}
+val input: DataSet[String] = ...
+
+val mapped = input.map { x => x.toInt }
+{% endhighlight %}
+
+This will create a new DataStream by converting every String in the original
+collection to an Integer.
+
+Once you have a DataStream containing your final results, you can write it to
+an outside system by creating a sink. These are just some example methods for
+creating a sink:
+
+{% highlight scala %}
+writeAsText(path: String)
+
+print()
+{% endhighlight %}
+
+</div>
+</div>
+
+Once you specified the complete program you need to **trigger the program
+execution** by calling `execute()` on the `StreamExecutionEnvironment`.
+Depending on the type of the `ExecutionEnvironment` the execution will be
+triggered on your local machine or submit your program for execution on a
+cluster.
+
+The `execute()` method will wait for the job to finish and then return a
+`JobExecutionResult`, this contains execution times and accumulator results.
+
+If you don't want to wait for the job to finish, you can trigger asynchronous
+job execution by calling `executeAysnc()` on the `StreamExecutionEnvironment`.
+It will return a `JobClient` with which you can communicate with the job you
+just submitted. For instance, here is how to implement the semantics of
+`execute()` by using `executeAsync()`.
+
+{% highlight java %}
+final JobClient jobClient = env.executeAsync();
+
+final JobExecutionResult jobExecutionResult = jobClient.getJobExecutionResult().get();
+{% endhighlight %}
+
+That last part about program execution is crucial to understanding when and how
+Flink operations are executed. All Flink programs are executed lazily: When the
+program's main method is executed, the data loading and transformations do not
+happen directly. Rather, each operation is created and added to a dataflow
+graph. The operations are actually executed when the execution is explicitly
+triggered by an `execute()` call on the execution environment.  Whether the
+program is executed locally or on a cluster depends on the type of execution
+environment
+
+The lazy evaluation lets you construct sophisticated programs that Flink
+executes as one holistically planned unit.
+
+{% top %}
 
 Example Program
 ---------------
@@ -72,8 +271,8 @@ public class WindowWordCount {
         DataStream<Tuple2<String, Integer>> dataStream = env
                 .socketTextStream("localhost", 9999)
                 .flatMap(new Splitter())
-                .keyBy(0)
-                .timeWindow(Time.seconds(5))
+                .keyBy(value -> value.f0)
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                 .sum(1);
 
         dataStream.print();
@@ -109,8 +308,8 @@ object WindowWordCount {
 
     val counts = text.flatMap { _.toLowerCase.split("\\W+") filter { _.nonEmpty } }
       .map { (_, 1) }
-      .keyBy(0)
-      .timeWindow(Time.seconds(5))
+      .keyBy(_._1)
+      .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
       .sum(1)
 
     counts.print()
@@ -193,7 +392,7 @@ Collection-based:
 Custom:
 
 - `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer010<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/index.html) for more details.
+    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({% link dev/connectors/index.zh.md %}) for more details.
 
 </div>
 
@@ -251,7 +450,7 @@ Collection-based:
 Custom:
 
 - `addSource` - Attach a new source function. For example, to read from Apache Kafka you can use
-    `addSource(new FlinkKafkaConsumer010<>(...))`. See [connectors]({{ site.baseurl }}/dev/connectors/) for more details.
+    `addSource(new FlinkKafkaConsumer<>(...))`. See [connectors]({% link dev/connectors/index.zh.md %}) for more details.
 
 </div>
 </div>
@@ -261,7 +460,7 @@ Custom:
 DataStream Transformations
 --------------------------
 
-Please see [operators]({{ site.baseurl }}/dev/stream/operators/index.html) for an overview of the available stream transformations.
+Please see [operators]({% link dev/stream/operators/index.zh.md %}) for an overview of the available stream transformations.
 
 {% top %}
 
@@ -333,7 +532,7 @@ at-least-once semantics. The data flushing to the target system depends on the i
 OutputFormat. This means that not all elements send to the OutputFormat are immediately showing up
 in the target system. Also, in failure cases, those records might be lost.
 
-For reliable, exactly-once delivery of a stream into a file system, use the `flink-connector-filesystem`.
+For reliable, exactly-once delivery of a stream into a file system, use the `StreamingFileSink`.
 Also, custom implementations through the `.addSink(...)` method can participate in Flink's checkpointing
 for exactly-once semantics.
 
@@ -349,7 +548,7 @@ Iterations
 
 Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
 program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a `split` transformation
+of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link dev/stream/side_output.zh.md %})
 or a `filter`. Here, we show an example using filters. First, we define an `IterativeStream`
 
 {% highlight java %}
@@ -412,7 +611,7 @@ DataStream<Long> lessThanZero = minusOne.filter(new FilterFunction<Long>() {
 
 Iterative streaming programs implement a step function and embed it into an `IterativeStream`. As a DataStream
 program may never finish, there is no maximum number of iterations. Instead, you need to specify which part
-of the stream is fed back to the iteration and which part is forwarded downstream using a `split` transformation
+of the stream is fed back to the iteration and which part is forwarded downstream using a [side output]({% link dev/stream/side_output.zh.md %})
 or a `filter`. Here, we show an example iteration where the body (the part of the computation that is repeated)
 is a simple map transformation, and the elements that are fed back are distinguished by the elements that
 are forwarded downstream using filters.
@@ -450,7 +649,7 @@ Execution Parameters
 
 The `StreamExecutionEnvironment` contains the `ExecutionConfig` which allows to set job specific configuration values for the runtime.
 
-Please refer to [execution configuration]({{ site.baseurl }}/dev/execution_configuration.html)
+Please refer to [execution configuration]({% link dev/execution_configuration.zh.md %})
 for an explanation of most parameters. These parameters pertain specifically to the DataStream API:
 
 - `setAutoWatermarkInterval(long milliseconds)`: Set the interval for automatic watermark emission. You can
@@ -460,7 +659,7 @@ for an explanation of most parameters. These parameters pertain specifically to 
 
 ### Fault Tolerance
 
-[State & Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) describes how to enable and configure Flink's checkpointing mechanism.
+[State & Checkpointing]({% link dev/stream/state/checkpointing.zh.md %}) describes how to enable and configure Flink's checkpointing mechanism.
 
 ### Controlling Latency
 
@@ -622,9 +821,9 @@ Its classes have been moved into `flink-streaming-java` and `flink-streaming-sca
 Where to go next?
 -----------------
 
-* [Operators]({{ site.baseurl }}/dev/stream/operators/index.html): Specification of available streaming operators.
-* [Event Time]({{ site.baseurl }}/dev/event_time.html): Introduction to Flink's notion of time.
-* [State & Fault Tolerance]({{ site.baseurl }}/dev/stream/state/index.html): Explanation of how to develop stateful applications.
-* [Connectors]({{ site.baseurl }}/dev/connectors/index.html): Description of available input and output connectors.
+* [Operators]({% link dev/stream/operators/index.zh.md %}): Specification of available streaming operators.
+* [Event Time]({% link dev/event_time.zh.md %}): Introduction to Flink's notion of time.
+* [State & Fault Tolerance]({% link dev/stream/state/index.zh.md %}): Explanation of how to develop stateful applications.
+* [Connectors]({% link dev/connectors/index.zh.md %}): Description of available input and output connectors.
 
 {% top %}

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.core.fs.Path
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.runtime.FileSystemITCaseBase._
@@ -27,10 +28,13 @@ import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.types.Row
 
+import org.junit.Assert.assertTrue
 import org.junit.rules.TemporaryFolder
 import org.junit.{Rule, Test}
 
-import scala.collection.Seq
+import java.io.File
+
+import scala.collection.{JavaConverters, Seq}
 
 /**
   * Test File system table factory.
@@ -49,6 +53,11 @@ trait FileSystemITCaseBase {
 
   def check(sqlQuery: String, expectedResult: Seq[Row]): Unit
 
+  def check(sqlQuery: String, expectedResult: java.util.List[Row]): Unit = {
+    check(sqlQuery,
+      JavaConverters.asScalaIteratorConverter(expectedResult.iterator()).asScala.toSeq)
+  }
+
   def open(): Unit = {
     resultPath = fileTmpFolder.newFolder().toURI.toString
     BatchTableEnvUtil.registerCollection(
@@ -57,13 +66,14 @@ trait FileSystemITCaseBase {
       data_with_partitions,
       dataType,
       "x, y, a, b")
-    tableEnv.sqlUpdate(
+    tableEnv.executeSql(
       s"""
          |create table partitionedTable (
          |  x string,
          |  y int,
          |  a int,
-         |  b bigint
+         |  b bigint,
+         |  c as b + 1
          |) partitioned by (a, b) with (
          |  'connector' = 'filesystem',
          |  'path' = '$resultPath',
@@ -71,7 +81,7 @@ trait FileSystemITCaseBase {
          |)
        """.stripMargin
     )
-    tableEnv.sqlUpdate(
+    tableEnv.executeSql(
       s"""
          |create table nonPartitionedTable (
          |  x string,
@@ -89,9 +99,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions1(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable " +
-        "partition(a='1', b='1') select x, y from originalT where a=1 and b=1")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
 
     check(
       "select x, y from partitionedTable where a=1 and b=1",
@@ -106,9 +115,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testAllStaticPartitions2(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable " +
-        "partition(a='2', b='1') select x, y from originalT where a=2 and b=1")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a='2', b='1') select x, y from originalT where a=2 and b=1").await()
 
     check(
       "select x, y from partitionedTable where a=2 and b=1",
@@ -123,9 +131,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testPartialDynamicPartition(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable " +
-        "partition(a=3) select x, y, b from originalT where a=3")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "partition(a=3) select x, y, b from originalT where a=3").await()
 
     check(
       "select x, y from partitionedTable where a=2 and b=1",
@@ -165,9 +172,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testDynamicPartition(): Unit = {
-    tableEnv.sqlUpdate("insert into partitionedTable " +
-        "select x, y, a, b from originalT")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into partitionedTable " +
+        "select x, y, a, b from originalT").await()
 
     check(
       "select x, y from partitionedTable where a=1 and b=1",
@@ -180,16 +186,34 @@ trait FileSystemITCaseBase {
     )
 
     check(
+      "select x, y, a, b, c from partitionedTable where a=1 and c=2",
+      data_partition_1_2
+    )
+
+    check(
       "select x, y from partitionedTable",
       data
     )
   }
 
   @Test
+  def testPartitionWithHiddenFile(): Unit = {
+    tableEnv.executeSql("insert into partitionedTable " +
+      "partition(a='1', b='1') select x, y from originalT where a=1 and b=1").await()
+
+    // create hidden partition dir
+    assertTrue(new File(new Path(resultPath + "/a=1/.b=2").toUri).mkdir())
+
+    check(
+      "select x, y from partitionedTable",
+      data_partition_1_1
+    )
+  }
+
+  @Test
   def testNonPartition(): Unit = {
-    tableEnv.sqlUpdate("insert into nonPartitionedTable " +
-        "select x, y, a, b from originalT where a=1 and b=1")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into nonPartitionedTable " +
+        "select x, y, a, b from originalT where a=1 and b=1").await()
 
     check(
       "select x, y from nonPartitionedTable where a=1 and b=1",
@@ -201,8 +225,7 @@ trait FileSystemITCaseBase {
   def testLimitPushDown(): Unit = {
     tableEnv.getConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    tableEnv.sqlUpdate("insert into nonPartitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into nonPartitionedTable select x, y, a, b from originalT").await()
 
     check(
       "select x, y from nonPartitionedTable limit 3",
@@ -214,12 +237,61 @@ trait FileSystemITCaseBase {
 
   @Test
   def testFilterPushDown(): Unit = {
-    tableEnv.sqlUpdate("insert into nonPartitionedTable select x, y, a, b from originalT")
-    tableEnv.execute("test")
+    tableEnv.executeSql("insert into nonPartitionedTable select x, y, a, b from originalT").await()
 
     check(
       "select x, y from nonPartitionedTable where a=10086",
       Seq())
+  }
+
+  @Test
+  def testProjectPushDown(): Unit = {
+    tableEnv.executeSql("insert into partitionedTable select x, y, a, b from originalT").await()
+
+    check(
+      "select y, b, x from partitionedTable where a=3",
+      Seq(
+        row(17, 1, "x17"),
+        row(18, 2, "x18"),
+        row(19, 3, "x19")
+      ))
+  }
+
+  @Test
+  def testInsertAppend(): Unit = {
+    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test1")
+
+    tableEnv.sqlUpdate("insert into partitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test2")
+
+    check(
+      "select y, b, x from partitionedTable where a=3",
+      Seq(
+        row(17, 1, "x17"),
+        row(18, 2, "x18"),
+        row(19, 3, "x19"),
+        row(17, 1, "x17"),
+        row(18, 2, "x18"),
+        row(19, 3, "x19")
+      ))
+  }
+
+  @Test
+  def testInsertOverwrite(): Unit = {
+    tableEnv.sqlUpdate("insert overwrite partitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test1")
+
+    tableEnv.sqlUpdate("insert overwrite partitionedTable select x, y, a, b from originalT")
+    tableEnv.execute("test2")
+
+    check(
+      "select y, b, x from partitionedTable where a=3",
+      Seq(
+        row(17, 1, "x17"),
+        row(18, 2, "x18"),
+        row(19, 3, "x19")
+      ))
   }
 }
 
@@ -280,5 +352,13 @@ object FileSystemITCaseBase {
     row("x13", 13),
     row("x14", 14),
     row("x15", 15)
+  )
+
+  val data_partition_1_2: Seq[Row] = Seq(
+    row("x1", 1, 1, 1, 2),
+    row("x2", 2, 1, 1, 2),
+    row("x3", 3, 1, 1, 2),
+    row("x4", 4, 1, 1, 2),
+    row("x5", 5, 1, 1, 2)
   )
 }

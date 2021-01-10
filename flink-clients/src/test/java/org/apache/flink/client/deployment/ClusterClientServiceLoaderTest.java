@@ -32,137 +32,132 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link DefaultClusterClientServiceLoader}.
- */
+/** Tests for the {@link DefaultClusterClientServiceLoader}. */
 public class ClusterClientServiceLoaderTest {
 
-	private static final String VALID_TARGET = "existing";
-	private static final String AMBIGUOUS_TARGET = "duplicate";
-	private static final String NON_EXISTING_TARGET = "non-existing";
+    private static final String VALID_TARGET = "existing";
+    private static final String AMBIGUOUS_TARGET = "duplicate";
+    private static final String NON_EXISTING_TARGET = "non-existing";
 
-	private static final int VALID_ID = 42;
+    private static final int VALID_ID = 42;
 
-	private ClusterClientServiceLoader serviceLoaderUnderTest;
+    private ClusterClientServiceLoader serviceLoaderUnderTest;
 
-	@Before
-	public void init() {
-		serviceLoaderUnderTest = new DefaultClusterClientServiceLoader();
-	}
+    @Before
+    public void init() {
+        serviceLoaderUnderTest = new DefaultClusterClientServiceLoader();
+    }
 
-	@Test
-	public void testStandaloneClusterClientFactoryDiscovery() {
-		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
+    @Test
+    public void testStandaloneClusterClientFactoryDiscovery() {
+        final Configuration config = new Configuration();
+        config.setString(DeploymentOptions.TARGET, RemoteExecutor.NAME);
 
-		ClusterClientFactory<StandaloneClusterId> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
-		assertTrue(factory instanceof StandaloneClientFactory);
-	}
+        ClusterClientFactory<StandaloneClusterId> factory =
+                serviceLoaderUnderTest.getClusterClientFactory(config);
+        assertTrue(factory instanceof StandaloneClientFactory);
+    }
 
-	@Test
-	public void testFactoryDiscovery() {
-		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, VALID_TARGET);
+    @Test
+    public void testFactoryDiscovery() {
+        final Configuration config = new Configuration();
+        config.setString(DeploymentOptions.TARGET, VALID_TARGET);
 
-		final ClusterClientFactory<Integer> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
-		assertNotNull(factory);
+        final ClusterClientFactory<Integer> factory =
+                serviceLoaderUnderTest.getClusterClientFactory(config);
+        assertNotNull(factory);
 
-		final Integer id = factory.getClusterId(config);
-		assertThat(id, allOf(is(notNullValue()), equalTo(VALID_ID)));
-	}
+        final Integer id = factory.getClusterId(config);
+        assertThat(id, allOf(is(notNullValue()), equalTo(VALID_ID)));
+    }
 
-	@Test(expected = IllegalStateException.class)
-	public void testMoreThanOneCompatibleFactoriesException() {
-		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
+    @Test(expected = IllegalStateException.class)
+    public void testMoreThanOneCompatibleFactoriesException() {
+        final Configuration config = new Configuration();
+        config.setString(DeploymentOptions.TARGET, AMBIGUOUS_TARGET);
 
-		serviceLoaderUnderTest.getClusterClientFactory(config);
-		fail();
-	}
+        serviceLoaderUnderTest.getClusterClientFactory(config);
+        fail();
+    }
 
-	@Test
-	public void testNoFactoriesFound() {
-		final Configuration config = new Configuration();
-		config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
+    @Test(expected = IllegalStateException.class)
+    public void testNoFactoriesFound() {
+        final Configuration config = new Configuration();
+        config.setString(DeploymentOptions.TARGET, NON_EXISTING_TARGET);
 
-		final ClusterClientFactory<Integer> factory = serviceLoaderUnderTest.getClusterClientFactory(config);
-		assertNull(factory);
-	}
+        final ClusterClientFactory<Integer> factory =
+                serviceLoaderUnderTest.getClusterClientFactory(config);
+    }
 
-	/**
-	 * Test {@link ClusterClientFactory} that is successfully discovered.
-	 */
-	public static class ValidClusterClientFactory extends BaseTestingClusterClientFactory {
+    /** Test {@link ClusterClientFactory} that is successfully discovered. */
+    public static class ValidClusterClientFactory extends BaseTestingClusterClientFactory {
 
-		public static final String ID = VALID_TARGET;
+        public static final String ID = VALID_TARGET;
 
-		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
-			return configuration.getString(DeploymentOptions.TARGET).equals(VALID_TARGET);
-		}
+        @Override
+        public boolean isCompatibleWith(Configuration configuration) {
+            return configuration.getString(DeploymentOptions.TARGET).equals(VALID_TARGET);
+        }
 
-		@Nullable
-		@Override
-		public Integer getClusterId(Configuration configuration) {
-			return VALID_ID;
-		}
-	}
+        @Nullable
+        @Override
+        public Integer getClusterId(Configuration configuration) {
+            return VALID_ID;
+        }
+    }
 
-	/**
-	 * Test {@link ClusterClientFactory} that has a duplicate.
-	 */
-	public static class FirstCollidingClusterClientFactory extends BaseTestingClusterClientFactory {
+    /** Test {@link ClusterClientFactory} that has a duplicate. */
+    public static class FirstCollidingClusterClientFactory extends BaseTestingClusterClientFactory {
 
-		public static final String ID = AMBIGUOUS_TARGET;
+        public static final String ID = AMBIGUOUS_TARGET;
 
-		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
-			return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
-		}
-	}
+        @Override
+        public boolean isCompatibleWith(Configuration configuration) {
+            return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
+        }
+    }
 
-	/**
-	 * Test {@link ClusterClientFactory} that has a duplicate.
-	 */
-	public static class SecondCollidingClusterClientFactory extends BaseTestingClusterClientFactory {
+    /** Test {@link ClusterClientFactory} that has a duplicate. */
+    public static class SecondCollidingClusterClientFactory
+            extends BaseTestingClusterClientFactory {
 
-		public static final String ID = AMBIGUOUS_TARGET;
+        public static final String ID = AMBIGUOUS_TARGET;
 
-		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
-			return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
-		}
-	}
+        @Override
+        public boolean isCompatibleWith(Configuration configuration) {
+            return configuration.getString(DeploymentOptions.TARGET).equals(AMBIGUOUS_TARGET);
+        }
+    }
 
-	/**
-	 * A base test {@link ClusterClientFactory} that supports no operation and is meant to be extended.
-	 */
-	public static class BaseTestingClusterClientFactory implements ClusterClientFactory<Integer> {
+    /**
+     * A base test {@link ClusterClientFactory} that supports no operation and is meant to be
+     * extended.
+     */
+    public static class BaseTestingClusterClientFactory implements ClusterClientFactory<Integer> {
 
-		@Override
-		public boolean isCompatibleWith(Configuration configuration) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public boolean isCompatibleWith(Configuration configuration) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public ClusterDescriptor<Integer> createClusterDescriptor(Configuration configuration) {
-			throw new UnsupportedOperationException();
-		}
+        @Override
+        public ClusterDescriptor<Integer> createClusterDescriptor(Configuration configuration) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Nullable
-		@Override
-		public Integer getClusterId(Configuration configuration) {
-			throw new UnsupportedOperationException();
-		}
+        @Nullable
+        @Override
+        public Integer getClusterId(Configuration configuration) {
+            throw new UnsupportedOperationException();
+        }
 
-		@Override
-		public ClusterSpecification getClusterSpecification(Configuration configuration) {
-			throw new UnsupportedOperationException();
-		}
-	}
+        @Override
+        public ClusterSpecification getClusterSpecification(Configuration configuration) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

@@ -20,9 +20,8 @@ package org.apache.flink.table.runtime.operators.window;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
-import org.apache.flink.table.dataformat.util.BaseRowUtil;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
@@ -30,6 +29,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.RowKind;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -37,150 +37,154 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link WindowOperator} for grouped window aggregates.
  *
  * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
- * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
- * is put into panes. A pane is the bucket of elements that have the same key and same
- * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by
- * the {@code WindowAssigner}.
+ * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element is
+ * put into panes. A pane is the bucket of elements that have the same key and same {@code Window}.
+ * An element can be in multiple panes if it was assigned to multiple windows by the {@code
+ * WindowAssigner}.
  *
  * <p>Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
- * the contents of the pane should be processed to emit results. When a trigger fires,
- * the given {@link NamespaceAggsHandleFunction#getValue(Object)}
- * is invoked to produce the results that are emitted for the pane to which the {@code Trigger}
- * belongs.
+ * the contents of the pane should be processed to emit results. When a trigger fires, the given
+ * {@link NamespaceAggsHandleFunction#getValue(Object)} is invoked to produce the results that are
+ * emitted for the pane to which the {@code Trigger} belongs.
  *
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
 public class AggregateWindowOperator<K, W extends Window> extends WindowOperator<K, W> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private NamespaceAggsHandleFunction<W> aggWindowAggregator;
-	private GeneratedNamespaceAggsHandleFunction<W> generatedAggWindowAggregator;
+    private NamespaceAggsHandleFunction<W> aggWindowAggregator;
+    private GeneratedNamespaceAggsHandleFunction<W> generatedAggWindowAggregator;
 
-	private transient JoinedRow reuseOutput;
+    private transient JoinedRowData reuseOutput;
 
-	/**
-	 * The util to compare two BaseRow equals to each other.
-	 * As different BaseRow can't be equals directly, we use a code generated util to handle this.
-	 */
-	protected RecordEqualiser equaliser;
-	private GeneratedRecordEqualiser generatedEqualiser;
+    /**
+     * The util to compare two RowData equals to each other. As different RowData can't be equals
+     * directly, we use a code generated util to handle this.
+     */
+    protected RecordEqualiser equaliser;
 
-	AggregateWindowOperator(
-			NamespaceAggsHandleFunction<W> windowAggregator,
-			RecordEqualiser equaliser,
-			WindowAssigner<W> windowAssigner,
-			Trigger<W> trigger,
-			TypeSerializer<W> windowSerializer,
-			LogicalType[] inputFieldTypes,
-			LogicalType[] accumulatorTypes,
-			LogicalType[] aggResultTypes,
-			LogicalType[] windowPropertyTypes,
-			int rowtimeIndex,
-			boolean sendRetraction,
-			long allowedLateness) {
-		super(windowAggregator,
-			windowAssigner,
-			trigger,
-			windowSerializer,
-			inputFieldTypes,
-			accumulatorTypes,
-			aggResultTypes,
-			windowPropertyTypes,
-			rowtimeIndex,
-			sendRetraction,
-			allowedLateness);
-		this.aggWindowAggregator = windowAggregator;
-		this.equaliser = checkNotNull(equaliser);
-	}
+    private GeneratedRecordEqualiser generatedEqualiser;
 
-	AggregateWindowOperator(
-			GeneratedNamespaceAggsHandleFunction<W> generatedAggWindowAggregator,
-			GeneratedRecordEqualiser generatedEqualiser,
-			WindowAssigner<W> windowAssigner,
-			Trigger<W> trigger,
-			TypeSerializer<W> windowSerializer,
-			LogicalType[] inputFieldTypes,
-			LogicalType[] accumulatorTypes,
-			LogicalType[] aggResultTypes,
-			LogicalType[] windowPropertyTypes,
-			int rowtimeIndex,
-			boolean sendRetraction,
-			long allowedLateness) {
-		super(windowAssigner,
-			trigger,
-			windowSerializer,
-			inputFieldTypes,
-			accumulatorTypes,
-			aggResultTypes,
-			windowPropertyTypes,
-			rowtimeIndex,
-			sendRetraction,
-			allowedLateness);
-		this.generatedAggWindowAggregator = generatedAggWindowAggregator;
-		this.generatedEqualiser = checkNotNull(generatedEqualiser);
-	}
+    AggregateWindowOperator(
+            NamespaceAggsHandleFunction<W> windowAggregator,
+            RecordEqualiser equaliser,
+            WindowAssigner<W> windowAssigner,
+            Trigger<W> trigger,
+            TypeSerializer<W> windowSerializer,
+            LogicalType[] inputFieldTypes,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes,
+            int rowtimeIndex,
+            boolean produceUpdates,
+            long allowedLateness) {
+        super(
+                windowAggregator,
+                windowAssigner,
+                trigger,
+                windowSerializer,
+                inputFieldTypes,
+                accumulatorTypes,
+                aggResultTypes,
+                windowPropertyTypes,
+                rowtimeIndex,
+                produceUpdates,
+                allowedLateness);
+        this.aggWindowAggregator = windowAggregator;
+        this.equaliser = checkNotNull(equaliser);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		reuseOutput = new JoinedRow();
-	}
+    AggregateWindowOperator(
+            GeneratedNamespaceAggsHandleFunction<W> generatedAggWindowAggregator,
+            GeneratedRecordEqualiser generatedEqualiser,
+            WindowAssigner<W> windowAssigner,
+            Trigger<W> trigger,
+            TypeSerializer<W> windowSerializer,
+            LogicalType[] inputFieldTypes,
+            LogicalType[] accumulatorTypes,
+            LogicalType[] aggResultTypes,
+            LogicalType[] windowPropertyTypes,
+            int rowtimeIndex,
+            boolean sendRetraction,
+            long allowedLateness) {
+        super(
+                windowAssigner,
+                trigger,
+                windowSerializer,
+                inputFieldTypes,
+                accumulatorTypes,
+                aggResultTypes,
+                windowPropertyTypes,
+                rowtimeIndex,
+                sendRetraction,
+                allowedLateness);
+        this.generatedAggWindowAggregator = generatedAggWindowAggregator;
+        this.generatedEqualiser = checkNotNull(generatedEqualiser);
+    }
 
-	@Override
-	protected void compileGeneratedCode() {
-		// compile aggregator
-		if (generatedAggWindowAggregator != null) {
-			aggWindowAggregator =
-				generatedAggWindowAggregator.newInstance(getRuntimeContext().getUserCodeClassLoader());
-			windowAggregator = aggWindowAggregator;
-		}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        reuseOutput = new JoinedRowData();
+    }
 
-		// compile equaliser
-		if (generatedEqualiser != null) {
-			equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		}
-	}
+    @Override
+    protected void compileGeneratedCode() {
+        // compile aggregator
+        if (generatedAggWindowAggregator != null) {
+            aggWindowAggregator =
+                    generatedAggWindowAggregator.newInstance(
+                            getRuntimeContext().getUserCodeClassLoader());
+            windowAggregator = aggWindowAggregator;
+        }
 
-	@Override
-	protected void emitWindowResult(W window) throws Exception {
-		windowFunction.prepareAggregateAccumulatorForEmit(window);
-		BaseRow aggResult = aggWindowAggregator.getValue(window);
-		if (sendRetraction) {
-			previousState.setCurrentNamespace(window);
-			BaseRow previousAggResult = previousState.value();
+        // compile equaliser
+        if (generatedEqualiser != null) {
+            equaliser =
+                    generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        }
+    }
 
-			// has emitted result for the window
-			if (previousAggResult != null) {
-				// current agg is not equal to the previous emitted, should emit retract
-				if (!equaliser.equalsWithoutHeader(aggResult, previousAggResult)) {
-					reuseOutput.replace((BaseRow) getCurrentKey(), previousAggResult);
-					BaseRowUtil.setRetract(reuseOutput);
-					// send retraction
-					collector.collect(reuseOutput);
-					// send accumulate
-					reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-					BaseRowUtil.setAccumulate(reuseOutput);
-					collector.collect(reuseOutput);
-					// update previousState
-					previousState.update(aggResult);
-				}
-				// if the previous agg equals to the current agg, no need to send retract and accumulate
-			}
-			// the first fire for the window, only send accumulate
-			else {
-				// send accumulate
-				reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-				BaseRowUtil.setAccumulate(reuseOutput);
-				collector.collect(reuseOutput);
-				// update previousState
-				previousState.update(aggResult);
-			}
-		} else {
-			reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-			// no need to set header
-			collector.collect(reuseOutput);
-		}
-	}
+    @Override
+    protected void emitWindowResult(W window) throws Exception {
+        windowFunction.prepareAggregateAccumulatorForEmit(window);
+        RowData aggResult = aggWindowAggregator.getValue(window);
+        if (produceUpdates) {
+            previousState.setCurrentNamespace(window);
+            RowData previousAggResult = previousState.value();
+
+            // has emitted result for the window
+            if (previousAggResult != null) {
+                // current agg is not equal to the previous emitted, should emit retract
+                if (!equaliser.equals(aggResult, previousAggResult)) {
+                    // send UPDATE_BEFORE
+                    collect(RowKind.UPDATE_BEFORE, (RowData) getCurrentKey(), previousAggResult);
+                    // send UPDATE_AFTER
+                    collect(RowKind.UPDATE_AFTER, (RowData) getCurrentKey(), aggResult);
+                    // update previousState
+                    previousState.update(aggResult);
+                }
+                // if the previous agg equals to the current agg, no need to send retract and
+                // accumulate
+            }
+            // the first fire for the window, only send INSERT
+            else {
+                // send INSERT
+                collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
+                // update previousState
+                previousState.update(aggResult);
+            }
+        } else {
+            // send INSERT
+            collect(RowKind.INSERT, (RowData) getCurrentKey(), aggResult);
+        }
+    }
+
+    private void collect(RowKind rowKind, RowData key, RowData aggResult) {
+        reuseOutput.replace((RowData) getCurrentKey(), aggResult);
+        reuseOutput.setRowKind(rowKind);
+        collector.collect(reuseOutput);
+    }
 }

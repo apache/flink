@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 /**
  * Defines an external {@link TableSink} to emit streaming {@link Table} with only insert changes.
@@ -30,8 +31,10 @@ import org.apache.flink.table.api.TableException;
  * will be thrown.
  *
  * @param <T> Type of {@link DataStream} that this {@link TableSink} expects and supports.
+ * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
+ *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @PublicEvolving
-public interface AppendStreamTableSink<T> extends StreamTableSink<T> {
-
-}
+public interface AppendStreamTableSink<T> extends StreamTableSink<T> {}

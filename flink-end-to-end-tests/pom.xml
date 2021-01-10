@@ -25,14 +25,14 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<packaging>pom</packaging>
 
 	<artifactId>flink-end-to-end-tests</artifactId>
-	<name>flink-end-to-end-tests</name>
+	<name>Flink : E2E Tests : </name>
 
 	<properties>
 		<!-- functions as a global exclude; required since an empty set of included groups implicitly includes all -->
@@ -45,7 +45,6 @@ under the License.
 		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup5>
 		<e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>false</e2e.include.org.apache.flink.tests.util.categories.TravisGroup6>
 		<e2e.include.org.apache.flink.tests.util.categories.PreCommit>false</e2e.include.org.apache.flink.tests.util.categories.PreCommit>
-		<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>true</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
 		<e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>false</e2e.exclude.org.apache.flink.testutils.junit.FailsOnJava11>
 	</properties>
 
@@ -58,7 +57,6 @@ under the License.
 		<module>flink-datastream-allround-test</module>
 		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
-		<module>flink-bucketing-sink-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
 		<module>flink-high-parallelism-iterations-test</module>
 		<module>flink-stream-stateful-job-upgrade-test</module>
@@ -70,7 +68,7 @@ under the License.
 		<module>flink-confluent-schema-registry</module>
 		<module>flink-stream-state-ttl-test</module>
 		<module>flink-sql-client-test</module>
-		<module>flink-streaming-file-sink-test</module>
+		<module>flink-file-sink-test</module>
 		<module>flink-state-evolution-test</module>
 		<module>flink-rocksdb-state-memory-control-test</module>
 		<module>flink-end-to-end-tests-common</module>
@@ -80,8 +78,6 @@ under the License.
 		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
-		<module>flink-streaming-kafka011-test</module>
-		<module>flink-streaming-kafka010-test</module>
 		<module>flink-plugins-test</module>
 		<module>flink-tpch-test</module>
 		<module>flink-streaming-kinesis-test</module>
@@ -89,7 +85,38 @@ under the License.
 		<module>flink-end-to-end-tests-common-kafka</module>
 		<module>flink-tpcds-test</module>
 		<module>flink-netty-shuffle-memory-control-test</module>
+		<module>flink-python-test</module>
+		<module>flink-end-to-end-tests-hbase</module>
 	</modules>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- We pick an arbitrary version of net.java.dev.jna:jna to satisfy dependency
+				 convergence for org.testcontainers:testcontainers which transitively depends on
+				 two different versions.-->
+			<dependency>
+				<groupId>net.java.dev.jna</groupId>
+				<artifactId>jna</artifactId>
+				<version>5.5.0</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<dependency>
+			<!-- this module depends on the flink-yarn-tests's "target/yarn.classpath" file -->
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-yarn-tests</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
 
 	<profiles>
 		<profile>
@@ -135,12 +162,6 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
-			<id>e2e-hadoop</id>
-			<properties>
-				<e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>false</e2e.exclude.org.apache.flink.tests.util.categories.Hadoop>
-			</properties>
-		</profile>
-		<profile>
 			<id>java11</id>
 			<activation>
 				<jdk>11</jdk>
@@ -168,7 +189,7 @@ under the License.
 					<dependency>
 						<groupId>org.codehaus.groovy</groupId>
 						<artifactId>groovy-all</artifactId>
-						<version>2.5.8</version>
+						<version>2.5.12</version>
 						<scope>runtime</scope>
 						<type>pom</type>
 					</dependency>

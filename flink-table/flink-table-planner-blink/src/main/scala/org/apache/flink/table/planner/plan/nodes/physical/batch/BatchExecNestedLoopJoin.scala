@@ -19,21 +19,22 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.runtime.operators.DamBehavior
+import org.apache.flink.configuration.MemorySize
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
-import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.runtime.typeutils.{BinaryRowDataSerializer, InternalTypeInfo}
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -90,10 +91,16 @@ class BatchExecNestedLoopJoin(
     val buildRows = mq.getRowCount(buildRel)
     val buildRowSize = mq.getAverageRowSize(buildRel)
     val memoryCost = buildRows *
-      (buildRowSize + BinaryRowSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
+      (buildRowSize + BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES) * shuffleBuildCount(mq)
     val cpuCost = leftRowCnt * rightRowCnt
     val costFactory = planner.getCostFactory.asInstanceOf[FlinkCostFactory]
-    costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    val cost = costFactory.makeCost(mq.getRowCount(this), cpuCost, 0, 0, memoryCost)
+    if (singleRowJoin) {
+      // Make single row join more preferable than non-single row join.
+      cost.multiplyBy(0.99)
+    } else {
+      cost
+    }
   }
 
   private def shuffleBuildCount(mq: RelMetadataQuery): Int = {
@@ -115,27 +122,41 @@ class BatchExecNestedLoopJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
+  override def getInputEdges: util.List[ExecEdge] = {
+    // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
+    val (buildRequiredShuffle, probeRequiredShuffle) = if (joinType == JoinRelType.FULL) {
+      (ExecEdge.RequiredShuffle.singleton(), ExecEdge.RequiredShuffle.singleton())
+    } else {
+      (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
+    }
+    val buildEdge = ExecEdge.builder()
+      .requiredShuffle(buildRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.BLOCKING)
+      .priority(0)
+      .build()
+    val probeEdge = ExecEdge.builder()
+      .requiredShuffle(probeRequiredShuffle)
+      .damBehavior(ExecEdge.DamBehavior.PIPELINED)
+      .priority(1)
+      .build()
 
-  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
-
-  override def replaceInputNode(
-      ordinalInParent: Int,
-      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
-    replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
+    if (leftIsBuild) {
+      List(buildEdge, probeEdge)
+    } else {
+      List(probeEdge, buildEdge)
+    }
   }
 
   override protected def translateToPlanInternal(
-      planner: BatchPlanner): Transformation[BaseRow] = {
+      planner: BatchPlanner): Transformation[RowData] = {
     val lInput = getInputNodes.get(0).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
     val rInput = getInputNodes.get(1).translateToPlan(planner)
-        .asInstanceOf[Transformation[BaseRow]]
+        .asInstanceOf[Transformation[RowData]]
 
     // get type
-    val lType = lInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
-    val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+    val lType = lInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+    val rType = rInput.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
 
     val op = new NestedLoopJoinCodeGenerator(
@@ -154,12 +175,12 @@ class BatchExecNestedLoopJoin(
       MemorySize.parse(planner.getTableConfig.getConfiguration.getString(
         ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)).getBytes
     }
-    ExecNode.createTwoInputTransformation(
+    ExecNodeUtil.createTwoInputTransformation(
       lInput,
       rInput,
       getRelDetailedDescription,
       op,
-      BaseRowTypeInfo.of(outputType),
+      InternalTypeInfo.of(outputType),
       parallelism,
       manageMem)
   }

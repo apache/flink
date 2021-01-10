@@ -20,16 +20,14 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.util.AbstractID;
 
-/**
- * Id of {@link TaskManagerSlot} and {@link PendingTaskManagerSlot}.
- */
+/** Id of {@link TaskManagerSlot} and {@link PendingTaskManagerSlot}. */
 public class TaskManagerSlotId extends AbstractID {
 
-	private static final long serialVersionUID = -4024240625523472071L;
+    private static final long serialVersionUID = -4024240625523472071L;
 
-	private TaskManagerSlotId() {}
+    private TaskManagerSlotId() {}
 
-	public static TaskManagerSlotId generate() {
-		return new TaskManagerSlotId();
-	}
+    public static TaskManagerSlotId generate() {
+        return new TaskManagerSlotId();
+    }
 }

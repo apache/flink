@@ -27,16 +27,16 @@ import org.apache.flink.api.common.io.InputFormat;
  */
 public class GeneratedInput<F extends InputFormat<?, ?>> extends GeneratedClass<F> {
 
-	private static final long serialVersionUID = -7355875544905245676L;
+    private static final long serialVersionUID = -7355875544905245676L;
 
-	/**
-	 * Creates a GeneratedInput.
-	 *
-	 * @param className class name of the generated Function.
-	 * @param code code of the generated Function.
-	 * @param references referenced objects of the generated Function.
-	 */
-	public GeneratedInput(String className, String code, Object[] references) {
-		super(className, code, references);
-	}
+    /**
+     * Creates a GeneratedInput.
+     *
+     * @param className class name of the generated Function.
+     * @param code code of the generated Function.
+     * @param references referenced objects of the generated Function.
+     */
+    public GeneratedInput(String className, String code, Object[] references) {
+        super(className, code, references);
+    }
 }

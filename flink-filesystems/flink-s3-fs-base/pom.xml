@@ -23,17 +23,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-s3-fs-base</artifactId>
-	<name>flink-s3-fs-base</name>
-
+	<name>Flink : FileSystems : S3 FS Base</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<fs.s3.aws.version>1.11.271</fs.s3.aws.version>
+		<fs.s3.aws.version>1.11.788</fs.s3.aws.version>
 	</properties>
 
 	<dependencies>
@@ -202,6 +201,11 @@ under the License.
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk-dynamodb</artifactId>
+			<version>${fs.s3.aws.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-sts</artifactId>
 			<version>${fs.s3.aws.version}</version>
 		</dependency>
 

@@ -52,8 +52,8 @@ class PlannerExpressionParserImpl extends PlannerExpressionParser {
  * Parser for expressions inside a String. This parses exactly the same expressions that
  * would be accepted by the Scala Expression DSL.
  *
- * See [[org.apache.flink.table.api.scala.ImplicitExpressionConversions]] and
- * [[org.apache.flink.table.api.scala.ImplicitExpressionOperations]] for the constructs
+ * See [[org.apache.flink.table.api.bridge.scala.ImplicitExpressionConversions]] and
+ * [[org.apache.flink.table.api.bridge.scala.ImplicitExpressionOperations]] for the constructs
  * available in the Scala Expression DSL. This parser must be kept in sync with the Scala DSL
  * lazy valined in the above files.
  */
@@ -310,13 +310,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val suffixFloor: PackratParser[Expression] =
     composite ~ "." ~ FLOOR ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val suffixCeil: PackratParser[Expression] =
     composite ~ "." ~ CEIL ~ "(" ~ timeIntervalUnit ~ ")" ^^ {
       case operand ~ _  ~ _ ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   // required because op.log(base) changes order of a parameters
@@ -501,13 +501,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val prefixFloor: PackratParser[Expression] =
     FLOOR ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.FLOOR, operand, unit)
     }
 
   lazy val prefixCeil: PackratParser[Expression] =
     CEIL ~ "(" ~ expression ~ "," ~ timeIntervalUnit ~ ")" ^^ {
       case _ ~ _ ~ operand ~ _ ~ unit ~ _ =>
-        unresolvedCall(BuiltInFunctionDefinitions.CEIL, unit, operand)
+        unresolvedCall(BuiltInFunctionDefinitions.CEIL, operand, unit)
     }
 
   lazy val prefixGet: PackratParser[Expression] =

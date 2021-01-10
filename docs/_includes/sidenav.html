@@ -101,8 +101,6 @@ level is determined by 'nav-pos'.
       {%- assign active = true -%}
     {%- elsif this.nav-id and active_nav_ids contains this.nav-id -%}
       {%- assign active = true -%}
-    {%- elsif this.always-expand -%}
-      {%- assign active = true -%}
     {%- else -%}
       {%- assign active = false -%}
     {%- endif -%}
@@ -119,7 +117,7 @@ level is determined by 'nav-pos'.
       {%- if children.size > 0 -%}
         {%- assign children = (children[0].items | sort: "nav-pos") -%}
         {%- capture collapse_target -%}"#collapse-{{ i }}" data-toggle="collapse"{%- if active -%} class="active"{%- endif -%}{%- endcapture -%}
-        {%- capture expand -%}<i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{%- endcapture %}
+        {%- capture expand -%}{%- unless active -%} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{%- endunless -%}{%- endcapture %}
 <li><a href={{ collapse_target }}>{{ title }}{{ expand }}</a><div class="collapse{% if active %} in{% endif %}" id="collapse-{{ i }}"><ul>
         {%- if this.nav-show_overview %}
 <li><a href={{ overview_target }}>

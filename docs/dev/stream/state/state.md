@@ -30,6 +30,64 @@ to learn about the concepts behind stateful stream processing.
 * ToC
 {:toc}
 
+## Keyed DataStream
+
+If you want to use keyed state, you first need to specify a key on a
+`DataStream` that should be used to partition the state (and also the records
+in the stream themselves). You can specify a key using `keyBy(KeySelector)` on
+a `DataStream`. This will yield a `KeyedDataStream`, which then allows
+operations that use keyed state.
+
+A key selector function takes a single record as input and returns the key for
+that record. The key can be of any type and **must** be derived from
+deterministic computations.
+
+The data model of Flink is not based on key-value pairs. Therefore, you do not
+need to physically pack the data set types into keys and values. Keys are
+"virtual": they are defined as functions over the actual data to guide the
+grouping operator.
+
+The following example shows a key selector function that simply returns the
+field of an object:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// some ordinary POJO
+public class WC {
+  public String word;
+  public int count;
+
+  public String getWord() { return word; }
+}
+DataStream<WC> words = // [...]
+KeyedStream<WC> keyed = words
+  .keyBy(WC::getWord);
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// some ordinary case class
+case class WC(word: String, count: Int)
+val words: DataStream[WC] = // [...]
+val keyed = words.keyBy( _.word )
+{% endhighlight %}
+</div>
+</div>
+
+### Tuple Keys and Expression Keys
+{:.no_toc}
+
+Flink also has two alternative ways of defining keys: tuple keys and expression
+keys. With this you can specify keys using tuple field indices or expressions
+for selecting fields of objects. We don't recommend using these today but you
+can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
+function is strictly superior: with Java lambdas they are easy to use and they
+have potentially less overhead at runtime.
+
+{% top %}
+
 ## Using Keyed State
 
 The keyed state interfaces provides access to different types of state that are all scoped to
@@ -57,11 +115,6 @@ added to the state. Contrary to `ReducingState`, the aggregate type may be diffe
 of elements that are added to the state. The interface is the same as for `ListState` but elements
 added using `add(IN)` are aggregated using a specified `AggregateFunction`.
 
-* `FoldingState<T, ACC>`: This keeps a single value that represents the aggregation of all values
-added to the state. Contrary to `ReducingState`, the aggregate type may be different from the type
-of elements that are added to the state. The interface is similar to `ListState` but elements
-added using `add(T)` are folded into an aggregate using a specified `FoldFunction`.
-
 * `MapState<UK, UV>`: This keeps a list of mappings. You can put key-value pairs into the state and
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
@@ -70,8 +123,6 @@ You can also use `isEmpty()` to check whether this map contains any key-value ma
 
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
-
-<span class="label label-danger">Attention</span> `FoldingState` and `FoldingStateDescriptor` have been deprecated in Flink 1.4 and will be completely removed in the future. Please use `AggregatingState` and `AggregatingStateDescriptor` instead.
 
 It is important to keep in mind that these state objects are only used for interfacing
 with state. The state is not necessarily stored inside but might reside on disk or somewhere else.
@@ -84,10 +135,10 @@ To get a state handle, you have to create a `StateDescriptor`. This holds the na
 that you can reference them), the type of the values that the state holds, and possibly
 a user-specified function, such as a `ReduceFunction`. Depending on what type of state you
 want to retrieve, you create either a `ValueStateDescriptor`, a `ListStateDescriptor`,
-a `ReducingStateDescriptor`, a `FoldingStateDescriptor` or a `MapStateDescriptor`.
+a `ReducingStateDescriptor`, or a `MapStateDescriptor`.
 
 State is accessed using the `RuntimeContext`, so it is only possible in *rich functions*.
-Please see [here]({{ site.baseurl }}/dev/api_concepts.html#rich-functions) for
+Please see [here]({% link dev/user_defined_functions.md %}#rich-functions) for
 information about that, but we will also see an example shortly. The `RuntimeContext` that
 is available in a `RichFunction` has these methods for accessing state:
 
@@ -95,7 +146,6 @@ is available in a `RichFunction` has these methods for accessing state:
 * `ReducingState<T> getReducingState(ReducingStateDescriptor<T>)`
 * `ListState<T> getListState(ListStateDescriptor<T>)`
 * `AggregatingState<IN, OUT> getAggregatingState(AggregatingStateDescriptor<IN, ACC, OUT>)`
-* `FoldingState<T, ACC> getFoldingState(FoldingStateDescriptor<T, ACC>)`
 * `MapState<UK, UV> getMapState(MapStateDescriptor<UK, UV>)`
 
 This is an example `FlatMapFunction` that shows how all of the parts fit together:
@@ -145,7 +195,7 @@ public class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, 
 
 // this can be used in a streaming program like this (assuming we have a StreamExecutionEnvironment env)
 env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
-        .keyBy(0)
+        .keyBy(value -> value.f0)
         .flatMap(new CountWindowAverage())
         .print();
 
@@ -694,7 +744,7 @@ about the type of the value that the state holds:
 ListStateDescriptor<Tuple2<String, Integer>> descriptor =
     new ListStateDescriptor<>(
         "buffered-elements",
-        TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}));
+        TypeInformation.of(new TypeHint<Tuple2<String, Integer>>() {}));
 
 checkpointedState = context.getOperatorStateStore().getListState(descriptor);
 {% endhighlight %}
@@ -836,6 +886,6 @@ class CounterSource
 </div>
 </div>
 
-Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.runtime.state.CheckpointListener` interface.
+Some operators might need the information when a checkpoint is fully acknowledged by Flink to communicate that with the outside world. In this case see the `org.apache.flink.api.common.state.CheckpointListener` interface.
 
 {% top %}

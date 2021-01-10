@@ -152,7 +152,11 @@ class ConvertToNotInOrInRule
       if (needConvert(list.toList)) {
         val inputRef = list.head.getOperands.head
         val values = list.map(_.getOperands.last)
-        rexBuffer += builder.getRexBuilder.makeCall(toOperator, List(inputRef) ++ values)
+        val call = toOperator match {
+          case IN => builder.getRexBuilder.makeIn(inputRef, values)
+          case _ => builder.getRexBuilder.makeCall(toOperator, List(inputRef) ++ values)
+        }
+        rexBuffer += call
         beenConverted = true
       } else {
         connectOperator match {

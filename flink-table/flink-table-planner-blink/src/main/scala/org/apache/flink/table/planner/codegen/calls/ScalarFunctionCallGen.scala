@@ -20,8 +20,6 @@ package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
-import org.apache.flink.table.dataformat.DataFormatConverters
-import org.apache.flink.table.dataformat.DataFormatConverters.getConverterForDataType
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
@@ -31,7 +29,7 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.extraction.utils.ExtractionUtils
+import org.apache.flink.table.types.extraction.ExtractionUtils
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
@@ -126,7 +124,7 @@ class ScalarFunctionCallGen(scalarFunction: ScalarFunction) extends CallGenerato
     if (isInternalClass(t)) {
       s"(${boxedTypeTermForType(LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(t))}) $term"
     } else {
-      genToInternal(ctx, t, term)
+      genToInternalConverter(ctx, t, term)
     }
   }
 
@@ -142,7 +140,7 @@ object ScalarFunctionCallGen {
 
     val signatureTypes = parameterTypes.zipWithIndex.map {
       case (t: GenericTypeInfo[_], i) =>
-        // we don't trust GenericType, like Row and BaseRow and LocalTime
+        // we don't trust GenericType, like Row and RowData and LocalTime
         val returnType = fromLogicalTypeToDataType(operands(i).resultType)
         if (operands(i).resultType.supportsOutputConversion(t.getTypeClass)) {
           returnType.bridgedTo(t.getTypeClass)
@@ -165,7 +163,7 @@ object ScalarFunctionCallGen {
           } else {
             signatureTypes(i)
           }
-        val externalResultTerm = genToExternalIfNeeded(ctx, signatureType, operandExpr)
+        val externalResultTerm = genToExternalConverterAll(ctx, signatureType, operandExpr)
         operandExpr.copy(resultTerm = externalResultTerm)
       }
     }

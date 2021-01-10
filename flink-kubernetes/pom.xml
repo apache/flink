@@ -23,16 +23,16 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-kubernetes_${scala.binary.version}</artifactId>
-	<name>flink-kubernetes</name>
+	<name>Flink : Kubernetes</name>
 	<packaging>jar</packaging>
 
 	<properties>
-		<kubernetes.client.version>4.5.2</kubernetes.client.version>
+		<kubernetes.client.version>4.9.2</kubernetes.client.version>
 	</properties>
 
 	<!-- Set dependency version for transitive dependencies -->
@@ -107,6 +107,14 @@ under the License.
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<reuseForks>true</reuseForks>
+					<forkCount>1</forkCount>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
@@ -128,10 +136,10 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
+									<include>com.fasterxml.jackson.datatype:jackson-datatype-jsr310</include>
 									<include>com.squareup.okhttp3:*</include>
 									<include>com.squareup.okio:okio</include>
 									<include>org.yaml:*</include>
-									<include>com.mifmif:*</include>
 									<include>dk.brics.automaton:*</include>
 
 									<include>META-INF/services/org.apache.flink.*</include>
@@ -171,10 +179,6 @@ under the License.
 								<relocation>
 									<pattern>org.yaml</pattern>
 									<shadedPattern>org.apache.flink.kubernetes.shaded.org.yaml</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>com.mifmif</pattern>
-									<shadedPattern>org.apache.flink.kubernetes.shaded.com.mifmif</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>dk.brics.automaton</pattern>

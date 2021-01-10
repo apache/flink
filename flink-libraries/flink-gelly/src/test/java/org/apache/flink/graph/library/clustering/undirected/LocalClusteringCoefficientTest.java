@@ -37,80 +37,71 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Tests for {@link LocalClusteringCoefficient}.
- */
+/** Tests for {@link LocalClusteringCoefficient}. */
 public class LocalClusteringCoefficientTest extends AsmTestBase {
 
-	@Test
-	public void testSimpleGraph() throws Exception {
-		String expectedResult =
-			"(0,2,1)\n" +
-			"(1,3,2)\n" +
-			"(2,3,2)\n" +
-			"(3,4,1)\n" +
-			"(4,1,0)\n" +
-			"(5,1,0)";
+    @Test
+    public void testSimpleGraph() throws Exception {
+        String expectedResult =
+                "(0,2,1)\n" + "(1,3,2)\n" + "(2,3,2)\n" + "(3,4,1)\n" + "(4,1,0)\n" + "(5,1,0)";
 
-		DataSet<Result<IntValue>> cc = undirectedSimpleGraph
-			.run(new LocalClusteringCoefficient<>());
+        DataSet<Result<IntValue>> cc =
+                undirectedSimpleGraph.run(new LocalClusteringCoefficient<>());
 
-		TestBaseUtils.compareResultAsText(cc.collect(), expectedResult);
-	}
+        TestBaseUtils.compareResultAsText(cc.collect(), expectedResult);
+    }
 
-	/**
-	 * Validate a test where each result has the same values.
-	 *
-	 * @param graph input graph
-	 * @param count number of results
-	 * @param degree result degree
-	 * @param triangleCount result triangle count
-	 * @param <T> graph ID type
-	 * @throws Exception on error
-	 */
-	private static <T extends Comparable<T> & CopyableValue<T>> void validate(
-			Graph<T, NullValue, NullValue> graph, long count, long degree, long triangleCount) throws Exception {
-		DataSet<Result<T>> cc = graph
-			.run(new LocalClusteringCoefficient<>());
+    /**
+     * Validate a test where each result has the same values.
+     *
+     * @param graph input graph
+     * @param count number of results
+     * @param degree result degree
+     * @param triangleCount result triangle count
+     * @param <T> graph ID type
+     * @throws Exception on error
+     */
+    private static <T extends Comparable<T> & CopyableValue<T>> void validate(
+            Graph<T, NullValue, NullValue> graph, long count, long degree, long triangleCount)
+            throws Exception {
+        DataSet<Result<T>> cc = graph.run(new LocalClusteringCoefficient<>());
 
-		List<Result<T>> results = cc.collect();
+        List<Result<T>> results = cc.collect();
 
-		assertEquals(count, results.size());
+        assertEquals(count, results.size());
 
-		for (Result<T> result : results) {
-			assertEquals(degree, result.getDegree().getValue());
-			assertEquals(triangleCount, result.getTriangleCount().getValue());
-		}
-	}
+        for (Result<T> result : results) {
+            assertEquals(degree, result.getDegree().getValue());
+            assertEquals(triangleCount, result.getTriangleCount().getValue());
+        }
+    }
 
-	@Test
-	public void testCompleteGraph() throws Exception {
-		long degree = completeGraphVertexCount - 1;
-		long triangleCount = CombinatoricsUtils.binomialCoefficient((int) degree, 2);
+    @Test
+    public void testCompleteGraph() throws Exception {
+        long degree = completeGraphVertexCount - 1;
+        long triangleCount = CombinatoricsUtils.binomialCoefficient((int) degree, 2);
 
-		validate(completeGraph, completeGraphVertexCount, degree, triangleCount);
-	}
+        validate(completeGraph, completeGraphVertexCount, degree, triangleCount);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithVertices() throws Exception {
-		validate(emptyGraphWithVertices, emptyGraphVertexCount, 0, 0);
-	}
+    @Test
+    public void testWithEmptyGraphWithVertices() throws Exception {
+        validate(emptyGraphWithVertices, emptyGraphVertexCount, 0, 0);
+    }
 
-	@Test
-	public void testWithEmptyGraphWithoutVertices() throws Exception {
-		validate(emptyGraphWithoutVertices, 0, 0, 0);
-	}
+    @Test
+    public void testWithEmptyGraphWithoutVertices() throws Exception {
+        validate(emptyGraphWithoutVertices, 0, 0, 0);
+    }
 
-	@Test
-	public void testRMatGraph() throws Exception {
-		DataSet<Result<LongValue>> cc = undirectedRMatGraph(10, 16)
-			.run(new LocalClusteringCoefficient<>());
+    @Test
+    public void testRMatGraph() throws Exception {
+        DataSet<Result<LongValue>> cc =
+                undirectedRMatGraph(10, 16).run(new LocalClusteringCoefficient<>());
 
-		Checksum checksum = new ChecksumHashCode<Result<LongValue>>()
-			.run(cc)
-			.execute();
+        Checksum checksum = new ChecksumHashCode<Result<LongValue>>().run(cc).execute();
 
-		assertEquals(902, checksum.getCount());
-		assertEquals(0x000001cab2d3677bL, checksum.getChecksum());
-	}
+        assertEquals(902, checksum.getCount());
+        assertEquals(0x000001cab2d3677bL, checksum.getChecksum());
+    }
 }

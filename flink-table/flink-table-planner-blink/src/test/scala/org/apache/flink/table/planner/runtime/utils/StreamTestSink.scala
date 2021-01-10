@@ -30,9 +30,11 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow}
-import org.apache.flink.table.planner.utils.BaseRowTestUtil
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.data.util.DataFormatConverters
+import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.util.RowDataTestUtil
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
@@ -40,6 +42,7 @@ import org.apache.flink.types.Row
 import _root_.java.lang.{Boolean => JBoolean}
 import _root_.java.util.TimeZone
 import _root_.java.util.concurrent.atomic.AtomicInteger
+import java.util
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.mutable
@@ -137,18 +140,20 @@ final class StringSink[T] extends AbstractExactlyOnceSink[T]() {
   override def getResults: List[String] = super.getResults
 }
 
-final class TestingAppendBaseRowSink(
-    rowTypeInfo: BaseRowTypeInfo, tz: TimeZone)
-  extends AbstractExactlyOnceSink[BaseRow] {
+final class TestingAppendRowDataSink(
+    rowTypeInfo: InternalTypeInfo[RowData], tz: TimeZone)
+  extends AbstractExactlyOnceSink[RowData] {
 
-  def this(rowTypeInfo: BaseRowTypeInfo) {
+  def this(rowTypeInfo: InternalTypeInfo[RowData]) {
     this(rowTypeInfo, TimeZone.getTimeZone("UTC"))
   }
 
-  override def invoke(value: BaseRow): Unit = localResults +=
-    BaseRowTestUtil.baseRowToString(value, rowTypeInfo, tz)
+  override def invoke(value: RowData): Unit = localResults +=
+    RowDataTestUtil.rowToString(value, rowTypeInfo, tz)
 
   def getAppendResults: List[String] = getResults
+
+  def getJavaAppendResults: java.util.List[String] = new util.ArrayList[String](getResults.asJava)
 
 }
 
@@ -163,7 +168,7 @@ final class TestingAppendSink(tz: TimeZone) extends AbstractExactlyOnceSink[Row]
 }
 
 final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
-  extends AbstractExactlyOnceSink[(Boolean, BaseRow)] {
+  extends AbstractExactlyOnceSink[(Boolean, RowData)] {
 
   private var upsertResultsState: ListState[String] = _
   private var localUpsertResults: mutable.Map[String, String] = _
@@ -217,16 +222,16 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
     }
   }
 
-  override def invoke(d: (Boolean, BaseRow)): Unit = {
+  override def invoke(d: (Boolean, RowData)): Unit = {
     this.synchronized {
-      val wrapRow = new GenericRow(2)
+      val wrapRow = new GenericRowData(2)
       wrapRow.setField(0, d._1)
       wrapRow.setField(1, d._2)
       val converter =
         DataFormatConverters.getConverterForDataType(
           TypeConversions.fromLegacyInfoToDataType(
             new TupleTypeInfo(Types.BOOLEAN, new RowTypeInfo(fieldTypes: _*))))
-          .asInstanceOf[DataFormatConverters.DataFormatConverter[BaseRow, JTuple2[JBoolean, Row]]]
+          .asInstanceOf[DataFormatConverters.DataFormatConverter[RowData, JTuple2[JBoolean, Row]]]
       val v = converter.toExternal(wrapRow)
       val rowString = TestSinkUtil.rowToString(v.f1, tz)
       val tupleString = "(" + v.f0.toString + "," + rowString + ")"
@@ -258,7 +263,7 @@ final class TestingUpsertSink(keys: Array[Int], tz: TimeZone)
 }
 
 final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
-  extends UpsertStreamTableSink[BaseRow] {
+  extends UpsertStreamTableSink[RowData] {
   private var fNames: Array[String] = _
   private var fTypes: Array[TypeInformation[_]] = _
   private var sink = new TestingUpsertSink(keys, tz)
@@ -292,9 +297,9 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
     }
   }
 
-  override def getRecordType: TypeInformation[BaseRow] =
-    new BaseRowTypeInfo(
-      fTypes.map(TypeConversions.fromLegacyInfoToDataType(_).getLogicalType),
+  override def getRecordType: TypeInformation[RowData] =
+    InternalTypeInfo.ofFields(
+      fTypes.map(fromTypeInfoToLogicalType),
       fNames)
 
   override def getFieldNames: Array[String] = fNames
@@ -302,9 +307,9 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   override def getFieldTypes: Array[TypeInformation[_]] = fTypes
 
   override def consumeDataStream(
-      dataStream: DataStream[JTuple2[JBoolean, BaseRow]]): DataStreamSink[_] = {
-    dataStream.map(new MapFunction[JTuple2[JBoolean, BaseRow], (Boolean, BaseRow)] {
-      override def map(value: JTuple2[JBoolean, BaseRow]): (Boolean, BaseRow) = {
+      dataStream: DataStream[JTuple2[JBoolean, RowData]]): DataStreamSink[_] = {
+    dataStream.map(new MapFunction[JTuple2[JBoolean, RowData], (Boolean, RowData)] {
+      override def map(value: JTuple2[JBoolean, RowData]): (Boolean, RowData) = {
         (value.f0, value.f1)
       }
     })

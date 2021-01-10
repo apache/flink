@@ -21,7 +21,6 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Service;
@@ -34,53 +33,66 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Creates an internal Service which forwards the requests from the TaskManager(s) to the
- * active JobManager.
- * Note that only the non-HA scenario relies on this Service for internal communication, since
- * in the HA mode, the TaskManager(s) directly connects to the JobManager via IP address.
+ * Creates an internal Service which forwards the requests from the TaskManager(s) to the active
+ * JobManager. Note that only the non-HA scenario relies on this Service for internal communication,
+ * since in the HA mode, the TaskManager(s) directly connects to the JobManager via IP address.
  */
 public class InternalServiceDecorator extends AbstractKubernetesStepDecorator {
 
-	private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
+    private final KubernetesJobManagerParameters kubernetesJobManagerParameters;
 
-	public InternalServiceDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
-		this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
-	}
+    public InternalServiceDecorator(KubernetesJobManagerParameters kubernetesJobManagerParameters) {
+        this.kubernetesJobManagerParameters = checkNotNull(kubernetesJobManagerParameters);
+    }
 
-	@Override
-	public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
-		if (!kubernetesJobManagerParameters.isInternalServiceEnabled()) {
-			return Collections.emptyList();
-		}
+    @Override
+    public List<HasMetadata> buildAccompanyingKubernetesResources() throws IOException {
+        if (!kubernetesJobManagerParameters.isInternalServiceEnabled()) {
+            return Collections.emptyList();
+        }
 
-		final String serviceName = KubernetesUtils.getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
+        final String serviceName =
+                getInternalServiceName(kubernetesJobManagerParameters.getClusterId());
 
-		final Service headlessService = new ServiceBuilder()
-			.withApiVersion(Constants.API_VERSION)
-			.withNewMetadata()
-				.withName(serviceName)
-				.withLabels(kubernetesJobManagerParameters.getCommonLabels())
-				.endMetadata()
-			.withNewSpec()
-				.withClusterIP(Constants.HEADLESS_SERVICE_CLUSTER_IP)
-				.withSelector(kubernetesJobManagerParameters.getLabels())
-				.addNewPort()
-					.withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
-					.withPort(kubernetesJobManagerParameters.getRPCPort())
-					.endPort()
-				.addNewPort()
-					.withName(Constants.BLOB_SERVER_PORT_NAME)
-					.withPort(kubernetesJobManagerParameters.getBlobServerPort())
-					.endPort()
-				.endSpec()
-			.build();
+        final Service headlessService =
+                new ServiceBuilder()
+                        .withApiVersion(Constants.API_VERSION)
+                        .withNewMetadata()
+                        .withName(serviceName)
+                        .withLabels(kubernetesJobManagerParameters.getCommonLabels())
+                        .endMetadata()
+                        .withNewSpec()
+                        .withClusterIP(Constants.HEADLESS_SERVICE_CLUSTER_IP)
+                        .withSelector(kubernetesJobManagerParameters.getLabels())
+                        .addNewPort()
+                        .withName(Constants.JOB_MANAGER_RPC_PORT_NAME)
+                        .withPort(kubernetesJobManagerParameters.getRPCPort())
+                        .endPort()
+                        .addNewPort()
+                        .withName(Constants.BLOB_SERVER_PORT_NAME)
+                        .withPort(kubernetesJobManagerParameters.getBlobServerPort())
+                        .endPort()
+                        .endSpec()
+                        .build();
 
-		// Set job manager address to namespaced service name
-		final String namespace = kubernetesJobManagerParameters.getNamespace();
-		kubernetesJobManagerParameters.getFlinkConfiguration().setString(JobManagerOptions.ADDRESS, serviceName + "." + namespace);
+        // Set job manager address to namespaced service name
+        final String namespace = kubernetesJobManagerParameters.getNamespace();
+        kubernetesJobManagerParameters
+                .getFlinkConfiguration()
+                .setString(
+                        JobManagerOptions.ADDRESS,
+                        getNamespacedInternalServiceName(serviceName, namespace));
 
-		return Collections.singletonList(headlessService);
-	}
+        return Collections.singletonList(headlessService);
+    }
+
+    /** Generate name of the internal Service. */
+    public static String getInternalServiceName(String clusterId) {
+        return clusterId;
+    }
+
+    /** Generate namespaced name of the internal Service. */
+    public static String getNamespacedInternalServiceName(String clusterId, String namespace) {
+        return getInternalServiceName(clusterId) + "." + namespace;
+    }
 }
-
-

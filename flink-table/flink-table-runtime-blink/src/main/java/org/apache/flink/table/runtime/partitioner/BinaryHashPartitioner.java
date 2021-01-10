@@ -18,57 +18,61 @@
 
 package org.apache.flink.table.runtime.partitioner;
 
+import org.apache.flink.runtime.io.network.api.writer.SubtaskStateMapper;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.util.MathUtils;
 
 import java.util.Arrays;
 
-/**
- * Hash partitioner for {@link BinaryRow}.
- */
-public class BinaryHashPartitioner extends StreamPartitioner<BaseRow> {
+/** Hash partitioner for {@link BinaryRowData}. */
+public class BinaryHashPartitioner extends StreamPartitioner<RowData> {
 
-	private GeneratedHashFunction genHashFunc;
+    private GeneratedHashFunction genHashFunc;
 
-	private transient HashFunction hashFunc;
-	private String[] hashFieldNames;
+    private transient HashFunction hashFunc;
+    private String[] hashFieldNames;
 
-	public BinaryHashPartitioner(GeneratedHashFunction genHashFunc, String[] hashFieldNames) {
-		this.genHashFunc = genHashFunc;
-		this.hashFieldNames = hashFieldNames;
-	}
+    public BinaryHashPartitioner(GeneratedHashFunction genHashFunc, String[] hashFieldNames) {
+        this.genHashFunc = genHashFunc;
+        this.hashFieldNames = hashFieldNames;
+    }
 
-	@Override
-	public StreamPartitioner<BaseRow> copy() {
-		return this;
-	}
+    @Override
+    public StreamPartitioner<RowData> copy() {
+        return this;
+    }
 
-	@Override
-	public int selectChannel(SerializationDelegate<StreamRecord<BaseRow>> record) {
-		return MathUtils.murmurHash(
-				getHashFunc().hashCode(record.getInstance().getValue())) % numberOfChannels;
-	}
+    @Override
+    public int selectChannel(SerializationDelegate<StreamRecord<RowData>> record) {
+        return MathUtils.murmurHash(getHashFunc().hashCode(record.getInstance().getValue()))
+                % numberOfChannels;
+    }
 
-	private HashFunction getHashFunc() {
-		if (hashFunc == null) {
-			try {
-				hashFunc = genHashFunc.newInstance(Thread.currentThread().getContextClassLoader());
-				genHashFunc = null;
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
-		}
-		return hashFunc;
-	}
+    @Override
+    public SubtaskStateMapper getDownstreamSubtaskStateMapper() {
+        return SubtaskStateMapper.FULL;
+    }
 
-	@Override
-	public String toString() {
-		return "HASH" + Arrays.toString(hashFieldNames);
-	}
+    private HashFunction getHashFunc() {
+        if (hashFunc == null) {
+            try {
+                hashFunc = genHashFunc.newInstance(Thread.currentThread().getContextClassLoader());
+                genHashFunc = null;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return hashFunc;
+    }
+
+    @Override
+    public String toString() {
+        return "HASH" + Arrays.toString(hashFieldNames);
+    }
 }

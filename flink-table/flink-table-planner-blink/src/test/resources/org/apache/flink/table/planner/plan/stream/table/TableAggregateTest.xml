@@ -17,120 +17,120 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testJavaRegisterFunction">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$0], f0=[$1], f1=[$2])
 +- LogicalTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupTableAggregate(groupBy=[c], select=[c, EmptyTableAggFunc(a) AS (f0, f1)])
 +- Exchange(distribution=[hash[c]])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithAlias">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[AS($0, _UTF-16LE'a')], b=[AS($1, _UTF-16LE'b')])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[f0 AS a, f1 AS b])
-+- GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
++- GroupTableAggregate(select=[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67(b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithGroupBy">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(bb=[AS($0, _UTF-16LE'bb')], _c1=[+(AS($1, _UTF-16LE'x'), 1)], y=[AS($2, _UTF-16LE'y')])
-+- LogicalTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
++- LogicalTableAggregate(group=[{2}], tableAggregate=[[org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67($0, $1)]])
    +- LogicalProject(a=[$0], b=[$1], bb=[MOD($1, 5)])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[bb, +(f0, 1) AS _c1, f1 AS y])
-+- GroupTableAggregate(groupBy=[bb], select=[bb, EmptyTableAggFunc(a, b) AS (f0, f1)])
+Calc(select=[bb, (f0 + 1) AS _c1, f1 AS y])
++- GroupTableAggregate(groupBy=[bb], select=[bb, org$apache$flink$table$planner$utils$EmptyTableAggFunc$3abce17277a07430b548ea4eacbf9f67(a, b) AS (f0, f1)])
    +- Exchange(distribution=[hash[bb]])
       +- Calc(select=[a, b, MOD(b, 5) AS bb])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithIntResultType">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f0_0=[$1])
 +- LogicalTableAggregate(group=[{0}], tableAggregate=[[EmptyTableAggFuncWithIntResultType($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType(f1) AS (f0_0)])
 +- Exchange(distribution=[hash[f0]])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]], fields=[f0, f1, f2, d, e])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]], fields=[f0, f1, f2, d, e])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithoutGroupBy">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[org$apache$flink$table$planner$expressions$utils$Func0$$6ad060e6c46e5cd996d7b888db472ebc($0)], b=[$1])
 +- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[Func0$(f0) AS a, f1 AS b])
 +- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
    +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithTimeIndicator">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
 +- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($3, $4)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- Calc(select=[a, b, c, CAST(d) AS d, PROCTIME_MATERIALIZE(e) AS e])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testTableAggregateWithSelectStar">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
 +- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>

@@ -18,28 +18,20 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.api.java.typeutils.MapTypeInfo
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.functions.FunctionIdentifier
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
-import org.apache.flink.table.planner.plan.utils.ExplodeFunctionUtil
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
-import org.apache.flink.table.types.logical.RowType
+import java.util.Collections
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.`type`.{RelDataTypeFieldImpl, RelRecordType, StructKind}
 import org.apache.calcite.rel.core.Uncollect
 import org.apache.calcite.rel.logical._
-import org.apache.calcite.sql.`type`.{AbstractSqlType, ArraySqlType, MapSqlType, MultisetSqlType}
-import java.util.Collections
-
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
+import org.apache.flink.table.functions.FunctionIdentifier
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.runtime.functions.SqlUnnestUtils
 
 /**
   * Planner rule that rewrites UNNEST to explode function.
@@ -95,68 +87,29 @@ class LogicalUnnestRule(
         case uc: Uncollect =>
           // convert Uncollect into TableFunctionScan
           val cluster = correlate.getCluster
-          val dataType = uc.getInput.getRowType.getFieldList.get(0).getValue
-          val (componentType, explodeTableFunc) = dataType match {
-            case arrayType: ArraySqlType =>
-              (arrayType.getComponentType,
-                ExplodeFunctionUtil.explodeTableFuncFromType(
-                  fromLogicalTypeToTypeInfo(toLogicalType(arrayType))))
+          val typeFactory = ShortcutUtils.unwrapTypeFactory(cluster)
+          val relDataType = uc.getInput.getRowType.getFieldList.get(0).getValue
+          val logicalType = FlinkTypeFactory.toLogicalType(relDataType)
 
-            case map: MapSqlType =>
-              val keyType = toLogicalType(map.getKeyType)
-              val valueType = toLogicalType(map.getValueType)
-              val rowInternalType = RowType.of(keyType, valueType)
-              val componentType = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
-                  .createFieldTypeFromLogicalType(rowInternalType)
-              val mapTypeInfo = new MapTypeInfo(
-                fromLogicalTypeToTypeInfo(keyType),
-                fromLogicalTypeToTypeInfo(valueType)
-              )
-              val explodeFunction = ExplodeFunctionUtil.explodeTableFuncFromType(mapTypeInfo)
-              (componentType, explodeFunction)
+          val unnestFunction = SqlUnnestUtils.createUnnestFunction(logicalType)
 
-            case mt: MultisetSqlType =>
-              (mt.getComponentType,
-                ExplodeFunctionUtil.explodeTableFuncFromType(
-                  fromLogicalTypeToTypeInfo(toLogicalType(mt))))
-            case _ => throw new TableException(s"Unsupported UNNEST on type: ${dataType.toString}")
-          }
+          val sqlFunction = BridgingSqlFunction.of(
+            cluster,
+            FunctionIdentifier.of("UNNEST"),
+            unnestFunction)
 
-          // create sql function
-          val explodeSqlFunc = UserDefinedFunctionUtils.createTableSqlFunction(
-            FunctionIdentifier.of("explode"),
-            "explode",
-            explodeTableFunc,
-            fromLogicalTypeToDataType(toLogicalType(componentType)),
-            cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory])
-
-          // create table function call
-          // TODO use BridgingSqlFunction once we remove TableSqlFunction
           val rexCall = cluster.getRexBuilder.makeCall(
-            explodeSqlFunc.getRowType(unwrapTypeFactory(cluster), Collections.emptyList()),
-            explodeSqlFunc,
-            getRel(uc.getInput).asInstanceOf[LogicalProject].getChildExps
-          )
+            typeFactory.createFieldTypeFromLogicalType(unnestFunction.getWrappedOutputType),
+            sqlFunction,
+            getRel(uc.getInput).asInstanceOf[LogicalProject].getProjects)
 
-          // determine rel data type of unnest
-          val rowType = componentType match {
-            case _: AbstractSqlType =>
-              new RelRecordType(
-                StructKind.FULLY_QUALIFIED,
-                ImmutableList.of(new RelDataTypeFieldImpl("f0", 0, componentType)))
-            case _: RelRecordType => componentType
-            case _ => throw new TableException(
-              s"Unsupported multiset component type in UNNEST: ${componentType.toString}")
-          }
-
-          // create table function scan
           new LogicalTableFunctionScan(
             cluster,
             correlate.getTraitSet,
             Collections.emptyList(),
             rexCall,
-            classOf[Array[Object]],
-            rowType,
+            null,
+            rexCall.getType,
             null)
       }
     }

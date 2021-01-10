@@ -27,62 +27,63 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.operators.IterativeDataSet;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-/**
- * Test iterations referenced from the static path of other iterations.
- */
+/** Test iterations referenced from the static path of other iterations. */
 public class StaticlyNestedIterationsITCase extends JavaProgramTestBase {
 
-	@Override
-	protected void testProgram() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+    @Override
+    protected void testProgram() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-		DataSet<Long> data1 = env.generateSequence(1, 100);
-		DataSet<Long> data2 = env.generateSequence(1, 100);
+        DataSet<Long> data1 = env.generateSequence(1, 100);
+        DataSet<Long> data2 = env.generateSequence(1, 100);
 
-		IterativeDataSet<Long> firstIteration = data1.iterate(100);
+        IterativeDataSet<Long> firstIteration = data1.iterate(100);
 
-		DataSet<Long> firstResult = firstIteration.closeWith(firstIteration.map(new IdMapper()));
+        DataSet<Long> firstResult = firstIteration.closeWith(firstIteration.map(new IdMapper()));
 
-		IterativeDataSet<Long> mainIteration = data2.map(new IdMapper()).iterate(100);
+        IterativeDataSet<Long> mainIteration = data2.map(new IdMapper()).iterate(100);
 
-		DataSet<Long> joined = mainIteration.join(firstResult)
-				.where(new IdKeyExtractor()).equalTo(new IdKeyExtractor())
-				.with(new Joiner());
+        DataSet<Long> joined =
+                mainIteration
+                        .join(firstResult)
+                        .where(new IdKeyExtractor())
+                        .equalTo(new IdKeyExtractor())
+                        .with(new Joiner());
 
-		DataSet<Long> mainResult = mainIteration.closeWith(joined);
+        DataSet<Long> mainResult = mainIteration.closeWith(joined);
 
-		mainResult.output(new DiscardingOutputFormat<Long>());
+        mainResult.output(new DiscardingOutputFormat<Long>());
 
-		env.execute();
-	}
+        env.execute();
+    }
 
-	private static class IdKeyExtractor implements KeySelector<Long, Long> {
+    private static class IdKeyExtractor implements KeySelector<Long, Long> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Long getKey(Long value) {
-			return value;
-		}
-	}
+        @Override
+        public Long getKey(Long value) {
+            return value;
+        }
+    }
 
-	private static class IdMapper implements MapFunction<Long, Long> {
+    private static class IdMapper implements MapFunction<Long, Long> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Long map(Long value) {
-			return value;
-		}
-	}
+        @Override
+        public Long map(Long value) {
+            return value;
+        }
+    }
 
-	private static class Joiner implements JoinFunction<Long, Long, Long> {
+    private static class Joiner implements JoinFunction<Long, Long, Long> {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public Long join(Long first, Long second) {
-			return first;
-		}
-	}
+        @Override
+        public Long join(Long first, Long second) {
+            return first;
+        }
+    }
 }

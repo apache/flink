@@ -18,44 +18,134 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.testutils.FlinkMatchers;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link Utils}.
- */
+/** Tests for {@link Utils}. */
 public class UtilsTest extends TestLogger {
 
-	@Rule
-	public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    private static final String YARN_RM_ARBITRARY_SCHEDULER_CLAZZ =
+            "org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler";
 
-	@Test
-	public void testDeleteApplicationFiles() throws Exception {
-		final Path applicationFilesDir = temporaryFolder.newFolder(".flink").toPath();
-		Files.createFile(applicationFilesDir.resolve("flink.jar"));
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			assertThat(files.count(), equalTo(1L));
-		}
-		try (Stream<Path> files = Files.list(applicationFilesDir)) {
-			assertThat(files.count(), equalTo(1L));
-		}
+    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-		Utils.deleteApplicationFiles(Collections.singletonMap(
-			YarnConfigKeys.FLINK_YARN_FILES,
-			applicationFilesDir.toString()));
-		try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
-			assertThat(files.count(), equalTo(0L));
-		}
-	}
+    @Test
+    public void testDeleteApplicationFiles() throws Exception {
+        final Path applicationFilesDir = temporaryFolder.newFolder(".flink").toPath();
+        Files.createFile(applicationFilesDir.resolve("flink.jar"));
+        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+            assertThat(files.count(), equalTo(1L));
+        }
+        try (Stream<Path> files = Files.list(applicationFilesDir)) {
+            assertThat(files.count(), equalTo(1L));
+        }
+
+        Utils.deleteApplicationFiles(applicationFilesDir.toString());
+        try (Stream<Path> files = Files.list(temporaryFolder.getRoot().toPath())) {
+            assertThat(files.count(), equalTo(0L));
+        }
+    }
+
+    @Test
+    public void testGetUnitResource() {
+        final int minMem = 64;
+        final int minVcore = 1;
+        final int incMem = 512;
+        final int incVcore = 2;
+        final int incMemLegacy = 1024;
+        final int incVcoreLegacy = 4;
+
+        YarnConfiguration yarnConfig = new YarnConfiguration();
+        yarnConfig.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, minMem);
+        yarnConfig.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_VCORES, minVcore);
+        yarnConfig.setInt(Utils.YARN_RM_INCREMENT_ALLOCATION_MB_LEGACY_KEY, incMemLegacy);
+        yarnConfig.setInt(Utils.YARN_RM_INCREMENT_ALLOCATION_VCORES_LEGACY_KEY, incVcoreLegacy);
+
+        verifyUnitResourceVariousSchedulers(
+                yarnConfig, minMem, minVcore, incMemLegacy, incVcoreLegacy);
+
+        yarnConfig.setInt(Utils.YARN_RM_INCREMENT_ALLOCATION_MB_KEY, incMem);
+        yarnConfig.setInt(Utils.YARN_RM_INCREMENT_ALLOCATION_VCORES_KEY, incVcore);
+
+        verifyUnitResourceVariousSchedulers(yarnConfig, minMem, minVcore, incMem, incVcore);
+    }
+
+    @Test
+    public void testSharedLibWithNonQualifiedPath() throws Exception {
+        final String sharedLibPath = "/flink/sharedLib";
+        final String nonQualifiedPath = "hdfs://" + sharedLibPath;
+        final String defaultFs = "hdfs://localhost:9000";
+        final String qualifiedPath = defaultFs + sharedLibPath;
+
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(
+                YarnConfigOptions.PROVIDED_LIB_DIRS, Collections.singletonList(nonQualifiedPath));
+        final YarnConfiguration yarnConfig = new YarnConfiguration();
+        yarnConfig.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, defaultFs);
+
+        final List<org.apache.hadoop.fs.Path> sharedLibs =
+                Utils.getQualifiedRemoteSharedPaths(flinkConfig, yarnConfig);
+        assertThat(sharedLibs.size(), is(1));
+        assertThat(sharedLibs.get(0).toUri().toString(), is(qualifiedPath));
+    }
+
+    @Test
+    public void testSharedLibIsNotRemotePathShouldThrowException() throws IOException {
+        final String localLib = "file:///flink/sharedLib";
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.PROVIDED_LIB_DIRS, Collections.singletonList(localLib));
+
+        try {
+            Utils.getQualifiedRemoteSharedPaths(flinkConfig, new YarnConfiguration());
+            fail("We should throw an exception when the shared lib is set to local path.");
+        } catch (FlinkException ex) {
+            final String msg =
+                    "The \""
+                            + YarnConfigOptions.PROVIDED_LIB_DIRS.key()
+                            + "\" should only "
+                            + "contain dirs accessible from all worker nodes";
+            assertThat(ex, FlinkMatchers.containsMessage(msg));
+        }
+    }
+
+    private static void verifyUnitResourceVariousSchedulers(
+            YarnConfiguration yarnConfig, int minMem, int minVcore, int incMem, int incVcore) {
+        yarnConfig.set(YarnConfiguration.RM_SCHEDULER, Utils.YARN_RM_FAIR_SCHEDULER_CLAZZ);
+        verifyUnitResource(yarnConfig, incMem, incVcore);
+
+        yarnConfig.set(YarnConfiguration.RM_SCHEDULER, Utils.YARN_RM_SLS_FAIR_SCHEDULER_CLAZZ);
+        verifyUnitResource(yarnConfig, incMem, incVcore);
+
+        yarnConfig.set(YarnConfiguration.RM_SCHEDULER, YARN_RM_ARBITRARY_SCHEDULER_CLAZZ);
+        verifyUnitResource(yarnConfig, minMem, minVcore);
+    }
+
+    private static void verifyUnitResource(
+            YarnConfiguration yarnConfig, int expectedMem, int expectedVcore) {
+        final Resource unitResource = Utils.getUnitResource(yarnConfig);
+        assertThat(unitResource.getMemory(), is(expectedMem));
+        assertThat(unitResource.getVirtualCores(), is(expectedVcore));
+    }
 }

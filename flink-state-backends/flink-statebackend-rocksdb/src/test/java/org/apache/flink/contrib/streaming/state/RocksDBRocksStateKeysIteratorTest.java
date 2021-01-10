@@ -17,22 +17,13 @@
 
 package org.apache.flink.contrib.streaming.state;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
-import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.query.TaskKvStateRegistry;
-import org.apache.flink.runtime.state.KeyGroupRange;
-import org.apache.flink.runtime.state.filesystem.FsStateBackend;
-import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
-import org.apache.flink.util.IOUtils;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -41,121 +32,95 @@ import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyHandle;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
-import static org.mockito.Mockito.mock;
-
-/**
- * Tests for the RocksIteratorWrapper.
- */
+/** Tests for the RocksIteratorWrapper. */
 public class RocksDBRocksStateKeysIteratorTest {
 
-	@Rule
-	public final TemporaryFolder tmp = new TemporaryFolder();
+    @Rule public final TemporaryFolder tmp = new TemporaryFolder();
 
-	@Test
-	public void testIterator() throws Exception{
+    @Test
+    public void testIterator() throws Exception {
 
-		// test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
-		testIteratorHelper(IntSerializer.INSTANCE, StringSerializer.INSTANCE, 128, i -> i);
+        // test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == false
+        testIteratorHelper(IntSerializer.INSTANCE, 128, i -> i);
 
-		// test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == true
-		testIteratorHelper(StringSerializer.INSTANCE, StringSerializer.INSTANCE, 128, i -> String.valueOf(i));
+        // test for keyGroupPrefixBytes == 1 && ambiguousKeyPossible == true
+        testIteratorHelper(StringSerializer.INSTANCE, 128, String::valueOf);
 
-		// test for keyGroupPrefixBytes == 2 && ambiguousKeyPossible == false
-		testIteratorHelper(IntSerializer.INSTANCE, StringSerializer.INSTANCE, 256, i -> i);
+        // test for keyGroupPrefixBytes == 2 && ambiguousKeyPossible == false
+        testIteratorHelper(IntSerializer.INSTANCE, 256, i -> i);
 
-		// test for keyGroupPrefixBytes == 2 && ambiguousKeyPossible == true
-		testIteratorHelper(StringSerializer.INSTANCE, StringSerializer.INSTANCE, 256, i -> String.valueOf(i));
-	}
+        // test for keyGroupPrefixBytes == 2 && ambiguousKeyPossible == true
+        testIteratorHelper(StringSerializer.INSTANCE, 256, String::valueOf);
+    }
 
-	<K> void testIteratorHelper(
-		TypeSerializer<K> keySerializer,
-		TypeSerializer namespaceSerializer,
-		int maxKeyGroupNumber,
-		Function<Integer, K> getKeyFunc) throws Exception {
+    <K> void testIteratorHelper(
+            TypeSerializer<K> keySerializer, int maxKeyGroupNumber, Function<Integer, K> getKeyFunc)
+            throws Exception {
 
-		String testStateName = "aha";
-		String namespace = "ns";
+        String testStateName = "aha";
+        String namespace = "ns";
 
-		String dbPath = tmp.newFolder().getAbsolutePath();
-		String checkpointPath = tmp.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), true);
-		backend.setDbStoragePath(dbPath);
+        try (RocksDBKeyedStateBackendTestFactory factory =
+                new RocksDBKeyedStateBackendTestFactory()) {
+            RocksDBKeyedStateBackend<K> keyedStateBackend =
+                    factory.create(tmp, keySerializer, maxKeyGroupNumber);
+            ValueState<String> testState =
+                    keyedStateBackend.getPartitionedState(
+                            namespace,
+                            StringSerializer.INSTANCE,
+                            new ValueStateDescriptor<>(testStateName, String.class));
 
-		MockEnvironment env = MockEnvironment.builder().build();
-		RocksDBKeyedStateBackend<K> keyedStateBackend = (RocksDBKeyedStateBackend<K>) backend.createKeyedStateBackend(
-			env,
-			new JobID(),
-			"Test",
-			keySerializer,
-			maxKeyGroupNumber,
-			new KeyGroupRange(0, maxKeyGroupNumber - 1),
-			mock(TaskKvStateRegistry.class),
-			TtlTimeProvider.DEFAULT,
-			new UnregisteredMetricsGroup(),
-			Collections.emptyList(),
-			new CloseableRegistry());
+            // insert record
+            for (int i = 0; i < 1000; ++i) {
+                keyedStateBackend.setCurrentKey(getKeyFunc.apply(i));
+                testState.update(String.valueOf(i));
+            }
 
-		try {
-			ValueState<String> testState = keyedStateBackend.getPartitionedState(
-				namespace,
-				namespaceSerializer,
-				new ValueStateDescriptor<String>(testStateName, String.class));
+            DataOutputSerializer outputStream = new DataOutputSerializer(8);
+            boolean ambiguousKeyPossible =
+                    RocksDBKeySerializationUtils.isAmbiguousKeyPossible(
+                            keySerializer, StringSerializer.INSTANCE);
+            RocksDBKeySerializationUtils.writeNameSpace(
+                    namespace, StringSerializer.INSTANCE, outputStream, ambiguousKeyPossible);
 
-			// insert record
-			for (int i = 0; i < 1000; ++i) {
-				keyedStateBackend.setCurrentKey(getKeyFunc.apply(i));
-				testState.update(String.valueOf(i));
-			}
+            byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
 
-			DataOutputSerializer outputStream = new DataOutputSerializer(8);
-			boolean ambiguousKeyPossible = RocksDBKeySerializationUtils.isAmbiguousKeyPossible(keySerializer, namespaceSerializer);
-			RocksDBKeySerializationUtils.writeNameSpace(
-				namespace,
-				namespaceSerializer,
-				outputStream,
-				ambiguousKeyPossible);
+            // already created with the state, should be closed with the backend
+            ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
 
-			byte[] nameSpaceBytes = outputStream.getCopyOfBuffer();
+            try (RocksIteratorWrapper iterator =
+                            RocksDBOperationUtils.getRocksIterator(
+                                    keyedStateBackend.db,
+                                    handle,
+                                    keyedStateBackend.getReadOptions());
+                    RocksStateKeysIterator<K> iteratorWrapper =
+                            new RocksStateKeysIterator<>(
+                                    iterator,
+                                    testStateName,
+                                    keySerializer,
+                                    keyedStateBackend.getKeyGroupPrefixBytes(),
+                                    ambiguousKeyPossible,
+                                    nameSpaceBytes)) {
 
-			// already created with the state, should be closed with the backend
-			ColumnFamilyHandle handle = keyedStateBackend.getColumnFamilyHandle(testStateName);
+                iterator.seekToFirst();
 
-			try (
-				RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(keyedStateBackend.db, handle);
-				RocksStateKeysIterator<K> iteratorWrapper =
-					new RocksStateKeysIterator<>(
-						iterator,
-						testStateName,
-						keySerializer,
-						keyedStateBackend.getKeyGroupPrefixBytes(),
-						ambiguousKeyPossible,
-						nameSpaceBytes)) {
+                // valid record
+                List<Integer> fetchedKeys = new ArrayList<>(1000);
+                while (iteratorWrapper.hasNext()) {
+                    fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
+                }
 
-				iterator.seekToFirst();
+                fetchedKeys.sort(Comparator.comparingInt(a -> a));
+                Assert.assertEquals(1000, fetchedKeys.size());
 
-				// valid record
-				List<Integer> fetchedKeys = new ArrayList<>(1000);
-				while (iteratorWrapper.hasNext()) {
-					fetchedKeys.add(Integer.parseInt(iteratorWrapper.next().toString()));
-				}
-
-				fetchedKeys.sort(Comparator.comparingInt(a -> a));
-				Assert.assertEquals(1000, fetchedKeys.size());
-
-				for (int i = 0; i < 1000; ++i) {
-					Assert.assertEquals(i, fetchedKeys.get(i).intValue());
-				}
-			}
-		} finally {
-			if (keyedStateBackend != null) {
-				keyedStateBackend.dispose();
-			}
-			IOUtils.closeQuietly(env);
-		}
-	}
+                for (int i = 0; i < 1000; ++i) {
+                    Assert.assertEquals(i, fetchedKeys.get(i).intValue());
+                }
+            }
+        }
+    }
 }

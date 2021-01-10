@@ -18,39 +18,44 @@
 
 package org.apache.flink.table.runtime.operators;
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
+import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
-/**
- * Table operator to invoke close always.
- */
+/** Table operator to invoke close always. */
 public class TableStreamOperator<OUT> extends AbstractStreamOperator<OUT> {
 
-	private volatile boolean closed = false;
+    private volatile boolean closed = false;
 
-	public TableStreamOperator() {
-		setChainingStrategy(ChainingStrategy.ALWAYS);
-	}
+    public TableStreamOperator() {
+        setChainingStrategy(ChainingStrategy.ALWAYS);
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		closed = true;
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        closed = true;
+    }
 
-	@Override
-	public void dispose() throws Exception {
-		if (!closed) {
-			close();
-		}
-		super.dispose();
-	}
+    @Override
+    public void dispose() throws Exception {
+        if (!closed) {
+            close();
+        }
+        super.dispose();
+    }
 
-	/**
-	 * Compute memory size from memory faction.
-	 */
-	public long computeMemorySize() {
-		return getContainingTask().getEnvironment().getMemoryManager().computeMemorySize(
-				getOperatorConfig().getManagedMemoryFraction());
-	}
+    /** Compute memory size from memory faction. */
+    public long computeMemorySize() {
+        final Environment environment = getContainingTask().getEnvironment();
+        return environment
+                .getMemoryManager()
+                .computeMemorySize(
+                        getOperatorConfig()
+                                .getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                        ManagedMemoryUseCase.OPERATOR,
+                                        environment.getTaskManagerInfo().getConfiguration(),
+                                        environment.getUserCodeClassLoader().asClassLoader()));
+    }
 }

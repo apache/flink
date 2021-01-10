@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.codegen.CodeGenUtils.BINARY_ROW
@@ -32,7 +32,6 @@ import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.tools.RelBuilder
 
 /**
@@ -62,8 +61,7 @@ class SortWindowCodeGenerator(
     inputTimeIsDate: Boolean,
     namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
-    inputRowType: RelDataType,
-    inputType: RowType,
+    inputRowType: RowType,
     outputType: RowType,
     buffLimitSize: Int,
     windowStart: Long,
@@ -88,12 +86,14 @@ class SortWindowCodeGenerator(
     isMerge,
     isFinal) {
 
-  def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
+  // prepare for aggregation
+  aggInfos
+      .map(_.function)
+      .filter(_.isInstanceOf[AggregateFunction[_, _]])
+      .map(ctx.addReusableFunction(_))
 
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
+  def genWithoutKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
+    val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val timeWindowType = classOf[TimeWindow].getName
     val currentWindow = CodeGenUtils.newName("currentWindow")
@@ -123,7 +123,7 @@ class SortWindowCodeGenerator(
           slideSize,
           windowSize,
           inputTerm,
-          inputType,
+          inputRowType,
           outputType,
           windowsGrouping,
           windowElementType,
@@ -154,14 +154,10 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithoutKeys" else "LocalSortWinAggWithoutKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType)
+      ctx, className, baseClass, processCode, endInputCode, inputRowType)
   }
 
-  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[BaseRow, BaseRow]] = {
-    aggCallToAggFunction
-        .map(_._2).filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-        .map(a => ctx.addReusableFunction(a))
-
+  def genWithKeys(): GeneratedOperator[OneInputStreamOperator[RowData, RowData]] = {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
 
     val currentKey = CodeGenUtils.newName("currentKey")
@@ -171,7 +167,7 @@ class SortWindowCodeGenerator(
 
     val keyProjectionCode = ProjectionCodeGenerator.generateProjectionExpression(
       ctx,
-      inputType,
+      inputRowType,
       groupKeyRowType,
       grouping,
       inputTerm = inputTerm,
@@ -209,7 +205,7 @@ class SortWindowCodeGenerator(
           slideSize,
           windowSize,
           inputTerm,
-          inputType,
+          inputRowType,
           outputType,
           windowsGrouping,
           windowElementType,
@@ -256,7 +252,7 @@ class SortWindowCodeGenerator(
     val className = if (isFinal) "SortWinAggWithKeys" else "LocalSortWinAggWithKeys"
     val baseClass = classOf[TableStreamOperator[_]].getName
     AggCodeGenHelper.generateOperator(
-      ctx, className, baseClass, processCode, endInputCode, inputType)
+      ctx, className, baseClass, processCode, endInputCode, inputRowType)
   }
 
   private def choosePreAcc: Boolean = {

@@ -18,100 +18,101 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.annotation.DataTypeHint;
+import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.TypeInferenceExtractor;
 import org.apache.flink.table.types.inference.TypeInference;
+import org.apache.flink.types.Row;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Base class for a user-defined asynchronously table function (UDTF). This is similar to
- * {@link TableFunction} but this function is asynchronously.
+ * Base class for a user-defined asynchronous table function. A user-defined asynchronous table
+ * function maps zero, one, or multiple scalar values to zero, one, or multiple rows (or structured
+ * types).
  *
- * <p>A user-defined table functions works on
- * zero, one, or multiple scalar values as input and returns multiple rows as output.
+ * <p>This kind of function is similar to {@link TableFunction} but is executed asynchronously.
  *
- * <p>The behavior of a {@link AsyncTableFunction} can be defined by implementing a custom evaluation
- * method. An evaluation method must be declared publicly, not static and named "eval".
- * Evaluation methods can also be overloaded by implementing multiple methods named "eval".
+ * <p>The behavior of a {@link AsyncTableFunction} can be defined by implementing a custom
+ * evaluation method. An evaluation method must be declared publicly, not static, and named <code>
+ * eval</code>. Evaluation methods can also be overloaded by implementing multiple methods named
+ * <code>eval</code>.
  *
- * <p>The first parameter of evaluation method must be {@link CompletableFuture}, and the others are
- * user defined input parameters like the "eval" method of {@link TableFunction}. The generic type of
- * {@link CompletableFuture} must be {@link java.util.Collection} to collect multiple possible result
- * values.
+ * <p>By default, input and output data types are automatically extracted using reflection. This
+ * includes the generic argument {@code T} of the class for determining an output data type. Input
+ * arguments are derived from one or more {@code eval()} methods. If the reflective information is
+ * not sufficient, it can be supported and enriched with {@link DataTypeHint} and {@link
+ * FunctionHint} annotations. See {@link TableFunction} for more examples how to annotate an
+ * implementation class.
  *
- * <p>For each "eval", an async io operation can be triggered, and once it has been done,
- * the result can be collected by calling {@link CompletableFuture#complete}. For each async
- * operation, its context is stored in the operator immediately after invoking "eval",
- * avoiding blocking for each stream input as long as the internal buffer is not full.
+ * <p>Note: Currently, asynchronous table functions are only supported as the runtime implementation
+ * of {@link LookupTableSource}s for performing temporal joins. By default, input and output {@link
+ * DataType}s of {@link AsyncTableFunction} are derived similar to other {@link
+ * UserDefinedFunction}s using the logic above. However, for convenience, in a {@link
+ * LookupTableSource} the output type can simply be a {@link Row} or {@link RowData} in which case
+ * the input and output types are derived from the table's schema with default conversion.
+ *
+ * <p>The first parameter of the evaluation method must be a {@link CompletableFuture}. Other
+ * parameters specify user-defined input parameters like the "eval" method of {@link TableFunction}.
+ * The generic type of {@link CompletableFuture} must be {@link java.util.Collection} to collect
+ * multiple possible result values.
+ *
+ * <p>For each call to <code>eval()</code>, an async IO operation can be triggered, and once the
+ * operation has been done, the result can be collected by calling {@link
+ * CompletableFuture#complete}. For each async operation, its context is stored in the operator
+ * immediately after invoking <code>eval()</code>, avoiding blocking for each stream input as long
+ * as the internal buffer is not full.
  *
  * <p>{@link CompletableFuture} can be passed into callbacks or futures to collect the result data.
- * An error can also be propagate to the async IO operator by
- * {@link CompletableFuture#completeExceptionally(Throwable)}.
+ * An error can also be propagated to the async IO operator by calling {@link
+ * CompletableFuture#completeExceptionally(Throwable)}.
  *
- * <p>User-defined functions must have a default constructor and must be instantiable during
- * runtime.
+ * <p>For storing a user-defined function in a catalog, the class must have a default constructor
+ * and must be instantiable during runtime.
  *
- * <p>By default the result type of an evaluation method is determined by Flink's type extraction
- * facilities. Currently, only support {@link org.apache.flink.types.Row} and {@code BaseRow} as
- * the result type. Will support more complex, custom types in the future.
+ * <p>The following example shows how to perform an asynchronous request to Apache HBase:
  *
- * <p>Example:
+ * <pre>{@code
+ * public class HBaseAsyncTableFunction extends AsyncTableFunction<Row> {
  *
- * {@code
- *
- *   public class HBaseAsyncTableFunction extends AsyncTableFunction<String> {
- *
- *     // implement an "eval" method with as many parameters as you want
- *     public void eval(CompletableFuture<Collection<String>> result, String rowkey) {
- *       Get get = new Get(Bytes.toBytes(rowkey));
- *       ListenableFuture<Result> future = hbase.asyncGet(get);
- *       Futures.addCallback(future, new FutureCallback<Result>() {
- *         public void onSuccess(Result result) {
- *           List<String> ret = process(result);
- *           result.complete(ret);
- *         }
- *         public void onFailure(Throwable thrown) {
- *           result.completeExceptionally(thrown);
- *         }
- *       });
- *     }
- *
- *     // you can overload the eval method here ...
+ *   // implement an "eval" method that takes a CompletableFuture as the first parameter
+ *   // and ends with as many parameters as you want
+ *   public void eval(CompletableFuture<Collection<Row>> result, String rowkey) {
+ *     Get get = new Get(Bytes.toBytes(rowkey));
+ *     ListenableFuture<Result> future = hbase.asyncGet(get);
+ *     Futures.addCallback(future, new FutureCallback<Result>() {
+ *       public void onSuccess(Result result) {
+ *         List<Row> ret = process(result);
+ *         result.complete(ret);
+ *       }
+ *       public void onFailure(Throwable thrown) {
+ *         result.completeExceptionally(thrown);
+ *       }
+ *     });
  *   }
+ *
+ *   // you can overload the eval method here ...
  * }
+ * }</pre>
  *
- * <p>NOTE: the {@link AsyncTableFunction} can not be used as UDTF currently. It only used in
- * temporal table join as an async lookup function.
- *
- * @param <T> The type of the output row
+ * @param <T> The type of the output row used during reflective extraction.
  */
-@Experimental
+@PublicEvolving
 public abstract class AsyncTableFunction<T> extends UserDefinedFunction {
 
-	/**
-	 * Returns the result type of the evaluation method with a given signature.
-	 *
-	 * <p>This method needs to be overridden in case Flink's type extraction facilities are not
-	 * sufficient to extract the {@link TypeInformation} based on the return type of the evaluation
-	 * method. Flink's type extraction facilities can handle basic types or
-	 * simple POJOs but might be wrong for more complex, custom, or composite types.
-	 *
-	 * @return {@link TypeInformation} of result type or <code>null</code> if Flink should determine the type
-	 */
-	public TypeInformation<T> getResultType() {
-		return null;
-	}
+    @Override
+    public final FunctionKind getKind() {
+        return FunctionKind.ASYNC_TABLE;
+    }
 
-	@Override
-	public final FunctionKind getKind() {
-		return FunctionKind.ASYNC_TABLE;
-	}
-
-	@Override
-	public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-		throw new TableException("Async table functions are not updated to the new type system yet.");
-	}
+    @Override
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+        return TypeInferenceExtractor.forAsyncTableFunction(typeFactory, (Class) getClass());
+    }
 }

@@ -38,7 +38,7 @@ library makes when [dealing with lateness](#handling-lateness-in-event-time) in 
 
 ## Getting Started
 
-If you want to jump right in, [set up a Flink program]({{ site.baseurl }}/dev/projectsetup/dependencies.html) and
+If you want to jump right in, [set up a Flink program]({% link dev/project-configuration.md %}) and
 add the FlinkCEP dependency to the `pom.xml` of your project.
 
 <div class="codetabs" markdown="1">
@@ -63,7 +63,7 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 </div>
 </div>
 
-{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
+{% info %} FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({% link dev/project-configuration.md %}).
 
 Now you can start writing your first CEP program using the Pattern API.
 
@@ -771,7 +771,7 @@ till the next matching one".
 
 It's also possible to define a temporal constraint for the pattern to be valid.
 For example, you can define that a pattern should occur within 10 seconds via the `pattern.within()` method.
-Temporal patterns are supported for both [processing and event time]({{site.baseurl}}/dev/event_time.html).
+Temporal patterns are supported for both [processing and event time]({% link dev/event_time.md %}).
 
 {% warn Attention %} A pattern sequence can only have one temporal constraint. If multiple such constraints are defined on different individual patterns, then the smallest is applied.
 
@@ -1515,7 +1515,7 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 The `PatternProcessFunction` gives access to a `Context` object. Thanks to it, one can access time related
 characteristics such as `currentProcessingTime` or `timestamp` of current match (which is the timestamp of the last element assigned to the match).
 For more info see [Time context](#time-context).
-Through this context one can also emit results to a [side-output]({{ site.baseurl }}/dev/stream/side_output.html).
+Through this context one can also emit results to a [side-output]({% link dev/stream/side_output.md %}).
 
 
 #### Handling Timed Out Partial Patterns
@@ -1541,7 +1541,7 @@ class MyPatternProcessFunction<IN, OUT> extends PatternProcessFunction<IN, OUT> 
 {% endhighlight %}
 
 <span class="label label-info">Note</span> The `processTimedOutMatch` does not give one access to the main output. You can still emit results
-through [side-outputs]({{ site.baseurl }}/dev/stream/side_output.html) though, through the `Context` object.
+through [side-outputs]({% link dev/stream/side_output.md %}) though, through the `Context` object.
 
 
 #### Convenience API
@@ -1697,7 +1697,6 @@ The whole processing is done with event time.
 <div data-lang="java" markdown="1">
 {% highlight java %}
 StreamExecutionEnvironment env = ...
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 DataStream<Event> input = ...
 
@@ -1735,7 +1734,6 @@ DataStream<Alert> alerts = patternStream.select(new PatternSelectFunction<Event,
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val env : StreamExecutionEnvironment = ...
-env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val input : DataStream[Event] = ...
 

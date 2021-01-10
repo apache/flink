@@ -18,76 +18,67 @@
 
 package org.apache.flink.table.runtime.utils;
 
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.env.PythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.AbstractGeneralPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.table.runtime.utils.PythonTestUtils.createMockJobBundleFactory;
-
 /**
- * A Python ScalarFunction runner that just return the input elements as the execution results.
- *
- * @param <IN> Type of the input elements.
+ * A {@link PassThroughPythonScalarFunctionRunner} runner that just return the input elements as the
+ * execution results.
  */
-public abstract class PassThroughPythonScalarFunctionRunner<IN> extends AbstractGeneralPythonScalarFunctionRunner<IN> {
+public class PassThroughPythonScalarFunctionRunner extends BeamTableStatelessPythonFunctionRunner {
 
-	private final JobBundleFactory jobBundleFactory;
-	private final List<byte[]> bufferedInputs;
+    private final List<byte[]> buffer;
 
-	public PassThroughPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		FlinkMetricContainer flinkMetricContainer) {
-		this(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, createMockJobBundleFactory(), flinkMetricContainer);
-	}
+    public PassThroughPythonScalarFunctionRunner(
+            String taskName,
+            PythonEnvironmentManager environmentManager,
+            RowType inputType,
+            RowType outputType,
+            String functionUrn,
+            FlinkFnApi.UserDefinedFunctions userDefinedFunctions,
+            String coderUrn,
+            Map<String, String> jobOptions,
+            FlinkMetricContainer flinkMetricContainer) {
+        super(
+                taskName,
+                environmentManager,
+                inputType,
+                outputType,
+                functionUrn,
+                userDefinedFunctions,
+                coderUrn,
+                jobOptions,
+                flinkMetricContainer,
+                null,
+                0.0);
+        this.buffer = new LinkedList<>();
+    }
 
-	public PassThroughPythonScalarFunctionRunner(
-		String taskName,
-		FnDataReceiver<byte[]> resultReceiver,
-		PythonFunctionInfo[] scalarFunctions,
-		PythonEnvironmentManager environmentManager,
-		RowType inputType,
-		RowType outputType,
-		Map<String, String> jobOptions,
-		JobBundleFactory jobBundleFactory,
-		FlinkMetricContainer flinkMetricContainer) {
-		super(taskName, resultReceiver, scalarFunctions, environmentManager, inputType, outputType, jobOptions, flinkMetricContainer);
-		this.jobBundleFactory = jobBundleFactory;
-		this.bufferedInputs = new ArrayList<>();
-	}
+    @Override
+    protected void startBundle() {
+        super.startBundle();
+        this.mainInputReceiver = input -> buffer.add(input.getValue());
+    }
 
-	@Override
-	public void startBundle() {
-		super.startBundle();
-		this.mainInputReceiver = input -> bufferedInputs.add(input.getValue());
-	}
+    @Override
+    public void flush() throws Exception {
+        super.flush();
+        resultBuffer.addAll(buffer);
+        buffer.clear();
+    }
 
-	@Override
-	public void finishBundle() throws Exception {
-		super.finishBundle();
-		for (byte[] input : bufferedInputs) {
-			resultReceiver.accept(input);
-		}
-		bufferedInputs.clear();
-	}
-
-	@Override
-	public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
-		return jobBundleFactory;
-	}
+    @Override
+    public JobBundleFactory createJobBundleFactory(Struct pipelineOptions) {
+        return PythonTestUtils.createMockJobBundleFactory();
+    }
 }

@@ -18,20 +18,21 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.dataformat.Decimal;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.DecimalData;
+import org.apache.flink.table.data.DecimalDataUtils;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.BooleanLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.ByteLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.DecimalLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.DoubleLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.FloatLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.IntLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.LongLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.ShortLastValueWithRetractAggFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.StringLastValueWithRetractAggFunction;
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction.LastValueWithRetractAccumulator;
+import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.BooleanType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.DoubleType;
+import org.apache.flink.table.types.logical.FloatType;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.TinyIntType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.testutils.serialization.types.ShortType;
 
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
@@ -41,464 +42,301 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test case for built-in LastValue with retract aggregate function.
- * This class tests `accumulate` method with order argument.
+ * Test case for built-in LAST_VALUE with retract aggregate function. This class tests `accumulate`
+ * method with order argument.
  */
 @RunWith(Enclosed.class)
 public final class LastValueWithRetractAggFunctionWithOrderTest {
 
-	// --------------------------------------------------------------------------------------------
-	// Test sets for a particular type being aggregated
-	//
-	// Actual tests are implemented in:
-	//  - FirstLastValueAggFunctionWithOrderTestBase -> tests specific for FirstValue and LastValue
-	//  - AggFunctionTestBase -> tests that apply to all aggregate functions
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Test sets for a particular type being aggregated
+    //
+    // Actual tests are implemented in:
+    //  - FirstLastValueAggFunctionWithOrderTestBase -> tests specific for FirstValue and LastValue
+    //  - AggFunctionTestBase -> tests that apply to all aggregate functions
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Test for ByteLastValueWithRetractAggFunction.
-	 */
-	public static final class ByteLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Byte> {
+    /** Test for {@link TinyIntType}. */
+    public static final class ByteLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Byte> {
 
-		@Override
-		protected Byte getValue(String v) {
-			return Byte.valueOf(v);
-		}
+        @Override
+        protected Byte getValue(String v) {
+            return Byte.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Byte, GenericRow> getAggregator() {
-			return new ByteLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Byte, LastValueWithRetractAccumulator<Byte>> getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.TINYINT().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for ShortLastValueWithRetractAggFunction.
-	 */
-	public static final class ShortLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Short> {
+    /** Test for {@link ShortType}. */
+    public static final class ShortLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Short> {
 
-		@Override
-		protected Short getValue(String v) {
-			return Short.valueOf(v);
-		}
+        @Override
+        protected Short getValue(String v) {
+            return Short.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Short, GenericRow> getAggregator() {
-			return new ShortLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Short, LastValueWithRetractAccumulator<Short>> getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.SMALLINT().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for IntLastValueWithRetractAggFunction.
-	 */
-	public static final class IntLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Integer> {
+    /** Test for {@link IntType}. */
+    public static final class IntLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Integer> {
 
-		@Override
-		protected Integer getValue(String v) {
-			return Integer.valueOf(v);
-		}
+        @Override
+        protected Integer getValue(String v) {
+            return Integer.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Integer, GenericRow> getAggregator() {
-			return new IntLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Integer, LastValueWithRetractAccumulator<Integer>>
+                getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.INT().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for LongLastValueWithRetractAggFunction.
-	 */
-	public static final class LongLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Long> {
+    /** Test for {@link BigIntType}. */
+    public static final class LongLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Long> {
 
-		@Override
-		protected Long getValue(String v) {
-			return Long.valueOf(v);
-		}
+        @Override
+        protected Long getValue(String v) {
+            return Long.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Long, GenericRow> getAggregator() {
-			return new LongLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Long, LastValueWithRetractAccumulator<Long>> getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.BIGINT().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for FloatLastValueWithRetractAggFunction.
-	 */
-	public static final class FloatLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Float> {
+    /** Test for {@link FloatType}. */
+    public static final class FloatLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Float> {
 
-		@Override
-		protected Float getValue(String v) {
-			return Float.valueOf(v);
-		}
+        @Override
+        protected Float getValue(String v) {
+            return Float.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Float, GenericRow> getAggregator() {
-			return new FloatLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Float, LastValueWithRetractAccumulator<Float>> getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.FLOAT().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for DoubleLastValueWithRetractAggFunction.
-	 */
-	public static final class DoubleLastValueWithRetractAggFunctionWithOrderTest
-			extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Double> {
+    /** Test for {@link DoubleType}. */
+    public static final class DoubleLastValueWithRetractAggFunctionWithOrderTest
+            extends NumberLastValueWithRetractAggFunctionWithOrderTestBase<Double> {
 
-		@Override
-		protected Double getValue(String v) {
-			return Double.valueOf(v);
-		}
+        @Override
+        protected Double getValue(String v) {
+            return Double.valueOf(v);
+        }
 
-		@Override
-		protected AggregateFunction<Double, GenericRow> getAggregator() {
-			return new DoubleLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Double, LastValueWithRetractAccumulator<Double>>
+                getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.DOUBLE().getLogicalType());
+        }
+    }
 
-	/**
-	 * Test for BooleanLastValueWithRetractAggFunction.
-	 */
-	public static final class BooleanLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTestBase<Boolean> {
+    /** Test for {@link BooleanType}. */
+    public static final class BooleanLastValueWithRetractAggFunctionWithOrderTest
+            extends LastValueWithRetractAggFunctionWithOrderTestBase<Boolean> {
 
-		@Override
-		protected List<List<Boolean>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							false,
-							false,
-							false
-					),
-					Arrays.asList(
-							true,
-							true,
-							true
-					),
-					Arrays.asList(
-							true,
-							false,
-							null,
-							true,
-							false,
-							true,
-							null
-					),
-					Arrays.asList(
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							true
-					));
-		}
+        @Override
+        protected List<List<Boolean>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(false, false, false),
+                    Arrays.asList(true, true, true),
+                    Arrays.asList(true, false, null, true, false, true, null),
+                    Arrays.asList(null, null, null),
+                    Arrays.asList(null, true));
+        }
 
-		@Override
-		protected List<List<Long>> getInputOrderSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							6L,
-							2L,
-							3L
-					),
-					Arrays.asList(
-							1L,
-							2L,
-							3L
-					),
-					Arrays.asList(
-							10L,
-							2L,
-							5L,
-							11L,
-							3L,
-							7L,
-							5L
-					),
-					Arrays.asList(
-							6L,
-							9L,
-							5L
-					),
-					Arrays.asList(
-							4L,
-							3L
-					)
-			);
-		}
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(6L, 2L, 3L),
+                    Arrays.asList(1L, 2L, 3L),
+                    Arrays.asList(10L, 2L, 5L, 11L, 3L, 7L, 5L),
+                    Arrays.asList(6L, 9L, 5L),
+                    Arrays.asList(4L, 3L));
+        }
 
-		@Override
-		protected List<Boolean> getExpectedResults() {
-			return Arrays.asList(
-					false,
-					true,
-					true,
-					null,
-					true
-			);
-		}
+        @Override
+        protected List<Boolean> getExpectedResults() {
+            return Arrays.asList(false, true, true, null, true);
+        }
 
-		@Override
-		protected AggregateFunction<Boolean, GenericRow> getAggregator() {
-			return new BooleanLastValueWithRetractAggFunction();
-		}
-	}
+        @Override
+        protected AggregateFunction<Boolean, LastValueWithRetractAccumulator<Boolean>>
+                getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.BOOLEAN().getLogicalType());
+        }
+    }
 
+    /** Test for {@link DecimalType}. */
+    public static final class DecimalLastValueWithRetractAggFunctionWithOrderTest
+            extends LastValueWithRetractAggFunctionWithOrderTestBase<DecimalData> {
 
-	/**
-	 * Test for DecimalLastValueWithRetractAggFunction.
-	 */
-	public static final class DecimalLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTestBase<Decimal> {
+        private int precision = 20;
+        private int scale = 6;
 
-		private int precision = 20;
-		private int scale = 6;
+        @Override
+        protected List<List<DecimalData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            DecimalDataUtils.castFrom("1", precision, scale),
+                            DecimalDataUtils.castFrom("1000.000001", precision, scale),
+                            DecimalDataUtils.castFrom("-1", precision, scale),
+                            DecimalDataUtils.castFrom("-999.998999", precision, scale),
+                            null,
+                            DecimalDataUtils.castFrom("0", precision, scale),
+                            DecimalDataUtils.castFrom("-999.999", precision, scale),
+                            null,
+                            DecimalDataUtils.castFrom("999.999", precision, scale)),
+                    Arrays.asList(null, null, null, null, null),
+                    Arrays.asList(null, DecimalDataUtils.castFrom("0", precision, scale)));
+        }
 
-		@Override
-		protected List<List<Decimal>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							Decimal.castFrom("1", precision, scale),
-							Decimal.castFrom("1000.000001", precision, scale),
-							Decimal.castFrom("-1", precision, scale),
-							Decimal.castFrom("-999.998999", precision, scale),
-							null,
-							Decimal.castFrom("0", precision, scale),
-							Decimal.castFrom("-999.999", precision, scale),
-							null,
-							Decimal.castFrom("999.999", precision, scale)
-					),
-					Arrays.asList(
-							null,
-							null,
-							null,
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							Decimal.castFrom("0", precision, scale)
-					)
-			);
-		}
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 1L, 5L, null, 3L, 1L, 5L, 2L),
+                    Arrays.asList(6L, 5L, null, 8L, null),
+                    Arrays.asList(8L, 6L));
+        }
 
-		@Override
-		protected List<List<Long>> getInputOrderSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							10L,
-							2L,
-							1L,
-							5L,
-							null,
-							3L,
-							1L,
-							5L,
-							2L
-					),
-					Arrays.asList(
-							6L,
-							5L,
-							null,
-							8L,
-							null
-					),
-					Arrays.asList(
-							8L,
-							6L
-					)
-			);
-		}
+        @Override
+        protected List<DecimalData> getExpectedResults() {
+            return Arrays.asList(
+                    DecimalDataUtils.castFrom("1", precision, scale),
+                    null,
+                    DecimalDataUtils.castFrom("0", precision, scale));
+        }
 
-		@Override
-		protected List<Decimal> getExpectedResults() {
-			return Arrays.asList(
-					Decimal.castFrom("1", precision, scale),
-					null,
-					Decimal.castFrom("0", precision, scale)
-			);
-		}
+        @Override
+        protected AggregateFunction<DecimalData, LastValueWithRetractAccumulator<DecimalData>>
+                getAggregator() {
+            return new LastValueWithRetractAggFunction<>(
+                    DataTypes.DECIMAL(precision, scale).getLogicalType());
+        }
+    }
 
-		@Override
-		protected AggregateFunction<Decimal, GenericRow> getAggregator() {
-			return new DecimalLastValueWithRetractAggFunction(DecimalTypeInfo.of(precision, scale));
-		}
-	}
+    /** Test for {@link VarCharType}. */
+    public static final class StringLastValueWithRetractAggFunctionWithOrderTest
+            extends LastValueWithRetractAggFunctionWithOrderTestBase<StringData> {
 
-	/**
-	 * Test for StringLastValueWithRetractAggFunction.
-	 */
-	public static final class StringLastValueWithRetractAggFunctionWithOrderTest
-			extends LastValueWithRetractAggFunctionWithOrderTestBase<BinaryString> {
+        @Override
+        protected List<List<StringData>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            StringData.fromString("abc"),
+                            StringData.fromString("def"),
+                            StringData.fromString("ghi"),
+                            null,
+                            StringData.fromString("jkl"),
+                            null,
+                            StringData.fromString("zzz"),
+                            StringData.fromString("abc"),
+                            StringData.fromString("def"),
+                            StringData.fromString("abc")),
+                    Arrays.asList(null, null),
+                    Arrays.asList(null, StringData.fromString("a")),
+                    Arrays.asList(StringData.fromString("x"), null, StringData.fromString("e")));
+        }
 
-		@Override
-		protected List<List<BinaryString>> getInputValueSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("ghi"),
-							null,
-							BinaryString.fromString("jkl"),
-							null,
-							BinaryString.fromString("zzz"),
-							BinaryString.fromString("abc"),
-							BinaryString.fromString("def"),
-							BinaryString.fromString("abc")
-					),
-					Arrays.asList(
-							null,
-							null
-					),
-					Arrays.asList(
-							null,
-							BinaryString.fromString("a")
-					),
-					Arrays.asList(
-							BinaryString.fromString("x"),
-							null,
-							BinaryString.fromString("e")
-					)
-			);
-		}
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 5L, null, 3L, 1L, 5L, 10L, 15L, 11L),
+                    Arrays.asList(6L, 5L),
+                    Arrays.asList(8L, 6L),
+                    Arrays.asList(6L, 4L, 3L));
+        }
 
-		@Override
-		protected List<List<Long>> getInputOrderSets() {
-			return Arrays.asList(
-					Arrays.asList(
-							10L,
-							2L,
-							5L,
-							null,
-							3L,
-							1L,
-							5L,
-							10L,
-							15L,
-							11L
-					),
-					Arrays.asList(
-							6L,
-							5L
-					),
-					Arrays.asList(
-							8L,
-							6L
-					),
-					Arrays.asList(
-							6L,
-							4L,
-							3L
-					)
-			);
-		}
+        @Override
+        protected List<StringData> getExpectedResults() {
+            return Arrays.asList(
+                    StringData.fromString("def"),
+                    null,
+                    StringData.fromString("a"),
+                    StringData.fromString("x"));
+        }
 
-		@Override
-		protected List<BinaryString> getExpectedResults() {
-			return Arrays.asList(
-					BinaryString.fromString("def"),
-					null,
-					BinaryString.fromString("a"),
-					BinaryString.fromString("x")
-			);
-		}
+        @Override
+        protected AggregateFunction<StringData, LastValueWithRetractAccumulator<StringData>>
+                getAggregator() {
+            return new LastValueWithRetractAggFunction<>(DataTypes.STRING().getLogicalType());
+        }
+    }
 
-		@Override
-		protected AggregateFunction<BinaryString, GenericRow> getAggregator() {
-			return new StringLastValueWithRetractAggFunction();
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // This section contain base classes that provide common inputs and accessor for retract
+    // function
+    // for tests declared above.
+    // --------------------------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------------------------
-	// This section contain base classes that provide common inputs and accessor for retract function
-	// for tests declared above.
-	// --------------------------------------------------------------------------------------------
+    /** Test base for {@link LastValueWithRetractAggFunction} with order. */
+    public abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
+            extends FirstLastValueAggFunctionWithOrderTestBase<
+                    T, LastValueWithRetractAccumulator<T>> {
 
-	/**
-	 * The base test class for LastValueWithRetractAggFunction with order.
-	 */
-	public abstract static class LastValueWithRetractAggFunctionWithOrderTestBase<T>
-		extends FirstLastValueAggFunctionWithOrderTestBase<T> {
+        @Override
+        protected Class<?> getAccClass() {
+            return LastValueWithRetractAccumulator.class;
+        }
 
-		@Override
-		protected Method getRetractFunc() throws NoSuchMethodException {
-			return getAggregator().getClass().getMethod("retract", getAccClass(), Object.class, Long.class);
-		}
-	}
+        @Override
+        protected Method getRetractFunc() throws NoSuchMethodException {
+            return getAggregator()
+                    .getClass()
+                    .getMethod("retract", getAccClass(), Object.class, Long.class);
+        }
+    }
 
-	/**
-	 * Test LastValueWithRetractAggFunction for number type.
-	 */
-	public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTestBase<T>
-		extends LastValueWithRetractAggFunctionWithOrderTestBase<T> {
-		protected abstract T getValue(String v);
+    /** Test base for {@link LastValueWithRetractAggFunction} with number types. */
+    public abstract static class NumberLastValueWithRetractAggFunctionWithOrderTestBase<T>
+            extends LastValueWithRetractAggFunctionWithOrderTestBase<T> {
 
-		@Override
-		protected List<List<T>> getInputValueSets() {
-			return Arrays.asList(
-				Arrays.asList(
-					getValue("1"),
-					null,
-					getValue("-99"),
-					getValue("3"),
-					null,
-					getValue("3"),
-					getValue("2"),
-					getValue("-99")
-				),
-				Arrays.asList(
-					null,
-					null,
-					null,
-					null
-				),
-				Arrays.asList(
-					null,
-					getValue("10"),
-					null,
-					getValue("5")
-				)
-			);
-		}
+        protected abstract T getValue(String v);
 
-		@Override
-		protected List<List<Long>> getInputOrderSets() {
-			return Arrays.asList(
-				Arrays.asList(
-					10L,
-					2L,
-					5L,
-					6L,
-					11L,
-					13L,
-					7L,
-					5L
-				),
-				Arrays.asList(
-					8L,
-					6L,
-					9L,
-					5L
-				),
-				Arrays.asList(
-					null,
-					6L,
-					4L,
-					3L
-				)
-			);
-		}
+        @Override
+        protected List<List<T>> getInputValueSets() {
+            return Arrays.asList(
+                    Arrays.asList(
+                            getValue("1"),
+                            null,
+                            getValue("-99"),
+                            getValue("3"),
+                            null,
+                            getValue("3"),
+                            getValue("2"),
+                            getValue("-99")),
+                    Arrays.asList(null, null, null, null),
+                    Arrays.asList(null, getValue("10"), null, getValue("5")));
+        }
 
-		@Override
-		protected List<T> getExpectedResults() {
-			return Arrays.asList(
-				getValue("3"),
-				null,
-				getValue("10")
-			);
-		}
-	}
+        @Override
+        protected List<List<Long>> getInputOrderSets() {
+            return Arrays.asList(
+                    Arrays.asList(10L, 2L, 5L, 6L, 11L, 13L, 7L, 5L),
+                    Arrays.asList(8L, 6L, 9L, 5L),
+                    Arrays.asList(null, 6L, 4L, 3L));
+        }
+
+        @Override
+        protected List<T> getExpectedResults() {
+            return Arrays.asList(getValue("3"), null, getValue("10"));
+        }
+    }
 }

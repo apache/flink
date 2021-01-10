@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Slide, TableException, Tumble, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
+
+import java.time.Duration
+
 import org.junit.Test
 
 class GroupWindowTableAggregateValidationTest extends TableTestBase {
@@ -37,13 +39,12 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
   @Test
   def testTumbleUdAggWithInvalidArgs(): Unit = {
     expectedException.expect(classOf[ValidationException])
-    expectedException.expectMessage("Given parameters do not match any signature. \n" +
-      "Actual: (java.lang.Long) \nExpected: (int)")
+    expectedException.expectMessage("Invalid function call:\nTop3(BIGINT)")
 
     table
       .window(Slide over 2.hours every 30.minutes on 'rowtime as 'w)
       .groupBy('string, 'w)
-      .flatAggregate(top3('long)) // invalid args
+      .flatAggregate(call(top3, 'long)) // invalid args
       .select('string, 'f0)
   }
 
@@ -72,7 +73,7 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
 
     val tableConf = util.getTableEnv.getConfig
     tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
-    tableConf.getConfiguration.setString(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, 10 + " ms")
+    tableConf.getConfiguration.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
 
     val result = table
       .window(Tumble over 2.hours on 'proctime as 'w)
@@ -80,6 +81,6 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .flatAggregate(top3('int))
       .select('string, 'f0, 'w.start)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

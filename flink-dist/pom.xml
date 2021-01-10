@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-dist_${scala.binary.version}</artifactId>
-	<name>flink-dist</name>
+	<name>Flink : Dist</name>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -100,12 +100,6 @@ under the License.
 			<artifactId>flink-metrics-core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-		</dependency>
         
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -137,8 +131,8 @@ under the License.
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -241,6 +235,14 @@ under the License.
 			they are not included into the 'flink-dist' uber jar.
 		-->
 
+		<!-- start optional Flink external resource drivers -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-external-resource-gpu</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- start optional Flink metrics reporters -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -266,6 +268,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-metrics-jmx_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -458,52 +467,30 @@ under the License.
 					<version>${project.version}</version>
 				</dependency>
 			</dependencies>
-		</profile>
 
-		<profile>
-			<!-- Copies that shaded Hadoop uber jar to the dist folder. -->
-			<id>include-hadoop</id>
-			<activation>
-				<property>
-					<name>include-hadoop</name>
-				</property>
-			</activation>
-			<dependencies>
-				<!--
-                    The Hadoop 2 Uber jar should not go into the Flink dist jar, but
-                    sit next to it. Hence, we set it to 'provided' here.
-                -->
-				<dependency>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
 			<build>
 				<plugins>
 					<plugin>
 						<artifactId>maven-assembly-plugin</artifactId>
 						<executions>
 							<execution>
-								<id>hadoop</id>
+								<id>bin-scala2_11</id>
 								<phase>package</phase>
 								<goals>
 									<goal>single</goal>
 								</goals>
 								<configuration>
 									<descriptors>
-										<descriptor>src/main/assemblies/hadoop.xml</descriptor>
+										<descriptor>src/main/assemblies/bin-scala2_11.xml</descriptor>
 									</descriptors>
-									<finalName>flink-${project.version}-bin</finalName>
-									<appendAssemblyId>false</appendAssemblyId>
 								</configuration>
 							</execution>
 						</executions>
 					</plugin>
-
 				</plugins>
 			</build>
 		</profile>
+
 		<profile>
 			<!-- Creates/Removes the 'build-target' symlink in the root directory (only Unix systems) -->
 			<id>symlink-build-target</id>
@@ -557,6 +544,18 @@ under the License.
 	</profiles>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<configuration>
+						<finalName>flink-${project.version}-bin</finalName>
+						<appendAssemblyId>false</appendAssemblyId>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -708,7 +707,7 @@ under the License.
 										<exclude>META-INF/*.SF</exclude>
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
-										<exclude>org/apache/flink/runtime/util/BashJavaUtils.class</exclude>
+										<exclude>org/apache/flink/runtime/util/bash/BashJavaUtils.class</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -769,7 +768,7 @@ under the License.
 								<filter>
 									<artifact>org.apache.flink:*</artifact>
 									<includes>
-										<include>org/apache/flink/runtime/util/BashJavaUtils.class</include>
+										<include>org/apache/flink/runtime/util/bash/BashJavaUtils.class</include>
 									</includes>
 								</filter>
 							</filters>
@@ -811,8 +810,6 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/bin.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
@@ -825,8 +822,18 @@ under the License.
 							<descriptors>
 								<descriptor>src/main/assemblies/opt.xml</descriptor>
 							</descriptors>
-							<finalName>flink-${project.version}-bin</finalName>
-							<appendAssemblyId>false</appendAssemblyId>
+						</configuration>
+					</execution>
+					<execution>
+						<id>plugins</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<descriptors>
+								<descriptor>src/main/assemblies/plugins.xml</descriptor>
+							</descriptors>
 						</configuration>
 					</execution>
 				</executions>
@@ -841,29 +848,6 @@ under the License.
 				</configuration>
 			</plugin>
 
-			<plugin>
-				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin -->
-				<groupId>pl.project13.maven</groupId>
-				<artifactId>git-commit-id-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>revision</goal>
-						 </goals>
-					</execution>
-				</executions>
-				<configuration>
-					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
-					<generateGitPropertiesFile>true</generateGitPropertiesFile>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<skipPoms>false</skipPoms>
-					<generateGitPropertiesFilename>src/main/flink-bin/.version.properties</generateGitPropertiesFilename>
-					<gitDescribe>
-						<!-- don't generate the describe property -->
-						<skip>true</skip>
-					</gitDescribe>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 

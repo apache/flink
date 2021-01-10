@@ -36,8 +36,8 @@ import java.util.concurrent.TimeoutException;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * This class handles the close, endInput and other related logic of a {@link StreamOperator}.
- * It also automatically propagates the close operation to the next wrapper that the {@link #next}
+ * This class handles the close, endInput and other related logic of a {@link StreamOperator}. It
+ * also automatically propagates the close operation to the next wrapper that the {@link #next}
  * points to, so we can use {@link #next} to link all operator wrappers in the operator chain and
  * close all operators only by calling the {@link #close(StreamTaskActionExecutor)} method of the
  * header operator wrapper.
@@ -45,178 +45,207 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class StreamOperatorWrapper<OUT, OP extends StreamOperator<OUT>> {
 
-	private final OP wrapped;
+    private final OP wrapped;
 
-	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private final Optional<ProcessingTimeService> processingTimeService;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<ProcessingTimeService> processingTimeService;
 
-	private final MailboxExecutor mailboxExecutor;
+    private final MailboxExecutor mailboxExecutor;
 
-	private StreamOperatorWrapper<?, ?> previous;
+    private final boolean isHead;
 
-	private StreamOperatorWrapper<?, ?> next;
+    private StreamOperatorWrapper<?, ?> previous;
 
-	StreamOperatorWrapper(
-		OP wrapped,
-		Optional<ProcessingTimeService> processingTimeService,
-		MailboxExecutor mailboxExecutor) {
+    private StreamOperatorWrapper<?, ?> next;
 
-		this.wrapped = checkNotNull(wrapped);
-		this.processingTimeService = checkNotNull(processingTimeService);
-		this.mailboxExecutor = checkNotNull(mailboxExecutor);
-	}
+    private boolean closed;
 
-	/**
-	 * Closes the wrapped operator and propagates the close operation to the next wrapper that the
-	 * {@link #next} points to.
-	 *
-	 * <p>Note that this method must be called in the task thread, because we need to call
-	 * {@link MailboxExecutor#yield()} to take the mails of closing operator and running timers and
-	 * run them.
-	 */
-	public void close(StreamTaskActionExecutor actionExecutor) throws Exception {
-		close(actionExecutor, false);
-	}
+    StreamOperatorWrapper(
+            OP wrapped,
+            Optional<ProcessingTimeService> processingTimeService,
+            MailboxExecutor mailboxExecutor,
+            boolean isHead) {
 
-	/**
-	 * Ends an input of the operator contained by this wrapper.
-	 *
-	 * @param inputId the input ID starts from 1 which indicates the first input.
-	 */
-	public void endOperatorInput(int inputId) throws Exception {
-		if (wrapped instanceof BoundedOneInput) {
-			((BoundedOneInput) wrapped).endInput();
-		} else if (wrapped instanceof BoundedMultiInput) {
-			((BoundedMultiInput) wrapped).endInput(inputId);
-		}
-	}
+        this.wrapped = checkNotNull(wrapped);
+        this.processingTimeService = checkNotNull(processingTimeService);
+        this.mailboxExecutor = checkNotNull(mailboxExecutor);
+        this.isHead = isHead;
+    }
 
-	public OP getStreamOperator() {
-		return wrapped;
-	}
+    /**
+     * Checks if the wrapped operator has been closed.
+     *
+     * <p>Note that this method must be called in the task thread.
+     */
+    public boolean isClosed() {
+        return closed;
+    }
 
-	void setPrevious(StreamOperatorWrapper previous) {
-		this.previous = previous;
-	}
+    /**
+     * Ends an input of the operator contained by this wrapper.
+     *
+     * @param inputId the input ID starts from 1 which indicates the first input.
+     */
+    public void endOperatorInput(int inputId) throws Exception {
+        if (wrapped instanceof BoundedOneInput) {
+            ((BoundedOneInput) wrapped).endInput();
+        } else if (wrapped instanceof BoundedMultiInput) {
+            ((BoundedMultiInput) wrapped).endInput(inputId);
+        }
+    }
 
-	void setNext(StreamOperatorWrapper next) {
-		this.next = next;
-	}
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        if (!closed) {
+            wrapped.notifyCheckpointComplete(checkpointId);
+        }
+    }
 
-	private void close(StreamTaskActionExecutor actionExecutor, boolean invokingEndInput) throws Exception {
-		if (invokingEndInput) {
-			// NOTE: This only do for the case where the operator is one-input operator. At present,
-			// any non-head operator on the operator chain is one-input operator.
-			actionExecutor.runThrowing(() -> endOperatorInput(1));
-		}
+    public OP getStreamOperator() {
+        return wrapped;
+    }
 
-		quiesceTimeServiceAndCloseOperator(actionExecutor);
+    void setPrevious(StreamOperatorWrapper previous) {
+        this.previous = previous;
+    }
 
-		// propagate the close operation to the next wrapper
-		if (next != null) {
-			next.close(actionExecutor, true);
-		}
-	}
+    void setNext(StreamOperatorWrapper next) {
+        this.next = next;
+    }
 
-	private void quiesceTimeServiceAndCloseOperator(StreamTaskActionExecutor actionExecutor)
-		throws InterruptedException, ExecutionException {
+    /**
+     * Closes the wrapped operator and propagates the close operation to the next wrapper that the
+     * {@link #next} points to.
+     *
+     * <p>Note that this method must be called in the task thread, because we need to call {@link
+     * MailboxExecutor#yield()} to take the mails of closing operator and running timers and run
+     * them.
+     */
+    public void close(StreamTaskActionExecutor actionExecutor) throws Exception {
+        if (!isHead) {
+            // NOTE: This only do for the case where the operator is one-input operator. At present,
+            // any non-head operator on the operator chain is one-input operator.
+            actionExecutor.runThrowing(() -> endOperatorInput(1));
+        }
 
-		// step 1. to ensure that there is no longer output triggered by the timers before invoking the "close()"
-		//         method of the operator, we quiesce the processing time service to prevent the pending timers
-		//         from firing, but wait the timers in running to finish
-		// step 2. invoke the "close()" method of the operator. executing the close operation must be deferred
-		//         to the mailbox to ensure that mails already in the mailbox are finished before closing the
-		//         operator
-		// step 3. send a closed mail to ensure that the mails that are from the operator and still in the mailbox
-		//         are completed before exiting the following mailbox processing loop
-		CompletableFuture<Void> closedFuture = quiesceProcessingTimeService()
-			.thenCompose(unused  -> deferCloseOperatorToMailbox(actionExecutor))
-			.thenCompose(unused -> sendClosedMail());
+        quiesceTimeServiceAndCloseOperator(actionExecutor);
 
-		// run the mailbox processing loop until all operations are finished
-		while (!closedFuture.isDone()) {
-			while (mailboxExecutor.tryYield()) {}
+        // propagate the close operation to the next wrapper
+        if (next != null) {
+            next.close(actionExecutor);
+        }
+    }
 
-			// we wait a little bit to avoid unnecessary CPU occupation due to empty loops,
-			// such as when all mails of the operator have been processed but the closed future
-			// has not been set to completed state
-			try {
-				closedFuture.get(1, TimeUnit.MILLISECONDS);
-			} catch (TimeoutException ex) {
-				// do nothing
-			}
-		}
+    private void quiesceTimeServiceAndCloseOperator(StreamTaskActionExecutor actionExecutor)
+            throws InterruptedException, ExecutionException {
 
-		// expose the exception thrown when closing
-		closedFuture.get();
-	}
+        // step 1. to ensure that there is no longer output triggered by the timers before invoking
+        // the "close()"
+        //         method of the operator, we quiesce the processing time service to prevent the
+        // pending timers
+        //         from firing, but wait the timers in running to finish
+        // step 2. invoke the "close()" method of the operator. executing the close operation must
+        // be deferred
+        //         to the mailbox to ensure that mails already in the mailbox are finished before
+        // closing the
+        //         operator
+        // step 3. send a closed mail to ensure that the mails that are from the operator and still
+        // in the mailbox
+        //         are completed before exiting the following mailbox processing loop
+        CompletableFuture<Void> closedFuture =
+                quiesceProcessingTimeService()
+                        .thenCompose(unused -> deferCloseOperatorToMailbox(actionExecutor))
+                        .thenCompose(unused -> sendClosedMail());
 
-	private CompletableFuture<Void> deferCloseOperatorToMailbox(StreamTaskActionExecutor actionExecutor) {
-		final CompletableFuture<Void> closeOperatorFuture = new CompletableFuture<>();
+        // run the mailbox processing loop until all operations are finished
+        while (!closedFuture.isDone()) {
+            while (mailboxExecutor.tryYield()) {}
 
-		mailboxExecutor.execute(
-			() -> {
-				try {
-					closeOperator(actionExecutor);
-					closeOperatorFuture.complete(null);
-				} catch (Throwable t) {
-					closeOperatorFuture.completeExceptionally(t);
-				}
-			},
-			"StreamOperatorWrapper#closeOperator for " + wrapped
-		);
-		return closeOperatorFuture;
-	}
+            // we wait a little bit to avoid unnecessary CPU occupation due to empty loops,
+            // such as when all mails of the operator have been processed but the closed future
+            // has not been set to completed state
+            try {
+                closedFuture.get(1, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ex) {
+                // do nothing
+            }
+        }
 
-	private CompletableFuture<Void> quiesceProcessingTimeService() {
-		return processingTimeService
-			.map(ProcessingTimeService::quiesce)
-			.orElse(CompletableFuture.completedFuture(null));
-	}
+        // expose the exception thrown when closing
+        closedFuture.get();
+    }
 
-	private CompletableFuture<Void> sendClosedMail() {
-		final CompletableFuture<Void> future = new CompletableFuture<>();
+    private CompletableFuture<Void> deferCloseOperatorToMailbox(
+            StreamTaskActionExecutor actionExecutor) {
+        final CompletableFuture<Void> closeOperatorFuture = new CompletableFuture<>();
 
-		mailboxExecutor.execute(() ->
-			future.complete(null), "StreamOperatorWrapper#sendClosedMail for " + wrapped);
-		return future;
-	}
+        mailboxExecutor.execute(
+                () -> {
+                    try {
+                        closeOperator(actionExecutor);
+                        closeOperatorFuture.complete(null);
+                    } catch (Throwable t) {
+                        closeOperatorFuture.completeExceptionally(t);
+                    }
+                },
+                "StreamOperatorWrapper#closeOperator for " + wrapped);
+        return closeOperatorFuture;
+    }
 
-	private void closeOperator(StreamTaskActionExecutor actionExecutor) throws Exception {
-		actionExecutor.runThrowing(wrapped::close);
-	}
+    private CompletableFuture<Void> quiesceProcessingTimeService() {
+        return processingTimeService
+                .map(ProcessingTimeService::quiesce)
+                .orElse(CompletableFuture.completedFuture(null));
+    }
 
-	static class ReadIterator implements Iterator<StreamOperatorWrapper<?, ?>>, Iterable<StreamOperatorWrapper<?, ?>> {
+    private CompletableFuture<Void> sendClosedMail() {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
 
-		private final boolean reverse;
+        mailboxExecutor.execute(
+                () -> future.complete(null), "StreamOperatorWrapper#sendClosedMail for " + wrapped);
+        return future;
+    }
 
-		private StreamOperatorWrapper<?, ?> current;
+    private void closeOperator(StreamTaskActionExecutor actionExecutor) throws Exception {
+        actionExecutor.runThrowing(
+                () -> {
+                    closed = true;
+                    wrapped.close();
+                });
+    }
 
-		ReadIterator(StreamOperatorWrapper<?, ?> first, boolean reverse) {
-			this.current = first;
-			this.reverse = reverse;
-		}
+    static class ReadIterator
+            implements Iterator<StreamOperatorWrapper<?, ?>>,
+                    Iterable<StreamOperatorWrapper<?, ?>> {
 
-		@Override
-		public boolean hasNext() {
-			return this.current != null;
-		}
+        private final boolean reverse;
 
-		@Override
-		public StreamOperatorWrapper<?, ?> next() {
-			if (hasNext()) {
-				StreamOperatorWrapper<?, ?> next = current;
-				current = reverse ? current.previous : current.next;
-				return next;
-			}
+        private StreamOperatorWrapper<?, ?> current;
 
-			throw new NoSuchElementException();
-		}
+        ReadIterator(StreamOperatorWrapper<?, ?> first, boolean reverse) {
+            this.current = first;
+            this.reverse = reverse;
+        }
 
-		@Nonnull
-		@Override
-		public Iterator<StreamOperatorWrapper<?, ?>> iterator() {
-			return this;
-		}
-	}
+        @Override
+        public boolean hasNext() {
+            return this.current != null;
+        }
+
+        @Override
+        public StreamOperatorWrapper<?, ?> next() {
+            if (hasNext()) {
+                StreamOperatorWrapper<?, ?> next = current;
+                current = reverse ? current.previous : current.next;
+                return next;
+            }
+
+            throw new NoSuchElementException();
+        }
+
+        @Nonnull
+        @Override
+        public Iterator<StreamOperatorWrapper<?, ?>> iterator() {
+            return this;
+        }
+    }
 }

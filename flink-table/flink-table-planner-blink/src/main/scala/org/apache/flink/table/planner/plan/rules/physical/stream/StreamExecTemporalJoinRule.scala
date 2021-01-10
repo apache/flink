@@ -18,82 +18,63 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
-import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.containsTemporalJoinCondition
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, WindowJoinUtil}
-
-import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
+import org.apache.flink.util.Preconditions.checkState
 
-import java.util
-
+/**
+ * Rule that matches a temporal join node and converts it to [[StreamExecTemporalJoin]],
+ * the temporal join node is a [[FlinkLogicalJoin]] which contains [[TemporalJoinCondition]].
+ */
 class StreamExecTemporalJoinRule
-  extends RelOptRule(
-    operand(
-      classOf[FlinkLogicalJoin],
-      operand(classOf[FlinkLogicalRel], any()),
-      operand(classOf[FlinkLogicalRel], any())),
-    "StreamExecTemporalJoinRule") {
+  extends StreamExecJoinRuleBase("StreamExecJoinRuleBase") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join = call.rel[FlinkLogicalJoin](0)
-    val joinInfo = join.analyzeCondition
-
-    if (!containsTemporalJoinCondition(join.getCondition)) {
+    if (!TemporalJoinUtil.containsTemporalJoinCondition(join.getCondition)) {
       return false
     }
 
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val (windowBounds, _) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      joinInfo.getRemaining(join.getCluster.getRexBuilder),
-      join.getLeft.getRowType.getFieldCount,
-      join.getRowType,
-      join.getCluster.getRexBuilder,
-      tableConfig)
+    //INITIAL_TEMPORAL_JOIN_CONDITION should not appear in physical phase.
+    checkState(!TemporalJoinUtil.containsInitialTemporalJoinCondition(join.getCondition))
 
+    matchesTemporalTableJoin(join) || matchesTemporalTableFunctionJoin(join)
+  }
+
+  private def matchesTemporalTableJoin(join: FlinkLogicalJoin): Boolean = {
+    val supportedJoinTypes = Seq(JoinRelType.INNER, JoinRelType.LEFT)
+    supportedJoinTypes.contains(join.getJoinType)
+  }
+
+  private def matchesTemporalTableFunctionJoin(join: FlinkLogicalJoin): Boolean = {
+    val (windowBounds, _) = extractWindowBounds(join)
     windowBounds.isEmpty && join.getJoinType == JoinRelType.INNER
   }
 
-  override def onMatch(call: RelOptRuleCall): Unit = {
-    val join = call.rel[FlinkLogicalJoin](0)
-    val left = call.rel[FlinkLogicalRel](1)
-    val right = call.rel[FlinkLogicalRel](2)
-
-    val traitSet: RelTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val joinInfo = join.analyzeCondition
-
-    def toHashTraitByColumns(columns: util.Collection[_ <: Number], inputTraitSets: RelTraitSet) = {
-      val distribution = if (columns.size() == 0) {
-        FlinkRelDistribution.SINGLETON
-      } else {
-        FlinkRelDistribution.hash(columns)
-      }
-      inputTraitSets.
-        replace(FlinkConventions.STREAM_PHYSICAL).
-        replace(distribution)
+  override protected def transform(
+      join: FlinkLogicalJoin,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
+      providedTraitSet: RelTraitSet): FlinkRelNode = {
+    val newRight = rightInput match {
+      case snapshot: FlinkLogicalSnapshot =>
+        snapshot.getInput
+      case rel: FlinkLogicalRel => rel
     }
-    val (leftRequiredTrait, rightRequiredTrait) = (
-      toHashTraitByColumns(joinInfo.leftKeys, left.getTraitSet),
-      toHashTraitByColumns(joinInfo.rightKeys, right.getTraitSet))
-
-    val convLeft: RelNode = RelOptRule.convert(left, leftRequiredTrait)
-    val convRight: RelNode = RelOptRule.convert(right, rightRequiredTrait)
-
-
-    val temporalJoin = new StreamExecTemporalJoin(
+    new StreamExecTemporalJoin(
       join.getCluster,
-      traitSet,
-      convLeft,
-      convRight,
+      providedTraitSet,
+      leftConversion(leftInput),
+      rightConversion(newRight),
       join.getCondition,
       join.getJoinType)
-
-    call.transformTo(temporalJoin)
   }
 }
 

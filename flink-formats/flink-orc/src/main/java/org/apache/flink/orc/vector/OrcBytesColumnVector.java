@@ -20,25 +20,23 @@ package org.apache.flink.orc.vector;
 
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 
-/**
- * This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector.
- */
-public class OrcBytesColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.BytesColumnVector {
+/** This column vector is used to adapt hive's BytesColumnVector to Flink's BytesColumnVector. */
+public class OrcBytesColumnVector extends AbstractOrcColumnVector
+        implements org.apache.flink.table.data.vector.BytesColumnVector {
 
-	private BytesColumnVector vector;
+    private BytesColumnVector vector;
 
-	public OrcBytesColumnVector(BytesColumnVector vector) {
-		super(vector);
-		this.vector = vector;
-	}
+    public OrcBytesColumnVector(BytesColumnVector vector) {
+        super(vector);
+        this.vector = vector;
+    }
 
-	@Override
-	public Bytes getBytes(int i) {
-		int rowId = vector.isRepeating ? 0 : i;
-		byte[][] data = vector.vector;
-		int[] start = vector.start;
-		int[] length = vector.length;
-		return new Bytes(data[rowId], start[rowId], length[rowId]);
-	}
+    @Override
+    public Bytes getBytes(int i) {
+        int rowId = vector.isRepeating ? 0 : i;
+        byte[][] data = vector.vector;
+        int[] start = vector.start;
+        int[] length = vector.length;
+        return new Bytes(data[rowId], start[rowId], length[rowId]);
+    }
 }

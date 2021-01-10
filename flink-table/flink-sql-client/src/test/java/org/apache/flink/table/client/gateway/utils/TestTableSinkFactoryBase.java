@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.TableSinkFactory;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
@@ -37,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.DescriptorProperties.TABLE_SCHEMA_EXPR;
+import static org.apache.flink.table.descriptors.DescriptorProperties.EXPR;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_ROWTIME;
 import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_STRATEGY_DATA_TYPE;
@@ -52,95 +53,94 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
-/**
- * Table sink factory for testing.
- */
+/** Table sink factory for testing. */
 public abstract class TestTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
 
-	private String type;
-	private String testProperty;
+    private String type;
+    private String testProperty;
 
-	public TestTableSinkFactoryBase(String type, String testProperty) {
-		this.type = type;
-		this.testProperty = testProperty;
-	}
+    public TestTableSinkFactoryBase(String type, String testProperty) {
+        this.type = type;
+        this.testProperty = testProperty;
+    }
 
-	@Override
-	public Map<String, String> requiredContext() {
-		final Map<String, String> context = new HashMap<>();
-		context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
-		context.put(CONNECTOR_TYPE, type);
-		return context;
-	}
+    @Override
+    public Map<String, String> requiredContext() {
+        final Map<String, String> context = new HashMap<>();
+        context.put(UPDATE_MODE, UPDATE_MODE_VALUE_APPEND);
+        context.put(CONNECTOR_TYPE, type);
+        return context;
+    }
 
-	@Override
-	public List<String> supportedProperties() {
-		final List<String> properties = new ArrayList<>();
-		properties.add("connector." + testProperty);
-		properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
-		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
-		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
-		properties.add(SCHEMA + ".#." + TABLE_SCHEMA_EXPR);
-		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
-		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
-		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
-		// watermark
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_ROWTIME);
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_EXPR);
-		properties.add(SCHEMA + "." + WATERMARK + ".#."  + WATERMARK_STRATEGY_DATA_TYPE);
+    @Override
+    public List<String> supportedProperties() {
+        final List<String> properties = new ArrayList<>();
+        properties.add("connector." + testProperty);
+        properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
+        properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+        properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+        properties.add(SCHEMA + ".#." + EXPR);
+        properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
+        properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
+        properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+        // watermark
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_ROWTIME);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_EXPR);
+        properties.add(SCHEMA + "." + WATERMARK + ".#." + WATERMARK_STRATEGY_DATA_TYPE);
+        // table constraint
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_NAME);
+        properties.add(SCHEMA + "." + DescriptorProperties.PRIMARY_KEY_COLUMNS);
 
-		return properties;
-	}
+        return properties;
+    }
 
-	@Override
-	public StreamTableSink<Row> createTableSink(TableSinkFactory.Context context) {
-		return new TestTableSink(
-				context.getTable().getSchema(),
-				context.getTable().getProperties().get(testProperty));
-	}
+    @Override
+    public StreamTableSink<Row> createTableSink(TableSinkFactory.Context context) {
+        return new TestTableSink(
+                context.getTable().getSchema(),
+                context.getTable().getProperties().get(testProperty));
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Test table sink.
-	 */
-	public static class TestTableSink implements TableSink<Row>, AppendStreamTableSink<Row> {
+    /** Test table sink. */
+    public static class TestTableSink implements TableSink<Row>, AppendStreamTableSink<Row> {
 
-		private final TableSchema schema;
-		private final String property;
+        private final TableSchema schema;
+        private final String property;
 
-		public TestTableSink(TableSchema schema, String property) {
-			this.schema = TableSchemaUtils.checkNoGeneratedColumns(schema);
-			this.property = property;
-		}
+        public TestTableSink(TableSchema schema, String property) {
+            this.schema = TableSchemaUtils.checkOnlyPhysicalColumns(schema);
+            this.property = property;
+        }
 
-		public String getProperty() {
-			return property;
-		}
+        public String getProperty() {
+            return property;
+        }
 
-		@Override
-		public TypeInformation<Row> getOutputType() {
-			return Types.ROW(schema.getFieldNames(), schema.getFieldTypes());
-		}
+        @Override
+        public TypeInformation<Row> getOutputType() {
+            return Types.ROW(schema.getFieldNames(), schema.getFieldTypes());
+        }
 
-		@Override
-		public String[] getFieldNames() {
-			return schema.getFieldNames();
-		}
+        @Override
+        public String[] getFieldNames() {
+            return schema.getFieldNames();
+        }
 
-		@Override
-		public TypeInformation<?>[] getFieldTypes() {
-			return schema.getFieldTypes();
-		}
+        @Override
+        public TypeInformation<?>[] getFieldTypes() {
+            return schema.getFieldTypes();
+        }
 
-		@Override
-		public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-			return new TestTableSink(new TableSchema(fieldNames, fieldTypes), property);
-		}
+        @Override
+        public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
+            return new TestTableSink(new TableSchema(fieldNames, fieldTypes), property);
+        }
 
-		@Override
-		public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
-			return null;
-		}
-	}
+        @Override
+        public DataStreamSink<?> consumeDataStream(DataStream<Row> dataStream) {
+            return null;
+        }
+    }
 }

@@ -18,8 +18,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -44,7 +43,7 @@ class RankTest extends TableTestBase {
 
     thrown.expectMessage("Rank end is not specified.")
     thrown.expect(classOf[TableException])
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -61,7 +60,7 @@ class RankTest extends TableTestBase {
 
     thrown.expectMessage("Rank end should not less than zero")
     thrown.expect(classOf[TableException])
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -76,7 +75,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -87,7 +86,7 @@ class RankTest extends TableTestBase {
         | SELECT a, RANK() OVER (PARTITION BY a ORDER BY a) rk, b, c FROM MyTable) t
         |WHERE rk < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -103,7 +102,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -119,12 +118,11 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeAsc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -135,12 +133,11 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testRowNumberWithRankEndLessThan1OrderByRowtimeDesc(): Unit = {
-    // can not be converted to StreamExecDeduplicate
     val sql =
       """
         |SELECT a, b, c
@@ -151,7 +148,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -167,7 +164,7 @@ class RankTest extends TableTestBase {
         |WHERE rk <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -183,7 +180,7 @@ class RankTest extends TableTestBase {
         |WHERE rk <= 1
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -196,7 +193,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -209,7 +206,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -222,7 +219,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -236,7 +233,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE row_num <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -250,7 +247,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -264,7 +261,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable)
         |WHERE rk <= a
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -279,7 +276,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -295,7 +292,7 @@ class RankTest extends TableTestBase {
         |WHERE 10 >= row_num
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -310,7 +307,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num = 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -326,7 +323,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 10 AND b IS NOT NULL
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -348,7 +345,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -370,7 +367,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -390,7 +387,7 @@ class RankTest extends TableTestBase {
         |WHERE row_num <= 3
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -417,7 +414,7 @@ class RankTest extends TableTestBase {
          |SELECT max(a) FROM ($sql)
        """.stripMargin
 
-    util.verifyPlanWithTrait(sql2)
+    util.verifyRelPlan(sql2, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -440,7 +437,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -462,7 +459,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -484,7 +481,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -506,7 +503,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -528,7 +525,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -550,7 +547,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -575,7 +572,7 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -610,7 +607,7 @@ class RankTest extends TableTestBase {
          |WHERE rank_num <= 10
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -636,7 +633,59 @@ class RankTest extends TableTestBase {
          |WHERE row_num <= a
       """.stripMargin
 
-    util.verifyPlanWithTrait(sql)
+    util.verifyRelPlan(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testCreateViewWithRowNumber(): Unit = {
+    util.addTable(
+      """
+        |CREATE TABLE test_source (
+        |  name STRING,
+        |  eat STRING,
+        |  age BIGINT
+        |) WITH (
+        |  'connector' = 'values',
+        |  'bounded' = 'false'
+        |)
+      """.stripMargin)
+    util.tableEnv.executeSql("create view view1 as select name, eat ,sum(age) as cnt\n"
+      + "from test_source group by name, eat")
+    util.tableEnv.executeSql("create view view2 as\n"
+      + "select *, ROW_NUMBER() OVER (PARTITION BY name ORDER BY cnt DESC) as row_num\n"
+      + "from view1")
+    util.addTable(
+      s"""
+         |create table sink (
+         |  name varchar,
+         |  eat varchar,
+         |  cnt bigint
+         |)
+         |with(
+         |  'connector' = 'print'
+         |)
+         |""".stripMargin
+    )
+    util.verifyExecPlanInsert("insert into sink select name, eat, cnt\n"
+      + "from view2 where row_num <= 3")
+  }
+
+  @Test
+  def testCorrelateSortToRank(): Unit = {
+    val query =
+      s"""
+         |SELECT a, b
+         |FROM
+         |  (SELECT DISTINCT a FROM MyTable) T1,
+         |  LATERAL (
+         |    SELECT b, c
+         |    FROM MyTable
+         |    WHERE a = T1.a
+         |    ORDER BY c
+         |    DESC LIMIT 3
+         |  )
+      """.stripMargin
+    util.verifyExecPlan(query)
   }
 
   // TODO add tests about multi-sinks and udf

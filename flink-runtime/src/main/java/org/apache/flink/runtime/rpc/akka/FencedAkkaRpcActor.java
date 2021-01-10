@@ -31,77 +31,100 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Fenced extension of the {@link AkkaRpcActor}. This actor will be started for {@link FencedRpcEndpoint} and is
- * responsible for filtering out invalid messages with respect to the current fencing token.
+ * Fenced extension of the {@link AkkaRpcActor}. This actor will be started for {@link
+ * FencedRpcEndpoint} and is responsible for filtering out invalid messages with respect to the
+ * current fencing token.
  *
  * @param <F> type of the fencing token
  * @param <T> type of the RpcEndpoint
  */
-public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpoint<F> & RpcGateway> extends AkkaRpcActor<T> {
+public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpoint<F> & RpcGateway>
+        extends AkkaRpcActor<T> {
 
-	public FencedAkkaRpcActor(
-			T rpcEndpoint,
-			CompletableFuture<Boolean> terminationFuture,
-			int version,
-			final long maximumFramesize) {
-		super(rpcEndpoint, terminationFuture, version, maximumFramesize);
-	}
+    public FencedAkkaRpcActor(
+            T rpcEndpoint,
+            CompletableFuture<Boolean> terminationFuture,
+            int version,
+            final long maximumFramesize) {
+        super(rpcEndpoint, terminationFuture, version, maximumFramesize);
+    }
 
-	@Override
-	protected void handleRpcMessage(Object message) {
-		if (message instanceof FencedMessage) {
+    @Override
+    protected void handleRpcMessage(Object message) {
+        if (message instanceof FencedMessage) {
 
-			final F expectedFencingToken = rpcEndpoint.getFencingToken();
+            final F expectedFencingToken = rpcEndpoint.getFencingToken();
 
-			if (expectedFencingToken == null) {
-				if (log.isDebugEnabled()) {
-					log.debug("Fencing token not set: Ignoring message {} because the fencing token is null.", message);
-				}
+            if (expectedFencingToken == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Fencing token not set: Ignoring message {} because the fencing token is null.",
+                            message);
+                }
 
-				sendErrorIfSender(
-					new FencingTokenException(
-						String.format(
-							"Fencing token not set: Ignoring message %s sent to %s because the fencing token is null.",
-							message,
-							rpcEndpoint.getAddress())));
-			} else {
-				@SuppressWarnings("unchecked")
-				FencedMessage<F, ?> fencedMessage = ((FencedMessage<F, ?>) message);
+                sendErrorIfSender(
+                        new FencingTokenException(
+                                String.format(
+                                        "Fencing token not set: Ignoring message %s sent to %s because the fencing token is null.",
+                                        message, rpcEndpoint.getAddress())));
+            } else {
+                @SuppressWarnings("unchecked")
+                FencedMessage<F, ?> fencedMessage = ((FencedMessage<F, ?>) message);
 
-				F fencingToken = fencedMessage.getFencingToken();
+                F fencingToken = fencedMessage.getFencingToken();
 
-				if (Objects.equals(expectedFencingToken, fencingToken)) {
-					super.handleRpcMessage(fencedMessage.getPayload());
-				} else {
-					if (log.isDebugEnabled()) {
-						log.debug("Fencing token mismatch: Ignoring message {} because the fencing token {} did " +
-							"not match the expected fencing token {}.", message, fencingToken, expectedFencingToken);
-					}
+                if (Objects.equals(expectedFencingToken, fencingToken)) {
+                    super.handleRpcMessage(fencedMessage.getPayload());
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "Fencing token mismatch: Ignoring message {} because the fencing token {} did "
+                                        + "not match the expected fencing token {}.",
+                                message,
+                                fencingToken,
+                                expectedFencingToken);
+                    }
 
-					sendErrorIfSender(
-						new FencingTokenException("Fencing token mismatch: Ignoring message " + message +
-							" because the fencing token " + fencingToken + " did not match the expected fencing token " +
-							expectedFencingToken + '.'));
-				}
-			}
-		} else if (message instanceof UnfencedMessage) {
-			super.handleRpcMessage(((UnfencedMessage<?>) message).getPayload());
-		} else {
-			if (log.isDebugEnabled()) {
-				log.debug("Unknown message type: Ignoring message {} because it is neither of type {} nor {}.",
-					message, FencedMessage.class.getSimpleName(), UnfencedMessage.class.getSimpleName());
-			}
+                    sendErrorIfSender(
+                            new FencingTokenException(
+                                    "Fencing token mismatch: Ignoring message "
+                                            + message
+                                            + " because the fencing token "
+                                            + fencingToken
+                                            + " did not match the expected fencing token "
+                                            + expectedFencingToken
+                                            + '.'));
+                }
+            }
+        } else if (message instanceof UnfencedMessage) {
+            super.handleRpcMessage(((UnfencedMessage<?>) message).getPayload());
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "Unknown message type: Ignoring message {} because it is neither of type {} nor {}.",
+                        message,
+                        FencedMessage.class.getSimpleName(),
+                        UnfencedMessage.class.getSimpleName());
+            }
 
-			sendErrorIfSender(new AkkaUnknownMessageException("Unknown message type: Ignoring message " + message +
-				" of type " + message.getClass().getSimpleName() + " because it is neither of type " +
-				FencedMessage.class.getSimpleName() + " nor " + UnfencedMessage.class.getSimpleName() + '.'));
-		}
-	}
+            sendErrorIfSender(
+                    new AkkaUnknownMessageException(
+                            "Unknown message type: Ignoring message "
+                                    + message
+                                    + " of type "
+                                    + message.getClass().getSimpleName()
+                                    + " because it is neither of type "
+                                    + FencedMessage.class.getSimpleName()
+                                    + " nor "
+                                    + UnfencedMessage.class.getSimpleName()
+                                    + '.'));
+        }
+    }
 
-	@Override
-	protected Object envelopeSelfMessage(Object message) {
-		final F fencingToken = rpcEndpoint.getFencingToken();
+    @Override
+    protected Object envelopeSelfMessage(Object message) {
+        final F fencingToken = rpcEndpoint.getFencingToken();
 
-		return new LocalFencedMessage<>(fencingToken, message);
-	}
+        return new LocalFencedMessage<>(fencingToken, message);
+    }
 }

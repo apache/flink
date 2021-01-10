@@ -18,21 +18,29 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import java.sql.Timestamp
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
+
+import java.sql.Timestamp
 
 import scala.collection.mutable
 
 class TemporalJoinITCase extends StreamingWithStateTestBase {
+
+  @Before
+  def clear(): Unit = {
+    StreamITCase.clear
+  }
 
   /**
     * Because of nature of the processing time, we can not (or at least it is not that easy)
@@ -42,9 +50,9 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    StreamITCase.clear
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
@@ -93,11 +101,10 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    StreamITCase.clear
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -156,10 +163,9 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
   @Test
   def testNestedTemporalJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val settings = EnvironmentSettings.newInstance().useOldPlanner().build
+    val tEnv = StreamTableEnvironment.create(env, settings)
     env.setStateBackend(getStateBackend)
-    StreamITCase.clear
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
     val sqlQuery =
       """
@@ -211,10 +217,10 @@ class TemporalJoinITCase extends StreamingWithStateTestBase {
     tEnv.createTemporaryView("RatesHistory", ratesHistory)
     tEnv.registerFunction(
       "Rates",
-      ratesHistory.createTemporalTableFunction("rowtime", "currency"))
+      ratesHistory.createTemporalTableFunction($"rowtime", $"currency"))
     tEnv.registerFunction(
       "Prices",
-      pricesHistory.createTemporalTableFunction("rowtime", "productId"))
+      pricesHistory.createTemporalTableFunction($"rowtime", $"productId"))
 
     tEnv.createTemporaryView("TemporalJoinResult", tEnv.sqlQuery(sqlQuery))
 

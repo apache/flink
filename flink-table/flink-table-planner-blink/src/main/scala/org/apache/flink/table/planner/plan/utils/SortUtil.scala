@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
+import org.apache.flink.table.planner.plan.nodes.exec.utils.SortSpec
 
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._
@@ -46,8 +47,7 @@ object SortUtil {
     if (fetch != null) {
       getLimitStart(offset) + RexLiteral.intValue(fetch)
     } else {
-      // TODO return Long.MaxValue when providing FlinkRelMdRowCount on Sort ?
-      Integer.MAX_VALUE
+      Long.MaxValue
     }
   }
 
@@ -83,6 +83,15 @@ object SortUtil {
   /** Returns the default null direction if not specified. */
   def getNullDefaultOrder(ascending: Boolean): Boolean = {
     FlinkPlannerImpl.defaultNullCollation.last(!ascending)
+  }
+
+  def getSortSpec(fieldCollations: Seq[RelFieldCollation]): SortSpec = {
+    val (keys, orders, nullsIslast) = getKeysAndOrders(fieldCollations)
+    val sortSpecBuilder = SortSpec.builder();
+    for (i <- keys.indices) {
+      sortSpecBuilder.addField(keys(i), orders(i), nullsIslast(i))
+    }
+    sortSpecBuilder.build()
   }
 
   def getKeysAndOrders(

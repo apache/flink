@@ -22,9 +22,9 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -37,131 +37,140 @@ import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 import static java.util.Objects.requireNonNull;
 
 /**
- * This is used as the base class for operators that have a user-defined
- * function. This class handles the opening and closing of the user-defined functions,
- * as part of the operator life cycle.
+ * This is used as the base class for operators that have a user-defined function. This class
+ * handles the opening and closing of the user-defined functions, as part of the operator life
+ * cycle.
  *
- * @param <OUT>
- *            The output type of the operator
- * @param <F>
- *            The type of the user function
+ * @param <OUT> The output type of the operator
+ * @param <F> The type of the user function
  */
 @PublicEvolving
 public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
-		extends AbstractStreamOperator<OUT>
-		implements OutputTypeConfigurable<OUT> {
+        extends AbstractStreamOperator<OUT> implements OutputTypeConfigurable<OUT> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
+    /** The user function. */
+    protected final F userFunction;
 
-	/** The user function. */
-	protected final F userFunction;
+    /** Flag to prevent duplicate function.close() calls in close() and dispose(). */
+    private transient boolean functionsClosed = false;
 
-	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
-	private transient boolean functionsClosed = false;
+    public AbstractUdfStreamOperator(F userFunction) {
+        this.userFunction = requireNonNull(userFunction);
+        checkUdfCheckpointingPreconditions();
+    }
 
-	public AbstractUdfStreamOperator(F userFunction) {
-		this.userFunction = requireNonNull(userFunction);
-		checkUdfCheckpointingPreconditions();
-	}
+    /**
+     * Gets the user function executed in this operator.
+     *
+     * @return The user function of this operator.
+     */
+    public F getUserFunction() {
+        return userFunction;
+    }
 
-	/**
-	 * Gets the user function executed in this operator.
-	 * @return The user function of this operator.
-	 */
-	public F getUserFunction() {
-		return userFunction;
-	}
+    // ------------------------------------------------------------------------
+    //  operator life cycle
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  operator life cycle
-	// ------------------------------------------------------------------------
+    @Override
+    public void setup(
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<OUT>> output) {
+        super.setup(containingTask, config, output);
+        FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
+    }
 
-	@Override
-	public void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output) {
-		super.setup(containingTask, config, output);
-		FunctionUtils.setFunctionRuntimeContext(userFunction, getRuntimeContext());
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {
+        super.snapshotState(context);
+        StreamingFunctionUtils.snapshotFunctionState(
+                context, getOperatorStateBackend(), userFunction);
+    }
 
-	}
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
+        StreamingFunctionUtils.restoreFunctionState(context, userFunction);
+    }
 
-	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-		super.snapshotState(context);
-		StreamingFunctionUtils.snapshotFunctionState(context, getOperatorStateBackend(), userFunction);
-	}
+    @Override
+    public void open() throws Exception {
+        super.open();
+        FunctionUtils.openFunction(userFunction, new Configuration());
+    }
 
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-		super.initializeState(context);
-		StreamingFunctionUtils.restoreFunctionState(context, userFunction);
-	}
+    @Override
+    public void close() throws Exception {
+        super.close();
+        functionsClosed = true;
+        FunctionUtils.closeFunction(userFunction);
+    }
 
-	@Override
-	public void open() throws Exception {
-		super.open();
-		FunctionUtils.openFunction(userFunction, new Configuration());
-	}
+    @Override
+    public void dispose() throws Exception {
+        super.dispose();
+        if (!functionsClosed) {
+            functionsClosed = true;
+            FunctionUtils.closeFunction(userFunction);
+        }
+    }
 
-	@Override
-	public void close() throws Exception {
-		super.close();
-		functionsClosed = true;
-		FunctionUtils.closeFunction(userFunction);
-	}
+    // ------------------------------------------------------------------------
+    //  checkpointing and recovery
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void dispose() throws Exception {
-		super.dispose();
-		if (!functionsClosed) {
-			functionsClosed = true;
-			FunctionUtils.closeFunction(userFunction);
-		}
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        super.notifyCheckpointComplete(checkpointId);
 
-	// ------------------------------------------------------------------------
-	//  checkpointing and recovery
-	// ------------------------------------------------------------------------
+        if (userFunction instanceof CheckpointListener) {
+            ((CheckpointListener) userFunction).notifyCheckpointComplete(checkpointId);
+        }
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		super.notifyCheckpointComplete(checkpointId);
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        super.notifyCheckpointAborted(checkpointId);
 
-		if (userFunction instanceof CheckpointListener) {
-			((CheckpointListener) userFunction).notifyCheckpointComplete(checkpointId);
-		}
-	}
+        if (userFunction instanceof CheckpointListener) {
+            ((CheckpointListener) userFunction).notifyCheckpointAborted(checkpointId);
+        }
+    }
 
-	// ------------------------------------------------------------------------
-	//  Output type configuration
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
+    //  Output type configuration
+    // ------------------------------------------------------------------------
 
-	@Override
-	public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
-		StreamingFunctionUtils.setOutputType(userFunction, outTypeInfo, executionConfig);
-	}
+    @Override
+    public void setOutputType(TypeInformation<OUT> outTypeInfo, ExecutionConfig executionConfig) {
+        StreamingFunctionUtils.setOutputType(userFunction, outTypeInfo, executionConfig);
+    }
 
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+    /**
+     * Since the streaming API does not implement any parametrization of functions via a
+     * configuration, the config returned here is actually empty.
+     *
+     * @return The user function parameters (currently empty)
+     */
+    public Configuration getUserFunctionParameters() {
+        return new Configuration();
+    }
 
-	/**
-	 * Since the streaming API does not implement any parametrization of functions via a
-	 * configuration, the config returned here is actually empty.
-	 *
-	 * @return The user function parameters (currently empty)
-	 */
-	public Configuration getUserFunctionParameters() {
-		return new Configuration();
-	}
+    private void checkUdfCheckpointingPreconditions() {
 
-	private void checkUdfCheckpointingPreconditions() {
+        if (userFunction instanceof CheckpointedFunction
+                && userFunction instanceof ListCheckpointed) {
 
-		if (userFunction instanceof CheckpointedFunction
-			&& userFunction instanceof ListCheckpointed) {
-
-			throw new IllegalStateException("User functions are not allowed to implement " +
-				"CheckpointedFunction AND ListCheckpointed.");
-		}
-	}
+            throw new IllegalStateException(
+                    "User functions are not allowed to implement "
+                            + "CheckpointedFunction AND ListCheckpointed.");
+        }
+    }
 }

@@ -21,34 +21,38 @@ package org.apache.flink.ml.pipeline;
 import org.apache.flink.ml.api.core.Transformer;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.params.shared.colname.HasSelectedCols;
+import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.expressions.Expression;
 
-/**
- * Util class for testing {@link org.apache.flink.ml.api.core.PipelineStage}.
- */
+import java.util.Arrays;
+
+/** Util class for testing {@link org.apache.flink.ml.api.core.PipelineStage}. */
 public class UserDefinedPipelineStages {
 
-	/**
-	 * A {@link Transformer} which is used to perform column selection.
-	 */
-	public static class SelectColumnTransformer implements
-		Transformer<SelectColumnTransformer>, HasSelectedCols<SelectColumnTransformer> {
+    /** A {@link Transformer} which is used to perform column selection. */
+    public static class SelectColumnTransformer
+            implements Transformer<SelectColumnTransformer>,
+                    HasSelectedCols<SelectColumnTransformer> {
 
-		private Params params;
+        private Params params;
 
-		public SelectColumnTransformer() {
-			this.params = new Params();
-		}
+        public SelectColumnTransformer() {
+            this.params = new Params();
+        }
 
-		@Override
-		public Table transform(TableEnvironment tEnv, Table input) {
-			return input.select(String.join(", ", this.getSelectedCols()));
-		}
+        @Override
+        public Table transform(TableEnvironment tEnv, Table input) {
+            return input.select(
+                    Arrays.stream(this.getSelectedCols())
+                            .map(Expressions::$)
+                            .toArray(Expression[]::new));
+        }
 
-		@Override
-		public Params getParams() {
-			return params;
-		}
-	}
+        @Override
+        public Params getParams() {
+            return params;
+        }
+    }
 }

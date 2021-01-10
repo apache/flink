@@ -24,16 +24,16 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Operators transform one or more DataStreams into a new DataStream. Programs can combine
-multiple transformations into sophisticated dataflow topologies.
+用户通过算子能将一个或多个 DataStream 转换成新的 DataStream，在应用程序中可以将多个数据转换算子合并成一个复杂的数据流拓扑。
 
-This section gives a description of the basic transformations, the effective physical
-partitioning after applying those as well as insights into Flink's operator chaining.
+这部分内容将描述 Flink DataStream API 中基本的数据转换API，数据转换后各种数据分区方式，以及算子的链接策略。
 
 * toc
 {:toc}
 
-# DataStream Transformations
+<a name="datastream-transformations"/>
+
+# 数据流转换
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -100,12 +100,12 @@ dataStream.filter(new FilterFunction<Integer>() {
         <tr>
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">specify keys</a>.</p>
+            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{% link dev/stream/state/state.zh.md %}#keyed-datastream">specify keys</a>.</p>
             <p>
-            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
+            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>. </p>
 {% highlight java %}
-dataStream.keyBy("someKey") // Key by field "someKey"
-dataStream.keyBy(0) // Key by the first element of a Tuple
+dataStream.keyBy(value -> value.getSomeKey()) // Key by field "someKey"
+dataStream.keyBy(value -> value.f0) // Key by the first element of a Tuple
 {% endhighlight %}
             <p>
             <span class="label label-danger">Attention</span>
@@ -139,28 +139,6 @@ keyedStream.reduce(new ReduceFunction<Integer>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight java %}
-DataStream<String> result =
-  keyedStream.fold("start", new FoldFunction<Integer, String>() {
-    @Override
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
-    }
-  });
-{% endhighlight %}
-          </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Aggregations</strong><br>KeyedStream &rarr; DataStream</td>
           <td>
             <p>Rolling aggregations on a keyed data stream. The difference between min
@@ -187,7 +165,7 @@ keyedStream.maxBy("key");
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a complete description of windows.
 {% highlight java %}
-dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
+dataStream.keyBy(value -> value.f0).window(TumblingEventTimeWindows.of(Time.seconds(5))); // Last 5 seconds of data
 {% endhighlight %}
         </p>
           </td>
@@ -247,21 +225,6 @@ allWindowedStream.apply (new AllWindowFunction<Tuple2<String,Integer>, Integer, 
 windowedStream.reduce (new ReduceFunction<Tuple2<String,Integer>>() {
     public Tuple2<String, Integer> reduce(Tuple2<String, Integer> value1, Tuple2<String, Integer> value2) throws Exception {
         return new Tuple2<String,Integer>(value1.f0, value1.f1 + value2.f1);
-    }
-});
-{% endhighlight %}
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight java %}
-windowedStream.fold("start", new FoldFunction<Integer, String>() {
-    public String fold(String current, Integer value) {
-        return current + "-" + value;
     }
 });
 {% endhighlight %}
@@ -383,43 +346,6 @@ connectedStreams.flatMap(new CoFlatMapFunction<Integer, String, String>() {
           </td>
         </tr>
         <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight java %}
-SplitStream<Integer> split = someDataStream.split(new OutputSelector<Integer>() {
-    @Override
-    public Iterable<String> select(Integer value) {
-        List<String> output = new ArrayList<String>();
-        if (value % 2 == 0) {
-            output.add("even");
-        }
-        else {
-            output.add("odd");
-        }
-        return output;
-    }
-});
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight java %}
-SplitStream<Integer> split;
-DataStream<Integer> even = split.select("even");
-DataStream<Integer> odd = split.select("odd");
-DataStream<Integer> all = split.select("even","odd");
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream &rarr; DataStream</td>
           <td>
             <p>
@@ -445,18 +371,6 @@ DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
         return value <= 0;
     }
 });
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics. See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight java %}
-stream.assignTimestamps (new TimeStampExtractor() {...});
 {% endhighlight %}
             </p>
           </td>
@@ -512,11 +426,11 @@ dataStream.filter { _ != 0 }
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
             <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
+            Internally, this is implemented with hash partitioning. See <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keys</a> on how to specify keys.
             This transformation returns a KeyedStream.</p>
 {% highlight scala %}
-dataStream.keyBy("someKey") // Key by field "someKey"
-dataStream.keyBy(0) // Key by the first element of a Tuple
+dataStream.keyBy(_.someKey) // Key by field "someKey"
+dataStream.keyBy(_._1) // Key by the first element of a Tuple
 {% endhighlight %}
           </td>
         </tr>
@@ -532,23 +446,6 @@ dataStream.keyBy(0) // Key by the first element of a Tuple
 keyedStream.reduce { _ + _ }
 {% endhighlight %}
             </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Fold</strong><br>KeyedStream &rarr; DataStream</td>
-          <td>
-          <p>A "rolling" fold on a keyed data stream with an initial value.
-          Combines the current element with the last folded value and
-          emits the new value.
-          <br/>
-          <br/>
-          <p>A fold function that, when applied on the sequence (1,2,3,4,5),
-          emits the sequence "start-1", "start-1-2", "start-1-2-3", ...</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    keyedStream.fold("start")((str, i) => { str + "-" + i })
-{% endhighlight %}
-          </p>
           </td>
         </tr>
         <tr>
@@ -578,7 +475,7 @@ keyedStream.maxBy("key")
             key according to some characteristic (e.g., the data that arrived within the last 5 seconds).
             See <a href="windows.html">windows</a> for a description of windows.
 {% highlight scala %}
-dataStream.keyBy(0).window(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
+dataStream.keyBy(_._1).window(TumblingEventTimeWindows.of(Time.seconds(5))) // Last 5 seconds of data
 {% endhighlight %}
         </p>
           </td>
@@ -619,18 +516,6 @@ windowedStream.reduce { _ + _ }
 {% endhighlight %}
           </td>
         </tr>
-        <tr>
-          <td><strong>Window Fold</strong><br>WindowedStream &rarr; DataStream</td>
-          <td>
-            <p>Applies a functional fold function to the window and returns the folded value.
-               The example function, when applied on the sequence (1,2,3,4,5),
-               folds the sequence into the string "start-1-2-3-4-5":</p>
-{% highlight scala %}
-val result: DataStream[String] =
-    windowedStream.fold("start", (str, i) => { str + "-" + i })
-{% endhighlight %}
-          </td>
-	</tr>
         <tr>
           <td><strong>Aggregations on windows</strong><br>WindowedStream &rarr; DataStream</td>
           <td>
@@ -715,37 +600,6 @@ connectedStreams.flatMap(
           </td>
         </tr>
         <tr>
-          <td><strong>Split</strong><br>DataStream &rarr; SplitStream</td>
-          <td>
-            <p>
-                Split the stream into two or more streams according to some criterion.
-{% highlight scala %}
-val split = someDataStream.split(
-  (num: Int) =>
-    (num % 2) match {
-      case 0 => List("even")
-      case 1 => List("odd")
-    }
-)
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td><strong>Select</strong><br>SplitStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Select one or more streams from a split stream.
-{% highlight scala %}
-
-val even = split select "even"
-val odd = split select "odd"
-val all = split.select("even","odd")
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
-        <tr>
           <td><strong>Iterate</strong><br>DataStream &rarr; IterativeStream  &rarr; DataStream</td>
           <td>
             <p>
@@ -766,19 +620,6 @@ initialStream.iterate {
             </p>
           </td>
         </tr>
-        <tr>
-          <td><strong>Extract Timestamps</strong><br>DataStream &rarr; DataStream</td>
-          <td>
-            <p>
-                Extracts timestamps from records in order to work with windows
-                that use event time semantics.
-                See <a href="{{ site.baseurl }}/dev/event_time.html">Event Time</a>.
-{% highlight scala %}
-stream.assignTimestamps { timestampExtractor }
-{% endhighlight %}
-            </p>
-          </td>
-        </tr>
   </tbody>
 </table>
 
@@ -789,14 +630,140 @@ data.map {
   case (id, name, temperature) => // [...]
 }
 {% endhighlight %}
-is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{{ site.baseurl }}/dev/scala_api_extensions.html">Scala API extension</a>.
+is not supported by the API out-of-the-box. To use this feature, you should use a <a href="{% link dev/scala_api_extensions.zh.md %}">Scala API extension</a>.
 
 
 </div>
+
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 25%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+          <td><strong>Map</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>输入一个数据并对应输出一个数据。 如下 map 函数将输入流的每一个数据乘2后输出:</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[1, 2, 3, 4, 5])
+data_stream.map(lambda x: 2 * x, output_type=Types.INT())
+{% endhighlight %}
+          </td>
+        </tr>
+
+        <tr>
+          <td><strong>FlatMap</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>输入一个数据，产生并输出0个，1个或多个数据。 如下 flatmap 函数将输入的单个句子根据空格分隔成多个单词并逐个输出：</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=['hello apache flink', 'streaming compute'])
+data_stream.flat_map(lambda x: x.split(' '), result_type=Types.STRING())
+{% endhighlight %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Filter</strong><br>DataStream &rarr; DataStream</td>
+          <td>
+            <p>根据每个输入元素计算 bool 值并保留函数输出值为 True 的元素。 如下是滤除值为0的过滤函数：
+            </p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[0, 1, 2, 3, 4, 5])
+data_stream.filter(lambda x: x != 0)
+{% endhighlight %}
+          </td>
+        </tr>
+        <tr>
+          <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
+          <td>
+            <p>将一个流的数据分发到各个独立分区，相同 key 值的元素将分发到同一个分区。 <em>key_by()</em>内部实现根据 Hash 方式分发数据。</p>
+            <p>这个转换操作将返回一个 <em>KeyedStream</em> , 除此之外，还会应用到 <a href="{% link dev/stream/state/state.zh.md %}#keyed-state">keyed state</a>. </p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'b')])
+data_stream.key_by(lambda x: x[1], key_type_info=Types.STRING()) // Key by the result of KeySelector
+{% endhighlight %}
+            <p>
+            <span class="label label-danger">Attention</span>
+            任意类型的数组<strong>不能作为 key 值</strong> 。
+    	    </p>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Reduce</strong><br>KeyedStream &rarr; DataStream</td>
+          <td>
+            <p>以滚动的形式"压缩" KeyedStream ， 将当前元素和上一次压缩合并的值进行新一轮压缩并输出新的压缩值。
+              <br/>
+            	<br/>
+            <p>如下是对部分元素求和并生成一个新的数据流的压缩函数：</p>
+{% highlight python %}
+data_stream = env.from_collection(collection=[(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')], type_info=Types.ROW([Types.INT(), Types.STRING()]))
+data_stream.key_by(lambda x: x[1]).reduce(lambda a, b: (a[0] + b[0], b[1]))
+{% endhighlight %}
+            </p>
+          </td>
+        </tr>
+         <tr>
+                  <td><strong>Union</strong><br>DataStream* &rarr; DataStream</td>
+                  <td>
+                    <p>将两个或多个数据流进行合并并生成一个包含所有流数据的 ConnectedStream 。需要注意的是， 如果一个数据流和自身进行合并，在新的流中每个数据将存在两份。</p>
+{% highlight python %}
+data_stream.union(otherStream1, otherStream2, ...)
+{% endhighlight %}
+                  </td>
+               </tr>
+         <tr>
+                   <td><strong>Connect</strong><br>DataStream,DataStream &rarr; ConnectedStreams</td>
+                   <td>
+                     <p>将两个数据流进行连接， 并保留各自的数据类型， 这使得它们可以共享同一个 State 。</p>
+{% highlight python %}
+stream_1 = ...
+stream_2 = ...
+connected_streams = stream_1.connect(stream_2)
+{% endhighlight %}
+                   </td>
+                 </tr>
+         <tr>
+                   <td><strong>CoMap, CoFlatMap</strong><br>ConnectedStreams &rarr; DataStream</td>
+                   <td>
+                     <p>对 ConnectedStream 中的每个流进行和单个流类似的 map/flatMap 操作。</p>
+{% highlight python %}
+
+class MyCoMapFunction(CoMapFunction):
+    
+    def map1(self, value):
+        return value[0] + 1, value[1]
+       
+    def map2(self, value):
+        return value[0], value[1] + 'flink'
+        
+class MyCoFlatMapFunction(CoFlatMapFunction):
+    
+    def flat_map1(self, value)
+        for i in range(value[0]):
+            yield i
+    
+    def flat_map2(self, value):
+        yield value[0] + 1
+        
+connectedStreams.map(MyCoMapFunction())
+connectedStreams.flatMap(MyCoFlatMapFunction())
+{% endhighlight %}
+                   </td>
+                 </tr>
+  </tbody>
+</table>
+
 </div>
 
-The following transformations are available on data streams of Tuples:
+</div>
 
+下面的数据转换 API 支持对元组类型的 DataStream 进行转换：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -814,7 +781,7 @@ The following transformations are available on data streams of Tuples:
    <tr>
       <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
       <td>
-        <p>Selects a subset of fields from the tuples
+        <p>从元组类型的数据流中抽取元组中部分元素
 {% highlight java %}
 DataStream<Tuple3<Integer, Double, String>> in = // [...]
 DataStream<Tuple2<String, Integer>> out = in.project(2,0);
@@ -826,13 +793,41 @@ DataStream<Tuple2<String, Integer>> out = in.project(2,0);
 </table>
 
 </div>
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Project</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>从元组类型的数据流中抽取元组中部分元素
+{% highlight python %}
+data_stream = env.from_collection([(1, 2, 3, 4), (5, 6, 7, 8)],type_info=Types.TUPLE([Types.INT(), Types.INT(), Types.INT(), Types.INT()]))
+out_stream = data_stream.project(2, 0)
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 
+</div>
 
-# Physical partitioning
+<a name="physical-partitioning"/>
 
-Flink also gives low-level control (if desired) on the exact stream partitioning after a transformation,
-via the following functions.
+# 物理分区
+
+Flink 也提供以下方法让用户根据需要在数据转换完成后对数据分区进行更细粒度的配置。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -914,7 +909,7 @@ dataStream.rebalance();
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1022,7 +1017,7 @@ dataStream.rebalance()
         </p>
 
         <div style="text-align: center">
-            <img src="{{ site.baseurl }}/fig/rescale.svg" alt="Checkpoint barriers in data streams" />
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
             </div>
 
 
@@ -1049,27 +1044,119 @@ dataStream.broadcast()
 </table>
 
 </div>
+
+<div data-lang="python" markdown="1">
+
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td><strong>Custom partitioning</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            根据用户定义的分区逻辑将数据分区到指定 task 。
+{% highlight python %}
+data_stream = env.from_collection(collection=[(2, 'a'), (2, 'a'), (3, 'b')])
+data_stream.partition_custom(lambda key, num_partition: key % partition, lambda x: x[0])
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+   <tr>
+     <td><strong>Random partitioning</strong><br>DataStream &rarr; DataStream</td>
+     <td>
+       <p>
+            将数据随机均匀分区。
+{% highlight python %}
+data_stream.shuffle()
+{% endhighlight %}
+       </p>
+     </td>
+   </tr>
+   <tr>
+      <td><strong>Rebalancing (Round-robin partitioning)</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            以 Round-robin 轮询的方式将数据分发到各个分区，使得每个分区负载相同。在出现数据倾斜的时候使用这种分区方式能提升性能。
+{% highlight python %}
+data_stream.rebalance()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td><strong>Rescaling</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            将元素以 Round-robin 轮询的方式分发到下游部分算子中. 如果用户希望实现数据管道， 如数据源的各个并发实例直接将数据分发到下游的部
+           分算子中从而实现负载均衡， 但又不像 rebalance() 一样将数据轮询分发到所有算子中作完全负载均衡。这将会只应用到本地数据传输而不
+           是网络数据传输，具体取决于其他配置值，如 TaskManager 的 slot 槽数。
+        </p>
+        <p>
+            上游算子直接分发数据到下游算子子集的确定将取决于上下游算子各自的并发度配置。例如，如果上游算子并发度为2，下游算子并发度为6，
+            那么上游算子的其中一个并发实例将数据分发到下游中的三个算子， 另外一个上游算子则将数据分发到下游的另外三个实例中。再如，当下游
+           算子只有2个并发，而上游算子有6个并发的时候，上游中的三个并发将会分发数据至下游其中一个并发，而另外三个上游算子则将数据分发至另
+           一个下游并发实例。
+        </p>
+        <p>
+            如果上下游算子的并发度不成倍数关系，下游中的一个或多个算子连接的上游算子个数可能不同。
+        </p>
+        <p>
+            下图以图片的形式阐述上述的上下游算子连接方式：
+        </p>
+
+        <div style="text-align: center">
+            <img src="{% link /fig/rescale.svg %}" alt="Checkpoint barriers in data streams" />
+            </div>
+
+
+        <p>
+{% highlight python %}
+data_stream.rescale()
+{% endhighlight %}
+
+        </p>
+      </td>
+    </tr>
+   <tr>
+      <td><strong>Broadcasting</strong><br>DataStream &rarr; DataStream</td>
+      <td>
+        <p>
+            将每个数据广播至所有 partition 。
+{% highlight python %}
+data_stream.broadcast()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
 </div>
 
-# Task chaining and resource groups
+</div>
 
-Chaining two subsequent transformations means co-locating them within the same thread for better
-performance. Flink by default chains operators if this is possible (e.g., two subsequent map
-transformations). The API gives fine-grained control over chaining if desired:
+<a name="task-chaining-and-resource-groups"/>
 
-Use `StreamExecutionEnvironment.disableOperatorChaining()` if you want to disable chaining in
-the whole job. For more fine grained control, the following functions are available. Note that
-these functions can only be used right after a DataStream transformation as they refer to the
-previous transformation. For example, you can use `someStream.map(...).startNewChain()`, but
-you cannot use `someStream.startNewChain()`.
-
-A resource group is a slot in Flink, see
-[slots]({{site.baseurl}}/ops/config.html#configuring-taskmanager-processing-slots). You can
-manually isolate operators in separate slots if desired.
-
+# 算子链和资源组
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
+Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
+如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注
+意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
+这样调用，而不能 `someStream.startNewChain()`这样。
+
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
+你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
 <table class="table table-bordered">
@@ -1083,9 +1170,7 @@ manually isolate operators in separate slots if desired.
    <tr>
       <td>Start new chain</td>
       <td>
-        <p>Begin a new chain, starting with this operator. The two
-	mappers will be chained, and filter will not be chained to
-	the first mapper.
+        <p>以当前 operator 为起点开始新的连接。如下的两个 mapper 算子会链接在一起而 filter 算子则不会和第一个 mapper 算子进行链接。
 {% highlight java %}
 someStream.filter(...).map(...).startNewChain().map(...);
 {% endhighlight %}
@@ -1095,7 +1180,7 @@ someStream.filter(...).map(...).startNewChain().map(...);
    <tr>
       <td>Disable chaining</td>
       <td>
-        <p>Do not chain the map operator
+        <p>任何算子不能和当前算子进行链接
 {% highlight java %}
 someStream.map(...).disableChaining();
 {% endhighlight %}
@@ -1105,13 +1190,9 @@ someStream.map(...).disableChaining();
     <tr>
       <td>Set slot sharing group</td>
       <td>
-        <p>Set the slot sharing group of an operation. Flink will put operations with the same
-        slot sharing group into the same slot while keeping operations that don't have the
-        slot sharing group in other slots. This can be used to isolate slots. The slot sharing
-        group is inherited from input operations if all input operations are in the same slot
-        sharing group.
-        The name of the default slot sharing group is "default", operations can explicitly
-        be put into this group by calling slotSharingGroup("default").
+        <p>配置算子的资源组。Flink 会将相同资源组的算子放置到同一个 slot 槽中执行，并将不同资源组的算子分配到不同的 slot 槽中，从而实现
+         slot 槽隔离。资源组将从输入算子开始继承如果所有输入操作都在同一个资源组。
+         Flink 默认的资源组名称为 "default"，算子可以显式调用 slotSharingGroup("default") 加入到这个资源组中。
 {% highlight java %}
 someStream.filter(...).slotSharingGroup("name");
 {% endhighlight %}
@@ -1124,7 +1205,15 @@ someStream.filter(...).slotSharingGroup("name");
 </div>
 
 <div data-lang="scala" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
+Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
 
+如果想对整个作业禁用算子链，可以调用 `StreamExecutionEnvironment.disableOperatorChaining()`。下列方法还提供了更细粒度的控制。需要注
+意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `someStream.map(...).startNewChain()`
+这样调用，而不能 `someStream.startNewChain()`这样。
+
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
+你可以根据需要手动地将各个算子隔离到不同的 slot 中。
 <br />
 
 <table class="table table-bordered">
@@ -1138,9 +1227,7 @@ someStream.filter(...).slotSharingGroup("name");
    <tr>
       <td>Start new chain</td>
       <td>
-        <p>Begin a new chain, starting with this operator. The two
-	mappers will be chained, and filter will not be chained to
-	the first mapper.
+        <p>以当前 operator 为起点开始新的连接。如下的两个 mapper 算子会链接在一起而 filter 算子则不会和第一个 mapper 算子进行链接。
 {% highlight scala %}
 someStream.filter(...).map(...).startNewChain().map(...)
 {% endhighlight %}
@@ -1150,7 +1237,7 @@ someStream.filter(...).map(...).startNewChain().map(...)
    <tr>
       <td>Disable chaining</td>
       <td>
-        <p>Do not chain the map operator
+        <p>任何算子不能和当前算子进行链接
 {% highlight scala %}
 someStream.map(...).disableChaining()
 {% endhighlight %}
@@ -1160,13 +1247,9 @@ someStream.map(...).disableChaining()
   <tr>
       <td>Set slot sharing group</td>
       <td>
-        <p>Set the slot sharing group of an operation. Flink will put operations with the same
-        slot sharing group into the same slot while keeping operations that don't have the
-        slot sharing group in other slots. This can be used to isolate slots. The slot sharing
-        group is inherited from input operations if all input operations are in the same slot
-        sharing group.
-        The name of the default slot sharing group is "default", operations can explicitly
-        be put into this group by calling slotSharingGroup("default").
+        <p>配置算子的资源组。Flink 会将相同资源组的算子放置到同一个 slot 槽中执行，并将不同资源组的算子分配到不同的 slot 槽中，从而实现
+        slot 槽隔离。如果所有输入操作都在同一个资源组, 资源组将从输入算子开始继承。
+        Flink 默认的资源组名称为 "default"，算子可以显式调用 slotSharingGroup("default") 加入到这个资源组中。
 {% highlight java %}
 someStream.filter(...).slotSharingGroup("name")
 {% endhighlight %}
@@ -1177,6 +1260,64 @@ someStream.filter(...).slotSharingGroup("name")
 </table>
 
 </div>
+
+<div data-lang="python" markdown="1">
+将两个算子链接在一起能使得它们在同一个线程中执行，从而提升性能。Flink 默认会将能链接的算子尽可能地进行链接(例如， 两个 map 转换操作)。此外，
+Flink 还提供了对链接更细粒度控制的 API 以满足更多需求：
+
+如果想对整个作业禁用算子链，可以调用 `stream_execution_environment.disable_operator_chaining()`。下列方法还提供了更细粒度的控制。需要注
+意的是， 这些方法只能在 DataStream 转换操作后才能被调用，因为它们只对前一次数据转换生效。例如，可以 `some_stream.map(...).start_new_chain()`
+这样调用，而不能 `some_stream.start_new_chain()`这样。
+
+一个资源组对应着 Flink 中的一个 slot 槽，更多细节请看[slots 槽]({% link deployment/config.zh.md %}#configuring-taskmanager-processing-slots)。 
+你可以根据需要手动地将各个算子隔离到不同的 slot 中。
+<br />
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Transformation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+   <tr>
+      <td>Start new chain</td>
+      <td>
+        <p>以当前 operator 为起点开始新的连接。如下的两个 mapper 算子会链接在一起而 filter 算子则不会和第一个 mapper 算子进行链接。
+{% highlight python %}
+some_stream.filter(...).map(...).start_new_chain().map(...)
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+   <tr>
+      <td>Disable chaining</td>
+      <td>
+        <p>任何算子不能和当前算子进行链接
+{% highlight python %}
+some_stream.map(...).disable_chaining()
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td>Set slot sharing group</td>
+      <td>
+        <p>配置算子的资源组。Flink 会将相同资源组的算子放置到同一个 slot 槽中执行，并将不同资源组的算子分配到不同的 slot 槽中，从而实现
+        slot 槽隔离。如果所有输入操作都在同一个资源组, 资源组将从输入算子开始继承。
+        Flink 默认的资源组名称为 "default"，算子可以显式调用 slotSharingGroup("default") 加入到这个资源组中。
+{% highlight python %}
+some_stream.filter(...).slot_sharing_group("name")
+{% endhighlight %}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</div>
+
 </div>
 
 

@@ -17,48 +17,59 @@
 
 package org.apache.flink.metrics.jmx;
 
+import org.apache.flink.metrics.util.MetricReporterTestUtils;
+import org.apache.flink.runtime.management.JMXService;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
 import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
 
-/**
- * Tests for the {@link JMXReporterFactory}.
- */
+/** Tests for the {@link JMXReporterFactory}. */
 public class JMXReporterFactoryTest extends TestLogger {
 
-	@Test
-	public void testPortRangeArgument() {
-		Properties properties = new Properties();
-		properties.setProperty(JMXReporterFactory.ARG_PORT, "9000-9010");
+    @After
+    public void shutdownService() throws IOException {
+        JMXService.stopInstance();
+    }
 
-		JMXReporter metricReporter = new JMXReporterFactory()
-			.createMetricReporter(properties);
-		try {
+    @Test
+    public void testPortRangeArgument() {
+        Properties properties = new Properties();
+        properties.setProperty(JMXReporterFactory.ARG_PORT, "9000-9010");
 
-			Assert.assertThat(
-				metricReporter.getPort().get(),
-				allOf(greaterThanOrEqualTo(9000), lessThanOrEqualTo(9010)));
-		} finally {
-			metricReporter.close();
-		}
-	}
+        JMXReporter metricReporter = new JMXReporterFactory().createMetricReporter(properties);
+        try {
 
-	@Test
-	public void testWithoutArgument() {
-		JMXReporter metricReporter = new JMXReporterFactory()
-			.createMetricReporter(new Properties());
+            Assert.assertThat(
+                    metricReporter.getPort().get(),
+                    allOf(greaterThanOrEqualTo(9000), lessThanOrEqualTo(9010)));
+        } finally {
+            metricReporter.close();
+        }
+    }
 
-		try {
-			Assert.assertFalse(metricReporter.getPort().isPresent());
-		} finally {
-			metricReporter.close();
-		}
-	}
+    @Test
+    public void testWithoutArgument() {
+        JMXReporter metricReporter =
+                new JMXReporterFactory().createMetricReporter(new Properties());
+
+        try {
+            Assert.assertFalse(metricReporter.getPort().isPresent());
+        } finally {
+            metricReporter.close();
+        }
+    }
+
+    @Test
+    public void testMetricReporterSetupViaSPI() {
+        MetricReporterTestUtils.testMetricReporterSetupViaSPI(JMXReporterFactory.class);
+    }
 }

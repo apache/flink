@@ -20,9 +20,10 @@ package org.apache.flink.table.api.batch.sql.validation
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TableTestBase}
+
 import org.junit._
 
 class InsertIntoValidationTest extends TableTestBase {
@@ -35,12 +36,15 @@ class InsertIntoValidationTest extends TableTestBase {
     val fieldNames = Array("d", "e")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    util.tableEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
 
     // must fail because table sink schema has too few fields
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -51,12 +55,15 @@ class InsertIntoValidationTest extends TableTestBase {
     val fieldNames = Array("d", "e", "f")
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT, Types.LONG)
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    util.tableEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     val sql = "INSERT INTO targetTable SELECT a, b, c FROM sourceTable"
 
     // must fail because types of table sink do not match query result
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -67,12 +74,15 @@ class InsertIntoValidationTest extends TableTestBase {
     val fieldNames = Array("d", "e", "f")
     val fieldTypes = util.tableEnv.scan("sourceTable").getSchema.getFieldTypes
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    util.tableEnv.registerTableSink("targetTable", sink.configure(fieldNames, fieldTypes))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
 
     // must fail because partial insert is not supported yet.
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 
   @Test
@@ -86,11 +96,13 @@ class InsertIntoValidationTest extends TableTestBase {
     val fieldTypes: Array[TypeInformation[_]] = Array(Types.INT, Types.ROW
     (Types.INT, Types.INT, Types.INT))
     val sink = new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink
-    util.tableEnv.registerTableSink("targetTable", sink.configure(fieldNames,
-      fieldTypes))
+    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
+      "targetTable", sink.configure(fieldNames, fieldTypes))
 
     val sql = "INSERT INTO targetTable SELECT a, b FROM sourceTable"
 
     util.tableEnv.sqlUpdate(sql)
+    // trigger validation
+    util.tableEnv.execute("test")
   }
 }

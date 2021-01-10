@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
@@ -55,12 +55,12 @@ class DistinctAggregateTest(
 
   @Test
   def testSingleDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT c) FROM MyTable")
+    util.verifyExecPlan("SELECT COUNT(DISTINCT c) FROM MyTable")
   }
 
   @Test
   def testMultiDistinctAggs(): Unit = {
-    util.verifyPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
+    util.verifyExecPlan("SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable")
   }
 
   @Test
@@ -71,24 +71,24 @@ class DistinctAggregateTest(
         |FROM MyTable
         |GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSingleFirstValueWithDistinctAgg(): Unit = {
     // FIRST_VALUE is not mergeable, so the final plan does not contain local agg
-    util.verifyPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, FIRST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
     // LAST_VALUE is not mergeable, so the final plan does not contain local agg
-    util.verifyPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleListAggWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -99,28 +99,29 @@ class DistinctAggregateTest(
         |FROM MyTable
         |GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testTwoDistinctAggregateWithNonDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
+    util.verifyExecPlan(
+      "SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
   }
 
   @Test
   def testSingleDistinctAggWithGroupBy(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSingleDistinctAggWithAndNonDistinctAggOnSameColumn(): Unit = {
-    util.verifyPlan("SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a")
   }
 
   @Test
   def testSomeColumnsBothInDistinctAggAndGroupBy(): Unit = {
     // TODO: the COUNT(DISTINCT a) can be optimized to literal 1
-    util.verifyPlan("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a")
+    util.verifyExecPlan("SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -135,7 +136,7 @@ class DistinctAggregateTest(
          |FROM MyTable
          |GROUP BY a
        """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -151,7 +152,7 @@ class DistinctAggregateTest(
          |  GROUP BY a
          |) GROUP BY c
        """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -165,7 +166,7 @@ class DistinctAggregateTest(
         |  GROUP BY c
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -181,7 +182,7 @@ class DistinctAggregateTest(
          |  GROUP BY a
          |) GROUP BY c
        """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test
@@ -197,7 +198,7 @@ class DistinctAggregateTest(
          |  GROUP BY a
          |) GROUP BY b
        """.stripMargin
-    util.verifyPlanWithTrait(sqlQuery)
+    util.verifyRelPlan(sqlQuery, ExplainDetail.CHANGELOG_MODE)
   }
 }
 

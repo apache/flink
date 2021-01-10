@@ -51,7 +51,7 @@ function run_ha_test() {
     start_local_zk
     start_cluster
 
-    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, and incremSnapshots=${INCREM}."
+    echo "Running on HA mode: parallelism=${PARALLELISM}, backend=${BACKEND}, asyncSnapshots=${ASYNC}, incremSnapshots=${INCREM} and zk=${ZOOKEEPER_VERSION}."
 
     # submit a job in detached mode and let it run
     local JOB_ID=$($FLINK_DIR/bin/flink run -d -p ${PARALLELISM} \
@@ -100,4 +100,4 @@ STATE_BACKEND_FILE_ASYNC=${2:-true}
 STATE_BACKEND_ROCKS_INCREMENTAL=${3:-false}
 ZOOKEEPER_VERSION=${4:-3.4}
 
-run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}
+run_test_with_timeout 900 run_ha_test 4 ${STATE_BACKEND_TYPE} ${STATE_BACKEND_FILE_ASYNC} ${STATE_BACKEND_ROCKS_INCREMENTAL} ${ZOOKEEPER_VERSION}

@@ -32,23 +32,22 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A thin wrapper around {@link CalciteCatalogReader} that enables providing multiple
- * default paths to look in.
+ * A thin wrapper around {@link CalciteCatalogReader} that enables providing multiple default paths
+ * to look in.
  */
 @Internal
 public class CatalogReader extends CalciteCatalogReader {
-	public CatalogReader(
-			CalciteSchema rootSchema,
-			List<List<String>> defaultSchema,
-			RelDataTypeFactory typeFactory,
-			CalciteConnectionConfig config) {
-		super(rootSchema,
-			SqlNameMatchers.withCaseSensitive(config != null && config.caseSensitive()),
-			Stream.concat(
-				defaultSchema.stream(),
-				Stream.of(Collections.<String>emptyList())
-			).collect(Collectors.toList()),
-			typeFactory,
-			config);
-	}
+    public CatalogReader(
+            CalciteSchema rootSchema,
+            List<List<String>> defaultSchema,
+            RelDataTypeFactory typeFactory,
+            CalciteConnectionConfig config) {
+        super(
+                rootSchema,
+                SqlNameMatchers.withCaseSensitive(config != null && config.caseSensitive()),
+                Stream.concat(defaultSchema.stream(), Stream.of(Collections.<String>emptyList()))
+                        .collect(Collectors.toList()),
+                typeFactory,
+                config);
+    }
 }

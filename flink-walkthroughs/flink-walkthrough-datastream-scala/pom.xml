@@ -27,11 +27,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-walkthroughs</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-walkthrough-datastream-scala</artifactId>
 	<packaging>maven-archetype</packaging>
+	<name>Flink : Walkthrough : Datastream Scala</name>
 
 </project>

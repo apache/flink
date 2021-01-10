@@ -29,14 +29,14 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-parent-child-classloading-test-lib-package_${scala.binary.version}</artifactId>
-	<name>flink-parent-child-classloading-test-lib-package</name>
+	<name>Flink : E2E Tests : Parent Child classloading lib-package</name>
 	<packaging>jar</packaging>
 
 	<build>

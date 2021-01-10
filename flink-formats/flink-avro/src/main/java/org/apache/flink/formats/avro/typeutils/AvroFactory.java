@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
@@ -40,6 +41,7 @@ import org.apache.avro.specific.SpecificRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Field;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -50,153 +52,173 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type to be serialized.
  */
 @Internal
-final class AvroFactory<T> {
+public final class AvroFactory<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AvroFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AvroFactory.class);
 
-	private final DataOutputEncoder encoder = new DataOutputEncoder();
-	private final DataInputDecoder decoder = new DataInputDecoder();
+    private final DataOutputEncoder encoder = new DataOutputEncoder();
+    private final DataInputDecoder decoder = new DataInputDecoder();
 
-	private final GenericData avroData;
-	private final Schema schema;
-	private final DatumWriter<T> writer;
-	private final DatumReader<T> reader;
+    private final GenericData avroData;
+    private final Schema schema;
+    private final DatumWriter<T> writer;
+    private final DatumReader<T> reader;
 
-	/**
-	 * Creates Avro Writer and Reader for a specific type.
-	 *
-	 * <p>Given an input type, and possible the current schema, and a previously known schema (also known as writer
-	 * schema) create will deduce the best way to initalize a reader and writer according to the following rules:
-	 * <ul>
-	 * <li>If type is an Avro generated class (an {@link SpecificRecord} then the reader would use the
-	 * previousSchema for reading (if present) otherwise it would use the schema attached to the auto generated
-	 * class.
-	 * <li>If the type is a GenericRecord then the reader and the writer would be created with the supplied
-	 * (mandatory) schema.
-	 * <li>Otherwise, we use Avro's reflection based reader and writer that would deduce the schema via reflection.
-	 * If the previous schema is also present (when restoring a serializer for example) then the reader would be
-	 * created with both schemas.
-	 * </ul>
-	 */
-	static <T> AvroFactory<T> create(Class<T> type, @Nullable Schema currentSchema, @Nullable Schema previousSchema) {
-		final ClassLoader cl = Thread.currentThread().getContextClassLoader();
+    /**
+     * Creates Avro Writer and Reader for a specific type.
+     *
+     * <p>Given an input type, and possible the current schema, and a previously known schema (also
+     * known as writer schema) create will deduce the best way to initalize a reader and writer
+     * according to the following rules:
+     *
+     * <ul>
+     *   <li>If type is an Avro generated class (an {@link SpecificRecord} then the reader would use
+     *       the previousSchema for reading (if present) otherwise it would use the schema attached
+     *       to the auto generated class.
+     *   <li>If the type is a GenericRecord then the reader and the writer would be created with the
+     *       supplied (mandatory) schema.
+     *   <li>Otherwise, we use Avro's reflection based reader and writer that would deduce the
+     *       schema via reflection. If the previous schema is also present (when restoring a
+     *       serializer for example) then the reader would be created with both schemas.
+     * </ul>
+     */
+    static <T> AvroFactory<T> create(
+            Class<T> type, @Nullable Schema currentSchema, @Nullable Schema previousSchema) {
+        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
-		if (SpecificRecord.class.isAssignableFrom(type)) {
-			return fromSpecific(type, cl, Optional.ofNullable(previousSchema));
-		}
-		if (GenericRecord.class.isAssignableFrom(type)) {
-			return fromGeneric(cl, currentSchema);
-		}
-		return fromReflective(type, cl, Optional.ofNullable(previousSchema));
-	}
+        if (SpecificRecord.class.isAssignableFrom(type)) {
+            return fromSpecific(type, cl, Optional.ofNullable(previousSchema));
+        }
+        if (GenericRecord.class.isAssignableFrom(type)) {
+            return fromGeneric(cl, currentSchema);
+        }
+        return fromReflective(type, cl, Optional.ofNullable(previousSchema));
+    }
 
-	@Nullable
-	static Schema parseSchemaString(@Nullable String schemaString) {
-		return (schemaString == null) ? null : new Schema.Parser().parse(schemaString);
-	}
+    @Nullable
+    static Schema parseSchemaString(@Nullable String schemaString) {
+        return (schemaString == null) ? null : new Schema.Parser().parse(schemaString);
+    }
 
-	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private static <T> AvroFactory<T> fromSpecific(Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
-		SpecificData specificData = new SpecificData(cl);
-		Schema newSchema = extractAvroSpecificSchema(type, specificData);
+    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "unchecked"})
+    private static <T> AvroFactory<T> fromSpecific(
+            Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
+        SpecificData specificData =
+                getSpecificDataForClass((Class<? extends SpecificData>) type, cl);
+        Schema newSchema = extractAvroSpecificSchema(type, specificData);
 
-		return new AvroFactory<>(
-			specificData,
-			newSchema,
-			new SpecificDatumReader<>(previousSchema.orElse(newSchema), newSchema, specificData),
-			new SpecificDatumWriter<>(newSchema, specificData)
-		);
-	}
+        return new AvroFactory<>(
+                specificData,
+                newSchema,
+                new SpecificDatumReader<>(
+                        previousSchema.orElse(newSchema), newSchema, specificData),
+                new SpecificDatumWriter<>(newSchema, specificData));
+    }
 
-	private static <T> AvroFactory<T> fromGeneric(ClassLoader cl, Schema schema) {
-		checkNotNull(schema,
-			"Unable to create an AvroSerializer with a GenericRecord type without a schema");
-		GenericData genericData = new GenericData(cl);
+    private static <T> AvroFactory<T> fromGeneric(ClassLoader cl, Schema schema) {
+        checkNotNull(
+                schema,
+                "Unable to create an AvroSerializer with a GenericRecord type without a schema");
+        GenericData genericData = new GenericData(cl);
 
-		return new AvroFactory<>(
-			genericData,
-			schema,
-			new GenericDatumReader<>(schema, schema, genericData),
-			new GenericDatumWriter<>(schema, genericData)
-		);
-	}
+        return new AvroFactory<>(
+                genericData,
+                schema,
+                new GenericDatumReader<>(schema, schema, genericData),
+                new GenericDatumWriter<>(schema, genericData));
+    }
 
-	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-	private static <T> AvroFactory<T> fromReflective(Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
-		ReflectData reflectData = new ReflectData(cl);
-		Schema newSchema = reflectData.getSchema(type);
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static <T> AvroFactory<T> fromReflective(
+            Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
+        ReflectData reflectData = new ReflectData(cl);
+        Schema newSchema = reflectData.getSchema(type);
 
-		return new AvroFactory<>(
-			reflectData,
-			newSchema,
-			new ReflectDatumReader<>(previousSchema.orElse(newSchema), newSchema, reflectData),
-			new ReflectDatumWriter<>(newSchema, reflectData)
-		);
-	}
+        return new AvroFactory<>(
+                reflectData,
+                newSchema,
+                new ReflectDatumReader<>(previousSchema.orElse(newSchema), newSchema, reflectData),
+                new ReflectDatumWriter<>(newSchema, reflectData));
+    }
 
-	/**
-	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this either via {@link
-	 * SpecificData} or by instantiating a record and extracting the schema from the instance.
-	 */
-	static <T> Schema extractAvroSpecificSchema(
-			Class<T> type,
-			SpecificData specificData) {
-		Optional<Schema> newSchemaOptional = tryExtractAvroSchemaViaInstance(type);
-		return newSchemaOptional.orElseGet(() -> specificData.getSchema(type));
-	}
+    /**
+     * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this either via {@link
+     * SpecificData} or by instantiating a record and extracting the schema from the instance.
+     */
+    public static <T> Schema extractAvroSpecificSchema(Class<T> type, SpecificData specificData) {
+        Optional<Schema> newSchemaOptional = tryExtractAvroSchemaViaInstance(type);
+        return newSchemaOptional.orElseGet(() -> specificData.getSchema(type));
+    }
 
-	/**
-	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this by creating an
-	 * instance of the class using the zero-argument constructor and calling {@link
-	 * SpecificRecord#getSchema()} on it.
-	 */
-	@SuppressWarnings("unchecked")
-	private static Optional<Schema> tryExtractAvroSchemaViaInstance(Class<?> type) {
-		try {
-			SpecificRecord instance = (SpecificRecord) type.newInstance();
-			return Optional.ofNullable(instance.getSchema());
-		} catch (InstantiationException | IllegalAccessException e) {
-			LOG.warn(
-					"Could not extract schema from Avro-generated SpecificRecord class {}: {}.",
-					type,
-					e);
-			return Optional.empty();
-		}
-	}
+    /**
+     * Creates a {@link SpecificData} object for a given class. Possibly uses the specific data from
+     * the generated class with logical conversions applied (avro >= 1.9.x).
+     *
+     * <p>Copied over from {@code SpecificData#getForClass(Class<T> c)} we do not use the method
+     * directly, because we want to be API backwards compatible with older Avro versions which did
+     * not have this method
+     */
+    public static <T extends SpecificData> SpecificData getSpecificDataForClass(
+            Class<T> type, ClassLoader cl) {
+        try {
+            Field specificDataField = type.getDeclaredField("MODEL$");
+            specificDataField.setAccessible(true);
+            return (SpecificData) specificDataField.get((Object) null);
+        } catch (IllegalAccessException e) {
+            throw new FlinkRuntimeException("Could not access the MODEL$ field of avro record", e);
+        } catch (NoSuchFieldException e) {
+            return new SpecificData(cl);
+        }
+    }
 
-	private AvroFactory(
-		GenericData avroData,
-		Schema schema,
-		DatumReader<T> reader,
-		DatumWriter<T> writer) {
+    /**
+     * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this by creating an
+     * instance of the class using the zero-argument constructor and calling {@link
+     * SpecificRecord#getSchema()} on it.
+     */
+    private static Optional<Schema> tryExtractAvroSchemaViaInstance(Class<?> type) {
+        try {
+            SpecificRecord instance = (SpecificRecord) type.newInstance();
+            return Optional.ofNullable(instance.getSchema());
+        } catch (InstantiationException | IllegalAccessException e) {
+            LOG.warn(
+                    "Could not extract schema from Avro-generated SpecificRecord class {}: {}.",
+                    type,
+                    e);
+            return Optional.empty();
+        }
+    }
 
-		this.avroData = checkNotNull(avroData);
-		this.schema = checkNotNull(schema);
-		this.writer = checkNotNull(writer);
-		this.reader = checkNotNull(reader);
-	}
+    private AvroFactory(
+            GenericData avroData, Schema schema, DatumReader<T> reader, DatumWriter<T> writer) {
 
-	DataOutputEncoder getEncoder() {
-		return encoder;
-	}
+        this.avroData = checkNotNull(avroData);
+        this.schema = checkNotNull(schema);
+        this.writer = checkNotNull(writer);
+        this.reader = checkNotNull(reader);
+    }
 
-	DataInputDecoder getDecoder() {
-		return decoder;
-	}
+    DataOutputEncoder getEncoder() {
+        return encoder;
+    }
 
-	Schema getSchema() {
-		return schema;
-	}
+    DataInputDecoder getDecoder() {
+        return decoder;
+    }
 
-	DatumWriter<T> getWriter() {
-		return writer;
-	}
+    Schema getSchema() {
+        return schema;
+    }
 
-	DatumReader<T> getReader() {
-		return reader;
-	}
+    DatumWriter<T> getWriter() {
+        return writer;
+    }
 
-	GenericData getAvroData() {
-		return avroData;
-	}
+    DatumReader<T> getReader() {
+        return reader;
+    }
+
+    GenericData getAvroData() {
+        return avroData;
+    }
 }

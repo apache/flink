@@ -26,7 +26,4 @@ import org.apache.flink.graph.drivers.parameter.ParameterizedBase;
  *
  * @param <T> result Type
  */
-public abstract class OutputBase<T>
-extends ParameterizedBase
-implements Output<T> {
-}
+public abstract class OutputBase<T> extends ParameterizedBase implements Output<T> {}

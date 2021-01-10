@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-quickstart-test</artifactId>
-	<name>flink-quickstart-test</name>
+	<name>Flink : E2E Tests : Quickstart</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

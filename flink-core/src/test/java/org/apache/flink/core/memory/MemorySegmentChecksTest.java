@@ -24,102 +24,100 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.nio.ByteBuffer;
 
-/**
- * Tests for the sanity checks of the memory segments.
- */
+/** Tests for the sanity checks of the memory segments. */
 public class MemorySegmentChecksTest {
 
-	@Test(expected = NullPointerException.class)
-	public void testHeapNullBuffer1() {
-		new HeapMemorySegment(null);
-	}
+    @Test(expected = NullPointerException.class)
+    public void testHeapNullBuffer1() {
+        new HeapMemorySegment(null);
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void testHeapNullBuffer2() {
-		new HeapMemorySegment(null, new Object());
-	}
+    @Test(expected = NullPointerException.class)
+    public void testHeapNullBuffer2() {
+        new HeapMemorySegment(null, new Object());
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void testHybridHeapNullBuffer2() {
-		new HybridMemorySegment((byte[]) null, new Object());
-	}
+    @Test(expected = NullPointerException.class)
+    public void testHybridHeapNullBuffer2() {
+        new HybridMemorySegment((byte[]) null, new Object());
+    }
 
-	@Test(expected = NullPointerException.class)
-	public void testHybridOffHeapNullBuffer2() {
-		new HybridMemorySegment(null, new Object(), () -> {});
-	}
+    @Test(expected = NullPointerException.class)
+    public void testHybridOffHeapNullBuffer2() {
+        new HybridMemorySegment((ByteBuffer) null, new Object());
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testHybridNonDirectBuffer() {
-		new HybridMemorySegment(ByteBuffer.allocate(1024), new Object(), () -> {});
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testHybridNonDirectBuffer() {
+        new HybridMemorySegment(ByteBuffer.allocate(1024), new Object());
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testZeroAddress(){
-		new MockSegment(0L, 4 * 1024, null);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testZeroAddress() {
+        new MockSegment(0L, 4 * 1024, null);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testNegativeAddress(){
-		new MockSegment(-1L, 4 * 1024, null);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testNegativeAddress() {
+        new MockSegment(-1L, 4 * 1024, null);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testTooLargeAddress(){
-		new MockSegment(Long.MAX_VALUE - 8 * 1024, 4 * 1024, null);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testTooLargeAddress() {
+        new MockSegment(Long.MAX_VALUE - 8 * 1024, 4 * 1024, null);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	final class MockSegment extends MemorySegment {
+    final class MockSegment extends MemorySegment {
 
-		MockSegment(long offHeapAddress, int size, Object owner) {
-			super(offHeapAddress, size, owner);
-		}
+        MockSegment(long offHeapAddress, int size, Object owner) {
+            super(offHeapAddress, size, owner);
+        }
 
-		@Override
-		public ByteBuffer wrap(int offset, int length) {
-			return null;
-		}
+        @Override
+        public ByteBuffer wrap(int offset, int length) {
+            return null;
+        }
 
-		@Override
-		public byte get(int index) {
-			return 0;
-		}
+        @Override
+        public byte get(int index) {
+            return 0;
+        }
 
-		@Override
-		public void put(int index, byte b) {}
+        @Override
+        public void put(int index, byte b) {}
 
-		@Override
-		public void get(int index, byte[] dst) {}
+        @Override
+        public void get(int index, byte[] dst) {}
 
-		@Override
-		public void put(int index, byte[] src) {}
+        @Override
+        public void put(int index, byte[] src) {}
 
-		@Override
-		public void get(int index, byte[] dst, int offset, int length) {}
+        @Override
+        public void get(int index, byte[] dst, int offset, int length) {}
 
-		@Override
-		public void put(int index, byte[] src, int offset, int length) {}
+        @Override
+        public void put(int index, byte[] src, int offset, int length) {}
 
-		@Override
-		public boolean getBoolean(int index) {
-			return false;
-		}
+        @Override
+        public boolean getBoolean(int index) {
+            return false;
+        }
 
-		@Override
-		public void putBoolean(int index, boolean value) {}
+        @Override
+        public void putBoolean(int index, boolean value) {}
 
-		@Override
-		public void get(DataOutput out, int offset, int length) {}
+        @Override
+        public void get(DataOutput out, int offset, int length) {}
 
-		@Override
-		public void put(DataInput in, int offset, int length) {}
+        @Override
+        public void put(DataInput in, int offset, int length) {}
 
-		@Override
-		public void get(int offset, ByteBuffer target, int numBytes) {}
+        @Override
+        public void get(int offset, ByteBuffer target, int numBytes) {}
 
-		@Override
-		public void put(int offset, ByteBuffer source, int numBytes) {}
-	}
+        @Override
+        public void put(int offset, ByteBuffer source, int numBytes) {}
+    }
 }

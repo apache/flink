@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
@@ -61,7 +62,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |    select * from scott_dept d) using (deptno)
         |    order by empno limit 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -72,7 +73,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |    join (table scott_dept) using (deptno)
         |    where e.deptno = 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[CodeGenException])
@@ -89,7 +90,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |      join scott_dept as d2 using (deptno)
         |      where d2.deptno = d.deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test(expected = classOf[CodeGenException])
@@ -105,7 +106,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |      from scott_dept as d2
         |      where d2.deptno = d.deptno)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -114,7 +115,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
       """
         |select * from scott_dept natural join scott_emp where empno = 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -125,7 +126,7 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |    natural left join scott_emp
         |    order by scott_dept.deptno, scott_emp.deptno
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -136,6 +137,6 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |    natural right join scott_emp
         |    order by scott_dept.deptno, scott_emp.deptno
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 }

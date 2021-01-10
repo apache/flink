@@ -20,27 +20,28 @@ package org.apache.flink.runtime.rest.messages.checkpoints;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
-/**
- * Tests for the {@link CheckpointConfigInfo}.
- */
-public class CheckpointConfigInfoTest extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
-	@Override
-	protected Class<CheckpointConfigInfo> getTestResponseClass() {
-		return CheckpointConfigInfo.class;
-	}
+/** Tests for the {@link CheckpointConfigInfo}. */
+public class CheckpointConfigInfoTest
+        extends RestResponseMarshallingTestBase<CheckpointConfigInfo> {
+    @Override
+    protected Class<CheckpointConfigInfo> getTestResponseClass() {
+        return CheckpointConfigInfo.class;
+    }
 
-	@Override
-	protected CheckpointConfigInfo getTestResponseInstance() {
-		final CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo = new CheckpointConfigInfo.ExternalizedCheckpointInfo(true, false);
+    @Override
+    protected CheckpointConfigInfo getTestResponseInstance() {
+        final CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo =
+                new CheckpointConfigInfo.ExternalizedCheckpointInfo(true, false);
 
-		return new CheckpointConfigInfo(
-			CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
-			1L,
-			2L,
-			3L,
-			4,
-			externalizedCheckpointInfo,
-			"stateBackendName");
-
-	}
+        return new CheckpointConfigInfo(
+                CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
+                1L,
+                2L,
+                3L,
+                4,
+                externalizedCheckpointInfo,
+                "stateBackendName",
+                true,
+                3);
+    }
 }

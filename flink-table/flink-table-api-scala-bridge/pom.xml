@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
-	<name>flink-table-api-scala-bridge</name>
+	<name>Flink : Table : API Scala bridge</name>
 	<description>
 		This module contains the Table/SQL API for writing table programs
 		that interact with other Flink APIs using the Scala programming language.

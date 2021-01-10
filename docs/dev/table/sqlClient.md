@@ -2,7 +2,6 @@
 title: "SQL Client"
 nav-parent_id: tableapi
 nav-pos: 90
-is_beta: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -28,9 +27,7 @@ Flink’s Table & SQL API makes it possible to work with queries written in the 
 
 The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
 
-<a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
-
-<span class="label label-danger">Attention</span> The SQL Client is in an early development phase. Even though the application is not production-ready yet, it can be a quite useful tool for prototyping and playing around with Flink SQL. In the future, the community plans to extend its functionality by providing a REST-based [SQL Client Gateway](sqlClient.html#limitations--future).
+<a href="{% link /fig/sql_client_demo.gif %}"><img class="offset" src="{% link /fig/sql_client_demo.gif %}" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" width="80%" /></a>
 
 * This will be replaced by the TOC
 {:toc}
@@ -40,7 +37,7 @@ Getting Started
 
 This section describes how to setup and run your first Flink SQL program from the command-line.
 
-The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({{ site.baseurl }}/ops/deployment/cluster_setup.html) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
+The SQL Client is bundled in the regular Flink distribution and thus runnable out-of-the-box. It requires only a running Flink cluster where table programs can be executed. For more information about setting up a Flink cluster see the [Cluster & Deployment]({% link deployment/resource-providers/standalone/index.md %}) part. If you simply want to try out the SQL Client, you can also start a local cluster with one worker using the following command:
 
 {% highlight bash %}
 ./bin/start-cluster.sh
@@ -66,7 +63,7 @@ SELECT 'Hello World';
 
 This query requires no table source and produces a single row result. The CLI will retrieve results from the cluster and visualize them. You can close the result view by pressing the `Q` key.
 
-The CLI supports **two modes** for maintaining and visualizing results.
+The CLI supports **three modes** for maintaining and visualizing results.
 
 The **table mode** materializes results in memory and visualizes them in a regular, paginated table representation. It can be enabled by executing the following command in the CLI:
 
@@ -80,7 +77,18 @@ The **changelog mode** does not materialize results and visualizes the result st
 SET execution.result-mode=changelog;
 {% endhighlight %}
 
-You can use the following query to see both result modes in action:
+The **tableau mode** is more like a traditional way which will display the results in the screen directly with a tableau format.
+The displaying content will be influenced by the query execution type(`execution.type`).
+
+{% highlight text %}
+SET execution.result-mode=tableau;
+{% endhighlight %}
+
+Note that when you use this mode with streaming query, the result will be continuously printed on the console. If the input data of 
+this query is bounded, the job will terminate after Flink processed all input data, and the printing will also be stopped automatically.
+Otherwise, if you want to terminate a running query, just type `CTRL-C` in this case, the job and the printing will be stopped.
+
+You can use the following query to see all the result modes in action:
 
 {% highlight sql %}
 SELECT name, COUNT(*) AS cnt FROM (VALUES ('Bob'), ('Alice'), ('Greg'), ('Bob')) AS NameTable(name) GROUP BY name;
@@ -106,9 +114,35 @@ Alice, 1
 Greg, 1
 {% endhighlight %}
 
-Both result modes can be useful during the prototyping of SQL queries. In both modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
+In *tableau mode*, if you ran the query in streaming mode, the displayed result would be:
+{% highlight text %}
++-----+----------------------+----------------------+
+| +/- |                 name |                  cnt |
++-----+----------------------+----------------------+
+|   + |                  Bob |                    1 |
+|   + |                Alice |                    1 |
+|   + |                 Greg |                    1 |
+|   - |                  Bob |                    1 |
+|   + |                  Bob |                    2 |
++-----+----------------------+----------------------+
+Received a total of 5 rows
+{% endhighlight %}
 
-<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` result mode.
+And if you ran the query in batch mode, the displayed result would be:
+{% highlight text %}
++-------+-----+
+|  name | cnt |
++-------+-----+
+| Alice |   1 |
+|   Bob |   2 |
+|  Greg |   1 |
++-------+-----+
+3 rows in set
+{% endhighlight %}
+
+All these result modes can be useful during the prototyping of SQL queries. In all these modes, results are stored in the Java heap memory of the SQL Client. In order to keep the CLI interface responsive, the changelog mode only shows the latest 1000 changes. The table mode allows for navigating through bigger results that are only limited by the available main memory and the configured [maximum number of rows](sqlClient.html#configuration) (`max-table-result-rows`).
+
+<span class="label label-danger">Attention</span> Queries that are executed in a batch environment, can only be retrieved using the `table` or `tableau` result mode.
 
 After a query is defined, it can be submitted to the cluster as a long-running, detached Flink job. For this, a target system that stores the results needs to be specified using the [INSERT INTO statement](sqlClient.html#detached-sql-queries). The [configuration section](sqlClient.html#configuration) explains how to declare table sources for reading data, how to declare table sinks for writing data, and how to configure other table program properties.
 
@@ -136,6 +170,10 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            properties.
      -h,--help                             Show the help message with
                                            descriptions of all options.
+     -hist,--history <History file path>   The file which you want to save the
+                                           command history into. If not
+                                           specified, we will auto-generate one
+                                           under your user's home directory.
      -j,--jar <JAR file>                   A JAR file to be imported into the
                                            session. The file might contain
                                            user-defined classes needed for the
@@ -149,8 +187,83 @@ Mode "embedded" submits Flink jobs from the local machine.
                                            statements such as functions, table
                                            sources, or sinks. Can be used
                                            multiple times.
+     -pyarch,--pyArchives <arg>            Add python archive files for job. The
+                                           archive files will be extracted to
+                                           the working directory of python UDF
+                                           worker. Currently only zip-format is
+                                           supported. For each archive file, a
+                                           target directory be specified. If the
+                                           target directory name is specified,
+                                           the archive file will be extracted to
+                                           a name can directory with the
+                                           specified name. Otherwise, the
+                                           archive file will be extracted to a
+                                           directory with the same name of the
+                                           archive file. The files uploaded via
+                                           this option are accessible via
+                                           relative path. '#' could be used as
+                                           the separator of the archive file
+                                           path and the target directory name.
+                                           Comma (',') could be used as the
+                                           separator to specify multiple archive
+                                           files. This option can be used to
+                                           upload the virtual environment, the
+                                           data files used in Python UDF (e.g.:
+                                           --pyArchives
+                                           file:///tmp/py37.zip,file:///tmp/data
+                                           .zip#data --pyExecutable
+                                           py37.zip/py37/bin/python). The data
+                                           files could be accessed in Python
+                                           UDF, e.g.: f = open('data/data.txt',
+                                           'r').
+     -pyexec,--pyExecutable <arg>          Specify the path of the python
+                                           interpreter used to execute the
+                                           python UDF worker (e.g.:
+                                           --pyExecutable
+                                           /usr/local/bin/python3). The python
+                                           UDF worker depends on Python 3.5+,
+                                           Apache Beam (version == 2.23.0), Pip
+                                           (version >= 7.1.0) and SetupTools
+                                           (version >= 37.0.0). Please ensure
+                                           that the specified environment meets
+                                           the above requirements.
+     -pyfs,--pyFiles <pythonFiles>         Attach custom python files for job.
+                                           These files will be added to the
+                                           PYTHONPATH of both the local client
+                                           and the remote python UDF worker. The
+                                           standard python resource file
+                                           suffixes such as .py/.egg/.zip or
+                                           directory are all supported. Comma
+                                           (',') could be used as the separator
+                                           to specify multiple files (e.g.:
+                                           --pyFiles
+                                           file:///tmp/myresource.zip,hdfs:///$n
+                                           amenode_address/myresource2.zip).
+     -pyreq,--pyRequirements <arg>         Specify a requirements.txt file which
+                                           defines the third-party dependencies.
+                                           These dependencies will be installed
+                                           and added to the PYTHONPATH of the
+                                           python UDF worker. A directory which
+                                           contains the installation packages of
+                                           these dependencies could be specified
+                                           optionally. Use '#' as the separator
+                                           if the optional parameter exists
+                                           (e.g.: --pyRequirements
+                                           file:///tmp/requirements.txt#file:///
+                                           tmp/cached_dir).
      -s,--session <session identifier>     The identifier for a session.
                                            'default' is the default identifier.
+     -u,--update <SQL update statement>    Experimental (for testing only!):
+                                           Instructs the SQL Client to
+                                           immediately execute the given update
+                                           statement after starting up. The
+                                           process is shut down after the
+                                           statement has been submitted to the
+                                           cluster and returns an appropriate
+                                           return code. Currently, this feature
+                                           is only supported for INSERT INTO
+                                           statements that declare the target
+                                           sink table.
 {% endhighlight %}
 
 {% top %}
@@ -175,16 +288,16 @@ tables:
       type: csv
       fields:
         - name: MyField1
-          type: INT
+          data-type: INT
         - name: MyField2
-          type: VARCHAR
+          data-type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
     schema:
       - name: MyField1
-        type: INT
+        data-type: INT
       - name: MyField2
-        type: VARCHAR
+        data-type: VARCHAR
   - name: MyCustomView
     type: view
     query: "SELECT MyField2 FROM MyTableSource"
@@ -267,7 +380,7 @@ CLI commands > session environment file > defaults environment file
 
 #### Restart Strategies
 
-Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({{ site.baseurl }}/dev/restart_strategies.html) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
+Restart strategies control how Flink jobs are restarted in case of a failure. Similar to [global restart strategies]({% link dev/task_failure_recovery.md %}#restart-strategies) for a Flink cluster, a more fine-grained restart configuration can be declared in an environment file.
 
 The following strategies are supported:
 
@@ -352,30 +465,42 @@ Both `connector` and `format` allow to define a property version (which is curre
 
 ### User-defined Functions
 
-The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes.
+The SQL Client allows users to create custom, user-defined functions to be used in SQL queries. Currently, these functions are restricted to be defined programmatically in Java/Scala classes or Python files.
 
-In order to provide a user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({{ site.baseurl }}/dev/table/functions/udfs.html)). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+In order to provide a Java/Scala user-defined function, you need to first implement and compile a function class that extends `ScalarFunction`, `AggregateFunction` or `TableFunction` (see [User-defined Functions]({% link dev/table/functions/udfs.md %})). One or more functions can then be packaged into a dependency JAR for the SQL Client.
+
+In order to provide a Python user-defined function, you need to write a Python function and decorate it with the `pyflink.table.udf.udf` or `pyflink.table.udf.udtf` decorator (see [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %})). One or more functions can then be placed into a Python file. The Python file and related dependencies need to be specified via the configuration (see [Python Configuration]({% link dev/python/python_config.md %})) in environment file or the command line options (see [Command Line Usage]({% link deployment/cli.md %}#usage)).
 
 All functions must be declared in an environment file before being called. For each item in the list of `functions`, one must specify
 
 - a `name` under which the function is registered,
-- the source of the function using `from` (restricted to be `class` for now),
+- the source of the function using `from` (restricted to be `class` (Java/Scala UDF) or `python` (Python UDF) for now),
+
+The Java/Scala UDF must specify:
+
 - the `class` which indicates the fully qualified class name of the function and an optional list of `constructor` parameters for instantiation.
+
+The Python UDF must specify:
+
+- the `fully-qualified-name` which indicates the fully qualified name, i.e the "[module name].[object name]" of the function.
 
 {% highlight yaml %}
 functions:
-  - name: ...               # required: name of the function
-    from: class             # required: source of the function (can only be "class" for now)
-    class: ...              # required: fully qualified class name of the function
-    constructor:            # optional: constructor parameters of the function class
-      - ...                 # optional: a literal parameter with implicit type
-      - class: ...          # optional: full class name of the parameter
-        constructor:        # optional: constructor parameters of the parameter's class
-          - type: ...       # optional: type of the literal parameter
-            value: ...      # optional: value of the literal parameter
+  - name: java_udf               # required: name of the function
+    from: class                  # required: source of the function
+    class: ...                   # required: fully qualified class name of the function
+    constructor:                 # optional: constructor parameters of the function class
+      - ...                      # optional: a literal parameter with implicit type
+      - class: ...               # optional: full class name of the parameter
+        constructor:             # optional: constructor parameters of the parameter's class
+          - type: ...            # optional: type of the literal parameter
+            value: ...           # optional: value of the literal parameter
+  - name: python_udf             # required: name of the function
+    from: python                 # required: source of the function 
+    fully-qualified-name: ...    # required: fully qualified class name of the function      
 {% endhighlight %}
 
-Make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
+For Java/Scala UDF, make sure that the order and types of the specified parameters strictly match one of the constructors of your function class.
 
 #### Constructor Parameters
 
@@ -458,7 +583,7 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+For more information about catalogs, see [Catalogs]({% link dev/table/catalogs.md %}).
 
 Detached SQL Queries
 --------------------
@@ -508,7 +633,7 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 Web interface: http://localhost:8081
 {% endhighlight %}
 
-<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({{ site.baseurl }}/dev/restart_strategies.html) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
+<span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's [restart strategy]({% link dev/task_failure_recovery.md %}#restart-strategies) takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
 {% top %}
 
@@ -599,6 +724,6 @@ As shown in the example, definitions of table sources, views, and temporal table
 Limitations & Future
 --------------------
 
-The current SQL Client implementation is in a very early development stage and might change in the future as part of the bigger Flink Improvement Proposal 24 ([FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client)). Feel free to join the discussion and open issue about bugs and features that you find useful.
+The current SQL Client only supports embedded mode. In the future, the community plans to extend its functionality by providing a REST-based SQL Client Gateway, see more in [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) and [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway).
 
 {% top %}

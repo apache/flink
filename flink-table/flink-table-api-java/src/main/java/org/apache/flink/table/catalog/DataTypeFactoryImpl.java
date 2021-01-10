@@ -42,115 +42,124 @@ import java.util.function.Supplier;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/**
- * Implementation of a {@link DataTypeFactory}.
- */
+/** Implementation of a {@link DataTypeFactory}. */
 @Internal
 final class DataTypeFactoryImpl implements DataTypeFactory {
 
-	private final LogicalTypeResolver resolver = new LogicalTypeResolver();
+    private final LogicalTypeResolver resolver = new LogicalTypeResolver();
 
-	private final ClassLoader classLoader;
+    private final ClassLoader classLoader;
 
-	private final Supplier<ExecutionConfig> executionConfig;
+    private final Supplier<ExecutionConfig> executionConfig;
 
-	DataTypeFactoryImpl(
-			ClassLoader classLoader,
-			ReadableConfig config,
-			@Nullable ExecutionConfig executionConfig) {
-		this.classLoader = classLoader;
-		this.executionConfig = createKryoExecutionConfig(classLoader, config, executionConfig);
-	}
+    DataTypeFactoryImpl(
+            ClassLoader classLoader,
+            ReadableConfig config,
+            @Nullable ExecutionConfig executionConfig) {
+        this.classLoader = classLoader;
+        this.executionConfig = createKryoExecutionConfig(classLoader, config, executionConfig);
+    }
 
-	@Override
-	public DataType createDataType(AbstractDataType<?> abstractDataType) {
-		if (abstractDataType instanceof DataType) {
-			return (DataType) abstractDataType;
-		} else if (abstractDataType instanceof UnresolvedDataType) {
-			return ((UnresolvedDataType) abstractDataType).toDataType(this);
-		}
-		throw new ValidationException("Unsupported abstract data type.");
-	}
+    @Override
+    public DataType createDataType(AbstractDataType<?> abstractDataType) {
+        if (abstractDataType instanceof DataType) {
+            return (DataType) abstractDataType;
+        } else if (abstractDataType instanceof UnresolvedDataType) {
+            return ((UnresolvedDataType) abstractDataType).toDataType(this);
+        }
+        throw new ValidationException("Unsupported abstract data type.");
+    }
 
-	@Override
-	public DataType createDataType(String name) {
-		final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
-		final LogicalType resolvedType = parsedType.accept(resolver);
-		return fromLogicalToDataType(resolvedType);
-	}
+    @Override
+    public DataType createDataType(String name) {
+        final LogicalType parsedType = LogicalTypeParser.parse(name, classLoader);
+        final LogicalType resolvedType = parsedType.accept(resolver);
+        return fromLogicalToDataType(resolvedType);
+    }
 
-	@Override
-	public DataType createDataType(UnresolvedIdentifier identifier) {
-		if (!identifier.getDatabaseName().isPresent()) {
-			return createDataType(identifier.getObjectName());
-		}
-		final LogicalType resolvedType = resolveType(identifier);
-		return fromLogicalToDataType(resolvedType);
-	}
+    @Override
+    public DataType createDataType(UnresolvedIdentifier identifier) {
+        if (!identifier.getDatabaseName().isPresent()) {
+            return createDataType(identifier.getObjectName());
+        }
+        final LogicalType resolvedType = resolveType(identifier);
+        return fromLogicalToDataType(resolvedType);
+    }
 
-	@Override
-	public <T> DataType createDataType(Class<T> clazz) {
-		return DataTypeExtractor.extractFromType(this, clazz);
-	}
+    @Override
+    public <T> DataType createDataType(Class<T> clazz) {
+        return DataTypeExtractor.extractFromType(this, clazz);
+    }
 
-	@Override
-	public <T> DataType createRawDataType(Class<T> clazz) {
-		return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, executionConfig.get()));
-	}
+    @Override
+    public <T> DataType createRawDataType(Class<T> clazz) {
+        return DataTypes.RAW(clazz, new KryoSerializer<>(clazz, executionConfig.get()));
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Creates a lazy {@link ExecutionConfig} for the {@link KryoSerializer} with information from
-	 * existing {@link ExecutionConfig} (if available) enriched with table {@link ReadableConfig}.
-	 */
-	private static Supplier<ExecutionConfig> createKryoExecutionConfig(
-			ClassLoader classLoader,
-			ReadableConfig config,
-			ExecutionConfig executionConfig) {
-		return () -> {
-			final ExecutionConfig newExecutionConfig = new ExecutionConfig();
+    /**
+     * Creates a lazy {@link ExecutionConfig} for the {@link KryoSerializer} with information from
+     * existing {@link ExecutionConfig} (if available) enriched with table {@link ReadableConfig}.
+     */
+    private static Supplier<ExecutionConfig> createKryoExecutionConfig(
+            ClassLoader classLoader, ReadableConfig config, ExecutionConfig executionConfig) {
+        return () -> {
+            final ExecutionConfig newExecutionConfig = new ExecutionConfig();
 
-			if (executionConfig != null) {
-				executionConfig.getDefaultKryoSerializers()
-					.forEach((c, s) -> newExecutionConfig.addDefaultKryoSerializer(c, s.getSerializer()));
+            if (executionConfig != null) {
+                executionConfig
+                        .getDefaultKryoSerializers()
+                        .forEach(
+                                (c, s) ->
+                                        newExecutionConfig.addDefaultKryoSerializer(
+                                                c, s.getSerializer()));
 
-				executionConfig.getDefaultKryoSerializerClasses()
-					.forEach(newExecutionConfig::addDefaultKryoSerializer);
+                executionConfig
+                        .getDefaultKryoSerializerClasses()
+                        .forEach(newExecutionConfig::addDefaultKryoSerializer);
 
-				executionConfig.getRegisteredKryoTypes()
-					.forEach(newExecutionConfig::registerKryoType);
+                executionConfig
+                        .getRegisteredKryoTypes()
+                        .forEach(newExecutionConfig::registerKryoType);
 
-				executionConfig.getRegisteredTypesWithKryoSerializerClasses()
-					.forEach(newExecutionConfig::registerTypeWithKryoSerializer);
+                executionConfig
+                        .getRegisteredTypesWithKryoSerializerClasses()
+                        .forEach(newExecutionConfig::registerTypeWithKryoSerializer);
 
-				executionConfig.getRegisteredTypesWithKryoSerializers()
-					.forEach((c, s) -> newExecutionConfig.registerTypeWithKryoSerializer(c, s.getSerializer()));
-			}
+                executionConfig
+                        .getRegisteredTypesWithKryoSerializers()
+                        .forEach(
+                                (c, s) ->
+                                        newExecutionConfig.registerTypeWithKryoSerializer(
+                                                c, s.getSerializer()));
+            }
 
-			newExecutionConfig.configure(config, classLoader);
+            newExecutionConfig.configure(config, classLoader);
 
-			return newExecutionConfig;
-		};
-	}
+            return newExecutionConfig;
+        };
+    }
 
-	/**
-	 * Resolves all {@link UnresolvedUserDefinedType}s.
-	 */
-	private class LogicalTypeResolver extends LogicalTypeDuplicator {
+    /** Resolves all {@link UnresolvedUserDefinedType}s. */
+    private class LogicalTypeResolver extends LogicalTypeDuplicator {
 
-		@Override
-		protected LogicalType defaultMethod(LogicalType logicalType) {
-			if (hasRoot(logicalType, LogicalTypeRoot.UNRESOLVED)) {
-				final UnresolvedUserDefinedType unresolvedType = (UnresolvedUserDefinedType) logicalType;
-				return resolveType(unresolvedType.getUnresolvedIdentifier()).copy(unresolvedType.isNullable());
-			}
-			return logicalType;
-		}
-	}
+        @Override
+        protected LogicalType defaultMethod(LogicalType logicalType) {
+            if (hasRoot(logicalType, LogicalTypeRoot.UNRESOLVED)) {
+                final UnresolvedUserDefinedType unresolvedType =
+                        (UnresolvedUserDefinedType) logicalType;
+                return resolveType(unresolvedType.getUnresolvedIdentifier())
+                        .copy(unresolvedType.isNullable());
+            }
+            return logicalType;
+        }
+    }
 
-	private LogicalType resolveType(UnresolvedIdentifier identifier) {
-		assert identifier != null;
-		throw new TableException("User-defined types are not supported yet.");
-	}
+    private LogicalType resolveType(UnresolvedIdentifier identifier) {
+        assert identifier != null;
+        // TODO validate implementation class of structured types when converting from LogicalType
+        // to DataType
+        throw new TableException("User-defined types are not supported yet.");
+    }
 }

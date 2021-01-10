@@ -23,28 +23,23 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
- * Abstract class for formatting the output of the writeAsText and writeAsCsv
- * functions.
+ * Abstract class for formatting the output of the writeAsText and writeAsCsv functions.
  *
- * @param <IN>
- *            Input tuple type
- *
- * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
- * for writing to files from a streaming program.
+ * @param <IN> Input tuple type
+ * @deprecated Please use the {@link
+ *     org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ *     for writing to files from a streaming program.
  */
 @PublicEvolving
 @Deprecated
 public abstract class WriteFormat<IN> implements Serializable {
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Writes the contents of tupleList to the file specified by path.
-	 *
-	 * @param path
-	 *            is the path to the location where the tuples are written
-	 * @param tupleList
-	 *            is the list of tuples to be written
-	 */
-	protected abstract void write(String path, ArrayList<IN> tupleList);
-
+    /**
+     * Writes the contents of tupleList to the file specified by path.
+     *
+     * @param path is the path to the location where the tuples are written
+     * @param tupleList is the list of tuples to be written
+     */
+    protected abstract void write(String path, ArrayList<IN> tupleList);
 }

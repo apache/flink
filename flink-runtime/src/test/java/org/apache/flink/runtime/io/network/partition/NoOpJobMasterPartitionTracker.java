@@ -23,47 +23,46 @@ import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import java.util.Collection;
 import java.util.Collections;
 
-/**
- * No-op implementation of {@link JobMasterPartitionTracker}.
- */
+/** No-op implementation of {@link JobMasterPartitionTracker}. */
 public enum NoOpJobMasterPartitionTracker implements JobMasterPartitionTracker {
-	INSTANCE;
+    INSTANCE;
 
-	public static final PartitionTrackerFactory FACTORY = lookup -> INSTANCE;
+    public static final PartitionTrackerFactory FACTORY = lookup -> INSTANCE;
 
-	@Override
-	public void startTrackingPartition(ResourceID producingTaskExecutorId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
-	}
+    @Override
+    public void startTrackingPartition(
+            ResourceID producingTaskExecutorId,
+            ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {}
 
-	@Override
-	public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>> stopTrackingPartitionsFor(ResourceID key) {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>>
+            stopTrackingPartitionsFor(ResourceID key) {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds) {
-	}
+    @Override
+    public void stopTrackingAndReleasePartitions(
+            Collection<ResultPartitionID> resultPartitionIds) {}
 
-	@Override
-	public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>> stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
-		return Collections.emptyList();
-	}
+    @Override
+    public Collection<PartitionTrackerEntry<ResourceID, ResultPartitionDeploymentDescriptor>>
+            stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
-	}
+    @Override
+    public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {}
 
-	@Override
-	public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {
-	}
+    @Override
+    public void stopTrackingAndReleaseOrPromotePartitionsFor(ResourceID producingTaskExecutorId) {}
 
-	@Override
-	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
-		return false;
-	}
+    @Override
+    public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
+        return false;
+    }
 
-	@Override
-	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
-		return false;
-	}
+    @Override
+    public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
+        return false;
+    }
 }

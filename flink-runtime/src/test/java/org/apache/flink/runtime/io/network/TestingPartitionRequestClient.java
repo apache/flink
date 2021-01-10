@@ -23,28 +23,28 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 
 /**
- * A dummy implementation of the {@link PartitionRequestClient} instance which is mainly used
- * for tests to avoid mock.
+ * A dummy implementation of the {@link PartitionRequestClient} instance which is mainly used for
+ * tests to avoid mock.
  */
 public class TestingPartitionRequestClient implements PartitionRequestClient {
 
-	@Override
-	public void requestSubpartition(
-		ResultPartitionID partitionId,
-		int subpartitionIndex,
-		RemoteInputChannel inputChannel,
-		int delayMs) {
-	}
+    @Override
+    public void requestSubpartition(
+            ResultPartitionID partitionId,
+            int subpartitionIndex,
+            RemoteInputChannel inputChannel,
+            int delayMs) {}
 
-	@Override
-	public void notifyCreditAvailable(RemoteInputChannel inputChannel) {
-	}
+    @Override
+    public void notifyCreditAvailable(RemoteInputChannel inputChannel) {}
 
-	@Override
-	public void sendTaskEvent(ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel) {
-	}
+    @Override
+    public void resumeConsumption(RemoteInputChannel inputChannel) {}
 
-	@Override
-	public void close(RemoteInputChannel inputChannel) {
-	}
+    @Override
+    public void sendTaskEvent(
+            ResultPartitionID partitionId, TaskEvent event, RemoteInputChannel inputChannel) {}
+
+    @Override
+    public void close(RemoteInputChannel inputChannel) {}
 }

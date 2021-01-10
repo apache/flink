@@ -18,45 +18,33 @@
 
 package org.apache.flink.runtime.memory;
 
-import org.apache.flink.core.memory.MemoryType;
-
-import java.util.EnumMap;
-import java.util.Map;
-
 import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
 
 /** Builder class for {@link MemoryManager}. */
 public class MemoryManagerBuilder {
-	private static final long DEFAULT_MEMORY_SIZE = 32L * DEFAULT_PAGE_SIZE;
+    private static final long DEFAULT_MEMORY_SIZE = 32L * DEFAULT_PAGE_SIZE;
 
-	private final Map<MemoryType, Long> memoryPools = new EnumMap<>(MemoryType.class);
-	private int pageSize = DEFAULT_PAGE_SIZE;
+    private long memorySize = DEFAULT_MEMORY_SIZE;
+    private int pageSize = DEFAULT_PAGE_SIZE;
 
-	private MemoryManagerBuilder() {}
+    private MemoryManagerBuilder() {}
 
-	public MemoryManagerBuilder setMemorySize(long memorySize) {
-		this.memoryPools.put(MemoryType.HEAP, memorySize);
-		return this;
-	}
+    public MemoryManagerBuilder setMemorySize(long memorySize) {
+        this.memorySize = memorySize;
+        return this;
+    }
 
-	public MemoryManagerBuilder setMemorySize(MemoryType memoryType, long memorySize) {
-		this.memoryPools.put(memoryType, memorySize);
-		return this;
-	}
+    public MemoryManagerBuilder setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+        return this;
+    }
 
-	public MemoryManagerBuilder setPageSize(int pageSize) {
-		this.pageSize = pageSize;
-		return this;
-	}
+    public MemoryManager build() {
+        return new MemoryManager(
+                memorySize, pageSize, UnsafeMemoryBudgetTest.MAX_SLEEPS_VERIFY_EMPTY_FOR_TESTS);
+    }
 
-	public MemoryManager build() {
-		if (memoryPools.isEmpty()) {
-			memoryPools.put(MemoryType.HEAP, DEFAULT_MEMORY_SIZE);
-		}
-		return new MemoryManager(memoryPools, pageSize);
-	}
-
-	public static MemoryManagerBuilder newBuilder() {
-		return new MemoryManagerBuilder();
-	}
+    public static MemoryManagerBuilder newBuilder() {
+        return new MemoryManagerBuilder();
+    }
 }

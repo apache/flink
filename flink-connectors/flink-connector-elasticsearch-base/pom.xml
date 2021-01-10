@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch-base_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch-base</name>
+	<name>Flink : Connectors : Elasticsearch base</name>
 
 	<packaging>jar</packaging>
 

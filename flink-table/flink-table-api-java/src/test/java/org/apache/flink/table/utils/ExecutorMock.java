@@ -21,23 +21,28 @@ package org.apache.flink.table.utils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.delegation.Executor;
 
 import java.util.List;
 
-/**
- * Mocking {@link Executor} for tests.
- */
+/** Mocking {@link Executor} for tests. */
 public class ExecutorMock implements Executor {
 
-	@Override
-	public Pipeline createPipeline(List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
-		return null;
-	}
+    @Override
+    public Pipeline createPipeline(
+            List<Transformation<?>> transformations, TableConfig tableConfig, String jobName) {
+        return null;
+    }
 
-	@Override
-	public JobExecutionResult execute(Pipeline pipeline) throws Exception {
-		return null;
-	}
+    @Override
+    public JobExecutionResult execute(Pipeline pipeline) throws Exception {
+        return null;
+    }
+
+    @Override
+    public JobClient executeAsync(Pipeline pipeline) throws Exception {
+        return null;
+    }
 }

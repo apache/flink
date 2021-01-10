@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.DataTypes
-import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
+import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.utils.JoinedRowData
+import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, SQL_TIMESTAMP, boxedTypeTermForType, newName}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, TIMESTAMP_DATA, boxedTypeTermForType, newName}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
@@ -36,19 +39,16 @@ import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator.{asL
 import org.apache.flink.table.planner.expressions.CallExpressionResolver
 import org.apache.flink.table.planner.expressions.ExpressionBuilder._
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList, AggregateUtil}
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+
 import org.apache.calcite.avatica.util.DateTimeUtils
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.apache.commons.math3.util.ArithmeticUtils
@@ -62,61 +62,48 @@ abstract class WindowCodeGenerator(
     inputTimeIsDate: Boolean,
     namedProperties: Seq[PlannerNamedWindowProperty],
     aggInfoList: AggregateInfoList,
-    inputRowType: RelDataType,
+    inputRowType: RowType,
     grouping: Array[Int],
     auxGrouping: Array[Int],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean) {
 
-  lazy val builder: RelBuilder = relBuilder.values(inputRowType)
-  lazy val timestampInternalType: LogicalType =
+  protected lazy val builder: RelBuilder = relBuilder.values(
+    FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType))
+
+  protected lazy val aggInfos: Array[AggregateInfo] = aggInfoList.aggInfos
+
+  protected lazy val functionIdentifiers: Map[AggregateFunction[_, _], String] =
+    AggCodeGenHelper.getFunctionIdentifiers(aggInfos)
+
+  protected lazy val aggBufferNames: Array[Array[String]] =
+    AggCodeGenHelper.getAggBufferNames(auxGrouping, aggInfos)
+
+  protected lazy val aggBufferTypes: Array[Array[LogicalType]] = AggCodeGenHelper.getAggBufferTypes(
+    inputRowType,
+    auxGrouping,
+    aggInfos)
+
+  protected lazy val groupKeyRowType: RowType =
+    AggCodeGenHelper.projectRowType(inputRowType, grouping)
+
+  protected lazy val timestampInternalType: LogicalType =
     if (inputTimeIsDate) new IntType() else new BigIntType()
-  lazy val timestampInternalTypeName: String = if (inputTimeIsDate) "Int" else "Long"
-  lazy val aggCallToAggFunction: Array[(AggregateCall, UserDefinedFunction)] =
-    aggInfoList.aggInfos.map(info => (info.agg, info.function))
-  lazy val aggregateCalls: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
-  lazy val aggregates: Seq[UserDefinedFunction] = aggCallToAggFunction.map(_._2)
 
-  lazy val aggArgs: Array[Array[Int]] = aggInfoList.aggInfos.map(_.argIndexes)
+  protected lazy val timestampInternalTypeName: String = if (inputTimeIsDate) "Int" else "Long"
 
-  // currently put auxGrouping to aggBuffer in code-gen
-  lazy val aggBufferNames: Array[Array[String]] = auxGrouping.zipWithIndex.map {
-    case (_, index) => Array(s"aux_group$index")
-  } ++ aggregates.zipWithIndex.toArray.map {
-    case (a: DeclarativeAggregateFunction, index) =>
-      val idx = auxGrouping.length + index
-      a.aggBufferAttributes.map(attr => s"agg${idx}_${attr.getName}")
-    case (_: AggregateFunction[_, _], index) =>
-      val idx = auxGrouping.length + index
-      Array(s"agg$idx")
-  }
-
-  lazy val aggBufferTypes: Array[Array[LogicalType]] = auxGrouping.map { index =>
-    Array(FlinkTypeFactory.toLogicalType(inputRowType.getFieldList.get(index).getType))
-  } ++ aggregates.map {
-    case a: DeclarativeAggregateFunction => a.getAggBufferTypes.map(_.getLogicalType)
-    case a: AggregateFunction[_, _] =>
-      Array(getAccumulatorTypeOfAggregateFunction(a)).map(fromDataTypeToLogicalType)
-  }.toArray[Array[LogicalType]]
-
-  lazy val groupKeyRowType: RowType = RowType.of(
-    grouping.map { index =>
-      FlinkTypeFactory.toLogicalType(inputRowType.getFieldList.get(index).getType)
-    }, grouping.map(inputRowType.getFieldNames.get(_)))
-
-  // get udagg instance names
-  lazy val udaggs: Map[AggregateFunction[_, _], String] = aggregates
-      .filter(a => a.isInstanceOf[AggregateFunction[_, _]])
-      .map(a => a -> CodeGenUtils.udfFieldName(a)).toMap
-      .asInstanceOf[Map[AggregateFunction[_, _], String]]
-
-  lazy val windowedGroupKeyType: RowType = RowType.of(
+  private lazy val windowedGroupKeyType: RowType = RowType.of(
     (groupKeyRowType.getChildren :+ timestampInternalType).toArray,
     (groupKeyRowType.getFieldNames :+ "assignedTs$").toArray)
 
-  def getOutputRowClass: Class[_ <: BaseRow] =
-    if (namedProperties.isEmpty && grouping.isEmpty) classOf[GenericRow] else classOf[JoinedRow]
+  def getOutputRowClass: Class[_ <: RowData] = {
+    if (namedProperties.isEmpty && grouping.isEmpty) {
+      classOf[GenericRowData]
+    } else {
+      classOf[JoinedRowData]
+    }
+  }
 
   private[flink] def getWindowsGroupingElementInfo(
       enablePreAccumulate: Boolean = true): RowType = {
@@ -129,7 +116,7 @@ abstract class WindowCodeGenerator(
         (groupKeyTypes :+ timestampInternalType) ++ aggBuffTypes,
         ((groupKeyNames :+ "assignedTs$") ++ aggBuffNames).toArray)
     } else {
-      FlinkTypeFactory.toLogicalRowType(inputRowType)
+      inputRowType
     }
   }
 
@@ -163,7 +150,7 @@ abstract class WindowCodeGenerator(
       initAggBufferCode: String,
       doAggregateCode: String,
       outputWinAggResExpr: GeneratedExpression): String = {
-    val rowIter = classOf[RowIterator[BinaryRow]].getName
+    val rowIter = classOf[RowIterator[BinaryRowData]].getName
     val statements =
       s"""
          |while ($groupingTerm.hasTriggerWindow()) {
@@ -217,13 +204,13 @@ abstract class WindowCodeGenerator(
     // gen code to apply aggregate functions to grouping window elements
     val offset = if (enablePreAcc) grouping.length + 1 else grouping.length
     val argsMapping = buildAggregateArgsMapping(
-      enablePreAcc, offset, inputType, auxGrouping, aggArgs, aggBufferTypes)
+      enablePreAcc, offset, inputType, auxGrouping, aggInfos, aggBufferTypes)
     val aggBufferExprs = genFlatAggBufferExprs(
       enablePreAcc,
       ctx,
       builder,
       auxGrouping,
-      aggregates,
+      aggInfos,
       argsMapping,
       aggBufferNames,
       aggBufferTypes)
@@ -234,8 +221,8 @@ abstract class WindowCodeGenerator(
       inputTerm,
       grouping,
       auxGrouping,
-      aggregates,
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       aggBufferExprs)
     val doAggregateCode = genAggregateByFlatAggregateBuffer(
       enablePreAcc,
@@ -244,9 +231,8 @@ abstract class WindowCodeGenerator(
       inputType,
       inputTerm,
       auxGrouping,
-      aggCallToAggFunction,
-      aggregates,
-      udaggs,
+      aggInfos,
+      functionIdentifiers,
       argsMapping,
       aggBufferNames,
       aggBufferTypes,
@@ -264,9 +250,8 @@ abstract class WindowCodeGenerator(
         builder,
         grouping,
         auxGrouping,
-        aggregates,
-        aggInfoList.aggInfos.map(_.externalResultType),
-        udaggs,
+        aggInfos,
+        functionIdentifiers,
         argsMapping,
         aggBufferNames,
         aggBufferTypes,
@@ -285,7 +270,7 @@ abstract class WindowCodeGenerator(
         GeneratedExpression(s"$wStartCode", NEVER_NULL, NO_CODE, timestampInternalType) +:
             aggBufferExprs,
         valueRowType,
-        classOf[GenericRow],
+        classOf[GenericRowData],
         outRow = valueRow)
     }
 
@@ -295,7 +280,7 @@ abstract class WindowCodeGenerator(
       case Some(key) =>
         // generate agg result
         val windowAggResultTerm = CodeGenUtils.newName("windowAggResult")
-        ctx.addReusableOutputRecord(outputType, classOf[JoinedRow], windowAggResultTerm)
+        ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], windowAggResultTerm)
         val output =
           s"""
              |${setValueResult.code}
@@ -423,7 +408,7 @@ abstract class WindowCodeGenerator(
     val preAccResult = CodeGenUtils.newName("prepareWinElement")
     val preAccResultWriter = CodeGenUtils.newName("prepareWinElementWriter")
     ctx.addReusableOutputRecord(
-      windowElementType, classOf[BinaryRow], preAccResult, Some(preAccResultWriter))
+      windowElementType, classOf[BinaryRowData], preAccResult, Some(preAccResultWriter))
 
     val timeWindowType = classOf[TimeWindow].getName
     val currentWindow = newName("currentWindow")
@@ -435,13 +420,13 @@ abstract class WindowCodeGenerator(
         // case: global/complete window agg: Sliding window with with pane optimization
         val offset = if (isMerge) grouping.length + 1 else grouping.length
         val argsMapping = buildAggregateArgsMapping(
-          isMerge, offset, inputType, auxGrouping, aggArgs, aggBufferTypes)
+          isMerge, offset, inputType, auxGrouping, aggInfos, aggBufferTypes)
         val aggBufferExprs = genFlatAggBufferExprs(
           isMerge,
           ctx,
           builder,
           auxGrouping,
-          aggregates,
+          aggInfos,
           argsMapping,
           aggBufferNames,
           aggBufferTypes)
@@ -452,8 +437,8 @@ abstract class WindowCodeGenerator(
           inputTerm,
           grouping,
           auxGrouping,
-          aggregates,
-          udaggs,
+          aggInfos,
+          functionIdentifiers,
           aggBufferExprs)
         val doAggregateCode = genAggregateByFlatAggregateBuffer(
           isMerge,
@@ -462,9 +447,8 @@ abstract class WindowCodeGenerator(
           inputType,
           inputTerm,
           auxGrouping,
-          aggCallToAggFunction,
-          aggregates,
-          udaggs,
+          aggInfos,
+          functionIdentifiers,
           argsMapping,
           aggBufferNames,
           aggBufferTypes,
@@ -480,7 +464,7 @@ abstract class WindowCodeGenerator(
         val setPanedAggResultExpr = exprCodegen.generateResultExpression(
           setResultExprs,
           windowElementType,
-          classOf[BinaryRow],
+          classOf[BinaryRowData],
           preAccResult,
           Some(preAccResultWriter))
 
@@ -620,9 +604,9 @@ abstract class WindowCodeGenerator(
 
       // reusable row to set window property fields
       val propTerm = CodeGenUtils.newName("windowProp")
-      ctx.addReusableOutputRecord(propOutputType, classOf[GenericRow], propTerm)
+      ctx.addReusableOutputRecord(propOutputType, classOf[GenericRowData], propTerm)
       val windowAggResultWithPropTerm = CodeGenUtils.newName("windowAggResultWithProperty")
-      ctx.addReusableOutputRecord(outputType, classOf[JoinedRow], windowAggResultWithPropTerm)
+      ctx.addReusableOutputRecord(outputType, classOf[JoinedRowData], windowAggResultWithPropTerm)
 
       // set window start, end property according to window type
       val (startPos, endPos, rowTimePos) = AggregateUtil.computeWindowPropertyPos(namedProperties)
@@ -631,17 +615,17 @@ abstract class WindowCodeGenerator(
       // get assigned window start timestamp
       def windowProps(size: Expression) = {
         val (startWValue, endWValue, rowTimeValue) = (
-            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getStart())",
-            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.getEnd())",
-            s"$SQL_TIMESTAMP.fromEpochMillis($currentWindowTerm.maxTimestamp())")
+            s"$TIMESTAMP_DATA.fromEpochMillis($currentWindowTerm.getStart())",
+            s"$TIMESTAMP_DATA.fromEpochMillis($currentWindowTerm.getEnd())",
+            s"$TIMESTAMP_DATA.fromEpochMillis($currentWindowTerm.maxTimestamp())")
         val start = if (startPos.isDefined) {
-          s"$propTerm.setTimestamp($lastPos + ${startPos.get}, $startWValue, 3);"
+          s"$propTerm.setField($lastPos + ${startPos.get}, $startWValue);"
         } else ""
         val end = if (endPos.isDefined) {
-          s"$propTerm.setTimestamp($lastPos + ${endPos.get}, $endWValue, 3);"
+          s"$propTerm.setField($lastPos + ${endPos.get}, $endWValue);"
         } else ""
         val rowTime = if (rowTimePos.isDefined) {
-          s"$propTerm.setTimestamp($lastPos + ${rowTimePos.get}, $rowTimeValue, 3);"
+          s"$propTerm.setField($lastPos + ${rowTimePos.get}, $rowTimeValue);"
         } else ""
         (start, end, rowTime)
       }
@@ -696,14 +680,15 @@ abstract class WindowCodeGenerator(
         remainder)),
       literal(index * slideSize))
     exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
-      new ExpressionConverter(relBuilder.values(inputRowType))))
+      new ExpressionConverter(
+        relBuilder.values(FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType)))))
   }
 
   def getGrouping: Array[Int] = grouping
 
   def getAuxGrouping: Array[Int] = auxGrouping
 
-  def getAggCallList: Seq[AggregateCall] = aggCallToAggFunction.map(_._1)
+  def getAggCallList: Seq[AggregateCall] = aggInfos.map(_.agg)
 
   def getInputTimeValue(inputTerm: String, index: Int): String = {
     if(inputTimeIsDate) {
@@ -742,7 +727,7 @@ abstract class WindowCodeGenerator(
 
 object WindowCodeGenerator {
 
-  def getWindowDef(window: LogicalWindow): (Long, Long) = {
+  def getWindowDef(window: LogicalWindow): JTuple2[JLong, JLong] = {
     val (windowSize, slideSize): (Long, Long) = window match {
       case TumblingGroupWindow(_, _, size) if isTimeIntervalLiteral(size) =>
         (asLong(size), asLong(size))
@@ -752,7 +737,7 @@ object WindowCodeGenerator {
         // count tumbling/sliding window and session window not supported now
         throw new UnsupportedOperationException(s"Window $window is not supported right now.")
     }
-    (windowSize, slideSize)
+    new JTuple2[JLong, JLong](windowSize, slideSize)
   }
 
   def asLong(expr: Expression): Long = extractValue(expr, classOf[JLong]).get()

@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table</artifactId>
-	<name>flink-table</name>
+	<name>Flink : Table : </name>
 
 	<packaging>pom</packaging>
 
@@ -45,6 +45,7 @@ under the License.
 		<module>flink-table-uber-blink</module>
 		<module>flink-sql-client</module>
 		<module>flink-sql-parser</module>
+		<module>flink-sql-parser-hive</module>
 	</modules>
 
 	<dependencyManagement>
@@ -72,8 +73,8 @@ under the License.
 
 	<properties>
 		<!-- When updating Janino, make sure that Calcite supports it as well. -->
-		<janino.version>3.0.9</janino.version>
-		<calcite.version>1.22.0</calcite.version>
-		<guava.version>19.0</guava.version>
+		<janino.version>3.0.11</janino.version>
+		<calcite.version>1.26.0</calcite.version>
+		<guava.version>29.0-jre</guava.version>
 	</properties>
 </project>

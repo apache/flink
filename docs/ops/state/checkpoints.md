@@ -32,7 +32,7 @@ Checkpoints make state in Flink fault tolerant by allowing state and the
 corresponding stream positions to be recovered, thereby giving the application
 the same semantics as a failure-free execution.
 
-See [Checkpointing]({{ site.baseurl }}/dev/stream/state/checkpointing.html) for how to enable and
+See [Checkpointing]({% link dev/stream/state/checkpointing.md %}) for how to enable and
 configure checkpoints for your program.
 
 ## Retained Checkpoints
@@ -57,7 +57,7 @@ The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoint
 
 ### Directory Structure
 
-Similarly to [savepoints](savepoints.html), a checkpoint consists
+Similarly to [savepoints]({% link ops/state/savepoints.md %}), a checkpoint consists
 of a meta data file and, depending on the state backend, some additional data
 files. The meta data file and data files are stored in the directory that is
 configured via `state.checkpoints.dir` in the configuration files, 
@@ -96,7 +96,7 @@ env.setStateBackend(new RocksDBStateBackend("hdfs:///checkpoints-data/"));
 
 ### Difference to Savepoints
 
-Checkpoints have a few differences from [savepoints](savepoints.html). They
+Checkpoints have a few differences from [savepoints]({% link ops/state/savepoints.md %}). They
 - use a state backend specific (low-level) data format, may be incremental.
 - do not support Flink specific features like rescaling.
 
@@ -104,7 +104,7 @@ Checkpoints have a few differences from [savepoints](savepoints.html). They
 
 A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide](../cli.html#restore-a-savepoint)). Note that if the
+[savepoint restore guide]({% link deployment/cli.md %}#restore-a-savepoint)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).
@@ -112,5 +112,52 @@ above).
 {% highlight shell %}
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]
 {% endhighlight %}
+
+### Unaligned checkpoints
+
+Starting with Flink 1.11, checkpoints can be unaligned. 
+[Unaligned checkpoints]({% link concepts/stateful-stream-processing.md
+%}#unaligned-checkpointing) contain in-flight data (i.e., data stored in
+buffers) as part of the checkpoint state, which allows checkpoint barriers to
+overtake these buffers. Thus, the checkpoint duration becomes independent of the
+current throughput as checkpoint barriers are effectively not embedded into 
+the stream of data anymore.
+
+You should use unaligned checkpoints if your checkpointing durations are very
+high due to backpressure. Then, checkpointing time becomes mostly
+independent of the end-to-end latency. Be aware unaligned checkpointing
+adds to I/O to the state backends, so you shouldn't use it when the I/O to
+the state backend is actually the bottleneck during checkpointing.
+
+Note that unaligned checkpoints is a brand-new feature that currently has the
+following limitations:
+
+- You cannot rescale or change job graph with from unaligned checkpoints. You 
+  have to take a savepoint before rescaling. Savepoints are always aligned 
+  independent of the alignment setting of checkpoints.
+- Flink currently does not support concurrent unaligned checkpoints. However, 
+  due to the more predictable and shorter checkpointing times, concurrent 
+  checkpoints might not be needed at all. However, savepoints can also not 
+  happen concurrently to unaligned checkpoints, so they will take slightly 
+  longer.
+- Unaligned checkpoints break with an implicit guarantee in respect to 
+  watermarks during recovery:
+
+Currently, Flink generates the watermark as a first step of recovery instead of 
+storing the latest watermark in the operators to ease rescaling. In unaligned 
+checkpoints, that means on recovery, **Flink generates watermarks after it 
+restores in-flight data**. If your pipeline uses an **operator that applies the
+latest watermark on each record**, it will produce **different results** than 
+for aligned checkpoints. If your operator depends on the latest watermark being
+always available, then the workaround is to store the watermark in the operator 
+state. To support rescaling, watermarks should be stored per key-group in a 
+union-state. We most likely will implement this approach as a general solution 
+(didn't make it into Flink 1.11.0).
+
+In the upcoming release(s), Flink will address these limitations and will
+provide a fine-grained way to trigger unaligned checkpoints only for the 
+in-flight data that moves slowly with timeout mechanism. These options will
+decrease the pressure on I/O in the state backends and eventually allow
+unaligned checkpoints to become the default checkpointing. 
 
 {% top %}

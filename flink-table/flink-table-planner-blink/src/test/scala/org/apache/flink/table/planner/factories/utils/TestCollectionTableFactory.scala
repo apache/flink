@@ -33,17 +33,16 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.factories.{TableSinkFactory, TableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sinks.{AppendStreamTableSink, BatchTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.{BatchTableSource, LookupableTableSource, StreamTableSource}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
+
 import java.io.IOException
 import java.util
 import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
-
-import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.utils.TableSchemaUtils.getPhysicalSchema
 
 import scala.collection.JavaConversions._
 
@@ -104,19 +103,12 @@ object TestCollectionTableFactory {
   def getCollectionSource(context: TableSourceFactory.Context): CollectionTableSource = {
     val schema = context.getTable.getSchema
     val isBounded = context.getTable.getProperties.getOrDefault(IS_BOUNDED, "true").toBoolean
-    new CollectionTableSource(emitIntervalMS, physicalSchema(schema), isBounded)
+    new CollectionTableSource(emitIntervalMS, getPhysicalSchema(schema), isBounded)
   }
 
   def getCollectionSink(context: TableSinkFactory.Context): CollectionTableSink = {
     val schema = context.getTable.getSchema
-    new CollectionTableSink(physicalSchema(schema))
-  }
-
-  def physicalSchema(schema: TableSchema): TableSchema = {
-    val builder = TableSchema.builder()
-    schema.getTableColumns.filter(c => !c.isGenerated)
-      .foreach(c => builder.field(c.getName, c.getType))
-    builder.build()
+    new CollectionTableSink(getPhysicalSchema(schema))
   }
 
   /**

@@ -17,8 +17,8 @@
 
 package org.apache.flink.formats.parquet.vector.reader;
 
-import org.apache.flink.table.dataformat.vector.writable.WritableFloatVector;
-import org.apache.flink.table.dataformat.vector.writable.WritableIntVector;
+import org.apache.flink.table.data.vector.writable.WritableFloatVector;
+import org.apache.flink.table.data.vector.writable.WritableIntVector;
 
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.PageReader;
@@ -27,75 +27,73 @@ import org.apache.parquet.schema.PrimitiveType;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-/**
- * Float {@link ColumnReader}.
- */
+/** Float {@link ColumnReader}. */
 public class FloatColumnReader extends AbstractColumnReader<WritableFloatVector> {
 
-	public FloatColumnReader(
-			ColumnDescriptor descriptor,
-			PageReader pageReader) throws IOException {
-		super(descriptor, pageReader);
-		checkTypeName(PrimitiveType.PrimitiveTypeName.FLOAT);
-	}
+    public FloatColumnReader(ColumnDescriptor descriptor, PageReader pageReader)
+            throws IOException {
+        super(descriptor, pageReader);
+        checkTypeName(PrimitiveType.PrimitiveTypeName.FLOAT);
+    }
 
-	@Override
-	protected void readBatch(int rowId, int num, WritableFloatVector column) {
-		int left = num;
-		while (left > 0) {
-			if (runLenDecoder.currentCount == 0) {
-				runLenDecoder.readNextGroup();
-			}
-			int n = Math.min(left, runLenDecoder.currentCount);
-			switch (runLenDecoder.mode) {
-				case RLE:
-					if (runLenDecoder.currentValue == maxDefLevel) {
-						readFloats(n, column, rowId);
-					} else {
-						column.setNulls(rowId, n);
-					}
-					break;
-				case PACKED:
-					for (int i = 0; i < n; ++i) {
-						if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++] == maxDefLevel) {
-							column.setFloat(rowId + i, readFloat());
-						} else {
-							column.setNullAt(rowId + i);
-						}
-					}
-					break;
-			}
-			rowId += n;
-			left -= n;
-			runLenDecoder.currentCount -= n;
-		}
-	}
+    @Override
+    protected void readBatch(int rowId, int num, WritableFloatVector column) {
+        int left = num;
+        while (left > 0) {
+            if (runLenDecoder.currentCount == 0) {
+                runLenDecoder.readNextGroup();
+            }
+            int n = Math.min(left, runLenDecoder.currentCount);
+            switch (runLenDecoder.mode) {
+                case RLE:
+                    if (runLenDecoder.currentValue == maxDefLevel) {
+                        readFloats(n, column, rowId);
+                    } else {
+                        column.setNulls(rowId, n);
+                    }
+                    break;
+                case PACKED:
+                    for (int i = 0; i < n; ++i) {
+                        if (runLenDecoder.currentBuffer[runLenDecoder.currentBufferIdx++]
+                                == maxDefLevel) {
+                            column.setFloat(rowId + i, readFloat());
+                        } else {
+                            column.setNullAt(rowId + i);
+                        }
+                    }
+                    break;
+            }
+            rowId += n;
+            left -= n;
+            runLenDecoder.currentCount -= n;
+        }
+    }
 
-	@Override
-	protected void readBatchFromDictionaryIds(int rowId, int num, WritableFloatVector column,
-			WritableIntVector dictionaryIds) {
-		for (int i = rowId; i < rowId + num; ++i) {
-			if (!column.isNullAt(i)) {
-				column.setFloat(i, dictionary.decodeToFloat(dictionaryIds.getInt(i)));
-			}
-		}
-	}
+    @Override
+    protected void readBatchFromDictionaryIds(
+            int rowId, int num, WritableFloatVector column, WritableIntVector dictionaryIds) {
+        for (int i = rowId; i < rowId + num; ++i) {
+            if (!column.isNullAt(i)) {
+                column.setFloat(i, dictionary.decodeToFloat(dictionaryIds.getInt(i)));
+            }
+        }
+    }
 
-	private float readFloat() {
-		return readDataBuffer(4).getFloat();
-	}
+    private float readFloat() {
+        return readDataBuffer(4).getFloat();
+    }
 
-	private void readFloats(int total, WritableFloatVector c, int rowId) {
-		int requiredBytes = total * 4;
-		ByteBuffer buffer = readDataBuffer(requiredBytes);
+    private void readFloats(int total, WritableFloatVector c, int rowId) {
+        int requiredBytes = total * 4;
+        ByteBuffer buffer = readDataBuffer(requiredBytes);
 
-		if (buffer.hasArray()) {
-			int offset = buffer.arrayOffset() + buffer.position();
-			c.setFloatsFromBinary(rowId, total, buffer.array(), offset);
-		} else {
-			for (int i = 0; i < total; i += 1) {
-				c.setFloat(rowId + i, buffer.getFloat());
-			}
-		}
-	}
+        if (buffer.hasArray()) {
+            int offset = buffer.arrayOffset() + buffer.position();
+            c.setFloatsFromBinary(rowId, total, buffer.array(), offset);
+        } else {
+            for (int i = 0; i < total; i += 1) {
+                c.setFloat(rowId + i, buffer.getFloat());
+            }
+        }
+    }
 }

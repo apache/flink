@@ -15,6 +15,9 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from typing import Dict, Any
+
+from pyflink.common.job_id import JobID
 
 __all__ = ['JobExecutionResult']
 
@@ -23,65 +26,56 @@ class JobExecutionResult(object):
     """
     The result of a job execution. Gives access to the execution time of the job,
     and to all accumulators created by this job.
+
+    .. versionadded:: 1.11.0
     """
 
     def __init__(self, j_job_execution_result):
         self._j_job_execution_result = j_job_execution_result
 
-    def get_job_id(self):
+    def get_job_id(self) -> JobID:
         """
         Returns the JobID assigned to the job by the Flink runtime.
 
         :return: JobID, or null if the job has been executed on a runtime without JobIDs
                  or if the execution failed.
+
+        .. versionadded:: 1.11.0
         """
-        return self._j_job_execution_result.getJobID()
+        return JobID(self._j_job_execution_result.getJobID())
 
-    def is_job_execution_result(self):
-        """
-        Checks if this JobSubmissionResult is also a JobExecutionResult.
-
-        .. seealso:: :func:`get_job_execution_result` to retrieve the JobExecutionResult.
-
-        :return: ``True`` if this is a JobExecutionResult, ``False`` otherwise.
-        """
-        return self._j_job_execution_result.isJobExecutionResult()
-
-    def get_job_execution_result(self):
-        """
-        Returns the JobExecutionResult if available.
-
-        :throws: Exception if this is not a JobExecutionResult.
-        :return: The JobExecutionResult.
-        """
-        return self
-
-    def get_net_runtime(self):
+    def get_net_runtime(self) -> int:
         """
         Gets the net execution time of the job, i.e., the execution time in the parallel system,
         without the pre-flight steps like the optimizer.
 
         :return: The net execution time in milliseconds.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_job_execution_result.getNetRuntime()
 
-    def get_accumulator_result(self, accumulator_name):
+    def get_accumulator_result(self, accumulator_name: str):
         """
         Gets the accumulator with the given name. Returns None, if no accumulator with
         that name was produced.
 
         :param accumulator_name: The name of the accumulator.
         :return: The value of the accumulator with the given name.
+
+        .. versionadded:: 1.11.0
         """
         return self.get_all_accumulator_results().get(accumulator_name)
 
-    def get_all_accumulator_results(self):
+    def get_all_accumulator_results(self) -> Dict[str, Any]:
         """
         Gets all accumulators produced by the job. The map contains the accumulators as
         mappings from the accumulator name to the accumulator value.
 
         :return: The dict which the keys are names of the accumulator and the values
                  are values of the accumulator produced by the job.
+
+        .. versionadded:: 1.11.0
         """
         j_result_map = self._j_job_execution_result.getAllAccumulatorResults()
         accumulators = {}
@@ -89,8 +83,10 @@ class JobExecutionResult(object):
             accumulators[key] = j_result_map[key]
         return accumulators
 
-    def to_string(self):
+    def __str__(self):
         """
         Convert JobExecutionResult to a string, if possible.
+
+        .. versionadded:: 1.11.0
         """
         return self._j_job_execution_result.toString()

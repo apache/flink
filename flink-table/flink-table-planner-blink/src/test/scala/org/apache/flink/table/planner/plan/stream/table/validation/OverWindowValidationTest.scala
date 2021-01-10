@@ -19,12 +19,11 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Over, Table, Tumble, ValidationException}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
-import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.OverAgg0
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.RelNode

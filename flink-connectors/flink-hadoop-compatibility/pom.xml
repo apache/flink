@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-hadoop-compatibility_${scala.binary.version}</artifactId>
-	<name>flink-hadoop-compatibility</name>
+	<name>Flink : Connectors : Hadoop compatibility</name>
 
 	<packaging>jar</packaging>
 
@@ -61,8 +61,14 @@ under the License.
 		</dependency>
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<scope>provided</scope>
 		</dependency>
 

@@ -154,6 +154,8 @@ object FunctionCodeGenerator {
         public void close() throws Exception {
           ${ctx.reuseCloseCode()}
         }
+
+        ${ctx.reuseInnerClassDefinitionCode()}
       }
     """.stripMargin
 
@@ -198,7 +200,7 @@ object FunctionCodeGenerator {
         }
 
         @Override
-        public boolean apply($BASE_ROW $input1Term, $BASE_ROW $input2Term) throws Exception {
+        public boolean apply($ROW_DATA $input1Term, $ROW_DATA $input2Term) throws Exception {
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}

@@ -18,18 +18,33 @@
 
 package org.apache.flink.kubernetes;
 
+import org.apache.flink.configuration.Configuration;
+
 import org.apache.flink.shaded.guava18.com.google.common.io.Files;
+
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-/**
- * Utilities for the Kubernetes tests.
- */
+/** Utilities for the Kubernetes tests. */
 public class KubernetesTestUtils {
 
-	public static void createTemporyFile(String data, File directory, String fileName) throws IOException {
-		Files.write(data, new File(directory, fileName), StandardCharsets.UTF_8);
-	}
+    public static void createTemporyFile(String data, File directory, String fileName)
+            throws IOException {
+        Files.write(data, new File(directory, fileName), StandardCharsets.UTF_8);
+    }
+
+    public static Configuration loadConfigurationFromString(String content) {
+        final Configuration configuration = new Configuration();
+        for (String line : content.split(System.lineSeparator())) {
+            final String[] splits = line.split(":");
+            if (splits.length >= 2) {
+                configuration.setString(
+                        splits[0].trim(), StringUtils.substringAfter(line, ":").trim());
+            }
+        }
+        return configuration;
+    }
 }

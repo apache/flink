@@ -19,18 +19,11 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -43,10 +36,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -63,207 +53,203 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-/**
- * Tests that the execution vertex handles locality preferences well.
- */
+/** Tests that the execution vertex handles locality preferences well. */
 public class ExecutionVertexLocalityTest extends TestLogger {
 
-	private final JobID jobId = new JobID();
+    private final JobID jobId = new JobID();
 
-	private final JobVertexID sourceVertexId = new JobVertexID();
-	private final JobVertexID targetVertexId = new JobVertexID();
+    private final JobVertexID sourceVertexId = new JobVertexID();
+    private final JobVertexID targetVertexId = new JobVertexID();
 
-	/**
-	 * This test validates that vertices that have only one input stream try to
-	 * co-locate their tasks with the producer.
-	 */
-	@Test
-	public void testLocalityInputBasedForward() throws Exception {
-		final int parallelism = 10;
-		final TaskManagerLocation[] locations = new TaskManagerLocation[parallelism];
+    /**
+     * This test validates that vertices that have only one input stream try to co-locate their
+     * tasks with the producer.
+     */
+    @Test
+    public void testLocalityInputBasedForward() throws Exception {
+        final int parallelism = 10;
+        final TaskManagerLocation[] locations = new TaskManagerLocation[parallelism];
 
-		final ExecutionGraph graph = createTestGraph(parallelism, false);
+        final ExecutionGraph graph = createTestGraph(parallelism, false);
 
-		// set the location for all sources to a distinct location
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex source = graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
+        // set the location for all sources to a distinct location
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex source =
+                    graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
 
-			TaskManagerLocation location = new TaskManagerLocation(
-					ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
+            TaskManagerLocation location =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
 
-			locations[i] = location;
-			initializeLocation(source, location);
-		}
+            locations[i] = location;
+            initializeLocation(source, location);
+        }
 
-		// validate that the target vertices have no location preference
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
+        // validate that the target vertices have no location preference
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex target =
+                    graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
+            Iterator<CompletableFuture<TaskManagerLocation>> preference =
+                    target.getPreferredLocations().iterator();
 
-			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next().get());
-			assertFalse(preference.hasNext());
-		}
-	}
+            assertTrue(preference.hasNext());
+            assertEquals(locations[i], preference.next().get());
+            assertFalse(preference.hasNext());
+        }
+    }
 
-	/**
-	 * This test validates that vertices with too many input streams do not have a location
-	 * preference any more.
-	 */
-	@Test
-	public void testNoLocalityInputLargeAllToAll() throws Exception {
-		final int parallelism = 100;
+    /**
+     * This test validates that vertices with too many input streams do not have a location
+     * preference any more.
+     */
+    @Test
+    public void testNoLocalityInputLargeAllToAll() throws Exception {
+        final int parallelism = 100;
 
-		final ExecutionGraph graph = createTestGraph(parallelism, true);
+        final ExecutionGraph graph = createTestGraph(parallelism, true);
 
-		// set the location for all sources to a distinct location
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex source = graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
-			TaskManagerLocation location = new TaskManagerLocation(
-					ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
-			initializeLocation(source, location);
-		}
+        // set the location for all sources to a distinct location
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex source =
+                    graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
+            TaskManagerLocation location =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
+            initializeLocation(source, location);
+        }
 
-		// validate that the target vertices have no location preference
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
+        // validate that the target vertices have no location preference
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex target =
+                    graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
 
-			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
-			assertFalse(preference.hasNext());
-		}
-	}
+            Iterator<CompletableFuture<TaskManagerLocation>> preference =
+                    target.getPreferredLocations().iterator();
+            assertFalse(preference.hasNext());
+        }
+    }
 
-	/**
-	 * This test validates that stateful vertices schedule based in the state's location
-	 * (which is the prior execution's location).
-	 */
-	@Test
-	public void testLocalityBasedOnState() throws Exception {
-		final int parallelism = 10;
-		final TaskManagerLocation[] locations = new TaskManagerLocation[parallelism];
+    /**
+     * This test validates that stateful vertices schedule based in the state's location (which is
+     * the prior execution's location).
+     */
+    @Test
+    public void testLocalityBasedOnState() throws Exception {
+        final int parallelism = 10;
+        final TaskManagerLocation[] locations = new TaskManagerLocation[parallelism];
 
-		final ExecutionGraph graph = createTestGraph(parallelism, false);
+        final ExecutionGraph graph = createTestGraph(parallelism, false);
 
-		// set the location for all sources and targets
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex source = graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
-			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
+        // set the location for all sources and targets
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex source =
+                    graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
+            ExecutionVertex target =
+                    graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
 
-			TaskManagerLocation randomLocation = new TaskManagerLocation(
-					ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
-			
-			TaskManagerLocation location = new TaskManagerLocation(
-					ResourceID.generate(), InetAddress.getLoopbackAddress(), 20000 + i);
+            TaskManagerLocation randomLocation =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 10000 + i);
 
-			locations[i] = location;
-			initializeLocation(source, randomLocation);
-			initializeLocation(target, location);
+            TaskManagerLocation location =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 20000 + i);
 
-			setState(source.getCurrentExecutionAttempt(), ExecutionState.CANCELED);
-			setState(target.getCurrentExecutionAttempt(), ExecutionState.CANCELED);
-		}
+            locations[i] = location;
+            initializeLocation(source, randomLocation);
+            initializeLocation(target, location);
 
-		// mimic a restart: all vertices get re-initialized without actually being executed
-		for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
-			ejv.resetForNewExecution(System.currentTimeMillis(), graph.getGlobalModVersion());
-		}
+            setState(source.getCurrentExecutionAttempt(), ExecutionState.CANCELED);
+            setState(target.getCurrentExecutionAttempt(), ExecutionState.CANCELED);
+        }
 
-		// set new location for the sources and some state for the targets
-		for (int i = 0; i < parallelism; i++) {
-			// source location
-			ExecutionVertex source = graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
-			TaskManagerLocation randomLocation = new TaskManagerLocation(
-					ResourceID.generate(), InetAddress.getLoopbackAddress(), 30000 + i);
-			initializeLocation(source, randomLocation);
+        // mimic a restart: all vertices get re-initialized without actually being executed
+        for (ExecutionJobVertex ejv : graph.getVerticesTopologically()) {
+            ejv.resetForNewExecution(System.currentTimeMillis(), graph.getGlobalModVersion());
+        }
 
-			// target state
-			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			target.getCurrentExecutionAttempt().setInitialState(mock(JobManagerTaskRestore.class));
-		}
+        // set new location for the sources and some state for the targets
+        for (int i = 0; i < parallelism; i++) {
+            // source location
+            ExecutionVertex source =
+                    graph.getAllVertices().get(sourceVertexId).getTaskVertices()[i];
+            TaskManagerLocation randomLocation =
+                    new TaskManagerLocation(
+                            ResourceID.generate(), InetAddress.getLoopbackAddress(), 30000 + i);
+            initializeLocation(source, randomLocation);
 
-		// validate that the target vertices have the state's location as the location preference
-		for (int i = 0; i < parallelism; i++) {
-			ExecutionVertex target = graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
-			Iterator<CompletableFuture<TaskManagerLocation>> preference = target.getPreferredLocations().iterator();
+            // target state
+            ExecutionVertex target =
+                    graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
+            target.getCurrentExecutionAttempt().setInitialState(mock(JobManagerTaskRestore.class));
+        }
 
-			assertTrue(preference.hasNext());
-			assertEquals(locations[i], preference.next().get());
-			assertFalse(preference.hasNext());
-		}
-	}
+        // validate that the target vertices have the state's location as the location preference
+        for (int i = 0; i < parallelism; i++) {
+            ExecutionVertex target =
+                    graph.getAllVertices().get(targetVertexId).getTaskVertices()[i];
+            Iterator<CompletableFuture<TaskManagerLocation>> preference =
+                    target.getPreferredLocations().iterator();
 
-	// ------------------------------------------------------------------------
-	//  Utilities
-	// ------------------------------------------------------------------------
+            assertTrue(preference.hasNext());
+            assertEquals(locations[i], preference.next().get());
+            assertFalse(preference.hasNext());
+        }
+    }
 
-	/**
-	 * Creates a simple 2 vertex graph with a parallel source and a parallel target.
-	 */
-	private ExecutionGraph createTestGraph(int parallelism, boolean allToAll) throws Exception {
+    // ------------------------------------------------------------------------
+    //  Utilities
+    // ------------------------------------------------------------------------
 
-		JobVertex source = new JobVertex("source", sourceVertexId);
-		source.setParallelism(parallelism);
-		source.setInvokableClass(NoOpInvokable.class);
+    /** Creates a simple 2 vertex graph with a parallel source and a parallel target. */
+    private ExecutionGraph createTestGraph(int parallelism, boolean allToAll) throws Exception {
 
-		JobVertex target = new JobVertex("source", targetVertexId);
-		target.setParallelism(parallelism);
-		target.setInvokableClass(NoOpInvokable.class);
+        JobVertex source = new JobVertex("source", sourceVertexId);
+        source.setParallelism(parallelism);
+        source.setInvokableClass(NoOpInvokable.class);
 
-		DistributionPattern connectionPattern = allToAll ? DistributionPattern.ALL_TO_ALL : DistributionPattern.POINTWISE;
-		target.connectNewDataSetAsInput(source, connectionPattern, ResultPartitionType.PIPELINED);
+        JobVertex target = new JobVertex("source", targetVertexId);
+        target.setParallelism(parallelism);
+        target.setInvokableClass(NoOpInvokable.class);
 
-		JobGraph testJob = new JobGraph(jobId, "test job", source, target);
+        DistributionPattern connectionPattern =
+                allToAll ? DistributionPattern.ALL_TO_ALL : DistributionPattern.POINTWISE;
+        target.connectNewDataSetAsInput(source, connectionPattern, ResultPartitionType.PIPELINED);
 
-		final Time timeout = Time.seconds(10L);
-		return ExecutionGraphBuilder.buildGraph(
-			null,
-			testJob,
-			new Configuration(),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			mock(SlotProvider.class),
-			getClass().getClassLoader(),
-			new StandaloneCheckpointRecoveryFactory(),
-			timeout,
-			new FixedDelayRestartStrategy(10, 0L),
-			new UnregisteredMetricsGroup(),
-			VoidBlobWriter.getInstance(),
-			timeout,
-			log,
-			NettyShuffleMaster.INSTANCE,
-			NoOpJobMasterPartitionTracker.INSTANCE);
-	}
+        JobGraph testJob = new JobGraph(jobId, "test job", source, target);
 
-	private void initializeLocation(ExecutionVertex vertex, TaskManagerLocation location) throws Exception {
-		// we need a bit of reflection magic to initialize the location without going through
-		// scheduling paths. we choose to do that, rather than the alternatives:
-		//  - mocking the scheduler created fragile tests that break whenever the scheduler is adjusted
-		//  - exposing test methods in the ExecutionVertex leads to undesirable setters 
+        return TestingExecutionGraphBuilder.newBuilder().setJobGraph(testJob).build();
+    }
 
-		SlotContext slotContext = new SimpleSlotContext(
-			new AllocationID(),
-			location,
-			0,
-			mock(TaskManagerGateway.class));
+    private void initializeLocation(ExecutionVertex vertex, TaskManagerLocation location)
+            throws Exception {
+        // we need a bit of reflection magic to initialize the location without going through
+        // scheduling paths. we choose to do that, rather than the alternatives:
+        //  - mocking the scheduler created fragile tests that break whenever the scheduler is
+        // adjusted
+        //  - exposing test methods in the ExecutionVertex leads to undesirable setters
 
+        SlotContext slotContext =
+                new SimpleSlotContext(
+                        new AllocationID(), location, 0, mock(TaskManagerGateway.class));
 
+        LogicalSlot slot =
+                new SingleLogicalSlot(
+                        new SlotRequestId(),
+                        slotContext,
+                        null,
+                        Locality.LOCAL,
+                        mock(SlotOwner.class));
 
-		LogicalSlot slot = new SingleLogicalSlot(
-			new SlotRequestId(),
-			slotContext,
-			null,
-			Locality.LOCAL,
-			mock(SlotOwner.class));
+        if (!vertex.getCurrentExecutionAttempt().tryAssignResource(slot)) {
+            throw new FlinkException("Could not assign resource.");
+        }
+    }
 
-		if (!vertex.getCurrentExecutionAttempt().tryAssignResource(slot)) {
-			throw new FlinkException("Could not assign resource.");
-		}
-	}
+    private void setState(Execution execution, ExecutionState state) throws Exception {
+        final Field stateField = Execution.class.getDeclaredField("state");
+        stateField.setAccessible(true);
 
-	private void setState(Execution execution, ExecutionState state) throws Exception {
-		final Field stateField = Execution.class.getDeclaredField("state");
-		stateField.setAccessible(true);
-
-		stateField.set(execution, state);
-	}
+        stateField.set(execution, state);
+    }
 }

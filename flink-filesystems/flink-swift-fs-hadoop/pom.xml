@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-filesystems</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-swift-fs-hadoop</artifactId>
-	<name>flink-swift-fs-hadoop</name>
+	<name>Flink : FileSystems : Swift FS Hadoop</name>
 
 	<packaging>jar</packaging>
 
@@ -37,6 +37,26 @@ under the License.
 		<openstackhadoop.hadoop.version>2.8.1</openstackhadoop.hadoop.version>
 	</properties>
 
+	<!-- Overwrite hadoop dependency versions inherited from the parent pom dependencyManagement -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-client</artifactId>
+				<version>${openstackhadoop.hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-common</artifactId>
+				<version>${openstackhadoop.hadoop.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.hadoop</groupId>
+				<artifactId>hadoop-hdfs</artifactId>
+				<version>${openstackhadoop.hadoop.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 
 		<!-- Flink core -->
@@ -59,8 +79,8 @@ under the License.
 				because the optional Hadoop dependency is also pulled in for tests -->
 			<exclusions>
 				<exclusion>
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -222,10 +242,6 @@ under the License.
 								<relocation>
 									<pattern>org.mortbay</pattern>
 									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.mortbay</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.tukaani</pattern>
-									<shadedPattern>org.apache.flink.fs.openstackhadoop.shaded.org.tukaani</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.znerd</pattern>

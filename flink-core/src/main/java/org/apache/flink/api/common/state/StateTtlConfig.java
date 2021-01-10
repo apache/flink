@@ -41,430 +41,414 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Configuration of state TTL logic.
  *
- * <p>Note: The map state with TTL currently supports {@code null} user values
- * only if the user value serializer can handle {@code null} values.
- * If the serializer does not support {@code null} values,
- * it can be wrapped with {@link org.apache.flink.api.java.typeutils.runtime.NullableSerializer}
- * at the cost of an extra byte in the serialized form.
+ * <p>Note: The map state with TTL currently supports {@code null} user values only if the user
+ * value serializer can handle {@code null} values. If the serializer does not support {@code null}
+ * values, it can be wrapped with {@link
+ * org.apache.flink.api.java.typeutils.runtime.NullableSerializer} at the cost of an extra byte in
+ * the serialized form.
  */
 @PublicEvolving
 public class StateTtlConfig implements Serializable {
 
-	private static final long serialVersionUID = -7592693245044289793L;
+    private static final long serialVersionUID = -7592693245044289793L;
 
-	public static final StateTtlConfig DISABLED =
-		newBuilder(Time.milliseconds(Long.MAX_VALUE)).setUpdateType(UpdateType.Disabled).build();
+    public static final StateTtlConfig DISABLED =
+            newBuilder(Time.milliseconds(Long.MAX_VALUE))
+                    .setUpdateType(UpdateType.Disabled)
+                    .build();
 
-	/**
-	 * This option value configures when to update last access timestamp which prolongs state TTL.
-	 */
-	public enum UpdateType {
-		/** TTL is disabled. State does not expire. */
-		Disabled,
-		/** Last access timestamp is initialised when state is created and updated on every write operation. */
-		OnCreateAndWrite,
-		/** The same as <code>OnCreateAndWrite</code> but also updated on read. */
-		OnReadAndWrite
-	}
+    /**
+     * This option value configures when to update last access timestamp which prolongs state TTL.
+     */
+    public enum UpdateType {
+        /** TTL is disabled. State does not expire. */
+        Disabled,
+        /**
+         * Last access timestamp is initialised when state is created and updated on every write
+         * operation.
+         */
+        OnCreateAndWrite,
+        /** The same as <code>OnCreateAndWrite</code> but also updated on read. */
+        OnReadAndWrite
+    }
 
-	/**
-	 * This option configures whether expired user value can be returned or not.
-	 */
-	public enum StateVisibility {
-		/** Return expired user value if it is not cleaned up yet. */
-		ReturnExpiredIfNotCleanedUp,
-		/** Never return expired user value. */
-		NeverReturnExpired
-	}
+    /** This option configures whether expired user value can be returned or not. */
+    public enum StateVisibility {
+        /** Return expired user value if it is not cleaned up yet. */
+        ReturnExpiredIfNotCleanedUp,
+        /** Never return expired user value. */
+        NeverReturnExpired
+    }
 
-	/**
-	 * This option configures time scale to use for ttl.
-	 */
-	public enum TtlTimeCharacteristic {
-		/** Processing time, see also <code>org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>. */
-		ProcessingTime
-	}
+    /** This option configures time scale to use for ttl. */
+    public enum TtlTimeCharacteristic {
+        /**
+         * Processing time, see also <code>
+         * org.apache.flink.streaming.api.TimeCharacteristic.ProcessingTime</code>.
+         */
+        ProcessingTime
+    }
 
-	private final UpdateType updateType;
-	private final StateVisibility stateVisibility;
-	private final TtlTimeCharacteristic ttlTimeCharacteristic;
-	private final Time ttl;
-	private final CleanupStrategies cleanupStrategies;
+    private final UpdateType updateType;
+    private final StateVisibility stateVisibility;
+    private final TtlTimeCharacteristic ttlTimeCharacteristic;
+    private final Time ttl;
+    private final CleanupStrategies cleanupStrategies;
 
-	private StateTtlConfig(
-		UpdateType updateType,
-		StateVisibility stateVisibility,
-		TtlTimeCharacteristic ttlTimeCharacteristic,
-		Time ttl,
-		CleanupStrategies cleanupStrategies) {
-		this.updateType = checkNotNull(updateType);
-		this.stateVisibility = checkNotNull(stateVisibility);
-		this.ttlTimeCharacteristic = checkNotNull(ttlTimeCharacteristic);
-		this.ttl = checkNotNull(ttl);
-		this.cleanupStrategies = cleanupStrategies;
-		checkArgument(ttl.toMilliseconds() > 0, "TTL is expected to be positive.");
-	}
+    private StateTtlConfig(
+            UpdateType updateType,
+            StateVisibility stateVisibility,
+            TtlTimeCharacteristic ttlTimeCharacteristic,
+            Time ttl,
+            CleanupStrategies cleanupStrategies) {
+        this.updateType = checkNotNull(updateType);
+        this.stateVisibility = checkNotNull(stateVisibility);
+        this.ttlTimeCharacteristic = checkNotNull(ttlTimeCharacteristic);
+        this.ttl = checkNotNull(ttl);
+        this.cleanupStrategies = cleanupStrategies;
+        checkArgument(ttl.toMilliseconds() > 0, "TTL is expected to be positive.");
+    }
 
-	@Nonnull
-	public UpdateType getUpdateType() {
-		return updateType;
-	}
+    @Nonnull
+    public UpdateType getUpdateType() {
+        return updateType;
+    }
 
-	@Nonnull
-	public StateVisibility getStateVisibility() {
-		return stateVisibility;
-	}
+    @Nonnull
+    public StateVisibility getStateVisibility() {
+        return stateVisibility;
+    }
 
-	@Nonnull
-	public Time getTtl() {
-		return ttl;
-	}
+    @Nonnull
+    public Time getTtl() {
+        return ttl;
+    }
 
-	@Nonnull
-	public TtlTimeCharacteristic getTtlTimeCharacteristic() {
-		return ttlTimeCharacteristic;
-	}
+    @Nonnull
+    public TtlTimeCharacteristic getTtlTimeCharacteristic() {
+        return ttlTimeCharacteristic;
+    }
 
-	public boolean isEnabled() {
-		return updateType != UpdateType.Disabled;
-	}
+    public boolean isEnabled() {
+        return updateType != UpdateType.Disabled;
+    }
 
-	@Nonnull
-	public CleanupStrategies getCleanupStrategies() {
-		return cleanupStrategies;
-	}
+    @Nonnull
+    public CleanupStrategies getCleanupStrategies() {
+        return cleanupStrategies;
+    }
 
-	@Override
-	public String toString() {
-		return "StateTtlConfig{" +
-			"updateType=" + updateType +
-			", stateVisibility=" + stateVisibility +
-			", ttlTimeCharacteristic=" + ttlTimeCharacteristic +
-			", ttl=" + ttl +
-			'}';
-	}
+    @Override
+    public String toString() {
+        return "StateTtlConfig{"
+                + "updateType="
+                + updateType
+                + ", stateVisibility="
+                + stateVisibility
+                + ", ttlTimeCharacteristic="
+                + ttlTimeCharacteristic
+                + ", ttl="
+                + ttl
+                + '}';
+    }
 
-	@Nonnull
-	public static Builder newBuilder(@Nonnull Time ttl) {
-		return new Builder(ttl);
-	}
+    @Nonnull
+    public static Builder newBuilder(@Nonnull Time ttl) {
+        return new Builder(ttl);
+    }
 
-	/**
-	 * Builder for the {@link StateTtlConfig}.
-	 */
-	public static class Builder {
+    /** Builder for the {@link StateTtlConfig}. */
+    public static class Builder {
 
-		private UpdateType updateType = OnCreateAndWrite;
-		private StateVisibility stateVisibility = NeverReturnExpired;
-		private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
-		private Time ttl;
-		private boolean isCleanupInBackground = true;
-		private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy> strategies =
-			new EnumMap<>(CleanupStrategies.Strategies.class);
+        private UpdateType updateType = OnCreateAndWrite;
+        private StateVisibility stateVisibility = NeverReturnExpired;
+        private TtlTimeCharacteristic ttlTimeCharacteristic = ProcessingTime;
+        private Time ttl;
+        private boolean isCleanupInBackground = true;
+        private final EnumMap<CleanupStrategies.Strategies, CleanupStrategies.CleanupStrategy>
+                strategies = new EnumMap<>(CleanupStrategies.Strategies.class);
 
-		public Builder(@Nonnull Time ttl) {
-			this.ttl = ttl;
-		}
+        public Builder(@Nonnull Time ttl) {
+            this.ttl = ttl;
+        }
 
-		/**
-		 * Sets the ttl update type.
-		 *
-		 * @param updateType The ttl update type configures when to update last access timestamp which prolongs state TTL.
-		 */
-		@Nonnull
-		public Builder setUpdateType(UpdateType updateType) {
-			this.updateType = updateType;
-			return this;
-		}
+        /**
+         * Sets the ttl update type.
+         *
+         * @param updateType The ttl update type configures when to update last access timestamp
+         *     which prolongs state TTL.
+         */
+        @Nonnull
+        public Builder setUpdateType(UpdateType updateType) {
+            this.updateType = updateType;
+            return this;
+        }
 
-		@Nonnull
-		public Builder updateTtlOnCreateAndWrite() {
-			return setUpdateType(UpdateType.OnCreateAndWrite);
-		}
+        @Nonnull
+        public Builder updateTtlOnCreateAndWrite() {
+            return setUpdateType(UpdateType.OnCreateAndWrite);
+        }
 
-		@Nonnull
-		public Builder updateTtlOnReadAndWrite() {
-			return setUpdateType(UpdateType.OnReadAndWrite);
-		}
+        @Nonnull
+        public Builder updateTtlOnReadAndWrite() {
+            return setUpdateType(UpdateType.OnReadAndWrite);
+        }
 
-		/**
-		 * Sets the state visibility.
-		 *
-		 * @param stateVisibility The state visibility configures whether expired user value can be returned or not.
-		 */
-		@Nonnull
-		public Builder setStateVisibility(@Nonnull StateVisibility stateVisibility) {
-			this.stateVisibility = stateVisibility;
-			return this;
-		}
+        /**
+         * Sets the state visibility.
+         *
+         * @param stateVisibility The state visibility configures whether expired user value can be
+         *     returned or not.
+         */
+        @Nonnull
+        public Builder setStateVisibility(@Nonnull StateVisibility stateVisibility) {
+            this.stateVisibility = stateVisibility;
+            return this;
+        }
 
-		@Nonnull
-		public Builder returnExpiredIfNotCleanedUp() {
-			return setStateVisibility(StateVisibility.ReturnExpiredIfNotCleanedUp);
-		}
+        @Nonnull
+        public Builder returnExpiredIfNotCleanedUp() {
+            return setStateVisibility(StateVisibility.ReturnExpiredIfNotCleanedUp);
+        }
 
-		@Nonnull
-		public Builder neverReturnExpired() {
-			return setStateVisibility(StateVisibility.NeverReturnExpired);
-		}
+        @Nonnull
+        public Builder neverReturnExpired() {
+            return setStateVisibility(StateVisibility.NeverReturnExpired);
+        }
 
-		/**
-		 * Sets the time characteristic.
-		 *
-		 * @param ttlTimeCharacteristic The time characteristic configures time scale to use for ttl.
-		 */
-		@Nonnull
-		public Builder setTtlTimeCharacteristic(@Nonnull TtlTimeCharacteristic ttlTimeCharacteristic) {
-			this.ttlTimeCharacteristic = ttlTimeCharacteristic;
-			return this;
-		}
+        /**
+         * Sets the time characteristic.
+         *
+         * @param ttlTimeCharacteristic The time characteristic configures time scale to use for
+         *     ttl.
+         */
+        @Nonnull
+        public Builder setTtlTimeCharacteristic(
+                @Nonnull TtlTimeCharacteristic ttlTimeCharacteristic) {
+            this.ttlTimeCharacteristic = ttlTimeCharacteristic;
+            return this;
+        }
 
-		@Nonnull
-		public Builder useProcessingTime() {
-			return setTtlTimeCharacteristic(ProcessingTime);
-		}
+        @Nonnull
+        public Builder useProcessingTime() {
+            return setTtlTimeCharacteristic(ProcessingTime);
+        }
 
-		/** Cleanup expired state in full snapshot on checkpoint. */
-		@Nonnull
-		public Builder cleanupFullSnapshot() {
-			strategies.put(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT, EMPTY_STRATEGY);
-			return this;
-		}
+        /** Cleanup expired state in full snapshot on checkpoint. */
+        @Nonnull
+        public Builder cleanupFullSnapshot() {
+            strategies.put(CleanupStrategies.Strategies.FULL_STATE_SCAN_SNAPSHOT, EMPTY_STRATEGY);
+            return this;
+        }
 
-		/**
-		 * Cleanup expired state incrementally cleanup local state.
-		 *
-		 * <p>Upon every state access this cleanup strategy checks a bunch of state keys for expiration
-		 * and cleans up expired ones. It keeps a lazy iterator through all keys with relaxed consistency
-		 * if backend supports it. This way all keys should be regularly checked and cleaned eventually over time
-		 * if any state is constantly being accessed.
-		 *
-		 * <p>Additionally to the incremental cleanup upon state access, it can also run per every record.
-		 * Caution: if there are a lot of registered states using this option,
-		 * they all will be iterated for every record to check if there is something to cleanup.
-		 *
-		 * <p>Note: if no access happens to this state or no records are processed
-		 * in case of {@code runCleanupForEveryRecord}, expired state will persist.
-		 *
-		 * <p>Note: Time spent for the incremental cleanup increases record processing latency.
-		 *
-		 * <p>Note: At the moment incremental cleanup is implemented only for Heap state backend.
-		 * Setting it for RocksDB will have no effect.
-		 *
-		 * <p>Note: If heap state backend is used with synchronous snapshotting, the global iterator keeps a copy of all keys
-		 * while iterating because of its specific implementation which does not support concurrent modifications.
-		 * Enabling of this feature will increase memory consumption then. Asynchronous snapshotting does not have this problem.
-		 *
-		 * @param cleanupSize max number of keys pulled from queue for clean up upon state touch for any key
-		 * @param runCleanupForEveryRecord run incremental cleanup per each processed record
-		 */
-		@Nonnull
-		public Builder cleanupIncrementally(
-			@Nonnegative int cleanupSize,
-			boolean runCleanupForEveryRecord) {
-			strategies.put(
-				CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
-				new IncrementalCleanupStrategy(cleanupSize, runCleanupForEveryRecord));
-			return this;
-		}
+        /**
+         * Cleanup expired state incrementally cleanup local state.
+         *
+         * <p>Upon every state access this cleanup strategy checks a bunch of state keys for
+         * expiration and cleans up expired ones. It keeps a lazy iterator through all keys with
+         * relaxed consistency if backend supports it. This way all keys should be regularly checked
+         * and cleaned eventually over time if any state is constantly being accessed.
+         *
+         * <p>Additionally to the incremental cleanup upon state access, it can also run per every
+         * record. Caution: if there are a lot of registered states using this option, they all will
+         * be iterated for every record to check if there is something to cleanup.
+         *
+         * <p>Note: if no access happens to this state or no records are processed in case of {@code
+         * runCleanupForEveryRecord}, expired state will persist.
+         *
+         * <p>Note: Time spent for the incremental cleanup increases record processing latency.
+         *
+         * <p>Note: At the moment incremental cleanup is implemented only for Heap state backend.
+         * Setting it for RocksDB will have no effect.
+         *
+         * <p>Note: If heap state backend is used with synchronous snapshotting, the global iterator
+         * keeps a copy of all keys while iterating because of its specific implementation which
+         * does not support concurrent modifications. Enabling of this feature will increase memory
+         * consumption then. Asynchronous snapshotting does not have this problem.
+         *
+         * @param cleanupSize max number of keys pulled from queue for clean up upon state touch for
+         *     any key
+         * @param runCleanupForEveryRecord run incremental cleanup per each processed record
+         */
+        @Nonnull
+        public Builder cleanupIncrementally(
+                @Nonnegative int cleanupSize, boolean runCleanupForEveryRecord) {
+            strategies.put(
+                    CleanupStrategies.Strategies.INCREMENTAL_CLEANUP,
+                    new IncrementalCleanupStrategy(cleanupSize, runCleanupForEveryRecord));
+            return this;
+        }
 
-		/**
-		 * Cleanup expired state while Rocksdb compaction is running.
-		 *
-		 * <p>RocksDB runs periodic compaction of state updates and merges them to free storage.
-		 * During this process, the TTL filter checks timestamp of state entries and drops expired ones.
-		 * The feature has to be activated in RocksDb backend firstly
-		 * using the following Flink configuration option:
-		 * state.backend.rocksdb.ttl.compaction.filter.enabled.
-		 *
-		 * <p>Due to specifics of RocksDB compaction filter,
-		 * cleanup is not properly guaranteed if put and merge operations are used at the same time:
-		 * https://github.com/facebook/rocksdb/blob/master/include/rocksdb/compaction_filter.h#L69
-		 * It means that the TTL filter should be tested for List state taking into account this caveat.
-		 *
-		 * @deprecated Use more general configuration method {@link #cleanupInBackground()} instead
-		 */
-		@Nonnull
-		@Deprecated
-		public Builder cleanupInRocksdbCompactFilter() {
-			return cleanupInRocksdbCompactFilter(1000L);
-		}
+        /**
+         * Cleanup expired state while Rocksdb compaction is running.
+         *
+         * <p>RocksDB compaction filter will query current timestamp, used to check expiration, from
+         * Flink every time after processing {@code queryTimeAfterNumEntries} number of state
+         * entries. Updating the timestamp more often can improve cleanup speed but it decreases
+         * compaction performance because it uses JNI call from native code.
+         *
+         * @param queryTimeAfterNumEntries number of state entries to process by compaction filter
+         *     before updating current timestamp
+         */
+        @Nonnull
+        public Builder cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries) {
+            strategies.put(
+                    CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
+                    new RocksdbCompactFilterCleanupStrategy(queryTimeAfterNumEntries));
+            return this;
+        }
 
-		/**
-		 * Cleanup expired state while Rocksdb compaction is running.
-		 *
-		 * <p>RocksDB compaction filter will query current timestamp,
-		 * used to check expiration, from Flink every time after processing {@code queryTimeAfterNumEntries} number of state entries.
-		 * Updating the timestamp more often can improve cleanup speed
-		 * but it decreases compaction performance because it uses JNI call from native code.
-		 *
-		 * @param queryTimeAfterNumEntries number of state entries to process by compaction filter before updating current timestamp
-		 */
-		@Nonnull
-		public Builder cleanupInRocksdbCompactFilter(long queryTimeAfterNumEntries) {
-			strategies.put(
-				CleanupStrategies.Strategies.ROCKSDB_COMPACTION_FILTER,
-				new RocksdbCompactFilterCleanupStrategy(queryTimeAfterNumEntries));
-			return this;
-		}
+        /**
+         * Disable default cleanup of expired state in background (enabled by default).
+         *
+         * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int,
+         * boolean)} or {@link #cleanupInRocksdbCompactFilter(long)}, this setting does not disable
+         * it.
+         */
+        @Nonnull
+        public Builder disableCleanupInBackground() {
+            isCleanupInBackground = false;
+            return this;
+        }
 
-		/**
-		 * Enable default cleanup of expired state in background (enabled by default).
-		 *
-		 * <p>Depending on actually used backend, the corresponding default cleanup will kick in if supported.
-		 * If some specific cleanup is also configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
-		 * {@link #cleanupInRocksdbCompactFilter()}, then the specific one will kick in instead of default.
-		 *
-		 * @deprecated enabled by default, no need to enable it manually
-		 */
-		@Nonnull
-		@Deprecated
-		public Builder cleanupInBackground() {
-			isCleanupInBackground = true;
-			return this;
-		}
+        /**
+         * Sets the ttl time.
+         *
+         * @param ttl The ttl time.
+         */
+        @Nonnull
+        public Builder setTtl(@Nonnull Time ttl) {
+            this.ttl = ttl;
+            return this;
+        }
 
-		/**
-		 * Disable default cleanup of expired state in background (enabled by default).
-		 *
-		 * <p>If some specific cleanup is configured, e.g. {@link #cleanupIncrementally(int, boolean)} or
-		 * {@link #cleanupInRocksdbCompactFilter()}, this setting does not disable it.
-		 */
-		@Nonnull
-		public Builder disableCleanupInBackground() {
-			isCleanupInBackground = false;
-			return this;
-		}
+        @Nonnull
+        public StateTtlConfig build() {
+            return new StateTtlConfig(
+                    updateType,
+                    stateVisibility,
+                    ttlTimeCharacteristic,
+                    ttl,
+                    new CleanupStrategies(strategies, isCleanupInBackground));
+        }
+    }
 
-		/**
-		 * Sets the ttl time.
-		 * @param ttl The ttl time.
-		 */
-		@Nonnull
-		public Builder setTtl(@Nonnull Time ttl) {
-			this.ttl = ttl;
-			return this;
-		}
+    /**
+     * TTL cleanup strategies.
+     *
+     * <p>This class configures when to cleanup expired state with TTL. By default, state is always
+     * cleaned up on explicit read access if found expired. Currently cleanup of state full snapshot
+     * can be additionally activated.
+     */
+    public static class CleanupStrategies implements Serializable {
+        private static final long serialVersionUID = -1617740467277313524L;
 
-		@Nonnull
-		public StateTtlConfig build() {
-			return new StateTtlConfig(
-				updateType,
-				stateVisibility,
-				ttlTimeCharacteristic,
-				ttl,
-				new CleanupStrategies(strategies, isCleanupInBackground));
-		}
-	}
+        static final CleanupStrategy EMPTY_STRATEGY = new EmptyCleanupStrategy();
 
-	/**
-	 * TTL cleanup strategies.
-	 *
-	 * <p>This class configures when to cleanup expired state with TTL.
-	 * By default, state is always cleaned up on explicit read access if found expired.
-	 * Currently cleanup of state full snapshot can be additionally activated.
-	 */
-	public static class CleanupStrategies implements Serializable {
-		private static final long serialVersionUID = -1617740467277313524L;
+        private final boolean isCleanupInBackground;
 
-		static final CleanupStrategy EMPTY_STRATEGY = new EmptyCleanupStrategy();
+        private final EnumMap<Strategies, CleanupStrategy> strategies;
 
-		private final boolean isCleanupInBackground;
+        /** Fixed strategies ordinals in {@code strategies} config field. */
+        enum Strategies {
+            FULL_STATE_SCAN_SNAPSHOT,
+            INCREMENTAL_CLEANUP,
+            ROCKSDB_COMPACTION_FILTER
+        }
 
-		private final EnumMap<Strategies, CleanupStrategy> strategies;
+        /** Base interface for cleanup strategies configurations. */
+        interface CleanupStrategy extends Serializable {}
 
-		/** Fixed strategies ordinals in {@code strategies} config field. */
-		enum Strategies {
-			FULL_STATE_SCAN_SNAPSHOT,
-			INCREMENTAL_CLEANUP,
-			ROCKSDB_COMPACTION_FILTER
-		}
+        static class EmptyCleanupStrategy implements CleanupStrategy {
+            private static final long serialVersionUID = 1373998465131443873L;
+        }
 
-		/** Base interface for cleanup strategies configurations. */
-		interface CleanupStrategy extends Serializable {
+        private CleanupStrategies(
+                EnumMap<Strategies, CleanupStrategy> strategies, boolean isCleanupInBackground) {
+            this.strategies = strategies;
+            this.isCleanupInBackground = isCleanupInBackground;
+        }
 
-		}
+        public boolean inFullSnapshot() {
+            return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
+        }
 
-		static class EmptyCleanupStrategy implements CleanupStrategy {
-			private static final long serialVersionUID = 1373998465131443873L;
-		}
+        public boolean isCleanupInBackground() {
+            return isCleanupInBackground;
+        }
 
-		private CleanupStrategies(EnumMap<Strategies, CleanupStrategy> strategies, boolean isCleanupInBackground) {
-			this.strategies = strategies;
-			this.isCleanupInBackground = isCleanupInBackground;
-		}
+        @Nullable
+        public IncrementalCleanupStrategy getIncrementalCleanupStrategy() {
+            IncrementalCleanupStrategy defaultStrategy =
+                    isCleanupInBackground ? DEFAULT_INCREMENTAL_CLEANUP_STRATEGY : null;
+            return (IncrementalCleanupStrategy)
+                    strategies.getOrDefault(Strategies.INCREMENTAL_CLEANUP, defaultStrategy);
+        }
 
-		public boolean inFullSnapshot() {
-			return strategies.containsKey(Strategies.FULL_STATE_SCAN_SNAPSHOT);
-		}
+        public boolean inRocksdbCompactFilter() {
+            return getRocksdbCompactFilterCleanupStrategy() != null;
+        }
 
-		public boolean isCleanupInBackground() {
-			return isCleanupInBackground;
-		}
+        @Nullable
+        public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
+            RocksdbCompactFilterCleanupStrategy defaultStrategy =
+                    isCleanupInBackground ? DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY : null;
+            return (RocksdbCompactFilterCleanupStrategy)
+                    strategies.getOrDefault(Strategies.ROCKSDB_COMPACTION_FILTER, defaultStrategy);
+        }
+    }
 
-		@Nullable
-		public IncrementalCleanupStrategy getIncrementalCleanupStrategy() {
-			IncrementalCleanupStrategy defaultStrategy = isCleanupInBackground ? DEFAULT_INCREMENTAL_CLEANUP_STRATEGY : null;
-			return (IncrementalCleanupStrategy) strategies.getOrDefault(Strategies.INCREMENTAL_CLEANUP, defaultStrategy);
-		}
+    /** Configuration of cleanup strategy while taking the full snapshot. */
+    public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
+        private static final long serialVersionUID = 3109278696501988780L;
 
-		public boolean inRocksdbCompactFilter() {
-			return getRocksdbCompactFilterCleanupStrategy() != null;
-		}
+        static final IncrementalCleanupStrategy DEFAULT_INCREMENTAL_CLEANUP_STRATEGY =
+                new IncrementalCleanupStrategy(5, false);
 
-		@Nullable
-		public RocksdbCompactFilterCleanupStrategy getRocksdbCompactFilterCleanupStrategy() {
-			RocksdbCompactFilterCleanupStrategy defaultStrategy = isCleanupInBackground ? DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY : null;
-			return (RocksdbCompactFilterCleanupStrategy) strategies.getOrDefault(Strategies.ROCKSDB_COMPACTION_FILTER, defaultStrategy);
-		}
-	}
+        /** Max number of keys pulled from queue for clean up upon state touch for any key. */
+        private final int cleanupSize;
 
-	/** Configuration of cleanup strategy while taking the full snapshot.  */
-	public static class IncrementalCleanupStrategy implements CleanupStrategies.CleanupStrategy {
-		private static final long serialVersionUID = 3109278696501988780L;
+        /** Whether to run incremental cleanup per each processed record. */
+        private final boolean runCleanupForEveryRecord;
 
-		static final IncrementalCleanupStrategy DEFAULT_INCREMENTAL_CLEANUP_STRATEGY = new IncrementalCleanupStrategy(5, false);
+        private IncrementalCleanupStrategy(int cleanupSize, boolean runCleanupForEveryRecord) {
+            Preconditions.checkArgument(
+                    cleanupSize >= 0,
+                    "Number of incrementally cleaned up state entries cannot be negative.");
+            this.cleanupSize = cleanupSize;
+            this.runCleanupForEveryRecord = runCleanupForEveryRecord;
+        }
 
-		/** Max number of keys pulled from queue for clean up upon state touch for any key. */
-		private final int cleanupSize;
+        public int getCleanupSize() {
+            return cleanupSize;
+        }
 
-		/** Whether to run incremental cleanup per each processed record. */
-		private final boolean runCleanupForEveryRecord;
+        public boolean runCleanupForEveryRecord() {
+            return runCleanupForEveryRecord;
+        }
+    }
 
-		private IncrementalCleanupStrategy(
-			int cleanupSize,
-			boolean runCleanupForEveryRecord) {
-			Preconditions.checkArgument(cleanupSize >= 0,
-				"Number of incrementally cleaned up state entries cannot be negative.");
-			this.cleanupSize = cleanupSize;
-			this.runCleanupForEveryRecord = runCleanupForEveryRecord;
-		}
+    /** Configuration of cleanup strategy using custom compaction filter in RocksDB. */
+    public static class RocksdbCompactFilterCleanupStrategy
+            implements CleanupStrategies.CleanupStrategy {
+        private static final long serialVersionUID = 3109278796506988980L;
 
-		public int getCleanupSize() {
-			return cleanupSize;
-		}
+        static final RocksdbCompactFilterCleanupStrategy
+                DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
+                        new RocksdbCompactFilterCleanupStrategy(1000L);
 
-		public boolean runCleanupForEveryRecord() {
-			return runCleanupForEveryRecord;
-		}
-	}
+        /**
+         * Number of state entries to process by compaction filter before updating current
+         * timestamp.
+         */
+        private final long queryTimeAfterNumEntries;
 
-	/** Configuration of cleanup strategy using custom compaction filter in RocksDB.  */
-	public static class RocksdbCompactFilterCleanupStrategy implements CleanupStrategies.CleanupStrategy {
-		private static final long serialVersionUID = 3109278796506988980L;
+        private RocksdbCompactFilterCleanupStrategy(long queryTimeAfterNumEntries) {
+            this.queryTimeAfterNumEntries = queryTimeAfterNumEntries;
+        }
 
-		static final RocksdbCompactFilterCleanupStrategy DEFAULT_ROCKSDB_COMPACT_FILTER_CLEANUP_STRATEGY =
-			new RocksdbCompactFilterCleanupStrategy(1000L);
-
-		/** Number of state entries to process by compaction filter before updating current timestamp. */
-		private final long queryTimeAfterNumEntries;
-
-		private RocksdbCompactFilterCleanupStrategy(long queryTimeAfterNumEntries) {
-			this.queryTimeAfterNumEntries = queryTimeAfterNumEntries;
-		}
-
-		public long getQueryTimeAfterNumEntries() {
-			return queryTimeAfterNumEntries;
-		}
-	}
+        public long getQueryTimeAfterNumEntries() {
+            return queryTimeAfterNumEntries;
+        }
+    }
 }

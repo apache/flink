@@ -16,20 +16,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testExpressionReductionWithPythonUDF">
+    <Resource name="sql">
+      <![CDATA[SELECT PyUdf(), MyUdf(1) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[PyUdf()], EXPR$1=[MyUdf(1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0 AS EXPR$0, CAST(2) AS EXPR$1])
++- PythonCalc(select=[PyUdf() AS f0])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExpressionReductionWithUDF">
     <Resource name="sql">
       <![CDATA[SELECT MyUdf(1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[MyUdf(1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[CAST(2) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -37,34 +55,33 @@ Calc(select=[CAST(2) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT myUdf(1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[myUdf(1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[11 AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testExpressionReductionWithPythonUDF">
+  <TestCase name="testExpressionReductionWithRichUDFAndInvalidOpen">
     <Resource name="sql">
-      <![CDATA[SELECT PyUdf(), MyUdf(1) FROM MyTable]]>
+      <![CDATA[SELECT myUdf(1 + 1) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[PyUdf()], EXPR$1=[MyUdf(1)])
+LogicalProject(EXPR$0=[myUdf(+(1, 1))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f0 AS EXPR$0, CAST(2) AS EXPR$1])
-+- PythonCalc(select=[PyUdf() AS f0])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[myUdf(+(1, 1)) AS EXPR$0])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

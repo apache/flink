@@ -18,100 +18,152 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
+import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.function.SupplierWithException;
 
-import java.io.IOException;
+import javax.annotation.Nullable;
 
-/**
- * Utility class to encapsulate the logic of building a {@link SingleInputGate} instance.
- */
+import java.io.IOException;
+import java.util.function.BiFunction;
+import java.util.stream.IntStream;
+
+/** Utility class to encapsulate the logic of building a {@link SingleInputGate} instance. */
 public class SingleInputGateBuilder {
 
-	public static final PartitionProducerStateProvider NO_OP_PRODUCER_CHECKER = (dsid, id, consumer) -> {};
+    public static final PartitionProducerStateProvider NO_OP_PRODUCER_CHECKER =
+            (dsid, id, consumer) -> {};
 
-	private final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
+    private final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
 
-	private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
+    private final int bufferSize = 4096;
 
-	private int consumedSubpartitionIndex = 0;
+    private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
-	private int gateIndex = 0;
+    private int consumedSubpartitionIndex = 0;
 
-	private int numberOfChannels = 1;
+    private int gateIndex = 0;
 
-	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
+    private int numberOfChannels = 1;
 
-	private BufferDecompressor bufferDecompressor = null;
+    private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
 
-	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
-		throw new UnsupportedOperationException();
-	};
+    private BufferDecompressor bufferDecompressor = null;
 
-	public SingleInputGateBuilder setPartitionProducerStateProvider(
-		PartitionProducerStateProvider partitionProducerStateProvider) {
+    private MemorySegmentProvider segmentProvider =
+            InputChannelTestUtils.StubMemorySegmentProvider.getInstance();
 
-		this.partitionProducerStateProvider = partitionProducerStateProvider;
-		return this;
-	}
+    private ChannelStateWriter channelStateWriter = ChannelStateWriter.NO_OP;
 
-	public SingleInputGateBuilder setResultPartitionType(ResultPartitionType partitionType) {
-		this.partitionType = partitionType;
-		return this;
-	}
+    @Nullable
+    private BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory = null;
 
-	SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
-		this.consumedSubpartitionIndex = consumedSubpartitionIndex;
-		return this;
-	}
+    private SupplierWithException<BufferPool, IOException> bufferPoolFactory =
+            () -> {
+                throw new UnsupportedOperationException();
+            };
 
-	SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
-		this.gateIndex = gateIndex;
-		return this;
-	}
+    public SingleInputGateBuilder setPartitionProducerStateProvider(
+            PartitionProducerStateProvider partitionProducerStateProvider) {
 
-	public SingleInputGateBuilder setNumberOfChannels(int numberOfChannels) {
-		this.numberOfChannels = numberOfChannels;
-		return this;
-	}
+        this.partitionProducerStateProvider = partitionProducerStateProvider;
+        return this;
+    }
 
-	public SingleInputGateBuilder setupBufferPoolFactory(NettyShuffleEnvironment environment) {
-		NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
-		this.bufferPoolFactory = SingleInputGateFactory.createBufferPoolFactory(
-			environment.getNetworkBufferPool(),
-			config.networkBuffersPerChannel(),
-			config.floatingNetworkBuffersPerGate(),
-			numberOfChannels,
-			partitionType);
-		return this;
-	}
+    public SingleInputGateBuilder setResultPartitionType(ResultPartitionType partitionType) {
+        this.partitionType = partitionType;
+        return this;
+    }
 
-	public SingleInputGateBuilder setBufferPoolFactory(BufferPool bufferPool) {
-		this.bufferPoolFactory = () -> bufferPool;
-		return this;
-	}
+    public SingleInputGateBuilder setConsumedSubpartitionIndex(int consumedSubpartitionIndex) {
+        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
+        return this;
+    }
 
-	public SingleInputGateBuilder setBufferDecompressor(BufferDecompressor bufferDecompressor) {
-		this.bufferDecompressor = bufferDecompressor;
-		return this;
-	}
+    public SingleInputGateBuilder setSingleInputGateIndex(int gateIndex) {
+        this.gateIndex = gateIndex;
+        return this;
+    }
 
-	public SingleInputGate build() {
-		return new SingleInputGate(
-			"Single Input Gate",
-			gateIndex,
-			intermediateDataSetID,
-			partitionType,
-			consumedSubpartitionIndex,
-			numberOfChannels,
-			partitionProducerStateProvider,
-			bufferPoolFactory,
-			bufferDecompressor);
-	}
+    public SingleInputGateBuilder setNumberOfChannels(int numberOfChannels) {
+        this.numberOfChannels = numberOfChannels;
+        return this;
+    }
+
+    public SingleInputGateBuilder setupBufferPoolFactory(NettyShuffleEnvironment environment) {
+        NettyShuffleEnvironmentConfiguration config = environment.getConfiguration();
+        this.bufferPoolFactory =
+                SingleInputGateFactory.createBufferPoolFactory(
+                        environment.getNetworkBufferPool(),
+                        config.networkBuffersPerChannel(),
+                        config.floatingNetworkBuffersPerGate(),
+                        numberOfChannels,
+                        partitionType);
+        this.segmentProvider = environment.getNetworkBufferPool();
+        return this;
+    }
+
+    public SingleInputGateBuilder setBufferPoolFactory(BufferPool bufferPool) {
+        this.bufferPoolFactory = () -> bufferPool;
+        return this;
+    }
+
+    public SingleInputGateBuilder setBufferDecompressor(BufferDecompressor bufferDecompressor) {
+        this.bufferDecompressor = bufferDecompressor;
+        return this;
+    }
+
+    public SingleInputGateBuilder setSegmentProvider(MemorySegmentProvider segmentProvider) {
+        this.segmentProvider = segmentProvider;
+        return this;
+    }
+
+    /** Adds automatic initialization of all channels with the given factory. */
+    public SingleInputGateBuilder setChannelFactory(
+            BiFunction<InputChannelBuilder, SingleInputGate, InputChannel> channelFactory) {
+        this.channelFactory = channelFactory;
+        return this;
+    }
+
+    public SingleInputGateBuilder setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        this.channelStateWriter = channelStateWriter;
+        return this;
+    }
+
+    public SingleInputGate build() {
+        SingleInputGate gate =
+                new SingleInputGate(
+                        "Single Input Gate",
+                        gateIndex,
+                        intermediateDataSetID,
+                        partitionType,
+                        consumedSubpartitionIndex,
+                        numberOfChannels,
+                        partitionProducerStateProvider,
+                        bufferPoolFactory,
+                        bufferDecompressor,
+                        segmentProvider,
+                        bufferSize);
+        if (channelFactory != null) {
+            gate.setInputChannels(
+                    IntStream.range(0, numberOfChannels)
+                            .mapToObj(
+                                    index ->
+                                            channelFactory.apply(
+                                                    InputChannelBuilder.newBuilder()
+                                                            .setStateWriter(channelStateWriter)
+                                                            .setChannelIndex(index),
+                                                    gate))
+                            .toArray(InputChannel[]::new));
+        }
+        return gate;
+    }
 }

@@ -40,165 +40,168 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
 
 /**
- * Strategy for inferring and validating the input using a disjunction of multiple {@link InputTypeStrategy}s
- * into one like {@code f(NUMERIC) || f(STRING)}.
+ * Strategy for inferring and validating the input using a disjunction of multiple {@link
+ * InputTypeStrategy}s into one like {@code f(NUMERIC) || f(STRING)}.
+ *
+ * <p>This strategy aims to infer a list of types that are equal to the input types (to prevent
+ * unnecessary casting) or (if this is not possible) the first more specific, casted types.
  */
 @Internal
 public final class OrInputTypeStrategy implements InputTypeStrategy {
 
-	private final List<? extends InputTypeStrategy> inputStrategies;
+    private final List<? extends InputTypeStrategy> inputStrategies;
 
-	public OrInputTypeStrategy(List<? extends InputTypeStrategy> inputStrategies) {
-		Preconditions.checkArgument(inputStrategies.size() > 0);
-		this.inputStrategies = inputStrategies;
-	}
+    public OrInputTypeStrategy(List<? extends InputTypeStrategy> inputStrategies) {
+        Preconditions.checkArgument(inputStrategies.size() > 0);
+        this.inputStrategies = inputStrategies;
+    }
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		final List<ArgumentCount> counts = new AbstractList<ArgumentCount>() {
-			public ArgumentCount get(int index) {
-				return inputStrategies.get(index).getArgumentCount();
-			}
+    @Override
+    public ArgumentCount getArgumentCount() {
+        final List<ArgumentCount> counts =
+                new AbstractList<ArgumentCount>() {
+                    public ArgumentCount get(int index) {
+                        return inputStrategies.get(index).getArgumentCount();
+                    }
 
-			public int size() {
-				return inputStrategies.size();
-			}
-		};
-		final Integer min = commonMin(counts);
-		final Integer max = commonMax(counts);
-		final ArgumentCount compositeCount = new ArgumentCount() {
-			@Override
-			public boolean isValidCount(int count) {
-				for (ArgumentCount c : counts) {
-					if (c.isValidCount(count)) {
-						return true;
-					}
-				}
-				return false;
-			}
+                    public int size() {
+                        return inputStrategies.size();
+                    }
+                };
+        final Integer min = commonMin(counts);
+        final Integer max = commonMax(counts);
+        final ArgumentCount compositeCount =
+                new ArgumentCount() {
+                    @Override
+                    public boolean isValidCount(int count) {
+                        for (ArgumentCount c : counts) {
+                            if (c.isValidCount(count)) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
 
-			@Override
-			public Optional<Integer> getMinCount() {
-				return Optional.ofNullable(min);
-			}
+                    @Override
+                    public Optional<Integer> getMinCount() {
+                        return Optional.ofNullable(min);
+                    }
 
-			@Override
-			public Optional<Integer> getMaxCount() {
-				return Optional.ofNullable(max);
-			}
-		};
+                    @Override
+                    public Optional<Integer> getMaxCount() {
+                        return Optional.ofNullable(max);
+                    }
+                };
 
-		// use constant count if applicable
-		if (min == null || max == null) {
-			// no boundaries
-			return compositeCount;
-		}
-		for (int i = min; i <= max; i++) {
-			if (!compositeCount.isValidCount(i)) {
-				// not the full range
-				return compositeCount;
-			}
-		}
-		if (min.equals(max)) {
-			return ConstantArgumentCount.of(min);
-		}
-		return ConstantArgumentCount.between(min, max);
-	}
+        // use constant count if applicable
+        if (min == null || max == null) {
+            // no boundaries
+            return compositeCount;
+        }
+        for (int i = min; i <= max; i++) {
+            if (!compositeCount.isValidCount(i)) {
+                // not the full range
+                return compositeCount;
+            }
+        }
+        if (min.equals(max)) {
+            return ConstantArgumentCount.of(min);
+        }
+        return ConstantArgumentCount.between(min, max);
+    }
 
-	@Override
-	public Optional<List<DataType>> inferInputTypes(CallContext callContext, boolean throwOnFailure) {
-		final List<LogicalType> actualTypes = callContext.getArgumentDataTypes().stream()
-			.map(DataType::getLogicalType)
-			.collect(Collectors.toList());
+    @Override
+    public Optional<List<DataType>> inferInputTypes(
+            CallContext callContext, boolean throwOnFailure) {
+        final List<LogicalType> actualTypes =
+                callContext.getArgumentDataTypes().stream()
+                        .map(DataType::getLogicalType)
+                        .collect(Collectors.toList());
 
-		Optional<List<DataType>> closestDataTypes = Optional.empty();
-		for (InputTypeStrategy inputStrategy : inputStrategies) {
-			final Optional<List<DataType>> inferredDataTypes = inputStrategy.inferInputTypes(
-				callContext,
-				false);
-			// types do not match at all
-			if (!inferredDataTypes.isPresent()) {
-				continue;
-			}
-			final List<LogicalType> inferredTypes = inferredDataTypes.get().stream()
-				.map(DataType::getLogicalType)
-				.collect(Collectors.toList());
-			// types match
-			if (supportsAvoidingCast(actualTypes, inferredTypes)) {
-				return inferredDataTypes;
-			}
-			// type matches with some casting
-			else if (!closestDataTypes.isPresent()) {
-				closestDataTypes = inferredDataTypes;
-			}
-		}
+        Optional<List<DataType>> closestDataTypes = Optional.empty();
+        for (InputTypeStrategy inputStrategy : inputStrategies) {
+            final Optional<List<DataType>> inferredDataTypes =
+                    inputStrategy.inferInputTypes(callContext, false);
+            // types do not match at all
+            if (!inferredDataTypes.isPresent()) {
+                continue;
+            }
+            final List<LogicalType> inferredTypes =
+                    inferredDataTypes.get().stream()
+                            .map(DataType::getLogicalType)
+                            .collect(Collectors.toList());
+            // types match
+            if (supportsAvoidingCast(actualTypes, inferredTypes)) {
+                return inferredDataTypes;
+            }
+            // type matches with some casting
+            else if (!closestDataTypes.isPresent()) {
+                closestDataTypes = inferredDataTypes;
+            }
+        }
 
-		return closestDataTypes;
-	}
+        return closestDataTypes;
+    }
 
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return inputStrategies.stream()
-			.flatMap(v -> v.getExpectedSignatures(definition).stream())
-			.collect(Collectors.toList());
-	}
+    @Override
+    public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
+        return inputStrategies.stream()
+                .flatMap(v -> v.getExpectedSignatures(definition).stream())
+                .collect(Collectors.toList());
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		OrInputTypeStrategy that = (OrInputTypeStrategy) o;
-		return Objects.equals(inputStrategies, that.inputStrategies);
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        OrInputTypeStrategy that = (OrInputTypeStrategy) o;
+        return Objects.equals(inputStrategies, that.inputStrategies);
+    }
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(inputStrategies);
-	}
+    @Override
+    public int hashCode() {
+        return Objects.hash(inputStrategies);
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Returns the common minimum argument count or null if undefined.
-	 */
-	private static @Nullable Integer commonMin(List<ArgumentCount> counts) {
-		// min=5, min=3, min=0           -> min=0
-		// min=5, min=3, min=0, min=null -> min=null
-		int commonMin = Integer.MAX_VALUE;
-		for (ArgumentCount count : counts) {
-			final Optional<Integer> min = count.getMinCount();
-			if (!min.isPresent()) {
-				return null;
-			}
-			commonMin = Math.min(commonMin, min.get());
-		}
-		if (commonMin == Integer.MAX_VALUE) {
-			return null;
-		}
-		return commonMin;
-	}
+    /** Returns the common minimum argument count or null if undefined. */
+    private static @Nullable Integer commonMin(List<ArgumentCount> counts) {
+        // min=5, min=3, min=0           -> min=0
+        // min=5, min=3, min=0, min=null -> min=null
+        int commonMin = Integer.MAX_VALUE;
+        for (ArgumentCount count : counts) {
+            final Optional<Integer> min = count.getMinCount();
+            if (!min.isPresent()) {
+                return null;
+            }
+            commonMin = Math.min(commonMin, min.get());
+        }
+        if (commonMin == Integer.MAX_VALUE) {
+            return null;
+        }
+        return commonMin;
+    }
 
-	/**
-	 * Returns the common maximum argument count or null if undefined.
-	 */
-	private static @Nullable Integer commonMax(List<ArgumentCount> counts) {
-		// max=5, max=3, max=0           -> max=5
-		// max=5, max=3, max=0, max=null -> max=null
-		int commonMax = Integer.MIN_VALUE;
-		for (ArgumentCount count : counts) {
-			final Optional<Integer> max = count.getMaxCount();
-			if (!max.isPresent()) {
-				return null;
-			}
-			commonMax = Math.max(commonMax, max.get());
-		}
-		if (commonMax == Integer.MIN_VALUE) {
-			return null;
-		}
-		return commonMax;
-	}
+    /** Returns the common maximum argument count or null if undefined. */
+    private static @Nullable Integer commonMax(List<ArgumentCount> counts) {
+        // max=5, max=3, max=0           -> max=5
+        // max=5, max=3, max=0, max=null -> max=null
+        int commonMax = Integer.MIN_VALUE;
+        for (ArgumentCount count : counts) {
+            final Optional<Integer> max = count.getMaxCount();
+            if (!max.isPresent()) {
+                return null;
+            }
+            commonMax = Math.max(commonMax, max.get());
+        }
+        if (commonMax == Integer.MIN_VALUE) {
+            return null;
+        }
+        return commonMax;
+    }
 }

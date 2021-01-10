@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction.IntFirstValueAggFunction
-import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
@@ -54,7 +53,7 @@ class SubplanReuseTest extends TableTestBase {
         |)
         |SELECT r1.a, r1.b, r2.e FROM r r1, r r2 WHERE r1.b > 10 AND r2.e < 20 AND r1.a = r2.a
       """.stripMargin
-    util.verifyPlanNotExpected(sqlQuery, "Reused")
+    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
@@ -68,7 +67,7 @@ class SubplanReuseTest extends TableTestBase {
         |     t2 AS (SELECT CAST(a as DOUBLE) AS a, SUM(b) AS b FROM x GROUP BY CAST(a as DOUBLE))
         |SELECT t1.*, t2.* FROM t1, t2 WHERE t1.b = t2.b
       """.stripMargin
-    util.verifyPlanNotExpected(sqlQuery, "Reused")
+    util.verifyRelPlanNotExpected(sqlQuery, "Reused")
   }
 
   @Test
@@ -80,7 +79,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH t AS (SELECT x.a AS a, x.b AS b, y.d AS d, y.e AS e FROM x, y WHERE x.a = y.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -92,7 +91,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH t AS (SELECT * FROM x, y WHERE x.a = y.d)
         |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -104,7 +103,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT r.a, LOWER(c) AS c, y.e FROM r, y WHERE r.a = y.d)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -117,7 +116,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT a, random_udf() FROM x WHERE a > 10)
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -130,7 +129,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |(SELECT a FROM x WHERE b > random_udf(a))
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -142,7 +141,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT * FROM r, y WHERE a = d AND f <> ''
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -152,21 +151,25 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSubplanReuseOnAggregateWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction and LongLastValueAggFunction are deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-    util.addFunction("MyLast", new LongLastValueAggFunction)
+    // FirstValueAggFunction and LastValueAggFunction are not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.INT().getLogicalType))
+    util.addTemporarySystemFunction(
+      "MyLast",
+      new FirstValueAggFunction(DataTypes.BIGINT().getLogicalType))
 
     val sqlQuery =
       """
         |WITH r AS (SELECT c, MyFirst(a) a, MyLast(b) b FROM x GROUP BY c)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.b AND r2.a > 1
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -176,7 +179,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT c, SUM(a) a, SUM(b) b FROM x GROUP BY c ORDER BY a, b DESC)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.a > 1 AND r2.b < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -191,7 +194,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT a, b * 2 AS b FROM r WHERE b < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -204,7 +207,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT a, b * 2 AS b FROM r WHERE b < 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -218,7 +221,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT a, b * 2 AS b FROM r
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -233,7 +236,7 @@ class SubplanReuseTest extends TableTestBase {
         |UNION ALL
         |SELECT a, b * 2 AS b FROM r
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -243,20 +246,21 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
   def testSubplanReuseOnOverWindowWithNonDeterministicAggCall(): Unit = {
-    // IntFirstValueAggFunction is deterministic
-    util.addFunction("MyFirst", new IntFirstValueAggFunction)
-
+    // FirstValueAggFunction is not deterministic
+    util.addTemporarySystemFunction(
+      "MyFirst",
+      new FirstValueAggFunction(DataTypes.STRING().getLogicalType))
     val sqlQuery =
       """
         |WITH r AS (SELECT a, b, MyFirst(c) OVER (PARTITION BY c ORDER BY c DESC) FROM x)
         |SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -269,7 +273,7 @@ class SubplanReuseTest extends TableTestBase {
       """.stripMargin
     // TODO the sub-plan of Correlate should be reused,
     // however the digests of Correlates are different
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -281,7 +285,7 @@ class SubplanReuseTest extends TableTestBase {
         |WITH r AS (SELECT a, b, c, s FROM x, LATERAL TABLE(TableFun(c)) AS T(s))
         |SELECT * FROM r r1, r r2 WHERE r1.c = r2.s
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
   @Test
@@ -294,7 +298,52 @@ class SubplanReuseTest extends TableTestBase {
         |INTERSECT
         |(SELECT a AS random FROM x ORDER BY rand() LIMIT 1)
       """.stripMargin)
-    util.verifyPlan(sqlQuery)
+    util.verifyExecPlan(sqlQuery)
   }
 
+  @Test
+  def testEnableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    testReuseOnNewSource()
+  }
+
+  @Test
+  def testDisableReuseTableSourceOnNewSource(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    testReuseOnNewSource()
+  }
+
+  private def testReuseOnNewSource(): Unit = {
+    util.addTable(
+      s"""
+         |create table newX(
+         |  a int,
+         |  b bigint,
+         |  c varchar
+         |) with (
+         |  'connector' = 'values'
+         |)
+       """.stripMargin)
+    util.addTable(
+      s"""
+         |create table newY(
+         |  d int,
+         |  e bigint,
+         |  f varchar
+         |) with (
+         |  'connector' = 'values'
+         |)
+       """.stripMargin)
+    val sqlQuery =
+      """
+        |WITH t AS (
+        |  SELECT newX.a AS a, newX.b AS b, newY.d AS d, newY.e AS e
+        |  FROM newX, newY
+        |  WHERE newX.a = newY.d)
+        |SELECT t1.*, t2.* FROM t t1, t t2 WHERE t1.b = t2.e AND t1.a < 10 AND t2.a > 5
+      """.stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

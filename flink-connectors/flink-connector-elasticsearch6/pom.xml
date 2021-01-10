@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch6</name>
+	<name>Flink : Connectors : Elasticsearch 6</name>
 
 	<packaging>jar</packaging>
 
@@ -82,6 +82,13 @@ under the License.
 		</dependency>
 
 		<!-- test dependencies -->
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>elasticsearch</artifactId>
+			<version>1.15.0</version>
+			<scope>test</scope>
+		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -145,6 +152,14 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<!-- Table API integration tests -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Elasticsearch table sink factory testing -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -154,4 +169,18 @@ under the License.
 		</dependency>
 
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Enforce single fork execution because of spawning
+					 Elasticsearch cluster multiple times -->
+					<forkCount>1</forkCount>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 </project>

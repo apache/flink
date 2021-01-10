@@ -28,14 +28,14 @@ reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
-- use Hadoop's `Writable` [data types]({{ site.baseurl }}/dev/api_concepts.html#supported-data-types) in Flink programs.
+- use Hadoop's `Writable` [data types]({% link dev/types_serialization.zh.md %}#supported-data-types) in Flink programs.
 - use any Hadoop `InputFormat` as a [DataSource](index.html#data-sources).
 - use any Hadoop `OutputFormat` as a [DataSink](index.html#data-sinks).
 - use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
 - use a Hadoop `Reducer` as [GroupReduceFunction](dataset_transformations.html#groupreduce-on-grouped-dataset).
 
 This document shows how to use existing Hadoop MapReduce code with Flink. Please refer to the
-[Connecting to other systems]({{ site.baseurl }}/ops/filesystems/index.html#hadoop-file-system-hdfs-and-its-other-implementations) guide for reading from Hadoop supported file systems.
+[Connecting to other systems]({% link deployment/filesystems/index.zh.md %}#hadoop-file-system-hdfs-and-its-other-implementations) guide for reading from Hadoop supported file systems.
 
 * This will be replaced by the TOC
 {:toc}
@@ -64,7 +64,17 @@ and Reducers.
 </dependency>
 {% endhighlight %}
 
-See also **[how to configure hadoop dependencies]({{ site.baseurl }}/ops/deployment/hadoop.html#add-hadoop-classpaths)**.
+If you want to run your Flink application locally (e.g. from your IDE), you also need to add 
+a `hadoop-client` dependency such as:
+
+{% highlight xml %}
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-client</artifactId>
+    <version>2.8.3</version>
+    <scope>provided</scope>
+</dependency>
+{% endhighlight %}
 
 ### Using Hadoop InputFormats
 

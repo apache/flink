@@ -30,13 +30,19 @@
             <td><h5>taskmanager.network.memory.buffers-per-channel</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>
-            <td>Maximum number of network buffers to use for each outgoing/incoming channel (subpartition/input channel).In credit-based flow control mode, this indicates how many credits are exclusive in each input channel. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
+            <td>Number of exclusive network buffers to use for each outgoing/incoming channel (subpartition/inputchannel) in the credit-based flow control model. It should be configured at least 2 for good performance. 1 buffer is for receiving in-flight data in the subpartition and 1 buffer is for parallel serialization.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.memory.floating-buffers-per-gate</h5></td>
             <td style="word-wrap: break-word;">8</td>
             <td>Integer</td>
             <td>Number of extra network buffers to use for each outgoing/incoming gate (result partition/input gate). In credit-based flow control mode, this indicates how many floating credits are shared among all the input channels. The floating buffers are distributed based on backlog (real-time output buffers in the subpartition) feedback, and can help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.memory.max-buffers-per-channel</h5></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>Number of max buffers that can be used for each channel. If a channel exceeds the number of max buffers, it will make the task become unavailable, cause the back pressure and block the data processing. This might speed up checkpoint alignment by preventing excessive growth of the buffered in-flight data in case of data skew and high number of configured floating buffers. This limit is not strictly guaranteed, and can be ignored by things like flatMap operators, records spanning multiple buffers or single timer producing large amount of data.</td>
         </tr>
         <tr>
             <td><h5>taskmanager.network.netty.client.connectTimeoutSec</h5></td>
@@ -91,6 +97,24 @@
             <td style="word-wrap: break-word;">10000</td>
             <td>Integer</td>
             <td>Maximum backoff in milliseconds for partition requests of input channels.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.retries</h5></td>
+            <td style="word-wrap: break-word;">0</td>
+            <td>Integer</td>
+            <td>The number of retry attempts for network communication. Currently it's only used for establishing input/output channel connections</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-buffers</h5></td>
+            <td style="word-wrap: break-word;">64</td>
+            <td>Integer</td>
+            <td>Minimum number of network buffers required per sort-merge blocking result partition. For large scale batch jobs, it is suggested to increase this config value to improve compression ratio and reduce small network packets. Note: to increase this config value, you may also need to increase the size of total network memory to avoid "insufficient number of network buffers" error.</td>
+        </tr>
+        <tr>
+            <td><h5>taskmanager.network.sort-shuffle.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">2147483647</td>
+            <td>Integer</td>
+            <td>Parallelism threshold to switch between sort-merge blocking shuffle and the default hash-based blocking shuffle, which means for small parallelism, hash-based blocking shuffle will be used and for large parallelism, sort-merge blocking shuffle will be used. Note: sort-merge blocking shuffle uses unmanaged direct memory for shuffle data writing and reading so just increase the size of direct memory if direct memory OOM error occurs.</td>
         </tr>
     </tbody>
 </table>

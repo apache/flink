@@ -38,28 +38,6 @@ object TypeCoercion {
 
   numericWideningPrecedence ++= numericWideningPrecedence.map(_.copy(false))
 
-  def widerTypeOf(tp1: LogicalType, tp2: LogicalType): Option[LogicalType] = {
-    (tp1.getTypeRoot, tp2.getTypeRoot) match {
-      case (_, _) if tp1 == tp2 => Some(tp1)
-
-      case (_, VARCHAR | CHAR) => Some(tp2)
-      case (VARCHAR | CHAR, _) => Some(tp1)
-
-      case (_, DECIMAL) => Some(tp2)
-      case (DECIMAL, _) => Some(tp1)
-
-      case (_, _) if isTimePoint(tp1) && isTimeInterval(tp2) => Some(tp1)
-      case (_, _) if isTimeInterval(tp1) && isTimePoint(tp2) => Some(tp2)
-
-      case (_, _) if numericWideningPrecedence.contains(tp1) &&
-          numericWideningPrecedence.contains(tp2) =>
-        val higherIndex = numericWideningPrecedence.lastIndexWhere(t => t == tp1 || t == tp2)
-        Some(numericWideningPrecedence(higherIndex))
-
-      case _ => None
-    }
-  }
-
   /**
     * Test if we can do cast safely without lose of type.
     */

@@ -20,22 +20,20 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
-import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
-import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
+import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.createTuple2TypeInformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.util.BaseRowUtil
-import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternal
+import org.apache.flink.table.data.util.RowDataUtil
+import org.apache.flink.table.data.{GenericRowData, RowData}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalConverter, genToExternalConverterWithLegacy}
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.logical.RowType
 
@@ -56,22 +54,22 @@ object SinkCodeGenerator {
       sink.getConsumedDataType,
       inputRowType,
       withChangeFlag)
+    val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
 
     val outputTypeInfo = if (withChangeFlag) {
-      val typeInfo = fromDataTypeToTypeInfo(physicalOutputType)
       val consumedClass = sink.getConsumedDataType.getConversionClass
       if (consumedClass == classOf[(_, _)]) {
-        createTuple2TypeInformation(Types.BOOLEAN, typeInfo)
+        createTuple2TypeInformation(Types.BOOLEAN, physicalTypeInfo)
       } else if (consumedClass == classOf[JTuple2[_, _]]) {
-        new TupleTypeInfo(Types.BOOLEAN, typeInfo)
+        new TupleTypeInfo(Types.BOOLEAN, physicalTypeInfo)
       }
     } else {
-      fromDataTypeToTypeInfo(physicalOutputType)
+      physicalTypeInfo
     }
 
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     var afterIndexModify = inputTerm
-    val fieldIndexProcessCode = outputTypeInfo match {
+    val fieldIndexProcessCode = physicalTypeInfo match {
       case pojo: PojoTypeInfo[_] =>
         val mapping = pojo.getFieldNames.map { name =>
           val index = inputRowType.getFieldIndex(name)
@@ -92,21 +90,23 @@ object SinkCodeGenerator {
             .map(fromTypeInfoToLogicalType): _*)
         val conversion = resultGenerator.generateConverterResultExpression(
           outputRowType,
-          classOf[GenericRow])
+          classOf[GenericRowData])
         afterIndexModify = CodeGenUtils.newName("afterIndexModify")
         s"""
            |${conversion.code}
-           |${classOf[BaseRow].getCanonicalName} $afterIndexModify = ${conversion.resultTerm};
+           |${conversion.resultTerm}.setRowKind(${inputTerm}.getRowKind());
+           |${classOf[RowData].getCanonicalName} $afterIndexModify = ${conversion.resultTerm};
            |""".stripMargin
       case _ =>
         NO_CODE
     }
 
     val consumedDataType = sink.getConsumedDataType
-    val outTerm = genToExternal(ctx, physicalOutputType, afterIndexModify)
+    // still uses the old conversion stack due to FLINK-18701
+    val outTerm = genToExternalConverterWithLegacy(ctx, physicalOutputType, afterIndexModify)
     val retractProcessCode = if (withChangeFlag) {
       val flagResultTerm =
-        s"${classOf[BaseRowUtil].getCanonicalName}.isAccumulateMsg($afterIndexModify)"
+        s"${classOf[RowDataUtil].getCanonicalName}.isAccumulateMsg($afterIndexModify)"
       val resultTerm = CodeGenUtils.newName("result")
       if (consumedDataType.getConversionClass == classOf[JTuple2[_, _]]) {
         // Java Tuple2
@@ -141,7 +141,7 @@ object SinkCodeGenerator {
       generateCollect(outTerm)
     }
 
-    val generated = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, OUT](
+    val generated = OperatorCodeGenerator.generateOneInputStreamOperator[RowData, OUT](
       ctx,
       operatorName,
       s"""

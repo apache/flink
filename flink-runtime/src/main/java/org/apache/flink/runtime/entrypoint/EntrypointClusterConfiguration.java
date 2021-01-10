@@ -23,28 +23,30 @@ import javax.annotation.Nullable;
 
 import java.util.Properties;
 
-/**
- * Basic {@link ClusterConfiguration} for entry points.
- */
+/** Basic {@link ClusterConfiguration} for entry points. */
 public class EntrypointClusterConfiguration extends ClusterConfiguration {
 
-	@Nullable
-	private final String hostname;
+    @Nullable private final String hostname;
 
-	private final int restPort;
+    private final int restPort;
 
-	public EntrypointClusterConfiguration(@Nonnull String configDir, @Nonnull Properties dynamicProperties, @Nonnull String[] args, @Nullable String hostname, int restPort) {
-		super(configDir, dynamicProperties, args);
-		this.hostname = hostname;
-		this.restPort = restPort;
-	}
+    public EntrypointClusterConfiguration(
+            @Nonnull String configDir,
+            @Nonnull Properties dynamicProperties,
+            @Nonnull String[] args,
+            @Nullable String hostname,
+            int restPort) {
+        super(configDir, dynamicProperties, args);
+        this.hostname = hostname;
+        this.restPort = restPort;
+    }
 
-	public int getRestPort() {
-		return restPort;
-	}
+    public int getRestPort() {
+        return restPort;
+    }
 
-	@Nullable
-	public String getHostname() {
-		return hostname;
-	}
+    @Nullable
+    public String getHostname() {
+        return hostname;
+    }
 }

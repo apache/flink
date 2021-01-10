@@ -23,11 +23,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-ml-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-ml-lib_${scala.binary.version}</artifactId>
-	<name>flink-ml-lib</name>
+	<name>Flink : ML : Lib</name>
 
 	<dependencies>
 		<dependency>

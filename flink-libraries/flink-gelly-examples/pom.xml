@@ -23,12 +23,12 @@
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-libraries</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-gelly-examples_${scala.binary.version}</artifactId>
-	<name>flink-gelly-examples</name>
+	<name>Flink : Libraries : Gelly Examples</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

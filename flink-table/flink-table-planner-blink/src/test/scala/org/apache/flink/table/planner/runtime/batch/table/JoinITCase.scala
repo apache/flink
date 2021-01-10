@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.JoinType
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.TableFunc2
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._
@@ -33,6 +34,9 @@ import org.junit._
 import scala.collection.JavaConverters._
 
 class JoinITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val expectedJoinType: JoinType = JoinType.SortMergeJoin
 
@@ -73,8 +77,8 @@ class JoinITCase extends BatchTestBase {
 
   @Test
   def testJoinWithFilter(): Unit = {
-    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv).as('a, 'b, 'c)
-    val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv).as('d, 'e, 'f, 'g, 'h)
+    val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv).as("a", "b", "c")
+    val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv).as("d", "e", "f", "g", "h")
 
     val joinT = ds1.join(ds2).where('b === 'e && 'b < 2).select('c, 'g)
 

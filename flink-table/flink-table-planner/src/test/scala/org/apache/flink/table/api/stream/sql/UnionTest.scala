@@ -21,11 +21,10 @@ package org.apache.flink.table.api.stream.sql
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.{Expressions, Types}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
-import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.TableTestUtil._
 
 import org.junit.Test
 

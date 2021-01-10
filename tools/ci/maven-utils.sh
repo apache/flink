@@ -26,11 +26,12 @@ function run_mvn {
 	if [[ "$MVN_RUN_VERBOSE" != "false" ]]; then
 		echo "Invoking mvn with '$INVOCATION'"
 	fi
-	${INVOCATION}
+	eval $INVOCATION
 }
 export -f run_mvn
 
 function setup_maven {
+	set -e # fail if there was an error setting up maven
 	if [ ! -d "${MAVEN_VERSIONED_DIR}" ]; then
 	  wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.zip
 	  unzip -d "${MAVEN_CACHE_DIR}" -qq "apache-maven-${MAVEN_VERSION}-bin.zip"
@@ -46,6 +47,7 @@ function setup_maven {
 	fi
 
 	echo "Installed Maven ${MAVEN_VERSION} to ${M2_HOME}"
+	set +e
 }
 
 function set_mirror_config {
@@ -73,10 +75,14 @@ function collect_coredumps {
 	echo "Searching for .dump, .dumpstream and related files in '$SEARCHDIR'"
 	for file in `find $SEARCHDIR -type f -regextype posix-extended -iregex '.*\.hprof|.*\.dump|.*\.dumpstream|.*hs.*\.log|.*/core(.[0-9]+)?$'`; do
 		echo "Moving '$file' to target directory ('$TARGET_DIR')"
-		mv $file $TARGET_DIR/
+		mv $file $TARGET_DIR/$(echo $file | tr "/" "-")
 	done
 }
 
+function collect_dmesg {
+	local TARGET_DIR=$1
+	dmesg > $TARGET_DIR/dmesg.out
+}
 
 CI_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 

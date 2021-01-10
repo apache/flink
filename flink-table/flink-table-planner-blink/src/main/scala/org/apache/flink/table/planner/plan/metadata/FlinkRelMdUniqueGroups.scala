@@ -211,10 +211,10 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
   }
 
   def getUniqueGroups(
-      agg: BatchExecGroupAggregateBase,
+      agg: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
-    val grouping = agg.getGrouping
+    val grouping = agg.grouping
     getUniqueGroupsOfAggregate(agg.getRowType.getFieldCount, grouping, agg.getInput, mq, columns)
   }
 
@@ -264,12 +264,11 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
   }
 
   def getUniqueGroups(
-      agg: BatchExecWindowAggregateBase,
+      agg: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
-    val grouping = agg.getGrouping
-    val namedProperties = agg.getNamedProperties
-    getUniqueGroupsOfWindowAgg(agg, grouping, agg.getAuxGrouping, namedProperties, mq, columns)
+    getUniqueGroupsOfWindowAgg(
+      agg, agg.grouping, agg.auxGrouping, agg.namedWindowProperties, mq, columns)
   }
 
   private def getUniqueGroupsOfWindowAgg(
@@ -390,7 +389,7 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
       columns: ImmutableBitSet): ImmutableBitSet = columns
 
   def getUniqueGroups(
-      rel: BatchExecCorrelate,
+      rel: BatchPhysicalCorrelate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = columns
 

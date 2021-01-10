@@ -18,7 +18,7 @@
 
 package org.apache.flink.orc.vector;
 
-import org.apache.flink.table.dataformat.Decimal;
+import org.apache.flink.table.data.DecimalData;
 
 import org.apache.hadoop.hive.ql.exec.vector.DecimalColumnVector;
 
@@ -27,20 +27,20 @@ import java.math.BigDecimal;
 /**
  * This column vector is used to adapt hive's DecimalColumnVector to Flink's DecimalColumnVector.
  */
-public class OrcDecimalColumnVector extends AbstractOrcColumnVector implements
-		org.apache.flink.table.dataformat.vector.DecimalColumnVector {
+public class OrcDecimalColumnVector extends AbstractOrcColumnVector
+        implements org.apache.flink.table.data.vector.DecimalColumnVector {
 
-	private DecimalColumnVector vector;
+    private DecimalColumnVector vector;
 
-	public OrcDecimalColumnVector(DecimalColumnVector vector) {
-		super(vector);
-		this.vector = vector;
-	}
+    public OrcDecimalColumnVector(DecimalColumnVector vector) {
+        super(vector);
+        this.vector = vector;
+    }
 
-	@Override
-	public Decimal getDecimal(int i, int precision, int scale) {
-		BigDecimal data = vector.vector[vector.isRepeating ? 0 : i]
-				.getHiveDecimal().bigDecimalValue();
-		return Decimal.fromBigDecimal(data, precision, scale);
-	}
+    @Override
+    public DecimalData getDecimal(int i, int precision, int scale) {
+        BigDecimal data =
+                vector.vector[vector.isRepeating ? 0 : i].getHiveDecimal().bigDecimalValue();
+        return DecimalData.fromBigDecimal(data, precision, scale);
+    }
 }

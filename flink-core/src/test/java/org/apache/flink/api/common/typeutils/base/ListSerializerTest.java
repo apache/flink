@@ -27,58 +27,54 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * A test for the {@link LongSerializer}.
- */
+/** A test for the {@link LongSerializer}. */
 public class ListSerializerTest extends SerializerTestBase<List<Long>> {
 
-	@Override
-	protected TypeSerializer<List<Long>> createSerializer() {
-		return new ListSerializer<>(LongSerializer.INSTANCE);
-	}
+    @Override
+    protected TypeSerializer<List<Long>> createSerializer() {
+        return new ListSerializer<>(LongSerializer.INSTANCE);
+    }
 
-	@Override
-	protected int getLength() {
-		return -1;
-	}
+    @Override
+    protected int getLength() {
+        return -1;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	protected Class<List<Long>> getTypeClass() {
-		return (Class<List<Long>>) (Class<?>) List.class;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    protected Class<List<Long>> getTypeClass() {
+        return (Class<List<Long>>) (Class<?>) List.class;
+    }
 
-	@SuppressWarnings({"rawtypes", "unchecked"})
-	@Override
-	protected List<Long>[] getTestData() {
-		final Random rnd = new Random(123654789);
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    @Override
+    protected List<Long>[] getTestData() {
+        final Random rnd = new Random(123654789);
 
-		// empty lists
-		final List<Long> list1 = Collections.emptyList(); 
-		final List<Long> list2 = new LinkedList<>();
-		final List<Long> list3 = new ArrayList<>();
+        // empty lists
+        final List<Long> list1 = Collections.emptyList();
+        final List<Long> list2 = new LinkedList<>();
+        final List<Long> list3 = new ArrayList<>();
 
-		// single element lists
-		final List<Long> list4 = Collections.singletonList(55L);
-		final List<Long> list5 = new LinkedList<>();
-		list5.add(12345L);
-		final List<Long> list6 = new ArrayList<>();
-		list6.add(777888L);
+        // single element lists
+        final List<Long> list4 = Collections.singletonList(55L);
+        final List<Long> list5 = new LinkedList<>();
+        list5.add(12345L);
+        final List<Long> list6 = new ArrayList<>();
+        list6.add(777888L);
 
-		// longer lists
-		final List<Long> list7 = new LinkedList<>();
-		for (int i = 0; i < rnd.nextInt(200); i++) {
-			list7.add(rnd.nextLong());
-		}
+        // longer lists
+        final List<Long> list7 = new LinkedList<>();
+        for (int i = 0; i < rnd.nextInt(200); i++) {
+            list7.add(rnd.nextLong());
+        }
 
-		int list8Len = rnd.nextInt(200);
-		final List<Long> list8 = new ArrayList<>(list8Len);
-		for (int i = 0; i < list8Len; i++) {
-			list8.add(rnd.nextLong());
-		}
+        int list8Len = rnd.nextInt(200);
+        final List<Long> list8 = new ArrayList<>(list8Len);
+        for (int i = 0; i < list8Len; i++) {
+            list8.add(rnd.nextLong());
+        }
 
-		return (List<Long>[]) new List[] {
-				list1, list2, list3, list4, list5, list6, list7, list8
-		};
-	}
+        return (List<Long>[]) new List[] {list1, list2, list3, list4, list5, list6, list7, list8};
+    }
 }

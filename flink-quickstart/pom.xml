@@ -23,14 +23,14 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-quickstart</artifactId>
 	<packaging>pom</packaging>
 
-	<name>flink-quickstart</name>
+	<name>Flink : Quickstart : </name>
 	<description>Parent project for different quickstart archetypes for Apache Flink</description>
 
 	<modules>

@@ -98,11 +98,6 @@ state updates) of Flink coupled with bundled sinks:
   </thead>
   <tbody>
     <tr>
-        <td>HDFS BucketingSink</td>
-        <td>exactly once</td>
-        <td>Implementation depends on Hadoop version</td>
-    </tr>
-    <tr>
         <td>Elasticsearch</td>
         <td>at least once</td>
         <td></td>

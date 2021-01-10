@@ -19,14 +19,17 @@
 package org.apache.flink.runtime.rest.messages;
 
 /**
- * Marker interface for all requests of the REST API. This class represents the http body of a request.
+ * Marker interface for all requests of the REST API. This class represents the http body of a
+ * request.
  *
- * <p>Subclass instances are converted to JSON using jackson-databind. Subclasses must have a constructor that accepts
- * all fields of the JSON request, that should be annotated with {@code @JsonCreator}.
+ * <p>Subclass instances are converted to JSON using jackson-databind. Subclasses must have a
+ * constructor that accepts all fields of the JSON request, that should be annotated with
+ * {@code @JsonCreator}.
  *
- * <p>All fields that should part of the JSON request must be accessible either by being public or having a getter.
+ * <p>All fields that should part of the JSON request must be accessible either by being public or
+ * having a getter.
  *
- * <p>When adding methods that are prefixed with {@code get/is} make sure to annotate them with {@code @JsonIgnore}.
+ * <p>When adding methods that are prefixed with {@code get/is} make sure to annotate them with
+ * {@code @JsonIgnore}.
  */
-public interface RequestBody {
-}
+public interface RequestBody {}

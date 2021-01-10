@@ -18,33 +18,24 @@
 
 package org.apache.flink.kubernetes.taskmanager;
 
-import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * This class is the executable entry point for running a TaskExecutor in a Kubernetes pod.
- */
+/** This class is the executable entry point for running a TaskExecutor in a Kubernetes pod. */
 public class KubernetesTaskExecutorRunner {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(KubernetesTaskExecutorRunner.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(KubernetesTaskExecutorRunner.class);
 
-	public static void main(String[] args) {
-		EnvironmentInformation.logEnvironmentInfo(LOG, "Kubernetes TaskExecutor runner", args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
+    public static void main(String[] args) {
+        EnvironmentInformation.logEnvironmentInfo(LOG, "Kubernetes TaskExecutor runner", args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		final String resourceID = System.getenv().get(Constants.ENV_FLINK_POD_NAME);
-		Preconditions.checkArgument(resourceID != null,
-			"Pod name variable %s not set", Constants.ENV_FLINK_POD_NAME);
-
-		TaskManagerRunner.runTaskManagerSecurely(args, new ResourceID(resourceID));
-	}
+        TaskManagerRunner.runTaskManagerSecurely(args);
+    }
 }

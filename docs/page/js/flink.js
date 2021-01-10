@@ -18,6 +18,19 @@
 /* Note: This file is originally from the Apache Spark project. */
 
 /* Custom JavaScript code in the MarkDown docs */
+function getUrlParameter(sParam) {
+  var sPageURL = window.location.search.substring(1),
+    sURLVariables = sPageURL.split('&'),
+    sParameterName,
+    i;
+
+  for (i = 0; i < sURLVariables.length; i++) {
+    sParameterName = sURLVariables[i].split('=');
+    if (sParameterName[0] === sParam) {
+      return sParameterName[1] === undefined ? true : decodeURIComponent(sParameterName[1]);
+    }
+  }
+}
 
 // Enable language-specific code tabs
 function codeTabs() {
@@ -27,15 +40,46 @@ function codeTabs() {
     "python": "img/python-sm.png",
     "java": "img/java-sm.png"
   };
+  var codeTabParam = null;
+  if (typeof window.defaultCodeTab !== "undefined" && window.defaultCodeTab !== "") {
+    codeTabParam = window.defaultCodeTab
+  }
+  codeTabParam = getUrlParameter("code_tab") == null ? codeTabParam : getUrlParameter("code_tab").toLowerCase();
+  // Processing duplicated tabs, e.g. if the data-lang="Java/Scala",
+  // it will be copied to 2 elements, the "data-lang" value of them would be "Java" and "Scala".
+  function splitDataLang() {
+    var codeSamples = $(this).children("div");
+    codeSamples.each(function() {
+      var langData = $(this).data("lang");
+      if (langData != null) {
+        var langs = langData.split("/");
+        if (langs.length > 1) {
+          var last = $(this);
+          for (let lang of langs) {
+            var cloned = $(this).clone();
+            cloned.attr("data-lang", lang);
+            last.after(cloned);
+            last = cloned;
+            // process recursively
+            $("div.codetabs", cloned).each(splitDataLang);
+          }
+          $(this).remove();
+        }
+      }
+    });
+  }
+  $("div.codetabs").each(splitDataLang);
   $("div.codetabs").each(function() {
     $(this).addClass("tab-content");
+    var hideTabs = $(this).data("hide-tabs");
 
     // Insert the tab bar
     var tabBar = $('<ul class="nav nav-tabs" data-tabs="tabs"></ul>');
     $(this).before(tabBar);
 
+    var hasActivedTab = false;
     // Add each code sample to the tab bar:
-    var codeSamples = $(this).children("div");
+    codeSamples = $(this).children("div");
     codeSamples.each(function() {
       $(this).addClass("tab-pane");
       var lang = $(this).data("lang");
@@ -43,6 +87,8 @@ function codeTabs() {
       var notabs = $(this).data("notabs");
       var capitalizedLang = lang.substr(0, 1).toUpperCase() + lang.substr(1);
       lang = lang.replace(/[^a-zA-Z0-9]/g, "_");
+      // let the first character upper case
+      lang = lang.charAt(0).toUpperCase() + lang.slice(1);
       var id = "tab_" + lang + "_" + counter;
       $(this).attr("id", id);
       if (image != null && langImages[lang]) {
@@ -55,10 +101,20 @@ function codeTabs() {
       tabBar.append(
         '<li><a class="tab_' + lang + '" href="#' + id + '">' + buttonLabel + '</a></li>'
       );
+      if (codeTabParam === lang.toLowerCase()) {
+        $(this).addClass("active");
+        tabBar.children("li").last().addClass("active");
+        hasActivedTab = true;
+      }
     });
 
-    codeSamples.first().addClass("active");
-    tabBar.children("li").first().addClass("active");
+    if (!hasActivedTab) {
+      codeSamples.first().addClass("active");
+      tabBar.children("li").first().addClass("active");
+    }
+    if (hideTabs != null) {
+        tabBar.hide();
+    }
     counter++;
   });
   $("ul.nav-tabs a").click(function (e) {
@@ -123,5 +179,5 @@ $(function() {
 
   // Scroll now too in case we had opened the page on a hash, but wait a bit because some browsers
   // will try to do *their* initial scroll after running the onReady handler.
-  $(window).load(function() { setTimeout(function() { maybeScrollToHash(); }, 25); }); 
+  $(window).ready(function() { setTimeout(function() { maybeScrollToHash(); }, 25); }); 
 });

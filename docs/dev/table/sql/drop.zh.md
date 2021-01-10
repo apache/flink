@@ -25,19 +25,43 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-DROP 语句用于从当前或指定的 [Catalog]({{ site.baseurl }}/zh/dev/table/catalogs.html) 中删除一个已经注册的表、视图或函数。
+DROP 语句用于从当前或指定的 [Catalog]({% link dev/table/catalogs.zh.md %}) 中删除一个已经注册的表、视图或函数。
 
 Flink SQL 目前支持以下 DROP 语句：
 
 - DROP TABLE
 - DROP DATABASE
+- DROP VIEW
 - DROP FUNCTION
 
 ## 执行 DROP 语句
 
-可以使用 `TableEnvironment` 中的 `sqlUpdate()` 方法执行 DROP 语句，也可以在 [SQL CLI]({{ site.baseurl }}/zh/dev/table/sqlClient.html) 中执行 DROP 语句。 若 DROP 操作执行成功，`sqlUpdate()` 方法不返回任何内容，否则会抛出异常。
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-以下的例子展示了如何在 `TableEnvironment` 和  SQL CLI 中执行一个 DROP 语句。
+<div data-lang="java/scala" markdown="1">
+
+可以使用 `TableEnvironment` 中的 `executeSql()` 方法执行 DROP 语句。 若 DROP 操作执行成功，`executeSql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DROP 语句。
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行 DROP 语句。 若 DROP 操作执行成功，`execute_sql()` 方法返回 'OK'，否则会抛出异常。
+
+以下的例子展示了如何在 `TableEnvironment` 中执行一个 DROP 语句。
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+可以在 [SQL CLI]({% link dev/table/sqlClient.zh.md %}) 中执行 DROP 语句。
+
+以下的例子展示了如何在 SQL CLI 中执行一个 DROP 语句。
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -46,16 +70,18 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
 // 字符串数组： ["Orders"]
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 
 // 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders");
+tableEnv.executeSql("DROP TABLE Orders");
 
 // 空字符串数组
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 {% endhighlight %}
 </div>
 
@@ -65,32 +91,36 @@ val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
 // 注册名为 “Orders” 的表
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // 字符串数组： ["Orders"]
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 
 // 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders")
+tableEnv.executeSql("DROP TABLE Orders")
 
 // 空字符串数组
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # 字符串数组： ["Orders"]
-tables = tableEnv.listTable()
+tables = table_env.listTables()
+# or table_env.executeSql("SHOW TABLES").print()
 
 # 从 catalog 删除 “Orders” 表
-tableEnv.sqlUpdate("DROP TABLE Orders")
+table_env.execute_sql("DROP TABLE Orders")
 
 # 空字符串数组
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
@@ -142,6 +172,25 @@ DROP DATABASE [IF EXISTS] [catalog_name.]db_name [ (RESTRICT | CASCADE) ]
 **CASCADE**
 
 删除一个非空数据库时，把相关联的表与函数一并删除。
+
+## DROP VIEW
+
+{% highlight sql %}
+DROP [TEMPORARY] VIEW  [IF EXISTS] [catalog_name.][db_name.]view_name
+{% endhighlight %}
+
+删除一个有 catalog 和数据库命名空间的视图。若需要删除的视图不存在，则会产生异常。
+
+**TEMPORARY**
+
+删除一个有 catalog 和数据库命名空间的临时视图。
+
+**IF EXISTS**
+
+若视图不存在，则不会进行任何操作。
+
+**依赖管理**
+Flink 没有使用 CASCADE / RESTRICT 关键字来维护视图的依赖关系，当前的方案是在用户使用视图时再提示错误信息，比如在视图的底层表已经被删除等场景。
 
 ## DROP FUNCTION
 

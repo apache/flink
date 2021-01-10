@@ -31,91 +31,84 @@ import org.apache.flink.table.api.Table;
  */
 public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
 
-	public StreamOperator() {
-		super();
-	}
+    public StreamOperator() {
+        super();
+    }
 
-	/**
-	 * The constructor of StreamOperator with {@link Params}.
-	 *
-	 * @param params the initial Params.
-	 */
-	public StreamOperator(Params params) {
-		super(params);
-	}
+    /**
+     * The constructor of StreamOperator with {@link Params}.
+     *
+     * @param params the initial Params.
+     */
+    public StreamOperator(Params params) {
+        super(params);
+    }
 
-	/**
-	 * Link to another {@link StreamOperator}.
-	 *
-	 * <p>Link the <code>next</code> StreamOperator using this StreamOperator as its input.
-	 *
-	 * <p>For example:
-	 *
-	 * <pre>
-	 * {@code
-	 * StreamOperator a = ...;
-	 * StreamOperator b = ...;
-	 *
-	 * StreamOperator c = a.link(b)
-	 * }
-	 * </pre>
-	 *
-	 * <p>The StreamOperator <code>c</code> in the above code
-	 * is the same instance as <code>b</code> which takes
-	 * <code>a</code> as its input.
-	 * Note that StreamOperator <code>b</code> will be changed
-	 * to link from StreamOperator <code>a</code>.
-	 *
-	 * @param next the linked StreamOperator
-	 * @param <S>  type of StreamOperator returned
-	 * @return the linked next
-	 * @see #linkFrom(StreamOperator[])
-	 */
-	public <S extends StreamOperator<?>> S link(S next) {
-		next.linkFrom(this);
-		return next;
-	}
+    /**
+     * Link to another {@link StreamOperator}.
+     *
+     * <p>Link the <code>next</code> StreamOperator using this StreamOperator as its input.
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * StreamOperator a = ...;
+     * StreamOperator b = ...;
+     *
+     * StreamOperator c = a.link(b)
+     * }</pre>
+     *
+     * <p>The StreamOperator <code>c</code> in the above code is the same instance as <code>b</code>
+     * which takes <code>a</code> as its input. Note that StreamOperator <code>b</code> will be
+     * changed to link from StreamOperator <code>a</code>.
+     *
+     * @param next the linked StreamOperator
+     * @param <S> type of StreamOperator returned
+     * @return the linked next
+     * @see #linkFrom(StreamOperator[])
+     */
+    public <S extends StreamOperator<?>> S link(S next) {
+        next.linkFrom(this);
+        return next;
+    }
 
-	/**
-	 * Link from others {@link StreamOperator}.
-	 *
-	 * <p>Link this object to StreamOperator using the StreamOperators as its input.
-	 *
-	 * <p>For example:
-	 *
-	 * <pre>
-	 * {@code
-	 * StreamOperator a = ...;
-	 * StreamOperator b = ...;
-	 * StreamOperator c = ...;
-	 *
-	 * StreamOperator d = c.linkFrom(a, b)
-	 * }
-	 * </pre>
-	 *
-	 * <p>The <code>d</code> in the above code is the same
-	 * instance as StreamOperator <code>c</code> which takes
-	 * both <code>a</code> and <code>b</code> as its input.
-	 *
-	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
-	 *
-	 * @param inputs the linked inputs
-	 * @return the linked this object
-	 */
-	public abstract T linkFrom(StreamOperator<?>... inputs);
+    /**
+     * Link from others {@link StreamOperator}.
+     *
+     * <p>Link this object to StreamOperator using the StreamOperators as its input.
+     *
+     * <p>For example:
+     *
+     * <pre>{@code
+     * StreamOperator a = ...;
+     * StreamOperator b = ...;
+     * StreamOperator c = ...;
+     *
+     * StreamOperator d = c.linkFrom(a, b)
+     * }</pre>
+     *
+     * <p>The <code>d</code> in the above code is the same instance as StreamOperator <code>c</code>
+     * which takes both <code>a</code> and <code>b</code> as its input.
+     *
+     * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
+     *
+     * @param inputs the linked inputs
+     * @return the linked this object
+     */
+    public abstract T linkFrom(StreamOperator<?>... inputs);
 
-	/**
-	 * create a new StreamOperator from table.
-	 *
-	 * @param table the input table
-	 * @return the new StreamOperator
-	 */
-	public static StreamOperator<?> fromTable(Table table) {
-		return new TableSourceStreamOp(table);
-	}
+    /**
+     * create a new StreamOperator from table.
+     *
+     * @param table the input table
+     * @return the new StreamOperator
+     */
+    public static StreamOperator<?> fromTable(Table table) {
+        return new TableSourceStreamOp(table);
+    }
 
-	protected static StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
-		checkOpSize(1, inputs);
-		return inputs[0];
-	}
+    protected static StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
+        checkOpSize(1, inputs);
+        return inputs[0];
+    }
 }

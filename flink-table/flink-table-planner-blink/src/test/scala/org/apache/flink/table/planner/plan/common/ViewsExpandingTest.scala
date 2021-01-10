@@ -19,11 +19,14 @@
 package org.apache.flink.table.planner.plan.common
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, TableSchema}
-import org.apache.flink.table.catalog.{CatalogView, CatalogViewImpl, ObjectPath}
-import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TableTestUtilBase}
+import org.apache.flink.table.api._
+import org.apache.flink.table.catalog.{CatalogBaseTable, CatalogView, CatalogViewImpl, ObjectIdentifier, ObjectPath}
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.plan.common.ViewsExpandingTest.PrimitiveScalarFunction
+import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase, TableTestUtil, TableTestUtilBase}
 
+import org.hamcrest.CoreMatchers.is
+import org.junit.Assert.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -51,7 +54,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       false)
     tableEnv.createTemporaryView("view4", tableEnv.from("view3"))
 
-    tableUtil.verifyPlan("select * from view4")
+    tableUtil.verifyExecPlan("select * from view4")
   }
 
   @Test
@@ -64,7 +67,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
     tableEnv.createTemporaryView("view3", tableEnv.from("view2"))
 
     val query = tableEnv.from("view3")
-    tableUtil.verifyPlan(query)
+    tableUtil.verifyExecPlan(query)
   }
 
   @Test
@@ -87,7 +90,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       false)
 
     val query = "SELECT * FROM view3"
-    tableUtil.verifyPlan(query)
+    tableUtil.verifyExecPlan(query)
   }
 
   @Test
@@ -112,7 +115,90 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       new ObjectPath(tableEnv.getCurrentDatabase, "view1"),
       aggSqlView,
       false)
-    tableUtil.verifyPlan("select * from view1")
+    tableUtil.verifyExecPlan("select * from view1")
+  }
+
+  @Test
+  def testViewExpandingWithLateralTableFunction(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    tableEnv.createTemporarySystemFunction("myFunc", new TableFunc0())
+    tableEnv.createTemporaryView("source",
+      tableEnv.fromValues("danny#21", "julian#55", "fabian#30").as("f0"))
+    val createView =
+      """
+        |CREATE VIEW tmp_view AS
+        |  SELECT f0, f1
+        |  FROM source as S, LATERAL TABLE(myFunc(f0)) as T(f1, f2)
+        |""".stripMargin
+    tableEnv.executeSql(createView)
+    tableUtil.verifyExecPlan("select * from tmp_view")
+  }
+
+  @Test
+  def testViewExpandingWithBuiltinFunction(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    val createView =
+      """
+        |CREATE VIEW tmp_view AS
+        |  SELECT CONCAT('a', 'bc', 'def')
+        |""".stripMargin
+    tableEnv.executeSql(createView)
+    val objectID = ObjectIdentifier.of(tableEnv.getCurrentCatalog,
+      tableEnv.getCurrentDatabase, "tmp_view")
+    val view: CatalogBaseTable = tableEnv.getCatalog(objectID.getCatalogName)
+      .get().getTable(objectID.toObjectPath)
+    assertThat(view.asInstanceOf[CatalogView].getExpandedQuery,
+      is("SELECT `CONCAT`('a', 'bc', 'def')"))
+  }
+
+  @Test
+  def testViewExpandingWithUDF(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    tableEnv.createTemporaryFunction("func", classOf[PrimitiveScalarFunction])
+    val createView =
+      """
+        |CREATE VIEW tmp_view AS
+        |  SELECT func(1, 2, 'abc')
+        |""".stripMargin
+    tableEnv.executeSql(createView)
+    val objectID = ObjectIdentifier.of(tableEnv.getCurrentCatalog,
+      tableEnv.getCurrentDatabase, "tmp_view")
+    val view: CatalogBaseTable = tableEnv.getCatalog(objectID.getCatalogName)
+      .get().getTable(objectID.toObjectPath)
+    assertThat(view.asInstanceOf[CatalogView].getExpandedQuery,
+      is("SELECT `default_catalog`.`default_database`.`func`(1, 2, 'abc')"))
+  }
+
+  @Test
+  def testExpandQueryWithSystemAlias(): Unit = {
+    val tableUtil = tableTestUtil(this)
+    val tableEnv = tableUtil.tableEnv
+    tableEnv.createTemporaryView("source",
+      tableEnv.fromValues("danny#21", "julian#55", "fabian#30").as("f0"))
+    val createView =
+      """
+        |create view tmp_view as
+        |select * from (
+        |  select f0,
+        |  row_number() over (partition by f0 order by f0 desc) as rowNum
+        |  from source)
+        |  where rowNum = 1
+        |""".stripMargin
+    tableEnv.executeSql(createView)
+    val objectID = ObjectIdentifier.of(tableEnv.getCurrentCatalog,
+      tableEnv.getCurrentDatabase, "tmp_view")
+    val view: CatalogBaseTable = tableEnv.getCatalog(objectID.getCatalogName)
+      .get().getTable(objectID.toObjectPath)
+    assertThat(view.asInstanceOf[CatalogView].getExpandedQuery,
+      is("SELECT *\n"
+        + "FROM (SELECT `source`.`f0`, "
+        + "ROW_NUMBER() "
+        + "OVER (PARTITION BY `source`.`f0` ORDER BY `source`.`f0` DESC) AS `rowNum`\n"
+        + "FROM `default_catalog`.`default_database`.`source`)\n"
+        + "WHERE `rowNum` = 1"))
   }
 
   private def createSqlView(originTable: String): CatalogView = {
@@ -137,5 +223,15 @@ object ViewsExpandingTest {
     Array(
       _.batchTestUtil(),
       _.streamTestUtil())
+  }
+
+  // --------------------------------------------------------------------------------------------
+  // Test functions
+  // --------------------------------------------------------------------------------------------
+  /**
+   * Function that takes and returns primitives.
+   */
+  class PrimitiveScalarFunction extends ScalarFunction {
+    def eval(i: Int, l: Long, s: String): Long = i + l + s.length
   }
 }

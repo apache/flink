@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc1, TableFunc2, TableTestBase}
 
 import org.junit.Test
@@ -36,25 +36,25 @@ class CorrelateStringExpressionTest extends TableTestBase {
   @Test
   def testCorrelateJoins1(): Unit = {
     // test cross join
-    util.verifyPlan(tab.joinLateral(func1('c) as 's).select('c, 's))
+    util.verifyExecPlan(tab.joinLateral(func1('c) as 's).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins2(): Unit = {
     // test left outer join
-    util.verifyPlan(tab.leftOuterJoinLateral(func1('c) as 's).select('c, 's))
+    util.verifyExecPlan(tab.leftOuterJoinLateral(func1('c) as 's).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins3(): Unit = {
     // test overloading
-    util.verifyPlan(tab.joinLateral(func1('c, "$") as 's).select('c, 's))
+    util.verifyExecPlan(tab.joinLateral(func1('c, "$") as 's).select('c, 's))
   }
 
   @Test
   def testCorrelateJoins4(): Unit = {
     // test custom result type
-    util.verifyPlan(tab.joinLateral(func2('c) as('name, 'len)).select('c, 'name, 'len))
+    util.verifyExecPlan(tab.joinLateral(func2('c) as('name, 'len)).select('c, 'name, 'len))
   }
 
   @Test
@@ -64,7 +64,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
    util.addFunction("hierarchy", hierarchy)
     val scalaTable = tab.joinLateral(
       hierarchy('c) as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
-    util.verifyPlan(scalaTable)
+    util.verifyExecPlan(scalaTable)
   }
 
   @Test
@@ -73,7 +73,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     val pojo = new PojoTableFunc
    util.addFunction("pojo", pojo)
     val scalaTable = tab.joinLateral(pojo('c)).select('c, 'name, 'age)
-    util.verifyPlan(scalaTable)
+    util.verifyExecPlan(scalaTable)
   }
 
   @Test
@@ -81,7 +81,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
     // test with filter
     val scalaTable = tab.joinLateral(
       func2('c) as('name, 'len)).select('c, 'name, 'len).filter('len > 2)
-    util.verifyPlan(scalaTable)
+    util.verifyExecPlan(scalaTable)
   }
 
   @Test
@@ -89,6 +89,6 @@ class CorrelateStringExpressionTest extends TableTestBase {
     // test with scalar function
     val scalaTable = tab.joinLateral(func1('c.substring(2)) as 's).select(
       'a, 'c, 's)
-    util.verifyPlan(scalaTable)
+    util.verifyExecPlan(scalaTable)
   }
 }

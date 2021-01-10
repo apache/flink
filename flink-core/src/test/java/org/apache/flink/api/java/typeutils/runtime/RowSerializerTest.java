@@ -20,6 +20,7 @@ package org.apache.flink.api.java.typeutils.runtime;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -27,159 +28,233 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+import org.apache.flink.types.RowUtils;
 
 import org.junit.Test;
 
 import java.io.Serializable;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 
 public class RowSerializerTest {
 
-	@Test
-	public void testRowSerializer() {
-		TypeInformation<Row> typeInfo = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
-		Row row1 = new Row(2);
-		row1.setField(0, 1);
-		row1.setField(1, "a");
+    @Test
+    public void testRowSerializer() {
+        final TypeInformation<Row> rowTypeInfo =
+                Types.ROW_NAMED(
+                        new String[] {"a", "b", "c", "d"},
+                        Types.INT,
+                        Types.STRING,
+                        Types.DOUBLE,
+                        Types.BOOLEAN);
 
-		Row row2 = new Row(2);
-		row2.setField(0, 2);
-		row2.setField(1, null);
+        final Row positionedRow = Row.withPositions(RowKind.UPDATE_BEFORE, 4);
+        positionedRow.setKind(RowKind.UPDATE_BEFORE);
+        positionedRow.setField(0, 1);
+        positionedRow.setField(1, "a");
+        positionedRow.setField(2, null);
+        positionedRow.setField(3, false);
 
-		TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
-		RowSerializerTestInstance instance = new RowSerializerTestInstance(serializer, row1, row2);
-		instance.testAll();
-	}
+        final Row namedRow = Row.withNames(RowKind.UPDATE_BEFORE);
+        namedRow.setField("a", 1);
+        namedRow.setField("b", "a");
+        namedRow.setField("c", null);
+        namedRow.setField("d", false);
 
-	@Test
-	public void testLargeRowSerializer() {
-		TypeInformation<Row> typeInfo = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO);
+        final Row sparseNamedRow = Row.withNames(RowKind.UPDATE_BEFORE);
+        namedRow.setField("a", 1);
+        namedRow.setField("b", "a");
+        namedRow.setField("d", false); // "c" is missing
 
-		Row row = new Row(13);
-		row.setField(0, 2);
-		row.setField(1, null);
-		row.setField(3, null);
-		row.setField(4, null);
-		row.setField(5, null);
-		row.setField(6, null);
-		row.setField(7, null);
-		row.setField(8, null);
-		row.setField(9, null);
-		row.setField(10, null);
-		row.setField(11, null);
-		row.setField(12, "Test");
+        final LinkedHashMap<String, Integer> positionByName = new LinkedHashMap<>();
+        positionByName.put("a", 0);
+        positionByName.put("b", 1);
+        positionByName.put("c", 2);
+        positionByName.put("d", 3);
+        final Row namedPositionedRow =
+                RowUtils.createRowWithNamedPositions(
+                        RowKind.UPDATE_BEFORE, new Object[4], positionByName);
+        namedPositionedRow.setField("a", 1);
+        namedPositionedRow.setField(1, "a");
+        namedPositionedRow.setField(2, null);
+        namedPositionedRow.setField("d", false);
 
-		TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
-		RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, row);
-		testInstance.testAll();
-	}
+        final TypeSerializer<Row> serializer = rowTypeInfo.createSerializer(new ExecutionConfig());
+        final RowSerializerTestInstance instance =
+                new RowSerializerTestInstance(
+                        serializer, positionedRow, namedRow, sparseNamedRow, namedPositionedRow);
+        instance.testAll();
+    }
 
-	@Test
-	public void testRowSerializerWithComplexTypes() {
-		TypeInformation<Row> typeInfo = new RowTypeInfo(
-			BasicTypeInfo.INT_TYPE_INFO,
-			BasicTypeInfo.DOUBLE_TYPE_INFO,
-			BasicTypeInfo.STRING_TYPE_INFO,
-			new TupleTypeInfo<Tuple3<Integer, Boolean, Short>>(
-				BasicTypeInfo.INT_TYPE_INFO,
-				BasicTypeInfo.BOOLEAN_TYPE_INFO,
-				BasicTypeInfo.SHORT_TYPE_INFO),
-			TypeExtractor.createTypeInfo(MyPojo.class));
+    @Test
+    public void testLargeRowSerializer() {
+        TypeInformation<Row> typeInfo =
+                new RowTypeInfo(
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO);
 
-		MyPojo testPojo1 = new MyPojo();
-		testPojo1.name = null;
-		MyPojo testPojo2 = new MyPojo();
-		testPojo2.name = "Test1";
-		MyPojo testPojo3 = new MyPojo();
-		testPojo3.name = "Test2";
+        Row row = new Row(13);
+        row.setField(0, 2);
+        row.setField(1, null);
+        row.setField(3, null);
+        row.setField(4, null);
+        row.setField(5, null);
+        row.setField(6, null);
+        row.setField(7, null);
+        row.setField(8, null);
+        row.setField(9, null);
+        row.setField(10, null);
+        row.setField(11, null);
+        row.setField(12, "Test");
 
-		Row[] data = new Row[]{
-			createRow(null, null, null, null, null),
-			createRow(0, null, null, null, null),
-			createRow(0, 0.0, null, null, null),
-			createRow(0, 0.0, "a", null, null),
-			createRow(1, 0.0, "a", null, null),
-			createRow(1, 1.0, "a", null, null),
-			createRow(1, 1.0, "b", null, null),
-			createRow(1, 1.0, "b", new Tuple3<>(1, false, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, false, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 2), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), null),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo1),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo2),
-			createRow(1, 1.0, "b", new Tuple3<>(2, true, (short) 3), testPojo3)
-		};
+        TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
+        RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, row);
+        testInstance.testAll();
+    }
 
-		TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
-		RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, data);
-		testInstance.testAll();
-	}
+    @Test
+    public void testRowSerializerWithComplexTypes() {
+        TypeInformation<Row> typeInfo =
+                new RowTypeInfo(
+                        BasicTypeInfo.INT_TYPE_INFO,
+                        BasicTypeInfo.DOUBLE_TYPE_INFO,
+                        BasicTypeInfo.STRING_TYPE_INFO,
+                        new TupleTypeInfo<Tuple3<Integer, Boolean, Short>>(
+                                BasicTypeInfo.INT_TYPE_INFO,
+                                BasicTypeInfo.BOOLEAN_TYPE_INFO,
+                                BasicTypeInfo.SHORT_TYPE_INFO),
+                        TypeExtractor.createTypeInfo(MyPojo.class));
 
-	// ----------------------------------------------------------------------------------------------
+        MyPojo testPojo1 = new MyPojo();
+        testPojo1.name = null;
+        MyPojo testPojo2 = new MyPojo();
+        testPojo2.name = "Test1";
+        MyPojo testPojo3 = new MyPojo();
+        testPojo3.name = "Test2";
 
-	private static Row createRow(Object f0, Object f1, Object f2, Object f3, Object f4) {
-		Row row = new Row(5);
-		row.setField(0, f0);
-		row.setField(1, f1);
-		row.setField(2, f2);
-		row.setField(3, f3);
-		row.setField(4, f4);
-		return row;
-	}
+        Row[] data =
+                new Row[] {
+                    createRow(RowKind.INSERT, null, null, null, null, null),
+                    createRow(RowKind.INSERT, 0, null, null, null, null),
+                    createRow(RowKind.INSERT, 0, 0.0, null, null, null),
+                    createRow(RowKind.INSERT, 0, 0.0, "a", null, null),
+                    createRow(RowKind.INSERT, 1, 0.0, "a", null, null),
+                    createRow(RowKind.INSERT, 1, 1.0, "a", null, null),
+                    createRow(RowKind.INSERT, 1, 1.0, "b", null, null),
+                    createRow(
+                            RowKind.UPDATE_AFTER,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(1, false, (short) 2),
+                            null),
+                    createRow(
+                            RowKind.UPDATE_AFTER,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, false, (short) 2),
+                            null),
+                    createRow(
+                            RowKind.UPDATE_AFTER,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, true, (short) 2),
+                            null),
+                    createRow(
+                            RowKind.UPDATE_AFTER,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, true, (short) 3),
+                            null),
+                    createRow(
+                            RowKind.DELETE,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, true, (short) 3),
+                            testPojo1),
+                    createRow(
+                            RowKind.DELETE,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, true, (short) 3),
+                            testPojo2),
+                    createRow(
+                            RowKind.DELETE,
+                            1,
+                            1.0,
+                            "b",
+                            new Tuple3<>(2, true, (short) 3),
+                            testPojo3)
+                };
 
+        TypeSerializer<Row> serializer = typeInfo.createSerializer(new ExecutionConfig());
+        RowSerializerTestInstance testInstance = new RowSerializerTestInstance(serializer, data);
+        testInstance.testAll();
+    }
 
-	private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
+    // ----------------------------------------------------------------------------------------------
 
-		RowSerializerTestInstance(
-			TypeSerializer<Row> serializer,
-			Row... testData) {
-			super(serializer, Row.class, -1, testData);
-		}
-	}
+    private static Row createRow(
+            RowKind kind, Object f0, Object f1, Object f2, Object f3, Object f4) {
+        Row row = new Row(kind, 5);
+        row.setField(0, f0);
+        row.setField(1, f1);
+        row.setField(2, f2);
+        row.setField(3, f3);
+        row.setField(4, f4);
+        return row;
+    }
 
-	public static class MyPojo implements Serializable, Comparable<MyPojo> {
-		public String name = null;
+    private class RowSerializerTestInstance extends SerializerTestInstance<Row> {
 
-		@Override
-		public int compareTo(MyPojo o) {
-			if (name == null && o.name == null) {
-				return 0;
-			} else if (name == null) {
-				return -1;
-			} else if (o.name == null) {
-				return 1;
-			} else {
-				return name.compareTo(o.name);
-			}
-		}
+        RowSerializerTestInstance(TypeSerializer<Row> serializer, Row... testData) {
+            super(serializer, Row.class, -1, testData);
+        }
+    }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
+    public static class MyPojo implements Serializable, Comparable<MyPojo> {
+        public String name = null;
 
-			MyPojo myPojo = (MyPojo) o;
+        @Override
+        public int compareTo(MyPojo o) {
+            if (name == null && o.name == null) {
+                return 0;
+            } else if (name == null) {
+                return -1;
+            } else if (o.name == null) {
+                return 1;
+            } else {
+                return name.compareTo(o.name);
+            }
+        }
 
-			return name != null ? name.equals(myPojo.name) : myPojo.name == null;
-		}
-
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final MyPojo myPojo = (MyPojo) o;
+            return Objects.equals(name, myPojo.name);
+        }
+    }
 }

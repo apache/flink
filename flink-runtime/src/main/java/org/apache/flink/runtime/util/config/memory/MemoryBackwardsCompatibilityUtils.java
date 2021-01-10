@@ -31,64 +31,74 @@ import java.util.Optional;
 /**
  * Utilities to fallback to new options from the legacy ones for the backwards compatibility.
  *
- * <p>If {@link LegacyMemoryOptions} are set, they are interpreted as other new memory options for the backwards
- * compatibility.
+ * <p>If {@link LegacyMemoryOptions} are set, they are interpreted as other new memory options for
+ * the backwards compatibility.
  */
 public class MemoryBackwardsCompatibilityUtils {
-	private static final Logger LOG = LoggerFactory.getLogger(MemoryBackwardsCompatibilityUtils.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(MemoryBackwardsCompatibilityUtils.class);
 
-	private final LegacyMemoryOptions legacyMemoryOptions;
+    private final LegacyMemoryOptions legacyMemoryOptions;
 
-	public MemoryBackwardsCompatibilityUtils(LegacyMemoryOptions legacyMemoryOptions) {
-		this.legacyMemoryOptions = legacyMemoryOptions;
-	}
+    public MemoryBackwardsCompatibilityUtils(LegacyMemoryOptions legacyMemoryOptions) {
+        this.legacyMemoryOptions = legacyMemoryOptions;
+    }
 
-	public Configuration getConfWithLegacyHeapSizeMappedToNewConfigOption(
-		Configuration configuration,
-		ConfigOption<MemorySize> configOption) {
-		if (configuration.contains(configOption)) {
-			return configuration;
-		}
-		return getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(configuration)
-			.map(legacyHeapSize -> {
-				Configuration copiedConfig = new Configuration(configuration);
-				copiedConfig.set(configOption, legacyHeapSize);
-				LOG.info(
-					"'{}' is not specified, use the configured deprecated task manager heap value ({}) for it.",
-					configOption.key(),
-					legacyHeapSize.toHumanReadableString());
-				return copiedConfig;
-			}).orElse(configuration);
-	}
+    public Configuration getConfWithLegacyHeapSizeMappedToNewConfigOption(
+            Configuration configuration, ConfigOption<MemorySize> configOption) {
+        if (configuration.contains(configOption)) {
+            return configuration;
+        }
+        return getLegacyHeapMemoryIfExplicitlyConfigured(configuration)
+                .map(
+                        legacyHeapSize -> {
+                            Configuration copiedConfig = new Configuration(configuration);
+                            copiedConfig.set(configOption, legacyHeapSize);
+                            LOG.info(
+                                    "'{}' is not specified, use the configured deprecated task manager heap value ({}) for it.",
+                                    configOption.key(),
+                                    legacyHeapSize.toHumanReadableString());
+                            return copiedConfig;
+                        })
+                .orElse(configuration);
+    }
 
-	private Optional<MemorySize> getLegacyTaskManagerHeapMemoryIfExplicitlyConfigured(Configuration configuration) {
-		@SuppressWarnings("CallToSystemGetenv")
-		String totalProcessEnv = System.getenv(legacyMemoryOptions.getEnvVar());
-		if (totalProcessEnv != null) {
-			//noinspection OverlyBroadCatchBlock
-			try {
-				return Optional.of(MemorySize.parse(totalProcessEnv));
-			} catch (Throwable t) {
-				throw new IllegalConfigurationException(
-					"Cannot read total process memory size from environment variable value " + totalProcessEnv + '.',
-					t);
-			}
-		}
+    private Optional<MemorySize> getLegacyHeapMemoryIfExplicitlyConfigured(
+            Configuration configuration) {
+        @SuppressWarnings("CallToSystemGetenv")
+        String totalProcessEnv = System.getenv(legacyMemoryOptions.getEnvVar());
+        if (totalProcessEnv != null) {
+            //noinspection OverlyBroadCatchBlock
+            try {
+                return Optional.of(MemorySize.parse(totalProcessEnv));
+            } catch (Throwable t) {
+                throw new IllegalConfigurationException(
+                        "Cannot read total process memory size from environment variable value "
+                                + totalProcessEnv
+                                + '.',
+                        t);
+            }
+        }
 
-		if (configuration.contains(legacyMemoryOptions.getHeap())) {
-			return Optional.of(ProcessMemoryUtils.getMemorySizeFromConfig(configuration, legacyMemoryOptions.getHeap()));
-		}
+        if (configuration.contains(legacyMemoryOptions.getHeap())) {
+            return Optional.of(
+                    ProcessMemoryUtils.getMemorySizeFromConfig(
+                            configuration, legacyMemoryOptions.getHeap()));
+        }
 
-		if (configuration.contains(legacyMemoryOptions.getHeapMb())) {
-			final long legacyHeapMemoryMB = configuration.getInteger(legacyMemoryOptions.getHeapMb());
-			if (legacyHeapMemoryMB < 0) {
-				throw new IllegalConfigurationException(
-					"Configured total process memory size (" + legacyHeapMemoryMB + "MB) must not be less than 0.");
-			}
-			//noinspection MagicNumber
-			return Optional.of(new MemorySize(legacyHeapMemoryMB << 20)); // megabytes to bytes;
-		}
+        if (configuration.contains(legacyMemoryOptions.getHeapMb())) {
+            final long legacyHeapMemoryMB =
+                    configuration.getInteger(legacyMemoryOptions.getHeapMb());
+            if (legacyHeapMemoryMB < 0) {
+                throw new IllegalConfigurationException(
+                        "Configured total process memory size ("
+                                + legacyHeapMemoryMB
+                                + "MB) must not be less than 0.");
+            }
+            //noinspection MagicNumber
+            return Optional.of(new MemorySize(legacyHeapMemoryMB << 20)); // megabytes to bytes;
+        }
 
-		return Optional.empty();
-	}
+        return Optional.empty();
+    }
 }

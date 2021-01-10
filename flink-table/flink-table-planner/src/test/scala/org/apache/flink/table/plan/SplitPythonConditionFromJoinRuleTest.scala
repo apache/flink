@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
+
 import org.junit.Test
 
 class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
@@ -35,8 +36,8 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"))
 
     val result = left
-      .join(right, "a === d && pyFunc(a, d) === b")
-      .select("a, b, d")
+      .join(right, $"a" === $"d" && call("pyFunc", $"a", $"d") === $"b")
+      .select($"a", $"b", $"d")
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -74,10 +75,10 @@ class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
     util.tableEnv.registerFunction("pyFunc", new PythonScalarFunction("pyFunc"))
 
     val result = left
-      .join(right, "a === d && pyFunc(a, d) = a + b")
-      .select("a, b, d")
-      .filter("pyFunc(a, b) = b * d")
-      .select("a + 1, b, d")
+      .join(right, $"a" === $"d" && call("pyFunc", $"a", $"d") === ($"a" + $"b"))
+      .select($"a", $"b", $"d")
+      .filter(call("pyFunc", $"a", $"b") === ($"b" * $"d"))
+      .select($"a" + 1, $"b", $"d")
 
     val expected = unaryNode(
       "DataStreamCalc",

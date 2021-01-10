@@ -22,18 +22,18 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.client.deployment.executors.AbstractSessionClusterExecutor;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.yarn.YarnClusterClientFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
-/**
- * The {@link PipelineExecutor} to be used when executing a job on an already running cluster.
- */
+/** The {@link PipelineExecutor} to be used when executing a job on an already running cluster. */
 @Internal
-public class YarnSessionClusterExecutor extends AbstractSessionClusterExecutor<ApplicationId, YarnClusterClientFactory> {
+public class YarnSessionClusterExecutor
+        extends AbstractSessionClusterExecutor<ApplicationId, YarnClusterClientFactory> {
 
-	public static final String NAME = "yarn-session";
+    public static final String NAME = YarnDeploymentTarget.SESSION.getName();
 
-	public YarnSessionClusterExecutor() {
-		super(new YarnClusterClientFactory());
-	}
+    public YarnSessionClusterExecutor() {
+        super(new YarnClusterClientFactory());
+    }
 }

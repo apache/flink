@@ -20,6 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.state.api.functions.Timestamper;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -49,86 +50,97 @@ import java.util.Optional;
  * @param <OP> Type of the operator this task runs.
  */
 class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & BoundedOneInput>
-	extends StreamTask<OUT, OP> {
+        extends StreamTask<OUT, OP> {
 
-	private final Iterator<IN> input;
+    private final Iterator<IN> input;
 
-	private final Collector<OUT> collector;
+    private final Collector<OUT> collector;
 
-	private final StreamRecord<IN> reuse;
+    private final Timestamper<IN> timestamper;
 
-	BoundedStreamTask(
-		Environment environment,
-		Iterable<IN> input,
-		Collector<OUT> collector) throws Exception {
-		super(environment, new NeverFireProcessingTimeService());
-		this.input = input.iterator();
-		this.collector = collector;
-		this.reuse = new StreamRecord<>(null);
-	}
+    BoundedStreamTask(
+            Environment environment,
+            Iterable<IN> input,
+            Timestamper<IN> timestamper,
+            Collector<OUT> collector)
+            throws Exception {
+        super(environment, new NeverFireProcessingTimeService());
+        this.input = input.iterator();
+        this.collector = collector;
+        this.timestamper = timestamper;
+    }
 
-	@Override
-	protected void init() throws Exception {
-		Preconditions.checkState(
-			operatorChain.getNumberOfOperators() == 1,
-			"BoundedStreamTask's should only run a single operator");
+    @Override
+    protected void init() throws Exception {
+        Preconditions.checkState(
+                operatorChain.getNumberOfOperators() == 1,
+                "BoundedStreamTask's should only run a single operator");
 
-		// re-initialize the operator with the correct collector.
-		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(getUserCodeClassLoader());
-		Tuple2<OP, Optional<ProcessingTimeService>> headOperatorAndTimeService = StreamOperatorFactoryUtil.createOperator(
-				operatorFactory,
-				this,
-				configuration,
-				new CollectorWrapper<>(collector));
-		headOperator = headOperatorAndTimeService.f0;
-		headOperator.initializeState(createStreamTaskStateInitializer());
-		headOperator.open();
-	}
+        // re-initialize the operator with the correct collector.
+        StreamOperatorFactory<OUT> operatorFactory =
+                configuration.getStreamOperatorFactory(getUserCodeClassLoader());
+        Tuple2<OP, Optional<ProcessingTimeService>> mainOperatorAndTimeService =
+                StreamOperatorFactoryUtil.createOperator(
+                        operatorFactory,
+                        this,
+                        configuration,
+                        new CollectorWrapper<>(collector),
+                        operatorChain.getOperatorEventDispatcher());
+        mainOperator = mainOperatorAndTimeService.f0;
+        mainOperator.initializeState(createStreamTaskStateInitializer());
+        mainOperator.open();
+    }
 
-	@Override
-	protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
-		if (input.hasNext()) {
-			reuse.replace(input.next());
-			headOperator.setKeyContextElement1(reuse);
-			headOperator.processElement(reuse);
-		} else {
-			headOperator.endInput();
-			controller.allActionsCompleted();
-		}
-	}
+    @Override
+    protected void processInput(MailboxDefaultAction.Controller controller) throws Exception {
+        if (input.hasNext()) {
+            StreamRecord<IN> streamRecord = new StreamRecord<>(input.next());
 
-	@Override
-	protected void cancelTask() {}
+            if (timestamper != null) {
+                long timestamp = timestamper.timestamp(streamRecord.getValue());
+                streamRecord.setTimestamp(timestamp);
+            }
 
-	@Override
-	protected void cleanup() throws Exception {
-		headOperator.close();
-		headOperator.dispose();
-	}
+            mainOperator.setKeyContextElement1(streamRecord);
+            mainOperator.processElement(streamRecord);
+        } else {
+            mainOperator.endInput();
+            controller.allActionsCompleted();
+        }
+    }
 
-	private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
+    @Override
+    protected void cancelTask() {}
 
-		private final Collector<OUT> inner;
+    @Override
+    protected void cleanup() throws Exception {
+        mainOperator.close();
+        mainOperator.dispose();
+    }
 
-		private CollectorWrapper(Collector<OUT> inner) {
-			this.inner = inner;
-		}
+    private static class CollectorWrapper<OUT> implements Output<StreamRecord<OUT>> {
 
-		@Override
-		public void emitWatermark(Watermark mark) { }
+        private final Collector<OUT> inner;
 
-		@Override
-		public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) { }
+        private CollectorWrapper(Collector<OUT> inner) {
+            this.inner = inner;
+        }
 
-		@Override
-		public void emitLatencyMarker(LatencyMarker latencyMarker) { }
+        @Override
+        public void emitWatermark(Watermark mark) {}
 
-		@Override
-		public void collect(StreamRecord<OUT> record) {
-			inner.collect(record.getValue());
-		}
+        @Override
+        public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {}
 
-		@Override
-		public void close() { }
-	}
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
+
+        @Override
+        public void collect(StreamRecord<OUT> record) {
+            inner.collect(record.getValue());
+        }
+
+        @Override
+        public void close() {}
+    }
 }

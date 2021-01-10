@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-connector-gcp-pubsub-emulator-tests</artifactId>
-	<name>flink-connector-gcp-pubsub-emulator-tests</name>
+	<name>Flink : E2E Tests : Connectors : Google PubSub</name>
 
 	<packaging>jar</packaging>
 
@@ -63,7 +63,7 @@ under the License.
 		<dependency>
 			<groupId>com.spotify</groupId>
 			<artifactId>docker-client</artifactId>
-			<version>8.11.7</version>
+			<version>8.16.0</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -82,6 +82,12 @@ under the License.
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils-junit</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<!-- ONLY run the tests when explicitly told to do so  -->
@@ -93,9 +99,9 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.12.4</version>
 				<configuration>
 					<skipTests>${skipTests}</skipTests>
+					<forkCount>1</forkCount> <!-- Enforce single test execution -->
 				</configuration>
 				<executions>
 					<execution>

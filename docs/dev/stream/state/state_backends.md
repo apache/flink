@@ -28,7 +28,7 @@ State can be located on Java’s heap or off-heap. Depending on your state backe
 
 However, the default state backend can be overridden on a per-job basis, as shown below.
 
-For more information about the available state backends, their advantages, limitations, and configuration parameters see the corresponding section in [Deployment & Operations]({{ site.baseurl }}/ops/state/state_backends.html).
+For more information about the available state backends, their advantages, limitations, and configuration parameters see the corresponding section in [Deployment & Operations]({% link ops/state/state_backends.md %}).
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">

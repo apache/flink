@@ -31,7 +31,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
-import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.DefaultExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
@@ -53,92 +53,102 @@ import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * Test for the {@link JobExceptionsHandler}.
- */
+/** Test for the {@link JobExceptionsHandler}. */
 public class JobExceptionsHandlerTest extends TestLogger {
 
-	@Test
-	public void testGetJobExceptionsInfo() throws HandlerRequestException {
-		final JobExceptionsHandler jobExceptionsHandler = new JobExceptionsHandler(
-			() -> null,
-			TestingUtils.TIMEOUT(),
-			Collections.emptyMap(),
-			JobExceptionsHeaders.getInstance(),
-			new ExecutionGraphCache(TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
-			TestingUtils.defaultExecutor());
-		final int numExceptions = 20;
-		final AccessExecutionGraph archivedExecutionGraph = createAccessExecutionGraph(numExceptions);
-		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 10);
-		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, numExceptions);
-		checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 30);
-	}
+    @Test
+    public void testGetJobExceptionsInfo() throws HandlerRequestException {
+        final JobExceptionsHandler jobExceptionsHandler =
+                new JobExceptionsHandler(
+                        () -> null,
+                        TestingUtils.TIMEOUT(),
+                        Collections.emptyMap(),
+                        JobExceptionsHeaders.getInstance(),
+                        new DefaultExecutionGraphCache(
+                                TestingUtils.TIMEOUT(), TestingUtils.TIMEOUT()),
+                        TestingUtils.defaultExecutor());
+        final int numExceptions = 20;
+        final AccessExecutionGraph archivedExecutionGraph =
+                createAccessExecutionGraph(numExceptions);
+        checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 10);
+        checkExceptionLimit(
+                jobExceptionsHandler, archivedExecutionGraph, numExceptions, numExceptions);
+        checkExceptionLimit(jobExceptionsHandler, archivedExecutionGraph, numExceptions, 30);
+    }
 
-	private static void checkExceptionLimit(JobExceptionsHandler jobExceptionsHandler, AccessExecutionGraph graph, int maxNumExceptions, int numExpectedException) throws HandlerRequestException {
-		final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest = createRequest(graph.getJobID(), numExpectedException);
-		final JobExceptionsInfo jobExceptionsInfo = jobExceptionsHandler.handleRequest(handlerRequest, graph);
-		final int numReportedException = maxNumExceptions >= numExpectedException ? numExpectedException : maxNumExceptions;
-		assertEquals(jobExceptionsInfo.getAllExceptions().size(), numReportedException);
-	}
+    private static void checkExceptionLimit(
+            JobExceptionsHandler jobExceptionsHandler,
+            AccessExecutionGraph graph,
+            int maxNumExceptions,
+            int numExpectedException)
+            throws HandlerRequestException {
+        final HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> handlerRequest =
+                createRequest(graph.getJobID(), numExpectedException);
+        final JobExceptionsInfo jobExceptionsInfo =
+                jobExceptionsHandler.handleRequest(handlerRequest, graph);
+        final int numReportedException =
+                maxNumExceptions >= numExpectedException ? numExpectedException : maxNumExceptions;
+        assertEquals(jobExceptionsInfo.getAllExceptions().size(), numReportedException);
+    }
 
-	private static AccessExecutionGraph createAccessExecutionGraph(int numTasks) {
-		Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
-		for (int i = 0; i < numTasks; i++) {
-			final JobVertexID jobVertexId = new JobVertexID();
-			tasks.put(jobVertexId, createArchivedExecutionJobVertex(jobVertexId));
-		}
-		return new ArchivedExecutionGraphBuilder()
-			.setTasks(tasks)
-			.build();
-	}
+    private static AccessExecutionGraph createAccessExecutionGraph(int numTasks) {
+        Map<JobVertexID, ArchivedExecutionJobVertex> tasks = new HashMap<>();
+        for (int i = 0; i < numTasks; i++) {
+            final JobVertexID jobVertexId = new JobVertexID();
+            tasks.put(jobVertexId, createArchivedExecutionJobVertex(jobVertexId));
+        }
+        return new ArchivedExecutionGraphBuilder().setTasks(tasks).build();
+    }
 
-	private static ArchivedExecutionJobVertex createArchivedExecutionJobVertex(JobVertexID jobVertexID) {
-		final StringifiedAccumulatorResult[] emptyAccumulators = new StringifiedAccumulatorResult[0];
-		final long[] timestamps = new long[ExecutionState.values().length];
-		final ExecutionState expectedState = ExecutionState.RUNNING;
+    private static ArchivedExecutionJobVertex createArchivedExecutionJobVertex(
+            JobVertexID jobVertexID) {
+        final StringifiedAccumulatorResult[] emptyAccumulators =
+                new StringifiedAccumulatorResult[0];
+        final long[] timestamps = new long[ExecutionState.values().length];
+        final ExecutionState expectedState = ExecutionState.RUNNING;
 
-		final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
-		final AllocationID allocationID = new AllocationID();
+        final LocalTaskManagerLocation assignedResourceLocation = new LocalTaskManagerLocation();
+        final AllocationID allocationID = new AllocationID();
 
-		final int subtaskIndex = 1;
-		final int attempt = 2;
-		return new ArchivedExecutionJobVertex(
-			new ArchivedExecutionVertex[]{
-				new ArchivedExecutionVertex(
-					subtaskIndex,
-					"test task",
-					new ArchivedExecution(
-						new StringifiedAccumulatorResult[0],
-						null,
-						new ExecutionAttemptID(),
-						attempt,
-						expectedState,
-						"error",
-						assignedResourceLocation,
-						allocationID,
-						subtaskIndex,
-						timestamps),
-					new EvictingBoundedList<>(0)
-				)
-			},
-			jobVertexID,
-			jobVertexID.toString(),
-			1,
-			1,
-			ResourceProfile.UNKNOWN,
-			emptyAccumulators);
-	}
+        final int subtaskIndex = 1;
+        final int attempt = 2;
+        return new ArchivedExecutionJobVertex(
+                new ArchivedExecutionVertex[] {
+                    new ArchivedExecutionVertex(
+                            subtaskIndex,
+                            "test task",
+                            new ArchivedExecution(
+                                    new StringifiedAccumulatorResult[0],
+                                    null,
+                                    new ExecutionAttemptID(),
+                                    attempt,
+                                    expectedState,
+                                    "error",
+                                    assignedResourceLocation,
+                                    allocationID,
+                                    subtaskIndex,
+                                    timestamps),
+                            new EvictingBoundedList<>(0))
+                },
+                jobVertexID,
+                jobVertexID.toString(),
+                1,
+                1,
+                ResourceProfile.UNKNOWN,
+                emptyAccumulators);
+    }
 
-	private static HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(JobID jobId, int size) throws HandlerRequestException {
-		final Map<String, String> pathParameters = new HashMap<>();
-		pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
-		final Map<String, List<String>> queryParameters = new HashMap<>();
-		queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
+    private static HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> createRequest(
+            JobID jobId, int size) throws HandlerRequestException {
+        final Map<String, String> pathParameters = new HashMap<>();
+        pathParameters.put(JobIDPathParameter.KEY, jobId.toString());
+        final Map<String, List<String>> queryParameters = new HashMap<>();
+        queryParameters.put(UpperLimitExceptionParameter.KEY, Collections.singletonList("" + size));
 
-		return new HandlerRequest<>(
-			EmptyRequestBody.getInstance(),
-			new JobExceptionsMessageParameters(),
-			pathParameters,
-			queryParameters);
-	}
+        return new HandlerRequest<>(
+                EmptyRequestBody.getInstance(),
+                new JobExceptionsMessageParameters(),
+                pathParameters,
+                queryParameters);
+    }
 }

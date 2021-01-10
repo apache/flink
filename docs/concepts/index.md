@@ -1,12 +1,11 @@
 ---
-title: Concepts in Depth
+title: Concepts
 nav-id: concepts
 nav-pos: 3
-nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts in Depth'
+nav-title: '<i class="fa fa-map-o title appetizer" aria-hidden="true"></i> Concepts'
 nav-parent_id: root
 nav-show_overview: true
 permalink: /concepts/index.html
-always-expand: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -27,13 +26,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The [Hands-on Tutorials]({% link tutorials/index.md %}) explain the basic concepts
-of stateful and timely stream processing that underlie Flink's APIs, and provide examples of how
+The [Hands-on Training]({% link learn-flink/index.md %}) explains the basic concepts
+of stateful and timely stream processing that underlie Flink's APIs, and provides examples of how
 these mechanisms are used in applications. Stateful stream processing is introduced in the context
-of [Data Pipelines & ETL]({% link tutorials/etl.md %}#stateful-transformations)
-and is further developed in the section on [Fault Tolerance]({% link
-tutorials/fault_tolerance.md %}). Timely stream processing is introduced in the section on
-[Streaming Analytics]({% link tutorials/streaming_analytics.md %}).
+of [Data Pipelines & ETL]({% link learn-flink/etl.md %}#stateful-transformations)
+and is further developed in the section on [Fault Tolerance]({% link learn-flink/fault_tolerance.md %}). Timely stream processing is introduced in the section on
+[Streaming Analytics]({% link learn-flink/streaming_analytics.md %}).
 
 This _Concepts in Depth_ section provides a deeper understanding of how Flink's architecture and runtime 
 implement these concepts.
@@ -42,7 +40,7 @@ implement these concepts.
 
 Flink offers different levels of abstraction for developing streaming/batch applications.
 
-<img src="{{ site.baseurl }}/fig/levels_of_abstraction.svg" alt="Programming levels of abstraction" class="offset" width="80%" />
+<img src="{% link /fig/levels_of_abstraction.svg %}" alt="Programming levels of abstraction" class="offset" width="80%" />
 
   - The lowest level abstraction simply offers **stateful and timely stream processing**. It is
     embedded into the [DataStream API]({% link dev/datastream_api.md %}) via the [Process
@@ -85,7 +83,7 @@ Flink offers different levels of abstraction for developing streaming/batch appl
 
   - The highest level abstraction offered by Flink is **SQL**. This abstraction
     is similar to the *Table API* both in semantics and expressiveness, but
-    represents programs as SQL query expressions.  The [SQL]({{ site.baseurl
-    }}{% link dev/table/index.md %}#sql) abstraction closely interacts with the
+    represents programs as SQL query expressions.  The [SQL](
+    {% link dev/table/index.md %}#sql) abstraction closely interacts with the
     Table API, and SQL queries can be executed over tables defined in the
     *Table API*.

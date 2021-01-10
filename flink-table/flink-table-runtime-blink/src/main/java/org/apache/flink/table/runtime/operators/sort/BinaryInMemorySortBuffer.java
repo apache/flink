@@ -20,12 +20,12 @@ package org.apache.flink.table.runtime.operators.sort;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.SimpleCollectingOutputView;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.table.runtime.util.MemorySegmentPool;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -35,188 +35,192 @@ import java.util.ArrayList;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/**
- * In memory sort buffer for binary row.
- */
+/** In memory sort buffer for binary row. */
 public final class BinaryInMemorySortBuffer extends BinaryIndexedSortable {
 
-	private static final int MIN_REQUIRED_BUFFERS = 3;
+    private static final int MIN_REQUIRED_BUFFERS = 3;
 
-	private AbstractRowSerializer<BaseRow> inputSerializer;
-	private final ArrayList<MemorySegment> recordBufferSegments;
-	private final SimpleCollectingOutputView recordCollector;
-	private final int totalNumBuffers;
+    private AbstractRowDataSerializer<RowData> inputSerializer;
+    private final ArrayList<MemorySegment> recordBufferSegments;
+    private final SimpleCollectingOutputView recordCollector;
+    private final int totalNumBuffers;
 
-	private long currentDataBufferOffset;
-	private long sortIndexBytes;
+    private long currentDataBufferOffset;
+    private long sortIndexBytes;
 
-	/**
-	 * Create a memory sorter in `insert` way.
-	 */
-	public static BinaryInMemorySortBuffer createBuffer(
-			NormalizedKeyComputer normalizedKeyComputer,
-			AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer,
-			RecordComparator comparator,
-			MemorySegmentPool memoryPool) {
-		checkArgument(memoryPool.freePages() >= MIN_REQUIRED_BUFFERS);
-		int totalNumBuffers = memoryPool.freePages();
-		ArrayList<MemorySegment> recordBufferSegments = new ArrayList<>(16);
-		return new BinaryInMemorySortBuffer(
-				normalizedKeyComputer, inputSerializer, serializer, comparator, recordBufferSegments,
-				new SimpleCollectingOutputView(recordBufferSegments, memoryPool, memoryPool.pageSize()),
-				memoryPool, totalNumBuffers);
-	}
+    /** Create a memory sorter in `insert` way. */
+    public static BinaryInMemorySortBuffer createBuffer(
+            NormalizedKeyComputer normalizedKeyComputer,
+            AbstractRowDataSerializer<RowData> inputSerializer,
+            BinaryRowDataSerializer serializer,
+            RecordComparator comparator,
+            MemorySegmentPool memoryPool) {
+        checkArgument(memoryPool.freePages() >= MIN_REQUIRED_BUFFERS);
+        int totalNumBuffers = memoryPool.freePages();
+        ArrayList<MemorySegment> recordBufferSegments = new ArrayList<>(16);
+        return new BinaryInMemorySortBuffer(
+                normalizedKeyComputer,
+                inputSerializer,
+                serializer,
+                comparator,
+                recordBufferSegments,
+                new SimpleCollectingOutputView(
+                        recordBufferSegments, memoryPool, memoryPool.pageSize()),
+                memoryPool,
+                totalNumBuffers);
+    }
 
-	private BinaryInMemorySortBuffer(
-			NormalizedKeyComputer normalizedKeyComputer,
-			AbstractRowSerializer<BaseRow> inputSerializer,
-			BinaryRowSerializer serializer,
-			RecordComparator comparator,
-			ArrayList<MemorySegment> recordBufferSegments,
-			SimpleCollectingOutputView recordCollector,
-			MemorySegmentPool pool,
-			int totalNumBuffers) {
-		super(normalizedKeyComputer, serializer, comparator, recordBufferSegments, pool);
-		this.inputSerializer = inputSerializer;
-		this.recordBufferSegments = recordBufferSegments;
-		this.recordCollector = recordCollector;
-		this.totalNumBuffers = totalNumBuffers;
-	}
+    private BinaryInMemorySortBuffer(
+            NormalizedKeyComputer normalizedKeyComputer,
+            AbstractRowDataSerializer<RowData> inputSerializer,
+            BinaryRowDataSerializer serializer,
+            RecordComparator comparator,
+            ArrayList<MemorySegment> recordBufferSegments,
+            SimpleCollectingOutputView recordCollector,
+            MemorySegmentPool pool,
+            int totalNumBuffers) {
+        super(normalizedKeyComputer, serializer, comparator, recordBufferSegments, pool);
+        this.inputSerializer = inputSerializer;
+        this.recordBufferSegments = recordBufferSegments;
+        this.recordCollector = recordCollector;
+        this.totalNumBuffers = totalNumBuffers;
+    }
 
-	// -------------------------------------------------------------------------
-	// Memory Segment
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // Memory Segment
+    // -------------------------------------------------------------------------
 
-	/**
-	 * Resets the sort buffer back to the state where it is empty. All contained data is discarded.
-	 */
-	public void reset() {
+    /**
+     * Resets the sort buffer back to the state where it is empty. All contained data is discarded.
+     */
+    public void reset() {
 
-		// reset all offsets
-		this.numRecords = 0;
-		this.currentSortIndexOffset = 0;
-		this.currentDataBufferOffset = 0;
-		this.sortIndexBytes = 0;
+        // reset all offsets
+        this.numRecords = 0;
+        this.currentSortIndexOffset = 0;
+        this.currentDataBufferOffset = 0;
+        this.sortIndexBytes = 0;
 
-		// return all memory
-		returnToSegmentPool();
+        // return all memory
+        returnToSegmentPool();
 
-		// grab first buffers
-		this.currentSortIndexSegment = nextMemorySegment();
-		this.sortIndex.add(this.currentSortIndexSegment);
-		this.recordCollector.reset();
-	}
+        // grab first buffers
+        this.currentSortIndexSegment = nextMemorySegment();
+        this.sortIndex.add(this.currentSortIndexSegment);
+        this.recordCollector.reset();
+    }
 
-	public void returnToSegmentPool() {
-		// return all memory
-		this.memorySegmentPool.returnAll(this.sortIndex);
-		this.memorySegmentPool.returnAll(this.recordBufferSegments);
-		this.sortIndex.clear();
-		this.recordBufferSegments.clear();
-	}
+    public void returnToSegmentPool() {
+        // return all memory
+        this.memorySegmentPool.returnAll(this.sortIndex);
+        this.memorySegmentPool.returnAll(this.recordBufferSegments);
+        this.sortIndex.clear();
+        this.recordBufferSegments.clear();
+    }
 
-	/**
-	 * Checks whether the buffer is empty.
-	 *
-	 * @return True, if no record is contained, false otherwise.
-	 */
-	public boolean isEmpty() {
-		return this.numRecords == 0;
-	}
+    /**
+     * Checks whether the buffer is empty.
+     *
+     * @return True, if no record is contained, false otherwise.
+     */
+    public boolean isEmpty() {
+        return this.numRecords == 0;
+    }
 
-	public void dispose() {
-		returnToSegmentPool();
-	}
+    public void dispose() {
+        returnToSegmentPool();
+    }
 
-	public long getCapacity() {
-		return ((long) this.totalNumBuffers) * memorySegmentPool.pageSize();
-	}
+    public long getCapacity() {
+        return ((long) this.totalNumBuffers) * memorySegmentPool.pageSize();
+    }
 
-	public long getOccupancy() {
-		return this.currentDataBufferOffset + this.sortIndexBytes;
-	}
+    public long getOccupancy() {
+        return this.currentDataBufferOffset + this.sortIndexBytes;
+    }
 
-	/**
-	 * Writes a given record to this sort buffer. The written record will be appended and take
-	 * the last logical position.
-	 *
-	 * @param record The record to be written.
-	 * @return True, if the record was successfully written, false, if the sort buffer was full.
-	 * @throws IOException Thrown, if an error occurred while serializing the record into the buffers.
-	 */
-	public boolean write(BaseRow record) throws IOException {
-		//check whether we need a new memory segment for the sort index
-		if (!checkNextIndexOffset()) {
-			return false;
-		}
+    /**
+     * Writes a given record to this sort buffer. The written record will be appended and take the
+     * last logical position.
+     *
+     * @param record The record to be written.
+     * @return True, if the record was successfully written, false, if the sort buffer was full.
+     * @throws IOException Thrown, if an error occurred while serializing the record into the
+     *     buffers.
+     */
+    public boolean write(RowData record) throws IOException {
+        // check whether we need a new memory segment for the sort index
+        if (!checkNextIndexOffset()) {
+            return false;
+        }
 
-		// serialize the record into the data buffers
-		int skip;
-		try {
-			skip = this.inputSerializer.serializeToPages(record, this.recordCollector);
-		} catch (EOFException e) {
-			return false;
-		}
+        // serialize the record into the data buffers
+        int skip;
+        try {
+            skip = this.inputSerializer.serializeToPages(record, this.recordCollector);
+        } catch (EOFException e) {
+            return false;
+        }
 
-		final long newOffset = this.recordCollector.getCurrentOffset();
-		long currOffset = currentDataBufferOffset + skip;
+        final long newOffset = this.recordCollector.getCurrentOffset();
+        long currOffset = currentDataBufferOffset + skip;
 
-		writeIndexAndNormalizedKey(record, currOffset);
+        writeIndexAndNormalizedKey(record, currOffset);
 
-		this.currentDataBufferOffset = newOffset;
+        this.currentDataBufferOffset = newOffset;
 
-		return true;
-	}
+        return true;
+    }
 
-	private BinaryRow getRecordFromBuffer(BinaryRow reuse, long pointer) throws IOException {
-		this.recordBuffer.setReadPosition(pointer);
-		return this.serializer.mapFromPages(reuse, this.recordBuffer);
-	}
+    private BinaryRowData getRecordFromBuffer(BinaryRowData reuse, long pointer)
+            throws IOException {
+        this.recordBuffer.setReadPosition(pointer);
+        return this.serializer.mapFromPages(reuse, this.recordBuffer);
+    }
 
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
-	/**
-	 * Gets an iterator over all records in this buffer in their logical order.
-	 *
-	 * @return An iterator returning the records in their logical order.
-	 */
-	public final MutableObjectIterator<BinaryRow> getIterator() {
-		return new MutableObjectIterator<BinaryRow>() {
-			private final int size = size();
-			private int current = 0;
+    /**
+     * Gets an iterator over all records in this buffer in their logical order.
+     *
+     * @return An iterator returning the records in their logical order.
+     */
+    public final MutableObjectIterator<BinaryRowData> getIterator() {
+        return new MutableObjectIterator<BinaryRowData>() {
+            private final int size = size();
+            private int current = 0;
 
-			private int currentSegment = 0;
-			private int currentOffset = 0;
+            private int currentSegment = 0;
+            private int currentOffset = 0;
 
-			private MemorySegment currentIndexSegment = sortIndex.get(0);
+            private MemorySegment currentIndexSegment = sortIndex.get(0);
 
-			@Override
-			public BinaryRow next(BinaryRow target) {
-				if (this.current < this.size) {
-					this.current++;
-					if (this.currentOffset > lastIndexEntryOffset) {
-						this.currentOffset = 0;
-						this.currentIndexSegment = sortIndex.get(++this.currentSegment);
-					}
+            @Override
+            public BinaryRowData next(BinaryRowData target) {
+                if (this.current < this.size) {
+                    this.current++;
+                    if (this.currentOffset > lastIndexEntryOffset) {
+                        this.currentOffset = 0;
+                        this.currentIndexSegment = sortIndex.get(++this.currentSegment);
+                    }
 
-					long pointer = this.currentIndexSegment.getLong(this.currentOffset);
-					this.currentOffset += indexEntrySize;
+                    long pointer = this.currentIndexSegment.getLong(this.currentOffset);
+                    this.currentOffset += indexEntrySize;
 
-					try {
-						return getRecordFromBuffer(target, pointer);
-					} catch (IOException ioe) {
-						throw new RuntimeException(ioe);
-					}
-				} else {
-					return null;
-				}
-			}
+                    try {
+                        return getRecordFromBuffer(target, pointer);
+                    } catch (IOException ioe) {
+                        throw new RuntimeException(ioe);
+                    }
+                } else {
+                    return null;
+                }
+            }
 
-			@Override
-			public BinaryRow next() {
-				throw new RuntimeException("Not support!");
-			}
-		};
-	}
+            @Override
+            public BinaryRowData next() {
+                throw new RuntimeException("Not support!");
+            }
+        };
+    }
 }

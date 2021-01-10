@@ -42,44 +42,53 @@ import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.UPPER_BOUND
 @PublicEvolving
 public final class Savepoint {
 
-	private Savepoint() {}
+    private Savepoint() {}
 
-	/**
-	 * Loads an existing savepoint. Useful if you want to query, modify, or extend
-	 * the state of an existing application.
-	 *
-	 * @param env The execution environment used to transform the savepoint.
-	 * @param path The path to an existing savepoint on disk.
-	 * @param stateBackend The state backend of the savepoint.
-	 */
-	public static ExistingSavepoint load(ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
-		CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
+    /**
+     * Loads an existing savepoint. Useful if you want to query, modify, or extend the state of an
+     * existing application.
+     *
+     * @param env The execution environment used to transform the savepoint.
+     * @param path The path to an existing savepoint on disk.
+     * @param stateBackend The state backend of the savepoint.
+     */
+    public static ExistingSavepoint load(
+            ExecutionEnvironment env, String path, StateBackend stateBackend) throws IOException {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
 
-		int maxParallelism = metadata
-			.getOperatorStates()
-			.stream()
-			.map(OperatorState::getMaxParallelism)
-			.max(Comparator.naturalOrder())
-			.orElseThrow(() -> new RuntimeException("Savepoint must contain at least one operator state."));
+        int maxParallelism =
+                metadata.getOperatorStates().stream()
+                        .map(OperatorState::getMaxParallelism)
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Savepoint must contain at least one operator state."));
 
-		SavepointMetadata savepointMetadata = new SavepointMetadata(maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
-		return new ExistingSavepoint(env, savepointMetadata, stateBackend);
-	}
+        SavepointMetadata savepointMetadata =
+                new SavepointMetadata(
+                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+        return new ExistingSavepoint(env, savepointMetadata, stateBackend);
+    }
 
-	/**
-	 * Creates a new savepoint.
-	 *
-	 * @param stateBackend The state backend of the savepoint used for keyed state.
-	 * @param maxParallelism The max parallelism of the savepoint.
-	 * @return A new savepoint.
-	 */
-	public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
-		Preconditions.checkArgument(maxParallelism > 0
-				&& maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
-			"Maximum parallelism must be between 1 and " + UPPER_BOUND_MAX_PARALLELISM
-				+ ". Found: " + maxParallelism);
+    /**
+     * Creates a new savepoint.
+     *
+     * @param stateBackend The state backend of the savepoint used for keyed state.
+     * @param maxParallelism The max parallelism of the savepoint.
+     * @return A new savepoint.
+     */
+    public static NewSavepoint create(StateBackend stateBackend, int maxParallelism) {
+        Preconditions.checkArgument(
+                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+                "Maximum parallelism must be between 1 and "
+                        + UPPER_BOUND_MAX_PARALLELISM
+                        + ". Found: "
+                        + maxParallelism);
 
-		SavepointMetadata metadata = new SavepointMetadata(maxParallelism, Collections.emptyList(), Collections.emptyList());
-		return new NewSavepoint(metadata, stateBackend);
-	}
+        SavepointMetadata metadata =
+                new SavepointMetadata(
+                        maxParallelism, Collections.emptyList(), Collections.emptyList());
+        return new NewSavepoint(metadata, stateBackend);
+    }
 }

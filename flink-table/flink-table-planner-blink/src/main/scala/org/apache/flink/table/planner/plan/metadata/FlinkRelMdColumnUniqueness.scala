@@ -65,7 +65,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: FlinkLogicalTableSourceScan,
+      rel: FlinkLogicalLegacyTableSourceScan,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
@@ -305,6 +305,22 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
+      rel: StreamPhysicalChangelogNormalize,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    columns != null && ImmutableBitSet.of(rel.uniqueKeys: _*).equals(columns)
+  }
+
+  def areColumnsUnique(
+      rel: StreamPhysicalDropUpdateBefore,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    mq.areColumnsUnique(rel.getInput, columns, ignoreNulls)
+  }
+
+  def areColumnsUnique(
       rel: Aggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
@@ -313,19 +329,19 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     if (rel.isFinal) {
-      areColumnsUniqueOnAggregate(rel.getGrouping, mq, columns, ignoreNulls)
+      areColumnsUniqueOnAggregate(rel.grouping, mq, columns, ignoreNulls)
     } else {
       null
     }
   }
 
   def areColumnsUnique(
-      rel: StreamExecGroupAggregate,
+      rel: StreamPhysicalGroupAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
@@ -333,7 +349,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecGlobalGroupAggregate,
+      rel: StreamPhysicalGlobalGroupAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
@@ -341,7 +357,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecLocalGroupAggregate,
+      rel: StreamPhysicalLocalGroupAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null
@@ -371,14 +387,14 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     if (rel.isFinal) {
       areColumnsUniqueOnWindowAggregate(
-        rel.getGrouping,
-        rel.getNamedProperties,
+        rel.grouping,
+        rel.namedWindowProperties,
         rel.getRowType.getFieldCount,
         mq,
         columns,
@@ -389,13 +405,13 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecGroupWindowAggregate,
+      rel: StreamPhysicalGroupWindowAggregate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     areColumnsUniqueOnWindowAggregate(
-      rel.getGrouping,
-      rel.getWindowProperties,
+      rel.grouping,
+      rel.namedWindowProperties,
       rel.getRowType.getFieldCount,
       mq,
       columns,
@@ -485,7 +501,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: StreamExecWindowJoin,
+      rel: StreamExecIntervalJoin,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
@@ -606,13 +622,13 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
   }
 
   def areColumnsUnique(
-      rel: BatchExecCorrelate,
+      rel: BatchPhysicalCorrelate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null
 
   def areColumnsUnique(
-      rel: StreamExecCorrelate,
+      rel: StreamPhysicalCorrelate,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null

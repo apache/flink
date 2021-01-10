@@ -30,55 +30,53 @@ import java.util.Map;
 /**
  * Describes a relational operation that reads from a {@link DataSet}.
  *
- * <p>This operation may expose only part, or change the order of the fields available in a
- * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataSet}.
- * The {@link DataSetQueryOperation#getFieldIndices()} describes the mapping between fields of the
+ * <p>This operation may expose only part, or change the order of the fields available in a {@link
+ * org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataSet}. The
+ * {@link DataSetQueryOperation#getFieldIndices()} describes the mapping between fields of the
  * {@link TableSchema} to the {@link org.apache.flink.api.common.typeutils.CompositeType}.
  */
 @Internal
 public class DataSetQueryOperation<E> implements QueryOperation {
 
-	private final DataSet<E> dataSet;
-	private final int[] fieldIndices;
-	private final TableSchema tableSchema;
+    private final DataSet<E> dataSet;
+    private final int[] fieldIndices;
+    private final TableSchema tableSchema;
 
-	public DataSetQueryOperation(
-			DataSet<E> dataSet,
-			int[] fieldIndices,
-			TableSchema tableSchema) {
-		this.dataSet = dataSet;
-		this.tableSchema = tableSchema;
-		this.fieldIndices = fieldIndices;
-	}
+    public DataSetQueryOperation(DataSet<E> dataSet, int[] fieldIndices, TableSchema tableSchema) {
+        this.dataSet = dataSet;
+        this.tableSchema = tableSchema;
+        this.fieldIndices = fieldIndices;
+    }
 
-	public DataSet<E> getDataSet() {
-		return dataSet;
-	}
+    public DataSet<E> getDataSet() {
+        return dataSet;
+    }
 
-	public int[] getFieldIndices() {
-		return fieldIndices;
-	}
+    public int[] getFieldIndices() {
+        return fieldIndices;
+    }
 
-	@Override
-	public TableSchema getTableSchema() {
-		return tableSchema;
-	}
+    @Override
+    public TableSchema getTableSchema() {
+        return tableSchema;
+    }
 
-	@Override
-	public String asSummaryString() {
-		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("fields", tableSchema.getFieldNames());
+    @Override
+    public String asSummaryString() {
+        Map<String, Object> args = new LinkedHashMap<>();
+        args.put("fields", tableSchema.getFieldNames());
 
-		return OperationUtils.formatWithChildren("DataSet", args, getChildren(), Operation::asSummaryString);
-	}
+        return OperationUtils.formatWithChildren(
+                "DataSet", args, getChildren(), Operation::asSummaryString);
+    }
 
-	@Override
-	public List<QueryOperation> getChildren() {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<QueryOperation> getChildren() {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public <T> T accept(QueryOperationVisitor<T> visitor) {
-		return visitor.visit(this);
-	}
+    @Override
+    public <T> T accept(QueryOperationVisitor<T> visitor) {
+        return visitor.visit(this);
+    }
 }

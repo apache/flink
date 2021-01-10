@@ -41,7 +41,7 @@ following dependency to your project:
 
 Note that the streaming connectors are currently not part of the binary
 distribution. See
-[here]({{ site.baseurl }}/dev/projectsetup/dependencies.html)
+[here]({% link dev/project-configuration.md %})
 for information about how to package the program with the libraries for
 cluster execution.
 
@@ -134,7 +134,7 @@ SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withProjectName("my-fake-project")
                                                 .withSubscriptionName("subscription")
                                                 .withHostAndPortForEmulator(hostAndPort)
-                                                .build()
+                                                .build();
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.addSource(pubsubSource)

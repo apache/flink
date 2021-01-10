@@ -22,13 +22,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Programs written in the [Data Stream API]({{ site.baseurl }}/dev/datastream_api.html) often hold state in various forms:
+Programs written in the [Data Stream API]({% link dev/datastream_api.md %}) often hold state in various forms:
 
 - Windows gather elements or aggregates until they are triggered
 - Transformation functions may use the key/value state interface to store values
 - Transformation functions may implement the `CheckpointedFunction` interface to make their local variables fault tolerant
 
-See also [state section]({{ site.baseurl }}/dev/stream/state/index.html) in the streaming API guide.
+See also [state section]({% link dev/stream/state/index.md %}) in the streaming API guide.
 
 When checkpointing is activated, such state is persisted upon checkpoints to guard against data loss and recover consistently.
 How the state is represented internally, and how and where it is persisted upon checkpoints depends on the
@@ -54,7 +54,7 @@ The *MemoryStateBackend* holds data internally as objects on the Java heap. Key/
 that store the values, triggers, etc.
 
 Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the
-JobManager (master), which stores it on its heap as well.
+JobManager, which stores it on its heap as well.
 
 The MemoryStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is currently enabled 
 by default. To disable this feature, users can instantiate a `MemoryStateBackend` with the corresponding boolean flag in the constructor set to `false`(this should only used for debug), e.g.:
@@ -66,7 +66,7 @@ new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
 Limitations of the MemoryStateBackend:
 
   - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({{ site.baseurl }}/ops/config.html)).
+  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({% link deployment/config.md %})).
   - The aggregate state must fit into the JobManager memory.
 
 The MemoryStateBackend is encouraged for:
@@ -74,7 +74,7 @@ The MemoryStateBackend is encouraged for:
   - Local development and debugging
   - Jobs that do hold little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
 
-It is also recommended to set [managed memory](../memory/mem_setup.html#managed-memory) to zero.
+It is also recommended to set [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The FsStateBackend
@@ -94,7 +94,7 @@ The FsStateBackend is encouraged for:
   - Jobs with large state, long windows, large key/value states.
   - All high-availability setups.
 
-It is also recommended to set [managed memory](../memory/mem_setup.html#managed-memory) to zero.
+It is also recommended to set [managed memory]({% link deployment/memory/mem_setup_tm.md %}#managed-memory) to zero.
 This will ensure that the maximum amount of memory is allocated for user code on the JVM.
 
 ### The RocksDBStateBackend
@@ -124,13 +124,24 @@ This also means, however, that the maximum throughput that can be achieved will 
 this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
 on-heap representation as the heap-based backends are doing.
 
-Check also recommendations about the [task executor memory configuration](../memory/mem_tuning.html#rocksdb-state-backend) for the RocksDBStateBackend.
+Check also recommendations about the [task executor memory configuration]({% link deployment/memory/mem_tuning.md %}#rocksdb-state-backend) for the RocksDBStateBackend.
 
-RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
+RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here]({% link ops/state/large_state_tuning.md %})). 
 
-Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
+Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({% link deployment/config.md %}#rocksdb-native-metrics)
 
-The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here](large_state_tuning.html#bounding-rocksdb-memory-usage) for details.
+The total memory amount of RocksDB instance(s) per slot can also be bounded, please refer to documentation [here]({% link ops/state/large_state_tuning.md %}#bounding-rocksdb-memory-usage) for details.
+
+# Choose The Right State Backend
+
+Currently, Flink's savepoint binary format is state backend specific.
+A savepoint taken with one state backend cannot be restored using another, and you should carefully consider which backend you use before going to production.
+
+In general, we recommend avoiding `MemoryStateBackend` in production because it stores its snapshots inside the JobManager as opposed to persistent disk.
+When deciding between `FsStateBackend` and `RocksDB`, it is a choice between performance and scalability.
+`FsStateBackend` is very fast as each state access and update operates on objects on the Java heap; however, state size is limited by available memory within the cluster.
+On the other hand, `RocksDB` can scale based on available disk space and is the only state backend to support incremental snapshots.
+However, each state access and update requires (de-)serialization and potentially reading from disk which leads to average performance that is an order of magnitude slower than the memory state backends.
 
 # Configuring a State Backend
 
@@ -167,7 +178,7 @@ If you want to use the `RocksDBStateBackend` in your IDE or configure it program
 {% endhighlight %}
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({{ site.baseurl }}/ops/config.html#checkpointing) and [RocksDB-specific]({{ site.baseurl }}/ops/config.html#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
+  <strong>Note:</strong> Since RocksDB is part of the default Flink distribution, you do not need this dependency if you are not using any RocksDB code in your job and configure the state backend via `state.backend` and further [checkpointing]({% link deployment/config.md %}#checkpointing) and [RocksDB-specific]({% link deployment/config.md %}#rocksdb-state-backend) parameters in your `flink-conf.yaml`.
 </div>
 
 
@@ -180,7 +191,7 @@ name of the class that implements the state backend factory [StateBackendFactory
 such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
 
 The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
-You can find more details about the checkpoint directory structure [here](checkpoints.html#directory-structure).
+You can find more details about the checkpoint directory structure [here]({% link ops/state/checkpoints.md %}#directory-structure).
 
 A sample section in the configuration file could look as follows:
 
@@ -213,13 +224,16 @@ While we encourage the use of incremental checkpoints for large state, you need 
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `RocksDBStateBackend backend = new RocksDBStateBackend(checkpointDirURI, true);`
 
+Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
+delta checkpointed data size of that checkpoint instead of full state size.
+
 ### Memory Management
 
 Flink aims to control the total process memory consumption to make sure that the Flink TaskManagers have a well-behaved memory footprint. That means staying within the limits enforced by the environment (Docker/Kubernetes, Yarn, etc) to not get killed for consuming too much memory, but also to not under-utilize memory (unnecessary spilling to disk, wasted caching opportunities, reduced performance).
 
 To achieve that, Flink by default configures RocksDB's memory allocation to the amount of managed memory of the TaskManager (or, more precisely, task slot). This should give good out-of-the-box experience for most applications, meaning most applications should not need to tune any of the detailed RocksDB settings. The primary mechanism for improving memory-related performance issues would be to simply increase Flink's managed memory.
 
-Users can choose to deactivate that feature and let RocksDB allocate memory independently per ColumnFamily (one per state per operator). This offers expert users ultimately more fine grained control over RocksDB, but means that users need to take care themselves that the overall memory consumption does not exceed the limits of the environment. See [large state tuning]({{ site.baseurl }}/ops/state/large_state_tuning.html#tuning-rocksdb-memory) for some guideline about large state performance tuning.
+Users can choose to deactivate that feature and let RocksDB allocate memory independently per ColumnFamily (one per state per operator). This offers expert users ultimately more fine grained control over RocksDB, but means that users need to take care themselves that the overall memory consumption does not exceed the limits of the environment. See [large state tuning]({% link ops/state/large_state_tuning.md %}#tuning-rocksdb-memory) for some guideline about large state performance tuning.
 
 **Managed Memory for RocksDB**
 
@@ -240,7 +254,7 @@ For advanced tuning, Flink also provides two parameters to control the division 
   Moreover, the L0 level filter and index are pinned into the cache by default to mitigate performance problems,
   more details please refer to the [RocksDB-documentation](https://github.com/facebook/rocksdb/wiki/Block-Cache#caching-index-filter-and-compression-dictionary-blocks).
 
-<span class="label label-info">Note</span> When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`OptionsFactory`](#passing-options-factory-to-rocksdb).
+<span class="label label-info">Note</span> When the above described mechanism (`cache` and `write buffer manager`) is enabled, it will override any customized settings for block caches and write buffers done via [`PredefinedOptions`](#predefined-per-columnfamily-options) and [`RocksDBOptionsFactory`](#passing-options-factory-to-rocksdb).
 
 <span class="label label-info">Note</span> *Expert Mode*: To control memory manually, you can set `state.backend.rocksdb.memory.managed` to `false` and configure RocksDB via [`ColumnFamilyOptions`](#passing-options-factory-to-rocksdb). Alternatively, you can use the above mentioned cache/buffer-manager mechanism, but set the memory size to a fixed amount independent of Flink's managed memory size (`state.backend.rocksdb.memory.fixed-per-slot` option). Note that in both cases, users need to ensure on their own that enough memory is available outside the JVM for RocksDB.
 
@@ -254,10 +268,12 @@ Set the configuration option `state.backend.rocksdb.timer-service.factory` to `h
 
 <span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does NOT support asynchronous snapshots for the timers state. Other state like keyed state is still snapshotted asynchronously.*
 
+<span class="label label-info">Note</span> *When using RocksDB state backend with heap-based timers, checkpointing and taking savepoints is expected to fail if there are operators in application that write to raw keyed state.*
+
 ### Enabling RocksDB Native Metrics
 
 You can optionally access RockDB's native metrics through Flink's metrics system, by enabling certain metrics selectively.
-See [configuration docs]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics) for details.
+See [configuration docs]({% link deployment/config.md %}#rocksdb-native-metrics) for details.
 
 <div class="alert alert-warning">
   <strong>Note:</strong> Enabling RocksDB's native metrics may have a negative performance impact on your application.
@@ -283,11 +299,11 @@ The default value for this option is `DEFAULT` which translates to `PredefinedOp
 
 To manually control RocksDB's options, you need to configure an `RocksDBOptionsFactory`. This mechanism gives you fine-grained control over the settings of the Column Families, for example memory use, thread, compaction settings, etc. There is currently one Column Family per each state in each operator.
 
-There are two ways to pass an OptionsFactory to the RocksDB State Backend:
+There are two ways to pass a RocksDBOptionsFactory to the RocksDB State Backend:
 
   - Configure options factory class name in the `flink-conf.yaml` via `state.backend.rocksdb.options-factory`.
   
-  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setOptions(new MyOptionsFactory());`
+  - Set the options factory programmatically, e.g. `RocksDBStateBackend.setRocksDBOptions(new MyOptionsFactory());`
 
 <span class="label label-info">Note</span> Options factory which set programmatically would override the one configured via `flink-conf.yaml`,
 and options factory has a higher priority over the predefined options if ever configured or set.
@@ -299,9 +315,9 @@ allocating more memory than configured.
 
 **Reading Column Family Options from flink-conf.yaml**
 
-When an `OptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
+When a `RocksDBOptionsFactory` implements the `ConfigurableRocksDBOptionsFactory` interface, it can directly read settings from the configuration (`flink-conf.yaml`).
 
-The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({{ site.baseurl }}/ops/config.html#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
+The default value for `state.backend.rocksdb.options-factory` is in fact `org.apache.flink.contrib.streaming.state.DefaultConfigurableOptionsFactory` which picks up all config options [defined here]({% link deployment/config.md %}#advanced-rocksdb-state-backends-options) by default. Hence, you can configure low-level Column Family options simply by turning off managed memory for RocksDB and putting the relevant entries in the configuration.
 
 Below is an example how to define a custom ConfigurableOptionsFactory (set class name under `state.backend.rocksdb.options-factory`).
 
@@ -328,7 +344,7 @@ public class MyOptionsFactory implements ConfigurableRocksDBOptionsFactory {
     }
 
     @Override
-    public OptionsFactory configure(Configuration configuration) {
+    public RocksDBOptionsFactory configure(Configuration configuration) {
         this.blockCacheSize =
             configuration.getLong("my.custom.rocksdb.block.cache.size", DEFAULT_SIZE);
         return this;

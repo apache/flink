@@ -23,17 +23,19 @@ import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal, SqlTimestamp}
+import org.apache.flink.table.data.{DecimalData, RowData, StringData, TimestampData}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction
 import org.apache.flink.table.runtime.types.ClassDataTypeConverter.fromClassToDataType
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaultExternalClassForType, getInternalClassForType}
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isRaw
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalConversionClass
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.FieldInfoUtils
@@ -44,8 +46,9 @@ import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.{SqlFunction, SqlOperatorBinding}
+
 import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
+import java.lang.{Integer => JInt}
 import java.sql.{Date, Time, Timestamp}
 import java.time.{Instant, LocalDateTime}
 
@@ -147,9 +150,10 @@ object UserDefinedFunctionUtils {
   }
 
   def getAggUserDefinedInputTypes(
-      func: UserDefinedAggregateFunction[_, _],
+      func: ImperativeAggregateFunction[_, _],
       externalAccType: DataType,
-      expectedTypes: Array[LogicalType]): Array[DataType] = {
+      expectedTypes: Array[LogicalType])
+    : Array[DataType] = {
     val accMethod = getAggFunctionUDIMethod(
       func, "accumulate", externalAccType, expectedTypes).getOrElse(
       throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
@@ -187,9 +191,9 @@ object UserDefinedFunctionUtils {
     * Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: UserDefinedAggregateFunction[_, _],
+      function: ImperativeAggregateFunction[_, _],
       expectedTypes: Seq[LogicalType])
-  : Option[Array[Class[_]]] = {
+    : Option[Array[Class[_]]] = {
     getAggFunctionUDIMethod(
       function,
       "accumulate",
@@ -220,7 +224,7 @@ object UserDefinedFunctionUtils {
     getUserDefinedMethod(
       function,
       "eval",
-      internalTypesToClasses(expectedTypes),
+      logicalTypesToExternalClasses(expectedTypes),
       expectedTypes.toArray,
       (paraClasses) => function.getParameterTypes(paraClasses).map(fromLegacyInfoToDataType))
   }
@@ -232,24 +236,30 @@ object UserDefinedFunctionUtils {
     getUserDefinedMethod(
       function,
       "eval",
-      internalTypesToClasses(expectedTypes),
+      logicalTypesToExternalClasses(expectedTypes),
       expectedTypes.toArray,
       (paraClasses) => function.getParameterTypes(paraClasses).map(fromLegacyInfoToDataType))
   }
 
   def getAggFunctionUDIMethod(
-      function: UserDefinedAggregateFunction[_, _],
+      function: ImperativeAggregateFunction[_, _],
       methodName: String,
       accType: DataType,
       expectedTypes: Seq[LogicalType])
-  : Option[Method] = {
+    : Option[Method] = {
     val input = (Array(fromDataTypeToLogicalType(accType)) ++ expectedTypes).toSeq
-    getUserDefinedMethod(
-      function,
-      methodName,
-      internalTypesToClasses(input),
-      input.map{ t => if (t == null) null else t}.toArray,
-      cls => Array(accType) ++ cls.drop(1).map(fromClassToDataType))
+    val possibleSignatures = Seq(
+      logicalTypesToInternalClasses(input),
+      logicalTypesToExternalClasses(input))
+
+    possibleSignatures.flatMap { signatures =>
+      getUserDefinedMethod(
+        function,
+        methodName,
+        signatures,
+        input.map{ t => if (t == null) null else t}.toArray,
+        cls => Array(accType) ++ cls.drop(1).map(fromClassToDataType))
+    }.headOption
   }
 
   /**
@@ -529,16 +539,17 @@ object UserDefinedFunctionUtils {
   // ----------------------------------------------------------------------------------------------
 
   /**
-    * Tries to infer the DataType of a [[UserDefinedAggregateFunction]]'s return type.
+    * Tries to infer the DataType of a [[ImperativeAggregateFunction]]'s return type.
     *
-    * @param userDefinedAggregateFunction The [[UserDefinedAggregateFunction]] for which the return
+    * @param userDefinedAggregateFunction The [[ImperativeAggregateFunction]] for which the return
     *                                     type is inferred.
     * @param extractedType                The implicitly inferred type of the result type.
-    * @return The inferred result type of the [[UserDefinedAggregateFunction]].
+    * @return The inferred result type of the [[ImperativeAggregateFunction]].
     */
   def getResultTypeOfAggregateFunction(
-      userDefinedAggregateFunction: UserDefinedAggregateFunction[_, _],
-      extractedType: DataType = null): DataType = {
+      userDefinedAggregateFunction: ImperativeAggregateFunction[_, _],
+      extractedType: DataType = null)
+    : DataType = {
 
     val resultType = userDefinedAggregateFunction.getResultType
     if (resultType != null) {
@@ -552,7 +563,7 @@ object UserDefinedFunctionUtils {
         case ite: InvalidTypesException =>
           throw new TableException(
             "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-                "You can override UserDefinedAggregateFunction.getResultType() to " +
+                "You can override ImperativeAggregateFunction.getResultType() to " +
                 "specify the type.",
             ite
           )
@@ -561,17 +572,17 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Tries to infer the Type of a [[UserDefinedAggregateFunction]]'s accumulator type.
+    * Tries to infer the Type of a [[ImperativeAggregateFunction]]'s accumulator type.
     *
-    * @param userDefinedAggregateFunction The [[UserDefinedAggregateFunction]] for which the
+    * @param userDefinedAggregateFunction The [[ImperativeAggregateFunction]] for which the
     *                                     accumulator type is inferred.
     * @param extractedType                The implicitly inferred type of the accumulator type.
-    * @return The inferred accumulator type of the [[UserDefinedAggregateFunction]].
+    * @return The inferred accumulator type of the [[ImperativeAggregateFunction]].
     */
   def getAccumulatorTypeOfAggregateFunction(
-      userDefinedAggregateFunction: UserDefinedAggregateFunction[_, _],
-      extractedType: DataType = null): DataType = {
-
+      userDefinedAggregateFunction: ImperativeAggregateFunction[_, _],
+      extractedType: DataType = null)
+    : DataType = {
     val accType = userDefinedAggregateFunction.getAccumulatorType
     if (accType != null) {
       fromLegacyInfoToDataType(accType)
@@ -584,7 +595,7 @@ object UserDefinedFunctionUtils {
         case ite: InvalidTypesException =>
           throw new TableException(
             "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-                "You can override UserDefinedAggregateFunction.getAccumulatorType() to specify " +
+                "You can override ImperativeAggregateFunction.getAccumulatorType() to specify " +
                 "the type.",
             ite
           )
@@ -594,21 +605,21 @@ object UserDefinedFunctionUtils {
   }
 
   /**
-    * Internal method to extract a type from a [[UserDefinedAggregateFunction]]'s type parameters.
+    * Internal method to extract a type from a [[ImperativeAggregateFunction]]'s type parameters.
     *
-    * @param aggregateFunction The [[UserDefinedAggregateFunction]] for which the type is extracted.
-    * @param parameterTypePos The position of the type parameter for which the type is extracted.
-    *
+    * @param aggregateFunction The [[ImperativeAggregateFunction]] for which the type is extracted.
+    * @param parameterTypePos  The position of the type parameter for which the type is extracted.
     * @return The extracted type.
     */
   @throws(classOf[InvalidTypesException])
   private def extractTypeFromAggregateFunction(
-      aggregateFunction: UserDefinedAggregateFunction[_, _],
-      parameterTypePos: Int): DataType = {
+      aggregateFunction: ImperativeAggregateFunction[_, _],
+      parameterTypePos: Int)
+    : DataType = {
 
     fromLegacyInfoToDataType(TypeExtractor.createTypeInfo(
       aggregateFunction,
-      classOf[UserDefinedAggregateFunction[_, _]],
+      classOf[ImperativeAggregateFunction[_, _]],
       aggregateFunction.getClass,
       parameterTypePos))
   }
@@ -682,7 +693,7 @@ object UserDefinedFunctionUtils {
     }.mkString("(", ", ", ")")
 
   def signatureInternalToString(signature: Seq[LogicalType]): String = {
-    signatureToString(internalTypesToClasses(signature))
+    signatureToString(logicalTypesToExternalClasses(signature))
   }
 
   /**
@@ -705,7 +716,7 @@ object UserDefinedFunctionUtils {
   def typesToClasses(types: Seq[DataType]): Array[Class[_]] =
     types.map(t => if (t == null) null else t.getConversionClass).toArray
 
-  def internalTypesToClasses(types: Seq[LogicalType]): Array[Class[_]] =
+  def logicalTypesToExternalClasses(types: Seq[LogicalType]): Array[Class[_]] = {
     types.map { t =>
       if (t == null) {
         null
@@ -713,6 +724,17 @@ object UserDefinedFunctionUtils {
         getDefaultExternalClassForType(t)
       }
     }.toArray
+  }
+
+  def logicalTypesToInternalClasses(types: Seq[LogicalType]): Array[Class[_]] = {
+    types.map { t =>
+      if (t == null) {
+        null
+      } else {
+        LogicalTypeUtils.toInternalConversionClass(t)
+      }
+    }.toArray
+  }
 
   /**
     * Compares parameter candidate classes with expected classes. If true, the parameters match.
@@ -726,20 +748,20 @@ object UserDefinedFunctionUtils {
         expected.isPrimitive && Primitives.wrap(expected) == candidate ||
         candidate == classOf[Date] && (expected == classOf[Int] || expected == classOf[JInt])  ||
         candidate == classOf[Time] && (expected == classOf[Int] || expected == classOf[JInt]) ||
-        candidate == classOf[BinaryString] && expected == classOf[String] ||
-        candidate == classOf[String] && expected == classOf[BinaryString] ||
-        candidate == classOf[SqlTimestamp] && expected == classOf[LocalDateTime] ||
-        candidate == classOf[Timestamp] && expected == classOf[SqlTimestamp] ||
-        candidate == classOf[SqlTimestamp] && expected == classOf[Timestamp] ||
-        candidate == classOf[LocalDateTime] && expected == classOf[SqlTimestamp] ||
-        candidate == classOf[SqlTimestamp] && expected == classOf[Instant] ||
-        candidate == classOf[Instant] && expected == classOf[SqlTimestamp] ||
-        classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[Row] ||
-        candidate == classOf[Row] && classOf[BaseRow].isAssignableFrom(expected) ||
-        classOf[BaseRow].isAssignableFrom(candidate) && expected == classOf[BaseRow] ||
-        candidate == classOf[BaseRow] && classOf[BaseRow].isAssignableFrom(expected) ||
-        candidate == classOf[Decimal] && expected == classOf[BigDecimal] ||
-        candidate == classOf[BigDecimal] && expected == classOf[Decimal] ||
+        candidate == classOf[StringData] && expected == classOf[String] ||
+        candidate == classOf[String] && expected == classOf[StringData] ||
+        candidate == classOf[TimestampData] && expected == classOf[LocalDateTime] ||
+        candidate == classOf[Timestamp] && expected == classOf[TimestampData] ||
+        candidate == classOf[TimestampData] && expected == classOf[Timestamp] ||
+        candidate == classOf[LocalDateTime] && expected == classOf[TimestampData] ||
+        candidate == classOf[TimestampData] && expected == classOf[Instant] ||
+        candidate == classOf[Instant] && expected == classOf[TimestampData] ||
+        classOf[RowData].isAssignableFrom(candidate) && expected == classOf[Row] ||
+        candidate == classOf[Row] && classOf[RowData].isAssignableFrom(expected) ||
+        classOf[RowData].isAssignableFrom(candidate) && expected == classOf[RowData] ||
+        candidate == classOf[RowData] && classOf[RowData].isAssignableFrom(expected) ||
+        candidate == classOf[DecimalData] && expected == classOf[BigDecimal] ||
+        candidate == classOf[BigDecimal] && expected == classOf[DecimalData] ||
         (candidate.isArray &&
             expected.isArray &&
             candidate.getComponentType.isInstanceOf[Object] &&
@@ -752,9 +774,9 @@ object UserDefinedFunctionUtils {
     if (isRaw(internal) && isRaw(paraInternalType)) {
       getDefaultExternalClassForType(internal) == getDefaultExternalClassForType(paraInternalType)
     } else {
-      // There is a special equal to GenericType. We need rewrite type extract to BaseRow etc...
+      // There is a special equal to GenericType. We need rewrite type extract to RowData etc...
       paraInternalType == internal ||
-          getInternalClassForType(internal) == getInternalClassForType(paraInternalType)
+        toInternalConversionClass(internal) == toInternalConversionClass(paraInternalType)
     }
   }
 

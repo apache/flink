@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.batch.table
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -37,9 +37,9 @@ class SetOperatorsTest extends TableTestBase {
     val t = util.addTableSource[((Int, Int), String, (Int, Int))]("A", 'a, 'b, 'c)
 
     val elements = t.where('b === "two").select('a).as("a1")
-    val in = t.select("*").where('c.in(elements))
+    val in = t.select($"*").where('c.in(elements))
 
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 
   @Test
@@ -49,7 +49,7 @@ class SetOperatorsTest extends TableTestBase {
 
     val in = t.select('b.in(Timestamp.valueOf("1972-02-22 07:12:00.333"))).as("b2")
 
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 
   @Test
@@ -60,7 +60,7 @@ class SetOperatorsTest extends TableTestBase {
     val in = t.select('a)
       .unionAll(
         t.select(('c > 0) ? ('b, nullOf(createTypeInformation[(Int, String)]))))
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 
   @Test
@@ -72,7 +72,7 @@ class SetOperatorsTest extends TableTestBase {
         new GenericTypeInfo(classOf[NonPojo])),
       Array("a", "b"))
     val in = t.select('a).unionAll(t.select('b))
-    util.verifyPlan(in)
+    util.verifyExecPlan(in)
   }
 
   @Test
@@ -86,7 +86,7 @@ class SetOperatorsTest extends TableTestBase {
       .groupBy('b)
       .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -100,7 +100,7 @@ class SetOperatorsTest extends TableTestBase {
       .groupBy('b)
       .select('a.sum as 'a, 'b as 'b, 'c.count as 'c)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -113,7 +113,7 @@ class SetOperatorsTest extends TableTestBase {
                  .unionAll(right.select('a, 'b, 'c))
                  .select('b, 'c)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
 
   }
 
@@ -127,7 +127,7 @@ class SetOperatorsTest extends TableTestBase {
                  .minusAll(right.select('a, 'b, 'c))
                  .select('b, 'c)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
 
   }
 }

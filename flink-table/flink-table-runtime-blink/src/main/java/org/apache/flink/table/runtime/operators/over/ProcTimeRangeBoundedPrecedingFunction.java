@@ -23,17 +23,17 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
-import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
@@ -47,200 +47,221 @@ import java.util.List;
 /**
  * Process Function used for the aggregate in bounded proc-time OVER window.
  *
- * <p>E.g.:
- * SELECT currtime, b, c,
- * min(c) OVER
- * (PARTITION BY b ORDER BY proctime
- * RANGE BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW),
- * max(c) OVER
- * (PARTITION BY b ORDER BY proctime
- * RANGE BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW)
- * FROM T.
+ * <p>E.g.: SELECT currtime, b, c, min(c) OVER (PARTITION BY b ORDER BY proctime RANGE BETWEEN
+ * INTERVAL '4' SECOND PRECEDING AND CURRENT ROW), max(c) OVER (PARTITION BY b ORDER BY proctime
+ * RANGE BETWEEN INTERVAL '4' SECOND PRECEDING AND CURRENT ROW) FROM T.
  */
-public class ProcTimeRangeBoundedPrecedingFunction<K> extends KeyedProcessFunctionWithCleanupState<K, BaseRow, BaseRow> {
-	private static final long serialVersionUID = 1L;
+public class ProcTimeRangeBoundedPrecedingFunction<K>
+        extends KeyedProcessFunction<K, RowData, RowData> {
+    private static final long serialVersionUID = 1L;
 
-	private static final Logger LOG = LoggerFactory.getLogger(ProcTimeRangeBoundedPrecedingFunction.class);
+    private static final Logger LOG =
+            LoggerFactory.getLogger(ProcTimeRangeBoundedPrecedingFunction.class);
 
-	private final GeneratedAggsHandleFunction genAggsHandler;
-	private final LogicalType[] accTypes;
-	private final LogicalType[] inputFieldTypes;
-	private final long precedingTimeBoundary;
+    private final GeneratedAggsHandleFunction genAggsHandler;
+    private final LogicalType[] accTypes;
+    private final LogicalType[] inputFieldTypes;
+    private final long precedingTimeBoundary;
 
-	private transient ValueState<BaseRow> accState;
-	private transient MapState<Long, List<BaseRow>> inputState;
+    private transient ValueState<RowData> accState;
+    private transient MapState<Long, List<RowData>> inputState;
 
-	private transient AggsHandleFunction function;
-	private transient JoinedRow output;
+    // the state which keeps the safe timestamp to cleanup states
+    private transient ValueState<Long> cleanupTsState;
 
-	public ProcTimeRangeBoundedPrecedingFunction(
-			long minRetentionTime,
-			long maxRetentionTime,
-			GeneratedAggsHandleFunction genAggsHandler,
-			LogicalType[] accTypes,
-			LogicalType[] inputFieldTypes,
-			long precedingTimeBoundary) {
-		super(minRetentionTime, maxRetentionTime);
-		this.genAggsHandler = genAggsHandler;
-		this.accTypes = accTypes;
-		this.inputFieldTypes = inputFieldTypes;
-		this.precedingTimeBoundary = precedingTimeBoundary;
-	}
+    private transient AggsHandleFunction function;
+    private transient JoinedRowData output;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
+    public ProcTimeRangeBoundedPrecedingFunction(
+            GeneratedAggsHandleFunction genAggsHandler,
+            LogicalType[] accTypes,
+            LogicalType[] inputFieldTypes,
+            long precedingTimeBoundary) {
+        this.genAggsHandler = genAggsHandler;
+        this.accTypes = accTypes;
+        this.inputFieldTypes = inputFieldTypes;
+        this.precedingTimeBoundary = precedingTimeBoundary;
+    }
 
-		output = new JoinedRow();
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        function = genAggsHandler.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        function.open(new PerKeyStateDataViewStore(getRuntimeContext()));
 
-		// input element are all binary row as they are came from network
-		BaseRowTypeInfo inputType = new BaseRowTypeInfo(inputFieldTypes);
-		// we keep the elements received in a map state indexed based on their ingestion time
-		ListTypeInfo<BaseRow> rowListTypeInfo = new ListTypeInfo<BaseRow>(inputType);
-		MapStateDescriptor<Long, List<BaseRow>> mapStateDescriptor = new MapStateDescriptor<Long, List<BaseRow>>(
-			"inputState", BasicTypeInfo.LONG_TYPE_INFO, rowListTypeInfo);
-		inputState = getRuntimeContext().getMapState(mapStateDescriptor);
+        output = new JoinedRowData();
 
-		BaseRowTypeInfo accTypeInfo = new BaseRowTypeInfo(accTypes);
-		ValueStateDescriptor<BaseRow> stateDescriptor =
-			new ValueStateDescriptor<BaseRow>("accState", accTypeInfo);
-		accState = getRuntimeContext().getState(stateDescriptor);
+        // input element are all binary row as they are came from network
+        InternalTypeInfo<RowData> inputType = InternalTypeInfo.ofFields(inputFieldTypes);
+        // we keep the elements received in a map state indexed based on their ingestion time
+        ListTypeInfo<RowData> rowListTypeInfo = new ListTypeInfo<>(inputType);
+        MapStateDescriptor<Long, List<RowData>> mapStateDescriptor =
+                new MapStateDescriptor<>(
+                        "inputState", BasicTypeInfo.LONG_TYPE_INFO, rowListTypeInfo);
+        inputState = getRuntimeContext().getMapState(mapStateDescriptor);
 
-		initCleanupTimeState("ProcTimeBoundedRangeOverCleanupTime");
-	}
+        InternalTypeInfo<RowData> accTypeInfo = InternalTypeInfo.ofFields(accTypes);
+        ValueStateDescriptor<RowData> stateDescriptor =
+                new ValueStateDescriptor<RowData>("accState", accTypeInfo);
+        accState = getRuntimeContext().getState(stateDescriptor);
 
-	@Override
-	public void processElement(
-			BaseRow input,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.Context ctx,
-			Collector<BaseRow> out) throws Exception {
-		long currentTime = ctx.timerService().currentProcessingTime();
-		// register state-cleanup timer
-		registerProcessingCleanupTimer(ctx, currentTime);
+        ValueStateDescriptor<Long> cleanupTsStateDescriptor =
+                new ValueStateDescriptor<>("cleanupTsState", Types.LONG);
+        this.cleanupTsState = getRuntimeContext().getState(cleanupTsStateDescriptor);
+    }
 
-		// buffer the event incoming event
+    @Override
+    public void processElement(
+            RowData input,
+            KeyedProcessFunction<K, RowData, RowData>.Context ctx,
+            Collector<RowData> out)
+            throws Exception {
+        long currentTime = ctx.timerService().currentProcessingTime();
+        // buffer the event incoming event
 
-		// add current element to the window list of elements with corresponding timestamp
-		List<BaseRow> rowList = inputState.get(currentTime);
-		// null value means that this si the first event received for this timestamp
-		if (rowList == null) {
-			rowList = new ArrayList<BaseRow>();
-			// register timer to process event once the current millisecond passed
-			ctx.timerService().registerProcessingTimeTimer(currentTime + 1);
-		}
-		rowList.add(input);
-		inputState.put(currentTime, rowList);
-	}
+        // add current element to the window list of elements with corresponding timestamp
+        List<RowData> rowList = inputState.get(currentTime);
+        // null value means that this is the first event received for this timestamp
+        if (rowList == null) {
+            rowList = new ArrayList<RowData>();
+            // register timer to process event once the current millisecond passed
+            ctx.timerService().registerProcessingTimeTimer(currentTime + 1);
+            registerCleanupTimer(ctx, currentTime);
+        }
+        rowList.add(input);
+        inputState.put(currentTime, rowList);
+    }
 
-	@Override
-	public void onTimer(
-			long timestamp,
-			KeyedProcessFunction<K, BaseRow, BaseRow>.OnTimerContext ctx,
-			Collector<BaseRow> out) throws Exception {
-		if (needToCleanupState(timestamp)) {
-			// clean up and return
-			cleanupState(inputState, accState);
-			function.cleanup();
-			return;
-		}
+    private void registerCleanupTimer(
+            KeyedProcessFunction<K, RowData, RowData>.Context ctx, long timestamp)
+            throws Exception {
+        // calculate safe timestamp to cleanup states
+        long minCleanupTimestamp = timestamp + precedingTimeBoundary + 1;
+        long maxCleanupTimestamp = timestamp + (long) (precedingTimeBoundary * 1.5) + 1;
+        // update timestamp and register timer if needed
+        Long curCleanupTimestamp = cleanupTsState.value();
+        if (curCleanupTimestamp == null || curCleanupTimestamp < minCleanupTimestamp) {
+            // we don't delete existing timer since it may delete timer for data processing
+            // TODO Use timer with namespace to distinguish timers
+            ctx.timerService().registerProcessingTimeTimer(maxCleanupTimestamp);
+            cleanupTsState.update(maxCleanupTimestamp);
+        }
+    }
 
-		// remove timestamp set outside of ProcessFunction.
-		((TimestampedCollector) out).eraseTimestamp();
+    @Override
+    public void onTimer(
+            long timestamp,
+            KeyedProcessFunction<K, RowData, RowData>.OnTimerContext ctx,
+            Collector<RowData> out)
+            throws Exception {
+        Long cleanupTimestamp = cleanupTsState.value();
+        // if cleanupTsState has not been updated then it is safe to cleanup states
+        if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
+            inputState.clear();
+            accState.clear();
+            cleanupTsState.clear();
+            function.cleanup();
+            return;
+        }
 
-		// we consider the original timestamp of events
-		// that have registered this time trigger 1 ms ago
+        // remove timestamp set outside of ProcessFunction.
+        ((TimestampedCollector) out).eraseTimestamp();
 
-		long currentTime = timestamp - 1;
+        // we consider the original timestamp of events
+        // that have registered this time trigger 1 ms ago
 
-		// get the list of elements of current proctime
-		List<BaseRow> currentElements = inputState.get(currentTime);
+        long currentTime = timestamp - 1;
 
-		// Expired clean-up timers pass the needToCleanupState check.
-		// Perform a null check to verify that we have data to process.
-		if (null == currentElements) {
-			return;
-		}
+        // get the list of elements of current proctime
+        List<RowData> currentElements = inputState.get(currentTime);
 
-		// initialize the accumulators
-		BaseRow accumulators = accState.value();
+        // Expired clean-up timers pass the needToCleanupState check.
+        // Perform a null check to verify that we have data to process.
+        if (null == currentElements) {
+            return;
+        }
 
-		if (null == accumulators) {
-			accumulators = function.createAccumulators();
-		}
+        // initialize the accumulators
+        RowData accumulators = accState.value();
 
-		// set accumulators in context first
-		function.setAccumulators(accumulators);
+        if (null == accumulators) {
+            accumulators = function.createAccumulators();
+        }
 
-		// update the elements to be removed and retract them from aggregators
-		long limit = currentTime - precedingTimeBoundary;
+        // set accumulators in context first
+        function.setAccumulators(accumulators);
 
-		// we iterate through all elements in the window buffer based on timestamp keys
-		// when we find timestamps that are out of interest, we retrieve corresponding elements
-		// and eliminate them. Multiple elements could have been received at the same timestamp
-		// the removal of old elements happens only once per proctime as onTimer is called only once
-		Iterator<Long> iter = inputState.keys().iterator();
-		List<Long> markToRemove = new ArrayList<Long>();
-		while (iter.hasNext()) {
-			Long elementKey = iter.next();
-			if (elementKey < limit) {
-				// element key outside of window. Retract values
-				List<BaseRow> elementsRemove = inputState.get(elementKey);
-				if (elementsRemove != null) {
-					int iRemove = 0;
-					while (iRemove < elementsRemove.size()) {
-						BaseRow retractRow = elementsRemove.get(iRemove);
-						function.retract(retractRow);
-						iRemove += 1;
-					}
-				} else {
-					// Does not retract values which are outside of window if the state is cleared already.
-					LOG.warn("The state is cleared because of state ttl. " +
-						"This will result in incorrect result. " +
-						"You can increase the state ttl to avoid this.");
-				}
+        // update the elements to be removed and retract them from aggregators
+        long limit = currentTime - precedingTimeBoundary;
 
-				// mark element for later removal not to modify the iterator over MapState
-				markToRemove.add(elementKey);
-			}
-		}
+        // we iterate through all elements in the window buffer based on timestamp keys
+        // when we find timestamps that are out of interest, we retrieve corresponding elements
+        // and eliminate them. Multiple elements could have been received at the same timestamp
+        // the removal of old elements happens only once per proctime as onTimer is called only once
+        Iterator<Long> iter = inputState.keys().iterator();
+        List<Long> markToRemove = new ArrayList<Long>();
+        while (iter.hasNext()) {
+            Long elementKey = iter.next();
+            if (elementKey < limit) {
+                // element key outside of window. Retract values
+                List<RowData> elementsRemove = inputState.get(elementKey);
+                if (elementsRemove != null) {
+                    int iRemove = 0;
+                    while (iRemove < elementsRemove.size()) {
+                        RowData retractRow = elementsRemove.get(iRemove);
+                        function.retract(retractRow);
+                        iRemove += 1;
+                    }
+                } else {
+                    // Does not retract values which are outside of window if the state is cleared
+                    // already.
+                    LOG.warn(
+                            "The state is cleared because of state ttl. "
+                                    + "This will result in incorrect result. "
+                                    + "You can increase the state ttl to avoid this.");
+                }
 
-		// need to remove in 2 steps not to have concurrent access errors via iterator to the MapState
-		int i = 0;
-		while (i < markToRemove.size()) {
-			inputState.remove(markToRemove.get(i));
-			i += 1;
-		}
+                // mark element for later removal not to modify the iterator over MapState
+                markToRemove.add(elementKey);
+            }
+        }
 
-		// add current elements to aggregator. Multiple elements might
-		// have arrived in the same proctime
-		// the same accumulator value will be computed for all elements
-		int iElemenets = 0;
-		while (iElemenets < currentElements.size()) {
-			BaseRow input = currentElements.get(iElemenets);
-			function.accumulate(input);
-			iElemenets += 1;
-		}
+        // need to remove in 2 steps not to have concurrent access errors via iterator to the
+        // MapState
+        int i = 0;
+        while (i < markToRemove.size()) {
+            inputState.remove(markToRemove.get(i));
+            i += 1;
+        }
 
-		// we need to build the output and emit for every event received at this proctime
-		iElemenets = 0;
-		BaseRow aggValue = function.getValue();
-		while (iElemenets < currentElements.size()) {
-			BaseRow input = currentElements.get(iElemenets);
-			output.replace(input, aggValue);
-			out.collect(output);
-			iElemenets += 1;
-		}
+        // add current elements to aggregator. Multiple elements might
+        // have arrived in the same proctime
+        // the same accumulator value will be computed for all elements
+        int iElemenets = 0;
+        while (iElemenets < currentElements.size()) {
+            RowData input = currentElements.get(iElemenets);
+            function.accumulate(input);
+            iElemenets += 1;
+        }
 
-		// update the value of accumulators for future incremental computation
-		accumulators = function.getAccumulators();
-		accState.update(accumulators);
-	}
+        // we need to build the output and emit for every event received at this proctime
+        iElemenets = 0;
+        RowData aggValue = function.getValue();
+        while (iElemenets < currentElements.size()) {
+            RowData input = currentElements.get(iElemenets);
+            output.replace(input, aggValue);
+            out.collect(output);
+            iElemenets += 1;
+        }
 
-	@Override
-	public void close() throws Exception {
-		if (null != function) {
-			function.close();
-		}
-	}
+        // update the value of accumulators for future incremental computation
+        accumulators = function.getAccumulators();
+        accState.update(accumulators);
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (null != function) {
+            function.close();
+        }
+    }
 }

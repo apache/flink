@@ -26,18 +26,19 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-test-utils-parent</artifactId>
-	<name>flink-test-utils-parent</name>
+	<name>Flink : Test utils : </name>
 
 	<packaging>pom</packaging>
 
 	<modules>
 		<module>flink-test-utils-junit</module>
 		<module>flink-test-utils</module>
+		<module>flink-connector-test-utils</module>
 	</modules>
 
 </project>

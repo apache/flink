@@ -19,40 +19,39 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
+import org.apache.flink.table.api.{TableConfig, TableException, ValidationException}
+import org.apache.flink.table.data.{BoxedWrapperRowData, RowData}
+import org.apache.flink.table.functions.FunctionKind
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
-import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 
 object CalcCodeGenerator {
 
-  private[flink] def generateCalcOperator(
+  def generateCalcOperator(
       ctx: CodeGeneratorContext,
-      cluster: RelOptCluster,
-      inputTransform: Transformation[BaseRow],
+      inputTransform: Transformation[RowData],
       outputType: RowType,
-      config: TableConfig,
       calcProgram: RexProgram,
       condition: Option[RexNode],
       retainHeader: Boolean = false,
-      opName: String): CodeGenOperatorFactory[BaseRow] = {
-    val inputType = inputTransform.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
+      opName: String): CodeGenOperatorFactory[RowData] = {
+    val inputType = inputTransform.getOutputType
+      .asInstanceOf[InternalTypeInfo[RowData]]
+      .toRowType
     // filter out time attributes
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val processCode = generateProcessCode(
       ctx,
       inputType,
       outputType,
-      classOf[BoxedWrapperRow],
-      outputType.getFieldNames,
-      config,
+      classOf[BoxedWrapperRowData],
       calcProgram,
       condition,
       eagerInputUnboxingCode = true,
@@ -60,7 +59,7 @@ object CalcCodeGenerator {
       allowSplit = true)
 
     val genOperator =
-      OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
+      OperatorCodeGenerator.generateOneInputStreamOperator[RowData, RowData](
         ctx,
         opName,
         processCode,
@@ -75,10 +74,10 @@ object CalcCodeGenerator {
       inputType: RowType,
       name: String,
       returnType: RowType,
-      outRowClass: Class[_ <: BaseRow],
+      outRowClass: Class[_ <: RowData],
       calcProjection: RexProgram,
       calcCondition: Option[RexNode],
-      config: TableConfig): GeneratedFunction[FlatMapFunction[BaseRow, BaseRow]] = {
+      config: TableConfig): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     val ctx = CodeGeneratorContext(config)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val collectorTerm = CodeGenUtils.DEFAULT_COLLECTOR_TERM
@@ -87,8 +86,6 @@ object CalcCodeGenerator {
       inputType,
       returnType,
       outRowClass,
-      returnType.getFieldNames,
-      config,
       calcProjection,
       calcCondition,
       collectorTerm = collectorTerm,
@@ -99,7 +96,7 @@ object CalcCodeGenerator {
     FunctionCodeGenerator.generateFunction(
       ctx,
       name,
-      classOf[FlatMapFunction[BaseRow, BaseRow]],
+      classOf[FlatMapFunction[RowData, RowData]],
       processCode,
       returnType,
       inputType,
@@ -111,9 +108,7 @@ object CalcCodeGenerator {
       ctx: CodeGeneratorContext,
       inputType: RowType,
       outRowType: RowType,
-      outRowClass: Class[_ <: BaseRow],
-      resultFieldNames: Seq[String],
-      config: TableConfig,
+      outRowClass: Class[_ <: RowData],
       calcProgram: RexProgram,
       condition: Option[RexNode],
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
@@ -124,6 +119,12 @@ object CalcCodeGenerator {
       allowSplit: Boolean = false): String = {
 
     val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+
+    // according to the SQL standard, every table function should also be a scalar function
+    // but we don't allow that for now
+    projection.foreach(_.accept(ScalarFunctionsValidator))
+    condition.foreach(_.accept(ScalarFunctionsValidator))
+
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(inputType, inputTerm = inputTerm)
 
@@ -139,28 +140,17 @@ object CalcCodeGenerator {
     }
 
     def produceProjectionCode = {
-      // we cannot use for-loop optimization if projection contains other calculations
-      // (for example "select id + 1 from T")
-      val simpleProjection = projection.forall { rexNode => rexNode.isInstanceOf[RexInputRef] }
-
-      val projectionExpression = if (simpleProjection) {
-        val inputMapping = projection.map(_.asInstanceOf[RexInputRef].getIndex).toArray
-        ProjectionCodeGenerator.generateProjectionExpression(
-          ctx, inputType, outRowType, inputMapping,
-          outRowClass, inputTerm, nullCheck = config.getNullCheck)
-      } else {
-        val projectionExprs = projection.map(exprGenerator.generateExpression)
-        exprGenerator.generateResultExpression(
-          projectionExprs,
-          outRowType,
-          outRowClass,
-          allowSplit = allowSplit)
-      }
+      val projectionExprs = projection.map(exprGenerator.generateExpression)
+      val projectionExpression = exprGenerator.generateResultExpression(
+        projectionExprs,
+        outRowType,
+        outRowClass,
+        allowSplit = allowSplit)
 
       val projectionExpressionCode = projectionExpression.code
 
       val header = if (retainHeader) {
-        s"${projectionExpression.resultTerm}.setHeader($inputTerm.getHeader());"
+        s"${projectionExpression.resultTerm}.setRowKind($inputTerm.getRowKind());"
       } else {
         ""
       }
@@ -210,6 +200,19 @@ object CalcCodeGenerator {
            |  $projectionCode
            |}
            |""".stripMargin
+      }
+    }
+  }
+
+  private object ScalarFunctionsValidator extends RexVisitorImpl[Unit](true) {
+    override def visitCall(call: RexCall): Unit = {
+      super.visitCall(call)
+      call.getOperator match {
+        case bsf: BridgingSqlFunction if bsf.getDefinition.getKind != FunctionKind.SCALAR =>
+          throw new ValidationException(
+            s"Invalid use of function '$bsf'. " +
+              s"Currently, only scalar functions can be used in a projection or filter operation.")
+        case _ => // ok
       }
     }
   }

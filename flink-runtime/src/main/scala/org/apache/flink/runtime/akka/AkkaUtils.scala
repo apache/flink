@@ -284,6 +284,7 @@ object AkkaUtils {
         | loggers = ["akka.event.slf4j.Slf4jLogger"]
         | logging-filter = "akka.event.slf4j.Slf4jLoggingFilter"
         | log-config-on-start = off
+        | logger-startup-timeout = 30s
         |
         | jvm-exit-on-fatal-error = $jvmExitOnFatalError
         |
@@ -791,10 +792,6 @@ object AkkaUtils {
 
   def getLookupTimeout(config: Configuration): time.Duration = {
     TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
-  }
-
-  def getClientTimeout(config: Configuration): time.Duration = {
-    TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains

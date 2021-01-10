@@ -18,31 +18,33 @@
 
 package org.apache.flink.table.runtime.operators.sort;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.RecordComparator;
 
-/**
- * Example Int {@link RecordComparator}.
- */
+/** Example Int {@link RecordComparator}. */
 public class IntRecordComparator implements RecordComparator {
 
-	public static final IntRecordComparator INSTANCE = new IntRecordComparator();
+    public static final IntRecordComparator INSTANCE = new IntRecordComparator();
 
-	@Override
-	public int compare(BaseRow o1, BaseRow o2) {
+    @Override
+    public int compare(RowData o1, RowData o2) {
 
-		boolean null0At1 = o1.isNullAt(0);
-		boolean null0At2 = o2.isNullAt(0);
-		int cmp0 = null0At1 && null0At2 ? 0 :
-				(null0At1 ? -1 : (null0At2 ? 1 : Integer.compare(o1.getInt(0), o2.getInt(0))));
-		if (cmp0 != 0) {
-			return cmp0;
-		}
-		return 0;
-	}
+        boolean null0At1 = o1.isNullAt(0);
+        boolean null0At2 = o2.isNullAt(0);
+        int cmp0 =
+                null0At1 && null0At2
+                        ? 0
+                        : (null0At1
+                                ? -1
+                                : (null0At2 ? 1 : Integer.compare(o1.getInt(0), o2.getInt(0))));
+        if (cmp0 != 0) {
+            return cmp0;
+        }
+        return 0;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		return obj instanceof IntRecordComparator;
-	}
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof IntRecordComparator;
+    }
 }

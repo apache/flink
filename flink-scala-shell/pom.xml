@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-scala-shell_${scala.binary.version}</artifactId>
-	<name>flink-scala-shell</name>
+	<name>Flink : Scala shell</name>
 
 	<packaging>jar</packaging>
 

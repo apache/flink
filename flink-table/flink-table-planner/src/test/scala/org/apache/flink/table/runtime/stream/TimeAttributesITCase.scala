@@ -18,38 +18,41 @@
 
 package org.apache.flink.table.runtime.stream
 
-import java.lang.{Integer => JInt, Long => JLong}
-import java.math.BigDecimal
-import java.sql.Timestamp
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.AssignerWithPunctuatedWatermarks
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Tumble, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.expressions.{ExpressionParser, TimeIntervalUnit}
 import org.apache.flink.table.plan.TimeIndicatorConversionTest.TableFunc
 import org.apache.flink.table.runtime.stream.TimeAttributesITCase.{AtomicTimestampWithEqualWatermark, TestPojo, TimestampWithEqualWatermark, TimestampWithEqualWatermarkPojo}
 import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.runtime.utils.StreamITCase
-import org.apache.flink.table.utils.{MemoryTableSourceSinkUtil, TestTableSourceWithTime}
+import org.apache.flink.table.utils.{LegacyRowResource, MemoryTableSourceSinkUtil, TestTableSourceWithTime}
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Before, Rule, Test}
 
-import scala.collection.mutable
+import java.lang.{Integer => JInt, Long => JLong}
+import java.math.BigDecimal
+import java.sql.Timestamp
+
 import scala.collection.JavaConverters._
-
+import scala.collection.mutable
 
 /**
   * Tests for access and materialization of time attributes.
   */
 class TimeAttributesITCase extends AbstractTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),
@@ -60,13 +63,18 @@ class TimeAttributesITCase extends AbstractTestBase {
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"),
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"))
 
+  val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
+  val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(
+    env,
+    EnvironmentSettings.newInstance().useOldPlanner().build())
+
+  @Before
+  def setup(): Unit = {
+    StreamITCase.clear
+  }
+
   @Test
   def testAtomicType1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
       .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
@@ -94,11 +102,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testAtomicType2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(Seq(1L, 2L, 3L, 4L, 7L, 8L, 16L))
       .assignTimestampsAndWatermarks(new AtomicTimestampWithEqualWatermark())
@@ -126,11 +129,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testCalcMaterialization(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -156,11 +154,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testCalcMaterialization2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -183,12 +176,9 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testTableSink(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
     MemoryTableSourceSinkUtil.clear()
 
-    tEnv.registerTableSink(
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
       "testSink",
       (new MemoryTableSourceSinkUtil.UnsafeMemoryAppendTableSink).configure(
         Array[String]("rowtime", "floorDay", "ceilDay"),
@@ -217,11 +207,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testTableFunction(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -255,11 +240,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testWindowAfterTableFunction(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -286,11 +266,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testUnion(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -323,11 +298,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testWindowWithAggregationOnRowtimeSql(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -352,11 +322,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testMultiWindow(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -385,11 +350,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testMultiWindowSqlNoAggregation(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -424,11 +384,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testMultiWindowSqlWithAggregation(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -463,11 +418,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testMultiWindowSqlWithAggregation2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -502,11 +452,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testCalcMaterializationWithPojoType(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -532,11 +477,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testPojoSupport(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val p1 = new TestPojo
     p1.a = 12
     p1.b = 42L
@@ -594,12 +534,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testTableSourceWithTimeIndicators(): Unit = {
-
-    StreamITCase.clear
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-
     val rows = Seq(
       Row.of(new JInt(1), "A", new JLong(1000L)),
       Row.of(new JInt(2), "B", new JLong(2000L)),
@@ -617,7 +551,8 @@ class TimeAttributesITCase extends AbstractTestBase {
       fieldNames)
 
     val tableSource = new TestTableSourceWithTime(schema, rowType, rows, "rowtime", "proctime")
-    tEnv.registerTableSource("testTable", tableSource)
+    tEnv.asInstanceOf[TableEnvironmentInternal]
+      .registerTableSourceInternal("testTable", tableSource)
 
     val result = tEnv
       .scan("testTable")
@@ -638,11 +573,6 @@ class TimeAttributesITCase extends AbstractTestBase {
 
   @Test
   def testSqlWindowRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.testResults = mutable.MutableList()
-
     val stream = env
       .fromCollection(data)
       .assignTimestampsAndWatermarks(new TimestampWithEqualWatermark())
@@ -669,9 +599,8 @@ class TimeAttributesITCase extends AbstractTestBase {
   def testMaterializedRowtimeFilter(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
-    StreamITCase.clear
+    val tEnv = StreamTableEnvironment.create(
+      env, EnvironmentSettings.newInstance().useOldPlanner().build())
 
     val data = new mutable.MutableList[(String, Timestamp, Int)]
     data.+=(("ACME", new Timestamp(1000L), 12))

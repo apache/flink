@@ -16,17 +16,15 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.util.Random;
 
 import org.apache.flink.core.io.IOReadableWritable;
 
+import java.util.Random;
+
 public interface SerializationTestType extends IOReadableWritable {
 
-	public SerializationTestType getRandom(Random rnd);
+    public SerializationTestType getRandom(Random rnd);
 
-	public int length();
-
+    public int length();
 }

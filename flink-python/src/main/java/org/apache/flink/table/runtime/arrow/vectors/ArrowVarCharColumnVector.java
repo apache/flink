@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,34 +19,30 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.vector.BytesColumnVector;
+import org.apache.flink.table.data.vector.BytesColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.VarCharVector;
 
-/**
- * Arrow column vector for VarChar.
- */
+/** Arrow column vector for VarChar. */
 @Internal
 public final class ArrowVarCharColumnVector implements BytesColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of varchar values of a column to read.
-	 */
-	private final VarCharVector varCharVector;
+    /** Container which is used to store the sequence of varchar values of a column to read. */
+    private final VarCharVector varCharVector;
 
-	public ArrowVarCharColumnVector(VarCharVector varCharVector) {
-		this.varCharVector = Preconditions.checkNotNull(varCharVector);
-	}
+    public ArrowVarCharColumnVector(VarCharVector varCharVector) {
+        this.varCharVector = Preconditions.checkNotNull(varCharVector);
+    }
 
-	@Override
-	public Bytes getBytes(int i) {
-		byte[] bytes = varCharVector.get(i);
-		return new Bytes(bytes, 0, bytes.length);
-	}
+    @Override
+    public Bytes getBytes(int i) {
+        byte[] bytes = varCharVector.get(i);
+        return new Bytes(bytes, 0, bytes.length);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return varCharVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return varCharVector.isNull(i);
+    }
 }

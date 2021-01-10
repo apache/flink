@@ -20,17 +20,15 @@ package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-/**
- * Test for {@link BigDecimalTypeInfo}.
- */
+/** Test for {@link BigDecimalTypeInfo}. */
 public class BigDecimalTypeInfoTest extends TypeInformationTestBase<BigDecimalTypeInfo> {
 
-	@Override
-	protected BigDecimalTypeInfo[] getTestData() {
-		return new BigDecimalTypeInfo[] {
-				new BigDecimalTypeInfo(38, 18),
-				new BigDecimalTypeInfo(17, 0),
-				new BigDecimalTypeInfo(25, 21)
-		};
-	}
+    @Override
+    protected BigDecimalTypeInfo[] getTestData() {
+        return new BigDecimalTypeInfo[] {
+            new BigDecimalTypeInfo(38, 18),
+            new BigDecimalTypeInfo(17, 0),
+            new BigDecimalTypeInfo(25, 21)
+        };
+    }
 }

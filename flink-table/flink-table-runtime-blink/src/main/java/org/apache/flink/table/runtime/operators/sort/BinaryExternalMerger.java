@@ -23,9 +23,9 @@ import org.apache.flink.runtime.io.disk.ChannelReaderInputViewIterator;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
-import org.apache.flink.table.dataformat.BinaryRow;
+import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.runtime.generated.RecordComparator;
-import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
 import java.io.IOException;
@@ -33,56 +33,62 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Record merger for sort of BinaryRow.
- */
-public class BinaryExternalMerger extends AbstractBinaryExternalMerger<BinaryRow> {
+/** Record merger for sort of BinaryRowData. */
+public class BinaryExternalMerger extends AbstractBinaryExternalMerger<BinaryRowData> {
 
-	private final BinaryRowSerializer serializer;
-	private final RecordComparator comparator;
+    private final BinaryRowDataSerializer serializer;
+    private final RecordComparator comparator;
 
-	public BinaryExternalMerger(
-			IOManager ioManager,
-			int pageSize,
-			int maxFanIn,
-			SpillChannelManager channelManager,
-			BinaryRowSerializer serializer,
-			RecordComparator comparator,
-			boolean compressionEnable,
-			BlockCompressionFactory compressionCodecFactory,
-			int compressionBlockSize) {
-		super(ioManager, pageSize, maxFanIn, channelManager, compressionEnable, compressionCodecFactory, compressionBlockSize);
-		this.serializer = serializer;
-		this.comparator = comparator;
-	}
+    public BinaryExternalMerger(
+            IOManager ioManager,
+            int pageSize,
+            int maxFanIn,
+            SpillChannelManager channelManager,
+            BinaryRowDataSerializer serializer,
+            RecordComparator comparator,
+            boolean compressionEnable,
+            BlockCompressionFactory compressionCodecFactory,
+            int compressionBlockSize) {
+        super(
+                ioManager,
+                pageSize,
+                maxFanIn,
+                channelManager,
+                compressionEnable,
+                compressionCodecFactory,
+                compressionBlockSize);
+        this.serializer = serializer;
+        this.comparator = comparator;
+    }
 
-	@Override
-	protected MutableObjectIterator<BinaryRow> channelReaderInputViewIterator(AbstractChannelReaderInputView inView) {
-		return new ChannelReaderInputViewIterator<>(inView, null, serializer.duplicate());
-	}
+    @Override
+    protected MutableObjectIterator<BinaryRowData> channelReaderInputViewIterator(
+            AbstractChannelReaderInputView inView) {
+        return new ChannelReaderInputViewIterator<>(inView, null, serializer.duplicate());
+    }
 
-	@Override
-	protected Comparator<BinaryRow> mergeComparator() {
-		return comparator::compare;
-	}
+    @Override
+    protected Comparator<BinaryRowData> mergeComparator() {
+        return comparator::compare;
+    }
 
-	@Override
-	protected List<BinaryRow> mergeReusedEntries(int size) {
-		ArrayList<BinaryRow> reused = new ArrayList<>(size);
-		for (int i = 0; i < size; i++) {
-			reused.add(serializer.createInstance());
-		}
-		return reused;
-	}
+    @Override
+    protected List<BinaryRowData> mergeReusedEntries(int size) {
+        ArrayList<BinaryRowData> reused = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            reused.add(serializer.createInstance());
+        }
+        return reused;
+    }
 
-	@Override
-	protected void writeMergingOutput(
-			MutableObjectIterator<BinaryRow> mergeIterator,
-			AbstractPagedOutputView output) throws IOException {
-		// read the merged stream and write the data back
-		BinaryRow rec = serializer.createInstance();
-		while ((rec = mergeIterator.next(rec)) != null) {
-			serializer.serialize(rec, output);
-		}
-	}
+    @Override
+    protected void writeMergingOutput(
+            MutableObjectIterator<BinaryRowData> mergeIterator, AbstractPagedOutputView output)
+            throws IOException {
+        // read the merged stream and write the data back
+        BinaryRowData rec = serializer.createInstance();
+        while ((rec = mergeIterator.next(rec)) != null) {
+            serializer.serialize(rec, output);
+        }
+    }
 }

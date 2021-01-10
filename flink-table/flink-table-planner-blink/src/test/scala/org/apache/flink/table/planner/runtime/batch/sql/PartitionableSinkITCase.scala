@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
@@ -31,12 +31,14 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.DescriptorProperties
 import org.apache.flink.table.descriptors.Schema.SCHEMA
 import org.apache.flink.table.factories.TableSinkFactory
-import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase._
+import org.apache.flink.table.filesystem.FileSystemOptions
+import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase.{type4, type_int_string, _}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -51,15 +53,17 @@ import scala.collection.JavaConverters._
 import scala.collection.Seq
 
 /**
-  * Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]].
-  */
+ * Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]].
+ */
 class PartitionableSinkITCase extends BatchTestBase {
 
   private val _expectedException = ExpectedException.none
-  private val type4 = new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
   @Rule
   def expectedEx: ExpectedException = _expectedException
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   override def before(): Unit = {
@@ -70,15 +74,15 @@ class PartitionableSinkITCase extends BatchTestBase {
       .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3)
     registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
     registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
+    registerCollection("starTable", testData2, type_int_string, "b, c", Array(true, true))
     PartitionableSinkITCase.init()
   }
 
   @Test
   def testInsertWithOutPartitionGrouping(): Unit = {
     registerTableSink()
-    tEnv.sqlUpdate("insert into sinkTable select a, max(b), c"
-      + " from nonSortTable group by a, c")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable select a, max(b), c"
+      + " from nonSortTable group by a, c").await()
     assertEquals(List("1,5,Hi",
       "1,5,Hi01",
       "1,5,Hi02"),
@@ -101,8 +105,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithPartitionGrouping(): Unit = {
     registerTableSink()
-    tEnv.sqlUpdate("insert into sinkTable select a, b, c from sortTable")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable select a, b, c from sortTable").await()
     assertEquals(List("1,1,Hello world",
       "1,1,Hello world, how are you?"),
       RESULT1.toList)
@@ -122,8 +125,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticPartitions(): Unit = {
     registerTableSink()
-    tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
     assertEquals(List("1,2,Hi",
       "1,1,Hello world",
       "1,2,Hello",
@@ -143,8 +145,7 @@ class PartitionableSinkITCase extends BatchTestBase {
   @Test
   def testInsertWithStaticAndDynamicPartitions(): Unit = {
     registerTableSink(partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable partition(a=1) select b, c from sortTable").await()
     assertEquals(List("1,1,Hello world", "1,1,Hello world, how are you?"), RESULT1.toList)
     assertEquals(List(
       "1,4,你好，陌生人",
@@ -162,20 +163,51 @@ class PartitionableSinkITCase extends BatchTestBase {
   }
 
   @Test
+  def testInsertWithStaticPartitionAndStarSource(): Unit = {
+    registerTableSink(partitionColumns = Array("b", "c"))
+    tEnv.executeSql("insert into sinkTable partition(b=1) select * from starTable").await()
+    assertEquals(List(
+      "1,1,Hello world, how are you?",
+      "3,1,I'm fine, thank you",
+      "4,1,你好，陌生人",
+      "4,1,你好，陌生人，我是中国人"),
+      RESULT1.toList)
+    assertEquals(List(
+      "4,1,你好，陌生人，我是",
+      "4,1,你好，陌生人，我是中国人，你来自哪里？"),
+      RESULT2.toList)
+    assertEquals(List(
+      "2,1,Hello",
+      "1,1,Hello world",
+      "2,1,Hi",
+      "3,1,I'm fine, thank",
+      "3,1,I'm fine, thank you, and you?"),
+      RESULT3.toList)
+  }
+
+  @Test
+  def testInsertWithStaticPartitionAndValuesSource(): Unit = {
+    registerTableSink(partitionColumns = Array("b", "c"))
+    tEnv.executeSql("insert into sinkTable partition(b=1)\n"
+      + "(values (1, 'Hello world, how are you?'), (4, '你好，陌生人，我是'), (2, 'Hello'))").await()
+    assertEquals(List("1,1,Hello world, how are you?"), RESULT1.toList)
+    assertEquals(List("4,1,你好，陌生人，我是"), RESULT2.toList)
+    assertEquals(List("2,1,Hello"), RESULT3.toList)
+  }
+
+  @Test
   def testStaticPartitionNotInPartitionFields(): Unit = {
     expectedEx.expect(classOf[ValidationException])
     registerTableSink(tableName = "sinkTable2", rowType = type4,
       partitionColumns = Array("a", "b"))
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
   }
 
   @Test
   def testInsertStaticPartitionOnNonPartitionedSink(): Unit = {
     expectedEx.expect(classOf[TableException])
     registerTableSink(tableName = "sinkTable2", rowType = type4, partitionColumns = Array())
-    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sortTable")
-    tEnv.execute("testJob")
+    tEnv.executeSql("insert into sinkTable2 partition(c=1) select a, b from sortTable").await()
   }
 
   private def registerTableSink(
@@ -188,6 +220,9 @@ class PartitionableSinkITCase extends BatchTestBase {
 }
 
 object PartitionableSinkITCase {
+  val type4 = new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
+  val type_int_string = new RowTypeInfo(INT_TYPE_INFO, STRING_TYPE_INFO)
+
   val RESULT1 = new JLinkedList[String]()
   val RESULT2 = new JLinkedList[String]()
   val RESULT3 = new JLinkedList[String]()
@@ -204,8 +239,8 @@ object PartitionableSinkITCase {
   }
 
   /**
-    * Sink function of unsafe memory.
-    */
+   * Sink function of unsafe memory.
+   */
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row])
     extends RichSinkFunction[Row] {
     private var resultSet: JLinkedList[String] = _
@@ -256,6 +291,20 @@ object PartitionableSinkITCase {
     row(4, 4L, "你好，陌生人，我是中国人，你来自哪里？")
   )
 
+  val testData2 = Seq(
+    row(2, "Hi"),
+    row(1, "Hello world"),
+    row(2, "Hello"),
+    row(1, "Hello world, how are you?"),
+    row(3, "I'm fine, thank"),
+    row(3, "I'm fine, thank you"),
+    row(3, "I'm fine, thank you, and you?"),
+    row(4, "你好，陌生人"),
+    row(4, "你好，陌生人，我是"),
+    row(4, "你好，陌生人，我是中国人"),
+    row(4, "你好，陌生人，我是中国人，你来自哪里？")
+  )
+
   def registerTableSink(
       tEnv: TableEnvironment,
       tableName: String,
@@ -264,6 +313,7 @@ object PartitionableSinkITCase {
       partitionColumns: Array[String]): Unit = {
     val properties = new DescriptorProperties()
     properties.putString("supports-grouping", grouping.toString)
+    properties.putString(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key(), "true")
     properties.putString(CONNECTOR_TYPE, "TestPartitionableSink")
     partitionColumns.zipWithIndex.foreach { case (part, i) =>
       properties.putString("partition-column." + i, part)

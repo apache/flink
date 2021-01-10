@@ -23,7 +23,7 @@ WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
 SELECT sum(b) FROM r group by a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
@@ -34,18 +34,18 @@ LogicalProject(EXPR$0=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
    +- Calc(select=[a, b])
-      +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
+      +- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
-         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d]])
             +- Calc(select=[d])
-               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -56,7 +56,7 @@ WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
 SELECT sum(b) FROM r group by d
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
@@ -67,18 +67,18 @@ LogicalProject(EXPR$0=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortAggregate(isMerge=[false], groupBy=[d], select=[d, SUM(b) AS EXPR$0])
    +- Calc(select=[d, b])
-      +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
+      +- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, d])
          :- Exchange(distribution=[hash[a]])
          :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
-         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
          +- Exchange(distribution=[hash[d]])
             +- Calc(select=[d])
-               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -89,21 +89,21 @@ WITH r AS (SELECT * FROM x ORDER BY a, b)
 SELECT a, b, COUNT(c) AS cnt FROM r GROUP BY a, b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
 +- Sort(orderBy=[a ASC, b ASC])
    +- Exchange(distribution=[hash[a, b]])
       +- LocalSortAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
          +- Sort(orderBy=[a ASC, b ASC])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -115,7 +115,7 @@ WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
 SELECT * FROM x, v WHERE c = f
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3], f=[$4], cnt=[$5])
 +- LogicalFilter(condition=[=($2, $4)])
@@ -129,20 +129,16 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3], f=[$4], cnt=[$5])
             +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f1, f, cnt], rightSorted=[true])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(c = f)], select=[a, b, c, f1, f, cnt], rightSorted=[true])\n:- [#1] Exchange(distribution=[hash[c]])\n+- Calc(select=[f0 AS f1, f, cnt])\n   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])\n      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])\n         +- Sort(orderBy=[f ASC])\n            +- [#2] Exchange(distribution=[hash[f]])\n])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[f0 AS f1, f, cnt])
-   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
-      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
-         +- Sort(orderBy=[f ASC])
-            +- Exchange(distribution=[hash[f]])
-               +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
-                  +- Sort(orderBy=[f ASC])
-                     +- Calc(select=[f])
-                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f]])
+   +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
+      +- Sort(orderBy=[f ASC])
+         +- Calc(select=[f])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -154,7 +150,7 @@ WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
 SELECT * FROM x, v WHERE c = f AND f LIKE '%llo%'
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
 +- LogicalFilter(condition=[AND(=($2, $3), LIKE($3, _UTF-16LE'%llo%'))])
@@ -168,20 +164,16 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
             +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f, f1], rightSorted=[true])
+MultipleInput(members=[\nSortMergeJoin(joinType=[InnerJoin], where=[(c = f)], select=[a, b, c, f, f1], rightSorted=[true])\n:- [#1] Exchange(distribution=[hash[c]])\n+- Calc(select=[f, f0 AS f1])\n   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])\n      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])\n         +- Sort(orderBy=[f ASC])\n            +- [#2] Exchange(distribution=[hash[f]])\n])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[f, f0 AS f1])
-   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
-      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
-         +- Sort(orderBy=[f ASC])
-            +- Exchange(distribution=[hash[f]])
-               +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
-                  +- Sort(orderBy=[f ASC])
-                     +- Calc(select=[f], where=[LIKE(f, _UTF-16LE'%llo%')])
-                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f]])
+   +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
+      +- Sort(orderBy=[f ASC])
+         +- Calc(select=[f], where=[LIKE(f, _UTF-16LE'%llo%')])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -193,7 +185,7 @@ WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
 SELECT * FROM x, v WHERE c = f1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3])
 +- LogicalFilter(condition=[=($2, $3)])
@@ -207,11 +199,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3])
             +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1])
+SortMergeJoin(joinType=[InnerJoin], where=[(c = f1)], select=[a, b, c, f1])
 :- Exchange(distribution=[hash[c]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[f1]])
    +- Calc(select=[f0 AS f1])
       +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
@@ -221,7 +213,7 @@ SortMergeJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1])
                   +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
                      +- Sort(orderBy=[f ASC])
                         +- Calc(select=[f])
-                           +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -234,7 +226,7 @@ select * from
    left outer join t2 on a = d1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
 +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
@@ -246,19 +238,17 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a, d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
-:- SortMergeJoin(joinType=[InnerJoin], where=[=(a, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
-:  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
-:  :  :- Exchange(distribution=[hash[a]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  :  +- Exchange(distribution=[hash[d]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:  +- Exchange(distribution=[hash[a1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-+- Exchange(distribution=[hash[d1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[(a = d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])\n:  :- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[hash[a1]])\n+- [#1] Exchange(distribution=[hash[d1]])\n])
+:- Exchange(distribution=[hash[d1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+:- Exchange(distribution=[hash[a1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:- Exchange(distribution=[hash[a]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -271,7 +261,7 @@ select * from
    left outer join t2 on a1 = d1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
 +- LogicalJoin(condition=[=($6, $9)], joinType=[left])
@@ -283,19 +273,17 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a1, d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
-:- SortMergeJoin(joinType=[InnerJoin], where=[=(d, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
-:  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
-:  :  :- Exchange(distribution=[hash[a]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  :  +- Exchange(distribution=[hash[d]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:  +- Exchange(distribution=[hash[a1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-+- Exchange(distribution=[hash[d1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[(a1 = d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[(d = a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])\n:  :- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])\n:  :  :- [#3] Exchange(distribution=[hash[a]])\n:  :  +- [#4] Exchange(distribution=[hash[d]])\n:  +- [#2] Exchange(distribution=[hash[a1]])\n+- [#1] Exchange(distribution=[hash[d1]])\n])
+:- Exchange(distribution=[hash[d1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+:- Exchange(distribution=[hash[a1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:- Exchange(distribution=[hash[a]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -341,7 +329,7 @@ select
    left outer join tb5 on tb1.key = tb5.id
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], tb3_names=[$8], name0=[$10], name1=[$12])
 +- LogicalJoin(condition=[=($1, $11)], joinType=[left])
@@ -369,49 +357,41 @@ LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], t
    +- LogicalTableScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
-+- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(key, id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, id0, name1], leftSorted=[true])
-   :- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0])
-   :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(key, id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, id0, name0])
-   :     :- Exchange(distribution=[hash[key]])
-   :     :  +- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names])
-   :     :     +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb1_id, tb3_names], leftSorted=[true], rightSorted=[true])
-   :     :        :- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names])
-   :     :        :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb1_id, tb2_names], rightSorted=[true])
-   :     :        :     :- Exchange(distribution=[hash[id]])
-   :     :        :     :  +- TableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name], reuse_id=[1])
-   :     :        :     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb2_names])
-   :     :        :        +- Sort(orderBy=[tb1_id ASC])
-   :     :        :           +- Exchange(distribution=[hash[tb1_id]])
-   :     :        :              +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb2_name, $f2) AS (accDelimiter$0, concatAcc$1)])
-   :     :        :                 +- Sort(orderBy=[tb1_id ASC])
-   :     :        :                    +- Calc(select=[id AS tb1_id, name AS tb2_name, _UTF-16LE',' AS $f2])
-   :     :        :                       +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb2_id, id0)], select=[id, tb2_id, id0, name])
-   :     :        :                          :- Exchange(distribution=[hash[tb2_id]])
-   :     :        :                          :  +- Calc(select=[id, f0 AS tb2_id])
-   :     :        :                          :     +- Correlate(invocation=[split($cor0.tb2_ids)], correlate=[table(split($cor0.tb2_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
-   :     :        :                          :        +- Reused(reference_id=[1])
-   :     :        :                          +- Exchange(distribution=[hash[id]])
-   :     :        :                             +- TableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
-   :     :        +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb3_names])
-   :     :           +- Sort(orderBy=[tb1_id ASC])
-   :     :              +- Exchange(distribution=[hash[tb1_id]])
-   :     :                 +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb3_name, $f2) AS (accDelimiter$0, concatAcc$1)])
-   :     :                    +- Sort(orderBy=[tb1_id ASC])
-   :     :                       +- Calc(select=[id AS tb1_id, name AS tb3_name, _UTF-16LE',' AS $f2])
-   :     :                          +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb3_id, id0)], select=[id, tb3_id, id0, name])
-   :     :                             :- Exchange(distribution=[hash[tb3_id]])
-   :     :                             :  +- Calc(select=[id, f0 AS tb3_id])
-   :     :                             :     +- Correlate(invocation=[split($cor1.tb3_ids)], correlate=[table(split($cor1.tb3_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
-   :     :                             :        +- Reused(reference_id=[1])
-   :     :                             +- Exchange(distribution=[hash[id]])
-   :     :                                +- TableSourceScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]], fields=[id, name])
-   :     +- Exchange(distribution=[hash[id]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]], fields=[id, name])
++- MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[(key = id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, id0, name1], leftSorted=[true])\n:- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0])\n:  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[(key = id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, id0, name0])\n:     :- [#2] Exchange(distribution=[hash[key]])\n:     +- [#3] Exchange(distribution=[hash[id]])\n+- [#1] Exchange(distribution=[hash[id]])\n])
+   :- Exchange(distribution=[hash[id]])
+   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :- Exchange(distribution=[hash[key]])
+   :  +- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names])
+   :     +- MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[(id = tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb1_id, tb3_names], leftSorted=[true], rightSorted=[true])\n:- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names])\n:  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[(id = tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb1_id, tb2_names], rightSorted=[true])\n:     :- [#1] Exchange(distribution=[hash[id]])\n:     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb2_names])\n:        +- Sort(orderBy=[tb1_id ASC])\n:           +- [#3] Exchange(distribution=[hash[tb1_id]])\n+- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb3_names])\n   +- Sort(orderBy=[tb1_id ASC])\n      +- [#2] Exchange(distribution=[hash[tb1_id]])\n])
+   :        :- Exchange(distribution=[hash[id]])
+   :        :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name])(reuse_id=[1])
+   :        :- Exchange(distribution=[hash[tb1_id]])
+   :        :  +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb3_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :        :     +- Sort(orderBy=[tb1_id ASC])
+   :        :        +- Calc(select=[id AS tb1_id, name AS tb3_name, _UTF-16LE',' AS $f2])
+   :        :           +- SortMergeJoin(joinType=[LeftOuterJoin], where=[(tb3_id = id0)], select=[id, tb3_id, id0, name])
+   :        :              :- Exchange(distribution=[hash[tb3_id]])
+   :        :              :  +- Calc(select=[id, f0 AS tb3_id])
+   :        :              :     +- Correlate(invocation=[split($cor1.tb3_ids)], correlate=[table(split($cor1.tb3_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
+   :        :              :        +- Reused(reference_id=[1])
+   :        :              +- Exchange(distribution=[hash[id]])
+   :        :                 +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :        +- Exchange(distribution=[hash[tb1_id]])
+   :           +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb2_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :              +- Sort(orderBy=[tb1_id ASC])
+   :                 +- Calc(select=[id AS tb1_id, name AS tb2_name, _UTF-16LE',' AS $f2])
+   :                    +- SortMergeJoin(joinType=[LeftOuterJoin], where=[(tb2_id = id0)], select=[id, tb2_id, id0, name])
+   :                       :- Exchange(distribution=[hash[tb2_id]])
+   :                       :  +- Calc(select=[id, f0 AS tb2_id])
+   :                       :     +- Correlate(invocation=[split($cor0.tb2_ids)], correlate=[table(split($cor0.tb2_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
+   :                       :        +- Reused(reference_id=[1])
+   :                       +- Exchange(distribution=[hash[id]])
+   :                          +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
    +- Exchange(distribution=[hash[id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]], fields=[id, name])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]], fields=[id, name])
 ]]>
     </Resource>
   </TestCase>
@@ -424,7 +404,7 @@ select * from
    left outer join t2 on a = d1 and b = e1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
 +- LogicalJoin(condition=[AND(=($0, $9), =($1, $10))], joinType=[left])
@@ -436,19 +416,17 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d1), =(b, e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
-:- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, a1), =(b, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
-:  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
-:  :  :- Exchange(distribution=[hash[a, b]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  :  +- Exchange(distribution=[hash[d, e]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:  +- Exchange(distribution=[hash[a1, b1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-+- Exchange(distribution=[hash[d1, e1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[((a = d1) AND (b = e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[((a = a1) AND (b = b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])\n:  :- SortMergeJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[a, b, c, d, e, f])\n:  :  :- [#3] Exchange(distribution=[hash[a, b]])\n:  :  +- [#4] Exchange(distribution=[hash[d, e]])\n:  +- [#2] Exchange(distribution=[hash[a1, b1]])\n+- [#1] Exchange(distribution=[hash[d1, e1]])\n])
+:- Exchange(distribution=[hash[d1, e1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+:- Exchange(distribution=[hash[a1, b1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:- Exchange(distribution=[hash[a, b]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d, e]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -461,7 +439,7 @@ select * from
    left outer join t2 on a1 = d1 and b1 = e1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
 +- LogicalJoin(condition=[AND(=($6, $9), =($7, $10))], joinType=[left])
@@ -473,19 +451,17 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7],
    +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a1, d1), =(b1, e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
-:- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(d, a1), =(e, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
-:  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
-:  :  :- Exchange(distribution=[hash[a, b]])
-:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-:  :  +- Exchange(distribution=[hash[d, e]])
-:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
-:  +- Exchange(distribution=[hash[a1, b1]])
-:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
-+- Exchange(distribution=[hash[d1, e1]])
-   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+MultipleInput(members=[\nSortMergeJoin(joinType=[LeftOuterJoin], where=[((a1 = d1) AND (b1 = e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])\n:- SortMergeJoin(joinType=[InnerJoin], where=[((d = a1) AND (e = b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])\n:  :- SortMergeJoin(joinType=[InnerJoin], where=[((a = d) AND (b = e))], select=[a, b, c, d, e, f])\n:  :  :- [#3] Exchange(distribution=[hash[a, b]])\n:  :  +- [#4] Exchange(distribution=[hash[d, e]])\n:  +- [#2] Exchange(distribution=[hash[a1, b1]])\n+- [#1] Exchange(distribution=[hash[d1, e1]])\n])
+:- Exchange(distribution=[hash[d1, e1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+:- Exchange(distribution=[hash[a1, b1]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
+:- Exchange(distribution=[hash[a, b]])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[d, e]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -500,17 +476,17 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a1, d1), =(b1, e1))], selec
  GROUP BY a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
-LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST), null:BIGINT), COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)])
 +- LogicalAggregate(group=[{0}], sum_b=[SUM($1)])
    +- LogicalProject(a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[sum_b, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS avg_b, w0$o2 AS rn])
+Calc(select=[sum_b, (CASE((w0$o0 > 0:BIGINT), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w0$o2 AS rn])
 +- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1, RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
    +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS sum_b])
       +- Sort(orderBy=[a ASC])
@@ -518,7 +494,7 @@ Calc(select=[sum_b, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS av
             +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Sort(orderBy=[a ASC])
                   +- Calc(select=[a, b])
-                     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                     +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -529,7 +505,7 @@ WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
 SELECT * FROM r ORDER BY a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
 +- LogicalProject(a=[$0], b=[$1], cnt=[$2])
@@ -537,14 +513,14 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
       +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Sort(orderBy=[a ASC])
 +- Exchange(distribution=[range[a ASC]])
    +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
       +- Exchange(distribution=[hash[a, b]])
          +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -558,25 +534,25 @@ SELECT a, SUM(b) FROM (
 ) GROUP BY a
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[<=($2, 10)])
-      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
 +- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c])
+   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
       +- Sort(orderBy=[a ASC, b ASC])
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[a ASC, b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -590,16 +566,16 @@ SELECT a, b, MAX(c) FROM (
 ) GROUP BY a, b
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{0, 1}], EXPR$2=[MAX($2)])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[<=($3, 10)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, MAX(c) AS EXPR$2])
 +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c])
@@ -607,7 +583,7 @@ SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, MAX(c) AS EXPR$2])
       +- Exchange(distribution=[hash[a]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
             +- Sort(orderBy=[a ASC, b ASC])
-               +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -621,22 +597,22 @@ SELECT * FROM (
 ) WHERE rk <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
 +- LogicalFilter(condition=[<=($3, 10)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
       +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
 +- Sort(orderBy=[a ASC, b ASC])
    +- Exchange(distribution=[hash[a]])
       +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
          +- Sort(orderBy=[a ASC, b ASC])
-            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -650,17 +626,17 @@ SELECT * FROM (
 ) WHERE rk <= 10
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], c=[$1], rk=[$2])
 +- LogicalFilter(condition=[<=($2, 10)])
-   +- LogicalProject(a=[$0], c=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], c=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST)])
       +- LogicalAggregate(group=[{0}], c=[COUNT($1)])
          +- LogicalProject(a=[$0], c=[$2])
             +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, c, w0$o0])
 +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS c])
@@ -669,7 +645,7 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orde
          +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(c) AS count$0])
             +- Sort(orderBy=[a ASC])
                +- Calc(select=[a, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -683,25 +659,25 @@ SELECT COUNT(a), SUM(b) FROM (
 )
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[SUM($1)])
 +- LogicalProject(a=[$0], b=[$1])
    +- LogicalFilter(condition=[<=($2, 10)])
-      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $1 NULLS FIRST)])
          +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
 +- Calc(select=[a, b])
-   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b, c])
+   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
       +- Sort(orderBy=[b ASC])
          +- Exchange(distribution=[single])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

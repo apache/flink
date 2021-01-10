@@ -22,108 +22,100 @@ import org.apache.flink.annotation.Internal;
 
 import static org.apache.flink.api.java.summarize.aggregation.CompensatedSum.ZERO;
 
-/**
- * Aggregator that can handle Float types.
- */
+/** Aggregator that can handle Float types. */
 @Internal
 public class FloatSummaryAggregator extends NumericSummaryAggregator<Float> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	// Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
+    // Nested classes are only "public static" for Kryo serialization, otherwise they'd be private
 
-	/**
-	 * Aggregator for min operation.
-	 */
-	public static class MinFloatAggregator implements Aggregator<Float, Float> {
+    /** Aggregator for min operation. */
+    public static class MinFloatAggregator implements Aggregator<Float, Float> {
 
-		private float min = Float.POSITIVE_INFINITY;
+        private float min = Float.POSITIVE_INFINITY;
 
-		@Override
-		public void aggregate(Float value) {
-			min = Math.min(min, value);
-		}
+        @Override
+        public void aggregate(Float value) {
+            min = Math.min(min, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Float, Float> other) {
-			min = Math.min(min, ((MinFloatAggregator) other).min);
-		}
+        @Override
+        public void combine(Aggregator<Float, Float> other) {
+            min = Math.min(min, ((MinFloatAggregator) other).min);
+        }
 
-		@Override
-		public Float result() {
-			return min;
-		}
-	}
+        @Override
+        public Float result() {
+            return min;
+        }
+    }
 
-	/**
-	 * Aggregator for max operation.
-	 */
-	public static class MaxFloatAggregator implements Aggregator<Float, Float> {
+    /** Aggregator for max operation. */
+    public static class MaxFloatAggregator implements Aggregator<Float, Float> {
 
-		private float max = Float.NEGATIVE_INFINITY;
+        private float max = Float.NEGATIVE_INFINITY;
 
-		@Override
-		public void aggregate(Float value) {
-			max = Math.max(max, value);
-		}
+        @Override
+        public void aggregate(Float value) {
+            max = Math.max(max, value);
+        }
 
-		@Override
-		public void combine(Aggregator<Float, Float> other) {
-			max = Math.max(max, ((MaxFloatAggregator) other).max);
-		}
+        @Override
+        public void combine(Aggregator<Float, Float> other) {
+            max = Math.max(max, ((MaxFloatAggregator) other).max);
+        }
 
-		@Override
-		public Float result() {
-			return max;
-		}
-	}
+        @Override
+        public Float result() {
+            return max;
+        }
+    }
 
-	/**
-	 * Aggregator for sum operation.
-	 */
-	public static class SumFloatAggregator implements Aggregator<Float, Float> {
+    /** Aggregator for sum operation. */
+    public static class SumFloatAggregator implements Aggregator<Float, Float> {
 
-		private CompensatedSum sum = ZERO;
+        private CompensatedSum sum = ZERO;
 
-		@Override
-		public void aggregate(Float value) {
-			sum = sum.add(value);
-		}
+        @Override
+        public void aggregate(Float value) {
+            sum = sum.add(value);
+        }
 
-		@Override
-		public void combine(Aggregator<Float, Float> other) {
-			sum = sum.add(((SumFloatAggregator) other).sum);
-		}
+        @Override
+        public void combine(Aggregator<Float, Float> other) {
+            sum = sum.add(((SumFloatAggregator) other).sum);
+        }
 
-		@Override
-		public Float result() {
-			// overflow will go to infinity
-			return (float) sum.value();
-		}
-	}
+        @Override
+        public Float result() {
+            // overflow will go to infinity
+            return (float) sum.value();
+        }
+    }
 
-	@Override
-	protected Aggregator<Float, Float> initMin() {
-		return new MinFloatAggregator();
-	}
+    @Override
+    protected Aggregator<Float, Float> initMin() {
+        return new MinFloatAggregator();
+    }
 
-	@Override
-	protected Aggregator<Float, Float> initMax() {
-		return new MaxFloatAggregator();
-	}
+    @Override
+    protected Aggregator<Float, Float> initMax() {
+        return new MaxFloatAggregator();
+    }
 
-	@Override
-	protected Aggregator<Float, Float> initSum() {
-		return new SumFloatAggregator();
-	}
+    @Override
+    protected Aggregator<Float, Float> initSum() {
+        return new SumFloatAggregator();
+    }
 
-	@Override
-	protected boolean isNan(Float number) {
-		return number.isNaN();
-	}
+    @Override
+    protected boolean isNan(Float number) {
+        return number.isNaN();
+    }
 
-	@Override
-	protected boolean isInfinite(Float number) {
-		return number.isInfinite();
-	}
+    @Override
+    protected boolean isInfinite(Float number) {
+        return number.isInfinite();
+    }
 }

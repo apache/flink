@@ -27,8 +27,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{ site.baseurl }}/dev/projectsetup/java_api_quickstart.html)
-and the [Scala API]({{ site.baseurl }}/dev/projectsetup/scala_api_quickstart.html)
+refer to the [Java API]({% link dev/project-configuration.zh.md %})
+and the [Scala API]({% link dev/project-configuration.zh.md %})
 quickstart guides.
 
 **NOTE:** Whenever something is not working in your IDE, try with the Maven
@@ -117,11 +117,38 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
 
+### Copyright Profile
+
+Each file needs to include the Apache license as a header. This can be automated in IntelliJ by adding a Copyright profile:
+1. Open settings
+2. Go to Editor -> Copyright -> Copyright Profiles
+3. Add a new profile naming it `Apache`
+4. Add the following text as the license text:
+    
+   ```
+   Licensed to the Apache Software Foundation (ASF) under one
+   or more contributor license agreements.  See the NOTICE file
+   distributed with this work for additional information
+   regarding copyright ownership.  The ASF licenses this file
+   to you under the Apache License, Version 2.0 (the
+   "License"); you may not use this file except in compliance
+   with the License.  You may obtain a copy of the License at
+   
+       http://www.apache.org/licenses/LICENSE-2.0
+   
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and 
+   limitations under the License.
+   ```
+5. Apply the changes
+
 ### FAQ
 
 This section lists issues that developers have run into in the past when working with IntelliJ:
 
-- Compilation fails with `invalid flag: --add-expots=java.base/sun.net.util=ALL-UNNAMED`
+- Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
 
 This means that IntelliJ activated the `java11` profile despite an older JDK being used.
 Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.

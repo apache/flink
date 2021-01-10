@@ -59,13 +59,13 @@ class BatchTableSourceScan(
   with BatchScan {
 
   override def deriveRowType(): RelDataType = {
-    val baseRowType = table.getRowType
+    val rowType = table.getRowType
     selectedFields.map(idxs => {
-      val fields = baseRowType.getFieldList
+      val fields = rowType.getFieldList
       val builder = cluster.getTypeFactory.builder()
       idxs.map(fields.get).foreach(builder.add)
       builder.build()
-    }).getOrElse(baseRowType)
+    }).getOrElse(rowType)
   }
 
   override def computeSelfCost (planner: RelOptPlanner, metadata: RelMetadataQuery): RelOptCost = {
@@ -116,7 +116,8 @@ class BatchTableSourceScan(
       case _ => throw new TableException("Only BatchTableSource and InputFormatTableSource are " +
         "supported in BatchTableEnvironment.")
     }
-    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType)
+    // Fix the nullability of row type info.
+    val inputDataType = fromLegacyInfoToDataType(inputDataSet.getType).notNull()
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataSet are identical

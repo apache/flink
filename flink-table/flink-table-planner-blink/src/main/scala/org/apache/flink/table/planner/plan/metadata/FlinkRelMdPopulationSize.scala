@@ -94,7 +94,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
     // numDistinctVals.  This is needed; otherwise, population can be
     // larger than the number of rows in the RelNode.
     val rowCount = mq.getRowCount(rel)
-    RelMdUtil.numDistinctVals(population, rowCount)
+    FlinkRelMdUtil.numDistinctVals(population, rowCount)
   }
 
   def getPopulationSize(
@@ -136,7 +136,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
     // numDistinctVals.  This is needed; otherwise, population can be
     // larger than the number of rows in the RelNode.
     val rowCount = mq.getRowCount(rel)
-    RelMdUtil.numDistinctVals(population, rowCount)
+    FlinkRelMdUtil.numDistinctVals(population, rowCount)
   }
 
   def getPopulationSize(
@@ -218,7 +218,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
   }
 
   def getPopulationSize(
-      rel: BatchExecGroupAggregateBase,
+      rel: BatchPhysicalGroupAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
     // for global agg which has inner local agg, it passes the parameters to input directly
@@ -290,11 +290,11 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
   }
 
   def getPopulationSize(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery,
       groupKey: ImmutableBitSet): JDouble = {
     if (rel.isFinal) {
-      val namedWindowStartIndex = rel.getRowType.getFieldCount - rel.getNamedProperties.size
+      val namedWindowStartIndex = rel.getRowType.getFieldCount - rel.namedWindowProperties.size
       val groupKeyFromNamedWindow = groupKey.toList.exists(_ >= namedWindowStartIndex)
       if (groupKeyFromNamedWindow) {
         return null
@@ -306,7 +306,7 @@ class FlinkRelMdPopulationSize private extends MetadataHandler[BuiltInMetadata.P
       }
     } else {
       // local window aggregate
-      val assignTsFieldIndex = rel.getGrouping.length
+      val assignTsFieldIndex = rel.grouping.length
       if (groupKey.toList.contains(assignTsFieldIndex)) {
         // groupKey contains `assignTs` fields
         return null

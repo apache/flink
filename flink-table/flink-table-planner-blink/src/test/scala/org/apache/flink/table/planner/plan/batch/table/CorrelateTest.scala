@@ -19,10 +19,11 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.{MockPythonTableFunction, TableFunc0, TableFunc1, TableTestBase}
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
@@ -37,7 +38,7 @@ class CorrelateTest extends TableTestBase {
 
     val result1 = table.joinLateral(func('c) as 's).select('c, 's)
 
-    util.verifyPlan(result1)
+    util.verifyExecPlan(result1)
   }
 
   @Test
@@ -48,7 +49,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", func)
 
     val result2 = table.joinLateral(func('c, "$") as 's).select('c, 's)
-    util.verifyPlan(result2)
+    util.verifyExecPlan(result2)
   }
 
   @Test
@@ -59,7 +60,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", func)
 
     val result = table.leftOuterJoinLateral(func('c) as 's).select('c, 's).where('s > "")
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -70,7 +71,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", func)
 
     val result = table.leftOuterJoinLateral(func('c) as 's, true).select('c, 's)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -87,7 +88,7 @@ class CorrelateTest extends TableTestBase {
       .where('e > 20)
       .select('c, 'd)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -97,9 +98,9 @@ class CorrelateTest extends TableTestBase {
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
       .get.remove(
       RuleSets.ofList(
-        CalcMergeRule.INSTANCE,
-        FilterCalcMergeRule.INSTANCE,
-        ProjectCalcMergeRule.INSTANCE))
+        CoreRules.CALC_MERGE,
+        CoreRules.FILTER_CALC_MERGE,
+        CoreRules.PROJECT_CALC_MERGE))
     // removing
     util.replaceBatchProgram(programs)
 
@@ -114,7 +115,7 @@ class CorrelateTest extends TableTestBase {
       .where('e > 20)
       .select('c, 'd)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -124,6 +125,6 @@ class CorrelateTest extends TableTestBase {
     val func = new MockPythonTableFunction
     val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

@@ -250,8 +250,9 @@ class DecomposeGroupingSetsRule extends RelOptRule(
     val newAggCalls = aggCallsWithIndexes.collect {
       case (aggCall, idx) if !groupIdExprs.contains(idx) =>
         val newArgList = aggCall.getArgList.map(a => duplicateFieldMap.getOrElse(a, a)).toList
+        val newFilterArg = duplicateFieldMap.getOrDefault(aggCall.filterArg, aggCall.filterArg)
         aggCall.adaptTo(
-          relBuilder.peek(), newArgList, aggCall.filterArg, agg.getGroupCount, newGroupCount)
+          relBuilder.peek(), newArgList, newFilterArg, agg.getGroupCount, newGroupCount)
     }
 
     // create simple aggregate

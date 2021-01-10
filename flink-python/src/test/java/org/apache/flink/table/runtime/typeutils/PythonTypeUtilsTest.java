@@ -39,63 +39,65 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for {@link PythonTypeUtils}.
- */
+/** Tests for {@link PythonTypeUtils}. */
 public class PythonTypeUtilsTest {
 
-	@Test
-	public void testLogicalTypeToFlinkTypeSerializer() {
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		rowFields.add(new RowType.RowField("f1", new BigIntType()));
-		RowType rowType = new RowType(rowFields);
-		TypeSerializer rowSerializer = PythonTypeUtils.toFlinkTypeSerializer(rowType);
-		assertTrue(rowSerializer instanceof RowSerializer);
+    @Test
+    public void testLogicalTypeToFlinkTypeSerializer() {
+        List<RowType.RowField> rowFields = new ArrayList<>();
+        rowFields.add(new RowType.RowField("f1", new BigIntType()));
+        RowType rowType = new RowType(rowFields);
+        TypeSerializer rowSerializer = PythonTypeUtils.toFlinkTypeSerializer(rowType);
+        assertTrue(rowSerializer instanceof RowSerializer);
 
-		assertEquals(1, ((RowSerializer) rowSerializer).getArity());
-	}
+        assertEquals(1, ((RowSerializer) rowSerializer).getArity());
+    }
 
-	@Test
-	public void testLogicalTypeToBlinkTypeSerializer() {
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		rowFields.add(new RowType.RowField("f1", new BigIntType()));
-		RowType rowType = new RowType(rowFields);
-		TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
-		assertTrue(baseSerializer instanceof BaseRowSerializer);
+    @Test
+    public void testLogicalTypeToBlinkTypeSerializer() {
+        List<RowType.RowField> rowFields = new ArrayList<>();
+        rowFields.add(new RowType.RowField("f1", new BigIntType()));
+        RowType rowType = new RowType(rowFields);
+        TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
+        assertTrue(baseSerializer instanceof RowDataSerializer);
 
-		assertEquals(1, ((BaseRowSerializer) baseSerializer).getArity());
-	}
+        assertEquals(1, ((RowDataSerializer) baseSerializer).getArity());
+    }
 
-	@Test
-	public void testLogicalTypeToProto() {
-		List<RowType.RowField> rowFields = new ArrayList<>();
-		rowFields.add(new RowType.RowField("f1", new BigIntType()));
-		RowType rowType = new RowType(rowFields);
-		FlinkFnApi.Schema.FieldType protoType =
-			rowType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
-		FlinkFnApi.Schema schema = protoType.getRowSchema();
-		assertEquals(1, schema.getFieldsCount());
-		assertEquals("f1", schema.getFields(0).getName());
-		assertEquals(FlinkFnApi.Schema.TypeName.BIGINT, schema.getFields(0).getType().getTypeName());
-	}
+    @Test
+    public void testLogicalTypeToProto() {
+        List<RowType.RowField> rowFields = new ArrayList<>();
+        rowFields.add(new RowType.RowField("f1", new BigIntType()));
+        RowType rowType = new RowType(rowFields);
+        FlinkFnApi.Schema.FieldType protoType =
+                rowType.accept(new PythonTypeUtils.LogicalTypeToProtoTypeConverter());
+        FlinkFnApi.Schema schema = protoType.getRowSchema();
+        assertEquals(1, schema.getFieldsCount());
+        assertEquals("f1", schema.getFields(0).getName());
+        assertEquals(
+                FlinkFnApi.Schema.TypeName.BIGINT, schema.getFields(0).getType().getTypeName());
+    }
 
-	@Test
-	public void testUnsupportedTypeSerializer() {
-		LogicalType logicalType = new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"));
-		String expectedTestException = "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
-		try {
-			PythonTypeUtils.toFlinkTypeSerializer(logicalType);
-		} catch (Exception e) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
-		}
-	}
+    @Test
+    public void testUnsupportedTypeSerializer() {
+        LogicalType logicalType =
+                new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"));
+        String expectedTestException =
+                "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
+        try {
+            PythonTypeUtils.toFlinkTypeSerializer(logicalType);
+        } catch (Exception e) {
+            assertTrue(
+                    ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());
+        }
+    }
 
-	@Test
-	public void testLogicalTypeToConversionClassConverter() {
-		PythonTypeUtils.LogicalTypeToConversionClassConverter converter =
-			PythonTypeUtils.LogicalTypeToConversionClassConverter.INSTANCE;
-		ArrayType arrayType = new ArrayType(new ArrayType(new DateType()));
-		Class<?> conversionClass = converter.visit(arrayType);
-		assertEquals(Date[][].class, conversionClass);
-	}
+    @Test
+    public void testLogicalTypeToConversionClassConverter() {
+        PythonTypeUtils.LogicalTypeToConversionClassConverter converter =
+                PythonTypeUtils.LogicalTypeToConversionClassConverter.INSTANCE;
+        ArrayType arrayType = new ArrayType(new ArrayType(new DateType()));
+        Class<?> conversionClass = converter.visit(arrayType);
+        assertEquals(Date[][].class, conversionClass);
+    }
 }

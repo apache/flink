@@ -27,7 +27,7 @@ under the License.
 {:toc}
 
 This connector provides a Sink that writes partitioned files to filesystems
-supported by the [Flink `FileSystem` abstraction]({{ site.baseurl}}/ops/filesystems/index.html).
+supported by the [Flink `FileSystem` abstraction]({% link deployment/filesystems/index.md %}).
 
 The streaming file sink writes incoming data into buckets. Given that the incoming streams can be unbounded,
 data in each bucket are organized into part files of finite size. The bucketing behaviour is fully configurable
@@ -40,11 +40,11 @@ rolling policy. The default policy rolls part files based on size, a timeout tha
 
  <div class="alert alert-info">
      <b>IMPORTANT:</b> Checkpointing needs to be enabled when using the StreamingFileSink. Part files can only be finalized
-     on successful checkpoints. If checkpointing is disabled part files will forever stay in `in-progress` or `pending` state
+     on successful checkpoints. If checkpointing is disabled, part files will forever stay in the `in-progress` or the `pending` state,
      and cannot be safely read by downstream systems.
  </div>
 
- <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
+ <img src="{% link /fig/streamfilesink_bucketing.png %}" class="center" style="width: 100%;" />
 
 
 ## File Formats
@@ -65,7 +65,7 @@ and more documentation about the implementation of the different data formats.
 
 Row-encoded formats need to specify an [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html) that is used for serializing individual rows to the `OutputStream` of the in-progress part files.
 
-In addition to the bucket assigner the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
+In addition to the bucket assigner, the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
 
  - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) : Rolling policy to override the DefaultRollingPolicy
  - bucketCheckInterval (default = 1 min) : Millisecond interval for checking time based rolling policies
@@ -123,25 +123,26 @@ input.addSink(sink)
 </div>
 
 This example creates a simple sink that assigns records to the default one hour time buckets. It also specifies
-a rolling policy that rolls the in-progress part file on either of the following 3 conditions:
+a rolling policy that rolls the in-progress part file on any of the following 3 conditions:
 
  - It contains at least 15 minutes worth of data
  - It hasn't received new records for the last 5 minutes
- - The file size reached 1 GB (after writing the last record)
+ - The file size has reached 1 GB (after writing the last record)
 
 ### Bulk-encoded Formats
 
-Bulk-encoded sinks are created similarly to the row-encoded ones but here instead of
-specifying an `Encoder` we have to specify [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
-The `BulkWriter` logic defines how new elements added, flushed and how the bulk of records
-are finalized for further encoding purposes.
+Bulk-encoded sinks are created similarly to the row-encoded ones, but instead of
+specifying an `Encoder`, we have to specify a [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
+The `BulkWriter` logic defines how new elements are added and flushed, and how a batch of records
+is finalized for further encoding purposes.
 
-Flink comes with three built-in BulkWriter factories:
+Flink comes with four built-in BulkWriter factories:
 
  - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
+ - [AvroWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroWriterFactory.html)
  - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
  - [CompressWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/compress/CompressWriterFactory.html)
-
+ - [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/writer/OrcBulkWriterFactory.html)
 
 <div class="alert alert-info">
      <b>IMPORTANT:</b> Bulk Formats can only have `OnCheckpointRollingPolicy`, which rolls (ONLY) on every checkpoint.
@@ -175,7 +176,7 @@ import org.apache.avro.Schema;
 
 
 Schema schema = ...;
-DataStream<GenericRecord> stream = ...;
+DataStream<GenericRecord> input = ...;
 
 final StreamingFileSink<GenericRecord> sink = StreamingFileSink
 	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
@@ -199,6 +200,342 @@ val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
     .build()
 
 input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+Similarly, a StreamingFileSink that writes Protobuf data to Parquet format can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
+
+// ProtoRecord is a generated protobuf Message class.
+DataStream<ProtoRecord> input = ...;
+
+final StreamingFileSink<ProtoRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, ParquetProtoWriters.forType(ProtoRecord.class))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
+
+// ProtoRecord is a generated protobuf Message class.
+val input: DataStream[ProtoRecord] = ...
+
+val sink: StreamingFileSink[ProtoRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, ParquetProtoWriters.forType(classOf[ProtoRecord]))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+#### Avro format
+
+Flink also provides built-in support for writing data into Avro files. A list of convenience methods to create
+Avro writer factories and their associated documentation can be found in the 
+[AvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroWriters.html) class.
+
+To use the Avro writers in your application you need to add the following dependency:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-avro</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+A StreamingFileSink that writes data to Avro files can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.avro.AvroWriters;
+import org.apache.avro.Schema;
+
+
+Schema schema = ...;
+DataStream<GenericRecord> input = ...;
+
+final StreamingFileSink<GenericRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.avro.AvroWriters
+import org.apache.avro.Schema
+
+val schema: Schema = ...
+val input: DataStream[GenericRecord] = ...
+
+val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, AvroWriters.forGenericRecord(schema))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+For creating customized Avro writers, e.g. enabling compression, users need to create the `AvroWriterFactory`
+with a custom implementation of the [AvroBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/avro/AvroBuilder.html) interface:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+AvroWriterFactory<?> factory = new AvroWriterFactory<>((AvroBuilder<Address>) out -> {
+	Schema schema = ReflectData.get().getSchema(Address.class);
+	DatumWriter<Address> datumWriter = new ReflectDatumWriter<>(schema);
+
+	DataFileWriter<Address> dataFileWriter = new DataFileWriter<>(datumWriter);
+	dataFileWriter.setCodec(CodecFactory.snappyCodec());
+	dataFileWriter.create(schema, out);
+	return dataFileWriter;
+});
+
+DataStream<Address> stream = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+	outputBasePath,
+	factory).build());
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val factory = new AvroWriterFactory[Address](new AvroBuilder[Address]() {
+    override def createWriter(out: OutputStream): DataFileWriter[Address] = {
+        val schema = ReflectData.get.getSchema(classOf[Address])
+        val datumWriter = new ReflectDatumWriter[Address](schema)
+
+        val dataFileWriter = new DataFileWriter[Address](datumWriter)
+        dataFileWriter.setCodec(CodecFactory.snappyCodec)
+        dataFileWriter.create(schema, out)
+        dataFileWriter
+    }
+})
+
+val stream: DataStream[Address] = ...
+stream.addSink(StreamingFileSink.forBulkFormat(
+    outputBasePath,
+    factory).build());
+{% endhighlight %}
+</div>
+</div>
+
+#### ORC Format
+ 
+To enable the data to be bulk encoded in ORC format, Flink offers [OrcBulkWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/orc/writers/OrcBulkWriterFactory.html) 
+which takes a concrete implementation of [Vectorizer]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/orc/vector/Vectorizer.html).
+
+Like any other columnar format that encodes data in bulk fashion, Flink's `OrcBulkWriter` writes the input elements in batches. It uses 
+ORC's `VectorizedRowBatch` to achieve this. 
+
+Since the input element has to be transformed to a `VectorizedRowBatch`, users have to extend the abstract `Vectorizer` 
+class and override the `vectorize(T element, VectorizedRowBatch batch)` method. As you can see, the method provides an 
+instance of `VectorizedRowBatch` to be used directly by the users so users just have to write the logic to transform the 
+input `element` to `ColumnVectors` and set them in the provided `VectorizedRowBatch` instance.
+
+For example, if the input element is of type `Person` which looks like: 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+class Person {
+    private final String name;
+    private final int age;
+    ...
+}
+
+{% endhighlight %}
+</div>
+</div>
+
+Then a child implementation to convert the element of type `Person` and set them in the `VectorizedRowBatch` can be like: 
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
+import org.apache.hadoop.hive.ql.exec.vector.LongColumnVector;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+
+public class PersonVectorizer extends Vectorizer<Person> implements Serializable {	
+	public PersonVectorizer(String schema) {
+		super(schema);
+	}
+	@Override
+	public void vectorize(Person element, VectorizedRowBatch batch) throws IOException {
+		BytesColumnVector nameColVector = (BytesColumnVector) batch.cols[0];
+		LongColumnVector ageColVector = (LongColumnVector) batch.cols[1];
+		int row = batch.size++;
+		nameColVector.setVal(row, element.getName().getBytes(StandardCharsets.UTF_8));
+		ageColVector.vector[row] = element.getAge();
+	}
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import java.nio.charset.StandardCharsets
+import org.apache.hadoop.hive.ql.exec.vector.{BytesColumnVector, LongColumnVector}
+
+class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
+
+  override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
+    val nameColVector = batch.cols(0).asInstanceOf[BytesColumnVector]
+    val ageColVector = batch.cols(1).asInstanceOf[LongColumnVector]
+    nameColVector.setVal(batch.size + 1, element.getName.getBytes(StandardCharsets.UTF_8))
+    ageColVector.vector(batch.size + 1) = element.getAge
+  }
+
+}
+
+{% endhighlight %}
+</div>
+</div>
+
+To use the ORC bulk encoder in an application, users need to add the following dependency:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-orc{{ site.scala_version_suffix }}</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+And then a `StreamingFileSink` that writes data in ORC format can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.orc.writer.OrcBulkWriterFactory;
+
+String schema = "struct<_col0:string,_col1:int>";
+DataStream<Person> input = ...;
+
+final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(new PersonVectorizer(schema));
+
+final StreamingFileSink<Person> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, writerFactory)
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.orc.writer.OrcBulkWriterFactory
+
+val schema: String = "struct<_col0:string,_col1:int>"
+val input: DataStream[Person] = ...
+val writerFactory = new OrcBulkWriterFactory(new PersonVectorizer(schema));
+
+val sink: StreamingFileSink[Person] = StreamingFileSink
+    .forBulkFormat(outputBasePath, writerFactory)
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+OrcBulkWriterFactory can also take Hadoop `Configuration` and `Properties` so that a custom Hadoop configuration and ORC 
+writer properties can be provided.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+String schema = ...;
+Configuration conf = ...;
+Properties writerProperties = new Properties();
+
+writerProps.setProperty("orc.compress", "LZ4");
+// Other ORC supported properties can also be set similarly.
+
+final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(
+    new PersonVectorizer(schema), writerProperties, conf);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+val schema: String = ...
+val conf: Configuration = ...
+val writerProperties: Properties = new Properties()
+
+writerProps.setProperty("orc.compress", "LZ4")
+// Other ORC supported properties can also be set similarly.
+
+val writerFactory = new OrcBulkWriterFactory(
+    new PersonVectorizer(schema), writerProperties, conf)
+{% endhighlight %}
+</div>
+</div> 
+
+The complete list of ORC writer properties can be found [here](https://orc.apache.org/docs/hive-config.html).
+
+Users who want to add user metadata to the ORC files can do so by calling `addUserMetadata(...)` inside the overriding 
+`vectorize(...)` method.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+
+public class PersonVectorizer extends Vectorizer<Person> implements Serializable {	
+	@Override
+	public void vectorize(Person element, VectorizedRowBatch batch) throws IOException {
+		...
+		String metadataKey = ...;
+		ByteBuffer metadataValue = ...;
+		this.addUserMetadata(metadataKey, metadataValue);
+	}
+}
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+
+class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
+
+  override def vectorize(element: Person, batch: VectorizedRowBatch): Unit = {
+    ...
+    val metadataKey: String = ...
+    val metadataValue: ByteBuffer = ...
+    addUserMetadata(metadataKey, metadataValue)
+  }
+
+}
 
 {% endhighlight %}
 </div>
@@ -430,8 +767,11 @@ in-progress files will not be transitioned to the "finished" state.
 
 <span class="label label-danger">Important Note 3</span>: Flink and the `StreamingFileSink` never overwrites committed data.
 Given this, when trying to restore from an old checkpoint/savepoint which assumes an in-progress file which was committed
-by subsequent successful checkpoints, Flink will refuse to resume and it will throw an exception as it cannot locate the 
+by subsequent successful checkpoints, the `StreamingFileSink` will refuse to resume and it will throw an exception as it cannot locate the 
 in-progress file.
+
+<span class="label label-danger">Important Note 4</span>: Currently, the `StreamingFileSink` only supports three filesystems: 
+HDFS, S3, and Local. Flink will throw an exception when using an unsupported filesystem at runtime.
 
 ### S3-specific
 

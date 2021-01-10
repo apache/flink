@@ -25,7 +25,7 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-ALTER statements are used to modified a registered table/view/function definition in the [Catalog]({{ site.baseurl }}/dev/table/catalogs.html).
+ALTER statements are used to modified a registered table/view/function definition in the [Catalog]({% link dev/table/catalogs.md %}).
 
 Flink SQL supports the following ALTER statements for now:
 
@@ -35,9 +35,32 @@ Flink SQL supports the following ALTER statements for now:
 
 ## Run an ALTER statement
 
-ALTER statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful ALTER operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-The following examples show how to run an ALTER statement in `TableEnvironment` and in SQL CLI.
+<div data-lang="java/scala" markdown="1">
+
+ALTER statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful ALTER operation, otherwise will throw an exception.
+
+The following examples show how to run an ALTER statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+ALTER statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful ALTER operation, otherwise will throw an exception.
+
+The following examples show how to run an ALTER statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+ALTER statements can be executed in [SQL CLI]({% link dev/table/sqlClient.md %}).
+
+The following examples show how to run an ALTER statement in SQL CLI.
+
+</div>
+</div>
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -46,16 +69,18 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
 // a string array: ["Orders"]
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 
 // rename "Orders" to "NewOrders"
-tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;");
+tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders;");
 
 // a string array: ["NewOrders"]
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 {% endhighlight %}
 </div>
 
@@ -65,32 +90,36 @@ val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
 // a string array: ["Orders"]
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 
 // rename "Orders" to "NewOrders"
-tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;")
+tableEnv.executeSql("ALTER TABLE Orders RENAME TO NewOrders;")
 
 // a string array: ["NewOrders"]
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # a string array: ["Orders"]
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 
 # rename "Orders" to "NewOrders"
-tableEnv.sqlUpdate("ALTER TABLE Orders RENAME TO NewOrders;")
+table_env.execute_sql("ALTER TABLE Orders RENAME TO NewOrders;")
 
 # a string array: ["NewOrders"]
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
@@ -142,10 +171,14 @@ Set one or more properties in the specified database. If a particular property i
 {% highlight sql%}
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION 
   [IF EXISTS] [catalog_name.][db_name.]function_name 
-  AS identifier [LANGUAGE JAVA|SCALA|
+  AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
 {% endhighlight %}
 
-Alter a catalog function with the new identifier which is full classpath for JAVA/SCALA and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+Alter a catalog function with the new identifier and optional language tag. If a function doesn't exist in the catalog, an exception is thrown.
+
+If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({% link dev/table/functions/udfs.md %}) for more details.
+
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({% link dev/python/table-api-users-guide/udfs/python_udfs.md %}) for more details.
 
 **TEMPORARY**
 
@@ -159,7 +192,7 @@ Alter temporary system function that has no namespace and overrides built-in fun
 
 If the function doesn't exist, nothing happens.
 
-**LANGUAGE JAVA\|SCALA**
+**LANGUAGE JAVA\|SCALA\|PYTHON**
 
-Language tag to instruct flink runtime how to execute the function. Currently only JAVA and SCALA are supported, the default language for a function is JAVA.
+Language tag to instruct flink runtime how to execute the function. Currently only JAVA, SCALA and PYTHON are supported, the default language for a function is JAVA.
 

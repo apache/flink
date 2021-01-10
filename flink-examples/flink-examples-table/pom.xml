@@ -25,11 +25,11 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<name>flink-examples-table</name>
+	<name>Flink : Examples : Table</name>
 	<artifactId>flink-examples-table_${scala.binary.version}</artifactId>
 	<packaging>jar</packaging>
 
@@ -57,16 +57,31 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
+		<!-- Table connectors and formats -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Flink core -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-scala_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -99,6 +114,54 @@ under the License.
 				<executions>
 
 					<execution>
+						<id>GettingStartedExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>GettingStartedExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.basics.GettingStartedExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/basics/GettingStartedExample*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>UpdatingTopCityExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>UpdatingTopCityExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.basics.UpdatingTopCityExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/basics/UpdatingTopCityExample*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
 						<id>StreamSQLExample</id>
 						<phase>package</phase>
 						<goals>
@@ -110,12 +173,14 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.StreamSQLExample</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.StreamSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/StreamSQLExample*</include>
+								<include>org/apache/flink/table/examples/java/basics/StreamSQLExample*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -132,12 +197,14 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.StreamWindowSQLExample</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.StreamWindowSQLExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/StreamWindowSQLExample*</include>
+								<include>org/apache/flink/table/examples/java/basics/StreamWindowSQLExample*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -154,12 +221,14 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.WordCountSQL</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountSQL</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/WordCountSQL*</include>
+								<include>org/apache/flink/table/examples/java/basics/WordCountSQL*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -176,12 +245,39 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.java.WordCountTable</program-class>
+									<program-class>org.apache.flink.table.examples.java.basics.WordCountTable</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/java/WordCountTable*</include>
+								<include>org/apache/flink/table/examples/java/basics/WordCountTable*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
+							</includes>
+						</configuration>
+					</execution>
+
+					<execution>
+						<id>ChangelogSocketExample</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+
+						<configuration>
+							<classifier>ChangelogSocketExample</classifier>
+
+							<archive>
+								<manifestEntries>
+									<program-class>org.apache.flink.table.examples.java.connectors.ChangelogSocketExample</program-class>
+								</manifestEntries>
+							</archive>
+
+							<includes>
+								<include>org/apache/flink/table/examples/java/connectors/*</include>
+								<include>**/META-INF/services/*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -198,12 +294,14 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.StreamTableExample</program-class>
+									<program-class>org.apache.flink.table.examples.scala.basics.StreamTableExample</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/scala/StreamTableExample*</include>
+								<include>org/apache/flink/table/examples/scala/basics/StreamTableExample*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -220,12 +318,14 @@ under the License.
 
 							<archive>
 								<manifestEntries>
-									<program-class>org.apache.flink.table.examples.scala.TPCHQuery3Table</program-class>
+									<program-class>org.apache.flink.table.examples.scala.basics.TPCHQuery3Table</program-class>
 								</manifestEntries>
 							</archive>
 
 							<includes>
-								<include>org/apache/flink/table/examples/scala/TPCHQuery3Table*</include>
+								<include>org/apache/flink/table/examples/scala/basics/TPCHQuery3Table*</include>
+								<include>META-INF/LICENSE</include>
+								<include>META-INF/NOTICE</include>
 							</includes>
 						</configuration>
 					</execution>
@@ -241,12 +341,14 @@ under the License.
 						<id>rename</id>
 						<configuration>
 							<target>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-GettingStartedExample.jar" tofile="${project.basedir}/target/GettingStartedExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamSQLExample.jar" tofile="${project.basedir}/target/StreamSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamWindowSQLExample.jar" tofile="${project.basedir}/target/StreamWindowSQLExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountSQL.jar" tofile="${project.basedir}/target/WordCountSQL.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-WordCountTable.jar" tofile="${project.basedir}/target/WordCountTable.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-StreamTableExample.jar" tofile="${project.basedir}/target/StreamTableExample.jar"/>
 								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-TPCHQuery3Table.jar" tofile="${project.basedir}/target/TPCHQuery3Table.jar"/>
+								<copy file="${project.basedir}/target/flink-examples-table_${scala.binary.version}-${project.version}-ChangelogSocketExample.jar" tofile="${project.basedir}/target/ChangelogSocketExample.jar"/>
 							</target>
 						</configuration>
 					</execution>

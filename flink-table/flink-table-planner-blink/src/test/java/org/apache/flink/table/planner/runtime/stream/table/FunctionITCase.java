@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.table;
 
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
@@ -36,130 +37,119 @@ import java.util.List;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-/**
- * Tests for user defined functions in the Table API.
- */
+/** Tests for user defined functions in the Table API. */
 public class FunctionITCase extends StreamingTestBase {
 
-	@Rule
-	public ExpectedException thrown = ExpectedException.none();
+    @Rule public ExpectedException thrown = ExpectedException.none();
 
-	@Test
-	public void testScalarFunction() throws Exception {
-		final List<Row> sourceData = Arrays.asList(
-			Row.of(1, 1L, 1L),
-			Row.of(2, 2L, 1L),
-			Row.of(3, 3L, 1L)
-		);
+    @Test
+    public void testScalarFunction() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(Row.of(1, 1L, 1L), Row.of(2, 2L, 1L), Row.of(3, 3L, 1L));
 
-		final List<Row> sinkData = Arrays.asList(
-			Row.of(1, 2L, 1L),
-			Row.of(2, 4L, 1L),
-			Row.of(3, 6L, 1L)
-		);
+        final List<Row> sinkData =
+                Arrays.asList(Row.of(1, 2L, 1L), Row.of(2, 4L, 1L), Row.of(3, 6L, 1L));
 
-		TestCollectionTableFactory.reset();
-		TestCollectionTableFactory.initData(sourceData);
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("TestTable")
-			.select(
-				$("a"),
-				call(new SimpleScalarFunction(), $("a"), $("b")),
-				call(new SimpleScalarFunction(), $("a"), $("b"))
-					.plus(1)
-					.minus(call(new SimpleScalarFunction(), $("a"), $("b")))
-			)
-			.insertInto("TestTable");
-		tEnv().execute("Test Job");
+        Table table =
+                tEnv().from("TestTable")
+                        .select(
+                                $("a"),
+                                call(new SimpleScalarFunction(), $("a"), $("b")),
+                                call(new SimpleScalarFunction(), $("a"), $("b"))
+                                        .plus(1)
+                                        .minus(call(new SimpleScalarFunction(), $("a"), $("b"))));
+        table.executeInsert("TestTable").await();
 
-		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
-	}
+        assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+    }
 
-	@Test
-	public void testJoinWithTableFunction() throws Exception {
-		final List<Row> sourceData = Arrays.asList(
-			Row.of("1,2,3"),
-			Row.of("2,3,4"),
-			Row.of("3,4,5"),
-			Row.of((String) null)
-		);
+    @Test
+    public void testJoinWithTableFunction() throws Exception {
+        final List<Row> sourceData =
+                Arrays.asList(
+                        Row.of("1,2,3"), Row.of("2,3,4"), Row.of("3,4,5"), Row.of((String) null));
 
-		final List<Row> sinkData = Arrays.asList(
-			Row.of("1,2,3", new String[]{"1", "2", "3"}),
-			Row.of("2,3,4", new String[]{"2", "3", "4"}),
-			Row.of("3,4,5", new String[]{"3", "4", "5"})
-		);
+        final List<Row> sinkData =
+                Arrays.asList(
+                        Row.of("1,2,3", new String[] {"1", "2", "3"}),
+                        Row.of("2,3,4", new String[] {"2", "3", "4"}),
+                        Row.of("3,4,5", new String[] {"3", "4", "5"}));
 
-		TestCollectionTableFactory.reset();
-		TestCollectionTableFactory.initData(sourceData);
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
 
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("SourceTable")
-			.joinLateral(call(new SimpleTableFunction(), $("s")).as("a", "b"))
-			.select($("a"), $("b"))
-			.insertInto("SinkTable");
-		tEnv().execute("Test Job");
+        tEnv().from("SourceTable")
+                .joinLateral(call(new SimpleTableFunction(), $("s")).as("a", "b"))
+                .select($("a"), $("b"))
+                .executeInsert("SinkTable")
+                .await();
 
-		assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
-	}
+        assertThat(TestCollectionTableFactory.getResult(), equalTo(sinkData));
+    }
 
-	@Test
-	public void testLateralJoinWithScalarFunction() throws Exception {
-		thrown.expect(ValidationException.class);
-		thrown.expectMessage("Currently, only table functions can emit rows.");
+    @Test
+    public void testLateralJoinWithScalarFunction() throws Exception {
+        thrown.expect(ValidationException.class);
+        thrown.expect(
+                hasMessage(
+                        containsString(
+                                "Currently, only table functions can be used in a correlate operation.")));
 
-		TestCollectionTableFactory.reset();
-		tEnv().sqlUpdate("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
-		tEnv().sqlUpdate("CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
+        TestCollectionTableFactory.reset();
+        tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql(
+                        "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-		tEnv().from("SourceTable")
-			.joinLateral(call(new RowScalarFunction(), $("s")).as("a", "b"))
-			.select($("a"), $("b"))
-			.insertInto("SinkTable");
-		tEnv().execute("Test Job");
-	}
+        tEnv().from("SourceTable")
+                .joinLateral(call(new RowScalarFunction(), $("s")).as("a", "b"))
+                .select($("a"), $("b"))
+                .executeInsert("SinkTable")
+                .await();
+    }
 
-	// --------------------------------------------------------------------------------------------
-	// Test functions
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
+    // Test functions
+    // --------------------------------------------------------------------------------------------
 
-	/**
-	 * Simple scalar function.
-	 */
-	public static class SimpleScalarFunction extends ScalarFunction {
-		public Long eval(Integer i, Long j) {
-			return i + j;
-		}
-	}
+    /** Simple scalar function. */
+    public static class SimpleScalarFunction extends ScalarFunction {
+        public Long eval(Integer i, Long j) {
+            return i + j;
+        }
+    }
 
-	/**
-	 * Scalar function that returns a row.
-	 */
-	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
-	public static class RowScalarFunction extends ScalarFunction {
-		public Row eval(String s) {
-			return Row.of(s, s.split(","));
-		}
-	}
+    /** Scalar function that returns a row. */
+    @FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
+    public static class RowScalarFunction extends ScalarFunction {
+        public Row eval(String s) {
+            return Row.of(s, s.split(","));
+        }
+    }
 
-	/**
-	 * Table function that returns a row.
-	 */
-	@FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
-	public static class SimpleTableFunction extends TableFunction<Row> {
-		public void eval(String s) {
-			if (s == null) {
-				collect(null);
-			} else {
-				collect(Row.of(s, s.split(",")));
-			}
-		}
-	}
+    /** Table function that returns a row. */
+    @FunctionHint(output = @DataTypeHint("ROW<s STRING, sa ARRAY<STRING>>"))
+    public static class SimpleTableFunction extends TableFunction<Row> {
+        public void eval(String s) {
+            if (s == null) {
+                collect(null);
+            } else {
+                collect(Row.of(s, s.split(",")));
+            }
+        }
+    }
 }

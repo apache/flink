@@ -15,6 +15,12 @@
             <td>Path to hadoop configuration directory. It is required to read HDFS and/or YARN configuration. You can also set it via environment variable.</td>
         </tr>
         <tr>
+            <td><h5>env.hbase.conf.dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Path to hbase configuration directory. It is required to read HBASE configuration. You can also set it via environment variable.</td>
+        </tr>
+        <tr>
             <td><h5>env.java.opts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
@@ -55,6 +61,12 @@
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>The maximum number of old log files to keep.</td>
+        </tr>
+        <tr>
+            <td><h5>env.pid.dir</h5></td>
+            <td style="word-wrap: break-word;">"/tmp"</td>
+            <td>String</td>
+            <td>Defines the directory where the flink-&lt;host&gt;-&lt;process&gt;.pid files are saved.</td>
         </tr>
         <tr>
             <td><h5>env.ssh.opts</h5></td>

@@ -23,9 +23,10 @@ import org.apache.flink.client.deployment.AbstractContainerizedClusterClientFact
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.configuration.DeploymentOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-import org.apache.flink.yarn.executors.YarnJobClusterExecutor;
-import org.apache.flink.yarn.executors.YarnSessionClusterExecutor;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
+import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.client.api.YarnClient;
@@ -34,48 +35,57 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 
 import javax.annotation.Nullable;
 
+import java.util.Optional;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link ClusterClientFactory} for a YARN cluster.
- */
+/** A {@link ClusterClientFactory} for a YARN cluster. */
 @Internal
-public class YarnClusterClientFactory extends AbstractContainerizedClusterClientFactory<ApplicationId> {
+public class YarnClusterClientFactory
+        extends AbstractContainerizedClusterClientFactory<ApplicationId> {
 
-	@Override
-	public boolean isCompatibleWith(Configuration configuration) {
-		checkNotNull(configuration);
-		final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget) ||
-				YarnSessionClusterExecutor.NAME.equalsIgnoreCase(deploymentTarget);
-	}
+    @Override
+    public boolean isCompatibleWith(Configuration configuration) {
+        checkNotNull(configuration);
+        final String deploymentTarget = configuration.getString(DeploymentOptions.TARGET);
+        return YarnDeploymentTarget.isValidYarnTarget(deploymentTarget);
+    }
 
-	@Override
-	public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
-		checkNotNull(configuration);
-		return getClusterDescriptor(configuration);
-	}
+    @Override
+    public YarnClusterDescriptor createClusterDescriptor(Configuration configuration) {
+        checkNotNull(configuration);
 
-	@Nullable
-	@Override
-	public ApplicationId getClusterId(Configuration configuration) {
-		checkNotNull(configuration);
-		final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
-		return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
-	}
+        final String configurationDirectory = configuration.get(DeploymentOptionsInternal.CONF_DIR);
+        YarnLogConfigUtil.setLogConfigFileInConfig(configuration, configurationDirectory);
 
-	private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
-		final YarnClient yarnClient = YarnClient.createYarnClient();
-		final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+        return getClusterDescriptor(configuration);
+    }
 
-		yarnClient.init(yarnConfiguration);
-		yarnClient.start();
+    @Nullable
+    @Override
+    public ApplicationId getClusterId(Configuration configuration) {
+        checkNotNull(configuration);
+        final String clusterId = configuration.getString(YarnConfigOptions.APPLICATION_ID);
+        return clusterId != null ? ConverterUtils.toApplicationId(clusterId) : null;
+    }
 
-		return new YarnClusterDescriptor(
-				configuration,
-				yarnConfiguration,
-				yarnClient,
-				YarnClientYarnClusterInformationRetriever.create(yarnClient),
-				false);
-	}
+    @Override
+    public Optional<String> getApplicationTargetName() {
+        return Optional.of(YarnDeploymentTarget.APPLICATION.getName());
+    }
+
+    private YarnClusterDescriptor getClusterDescriptor(Configuration configuration) {
+        final YarnClient yarnClient = YarnClient.createYarnClient();
+        final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+
+        yarnClient.init(yarnConfiguration);
+        yarnClient.start();
+
+        return new YarnClusterDescriptor(
+                configuration,
+                yarnConfiguration,
+                yarnClient,
+                YarnClientYarnClusterInformationRetriever.create(yarnClient),
+                false);
+    }
 }

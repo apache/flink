@@ -28,36 +28,37 @@ import java.util.Map;
  */
 public class MetadataSerializers {
 
-	private static final Map<Integer, MetadataSerializer> SERIALIZERS = new HashMap<>(3);
+    private static final Map<Integer, MetadataSerializer> SERIALIZERS = new HashMap<>(3);
 
-	static {
-		registerSerializer(MetadataV1Serializer.INSTANCE);
-		registerSerializer(MetadataV2Serializer.INSTANCE);
-		registerSerializer(MetadataV3Serializer.INSTANCE);
-	}
+    static {
+        registerSerializer(MetadataV1Serializer.INSTANCE);
+        registerSerializer(MetadataV2Serializer.INSTANCE);
+        registerSerializer(MetadataV3Serializer.INSTANCE);
+    }
 
-	private static void registerSerializer(MetadataSerializer serializer) {
-		SERIALIZERS.put(serializer.getVersion(), serializer);
-	}
+    private static void registerSerializer(MetadataSerializer serializer) {
+        SERIALIZERS.put(serializer.getVersion(), serializer);
+    }
 
-	/**
-	 * Returns the {@link MetadataSerializer} for the given savepoint version.
-	 *
-	 * @param version Savepoint version to get serializer for
-	 * @return Savepoint for the given version
-	 * @throws IllegalArgumentException If unknown savepoint version
-	 */
-	public static MetadataSerializer getSerializer(int version) {
-		MetadataSerializer serializer = SERIALIZERS.get(version);
-		if (serializer != null) {
-			return serializer;
-		} else {
-			throw new IllegalArgumentException("Unrecognized checkpoint version number: " + version);
-		}
-	}
+    /**
+     * Returns the {@link MetadataSerializer} for the given savepoint version.
+     *
+     * @param version Savepoint version to get serializer for
+     * @return Savepoint for the given version
+     * @throws IllegalArgumentException If unknown savepoint version
+     */
+    public static MetadataSerializer getSerializer(int version) {
+        MetadataSerializer serializer = SERIALIZERS.get(version);
+        if (serializer != null) {
+            return serializer;
+        } else {
+            throw new IllegalArgumentException(
+                    "Unrecognized checkpoint version number: " + version);
+        }
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	/** Utility method class, not meant to be instantiated. */
-	private MetadataSerializers() {}
+    /** Utility method class, not meant to be instantiated. */
+    private MetadataSerializers() {}
 }

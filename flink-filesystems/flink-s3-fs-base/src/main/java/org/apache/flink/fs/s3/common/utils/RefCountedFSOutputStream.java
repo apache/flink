@@ -20,27 +20,26 @@ package org.apache.flink.fs.s3.common.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.FSDataOutputStream;
+import org.apache.flink.util.RefCounted;
 
 import java.io.File;
 import java.io.IOException;
 
-/**
- * A {@link FSDataOutputStream} with the {@link RefCounted} functionality.
- */
+/** A {@link FSDataOutputStream} with the {@link RefCounted} functionality. */
 @Internal
 public abstract class RefCountedFSOutputStream extends FSDataOutputStream implements RefCounted {
 
-	/**
-	 * Gets the underlying {@link File} that allows to read the contents of the file.
-	 *
-	 * @return A handle to the File object.
-	 */
-	public abstract File getInputFile();
+    /**
+     * Gets the underlying {@link File} that allows to read the contents of the file.
+     *
+     * @return A handle to the File object.
+     */
+    public abstract File getInputFile();
 
-	/**
-	 * Checks if the file is closed for writes.
-	 *
-	 * @return {@link true} if the file is closed, {@link false} otherwise.
-	 */
-	public abstract boolean isClosed() throws IOException;
+    /**
+     * Checks if the file is closed for writes.
+     *
+     * @return {@link true} if the file is closed, {@link false} otherwise.
+     */
+    public abstract boolean isClosed() throws IOException;
 }

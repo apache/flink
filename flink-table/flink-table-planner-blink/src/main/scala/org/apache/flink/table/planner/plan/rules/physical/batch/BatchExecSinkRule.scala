@@ -19,16 +19,18 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning
+import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.sinks.PartitionableTableSink
+import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.{RelCollations, RelNode}
+import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
 
@@ -43,28 +45,49 @@ class BatchExecSinkRule extends ConverterRule(
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     var requiredTraitSet = sinkNode.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
-      sinkNode.sink match {
-        case partitionSink: PartitionableTableSink =>
-          partitionSink.setStaticPartition(sinkNode.staticPartitions)
+      sinkNode.tableSink match {
+        case partitionSink: SupportsPartitioning =>
+          partitionSink.applyStaticPartition(sinkNode.staticPartitions)
           val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
               .filter(!sinkNode.staticPartitions.contains(_))
+          val fieldNames = sinkNode.catalogTable
+            .getSchema
+            .toPhysicalRowDataType
+            .getLogicalType.asInstanceOf[RowType]
+            .getFieldNames
 
           if (dynamicPartFields.nonEmpty) {
             val dynamicPartIndices =
-              dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+              dynamicPartFields.map(fieldNames.indexOf(_))
 
-            requiredTraitSet = requiredTraitSet.plus(
-              FlinkRelDistribution.hash(dynamicPartIndices
-                  .map(Integer.valueOf), requireStrict = false))
+            val shuffleEnable = sinkNode
+                .catalogTable
+                .getOptions
+                .get(FileSystemOptions.SINK_SHUFFLE_BY_PARTITION.key())
 
-            if (partitionSink.configurePartitionGrouping(true)) {
-              // default to asc.
-              val fieldCollations = dynamicPartIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
-              requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+            if (shuffleEnable != null && shuffleEnable.toBoolean) {
+              requiredTraitSet = requiredTraitSet.plus(
+                FlinkRelDistribution.hash(dynamicPartIndices
+                    .map(Integer.valueOf), requireStrict = false))
+            }
+
+            if (partitionSink.requiresPartitionGrouping(true)) {
+              // we shouldn't do partition grouping if the input already defines collation
+              val relCollation = requiredTraitSet.getTrait(RelCollationTraitDef.INSTANCE)
+              if (relCollation == null || relCollation.getFieldCollations.isEmpty) {
+                // default to asc.
+                val fieldCollations = dynamicPartIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
+                requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+              } else {
+                // tell sink not to expect grouping
+                partitionSink.requiresPartitionGrouping(false)
+              }
             }
           }
-        case _ => throw new TableException("We need PartitionableTableSink to write data to" +
-            s" partitioned table: ${sinkNode.sinkName}")
+        case _ => throw new TableException(
+          s"'${sinkNode.tableIdentifier.asSummaryString()}' is a partitioned table, " +
+            s"but the underlying [${sinkNode.tableSink.asSummaryString()}] DynamicTableSink " +
+            s"doesn't implement SupportsPartitioning interface.")
       }
     }
 
@@ -74,13 +97,12 @@ class BatchExecSinkRule extends ConverterRule(
       rel.getCluster,
       newTrait,
       newInput,
-      sinkNode.sink,
-      sinkNode.sinkName)
+      sinkNode.tableIdentifier,
+      sinkNode.catalogTable,
+      sinkNode.tableSink)
   }
 }
 
 object BatchExecSinkRule {
-
-  val INSTANCE: RelOptRule = new BatchExecSinkRule
-
+  val INSTANCE = new BatchExecSinkRule
 }

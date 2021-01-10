@@ -23,19 +23,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Testing is an integral part of every software development process as such Apache Flink comes with tooling to test your application code on multiple levels of the testing pyramid.
+测试是每个软件开发过程中不可或缺的一部分， Apache Flink 同样提供了在测试金字塔的多个级别上测试应用程序代码的工具。
 
 * This will be replaced by the TOC
 {:toc}
 
-## Testing User-Defined Functions
+## 测试用户自定义函数
 
-Usually, one can assume that Flink produces correct results outside of a user-defined function. Therefore, it is recommended to test those classes that contain the main business logic with unit tests as much as possible.
+通常，我们可以假设 Flink 在用户自定义函数之外产生了正确的结果。因此，建议尽可能多的用单元测试来测试那些包含主要业务逻辑的类。
 
-### Unit Testing Stateless, Timeless UDFs
+### 单元测试无状态、无时间限制的 UDF
 
 
-For example, let's take the following stateless `MapFunction`.
+例如，让我们以以下无状态的 `MapFunction` 为例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -62,7 +62,7 @@ class IncrementMapFunction extends MapFunction[Long, Long] {
 </div>
 </div>
 
-It is very easy to unit test such a function with your favorite testing framework by passing suitable arguments and verifying the output.
+通过传递合适地参数并验证输出，你可以很容易的使用你喜欢的测试框架对这样的函数进行单元测试。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -97,7 +97,7 @@ class IncrementMapFunctionTest extends FlatSpec with Matchers {
 </div>
 </div>
 
-Similarly, a user-defined function which uses an `org.apache.flink.util.Collector` (e.g. a `FlatMapFunction` or `ProcessFunction`) can be easily tested by providing a mock object instead of a real collector.  A `FlatMapFunction` with the same functionality as the `IncrementMapFunction` could be unit tested as follows.
+类似地，对于使用 `org.apache.flink.util.Collector` 的用户自定义函数（例如`FlatMapFunction` 或者 `ProcessFunction`），可以通过提供模拟对象而不是真正的 collector 来轻松测试。具有与 `IncrementMapFunction` 相同功能的 `FlatMapFunction` 可以按照以下方式进行单元测试。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -142,17 +142,17 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 </div>
 </div>
 
-### Unit Testing Stateful or Timely UDFs & Custom Operators
+### 对有状态或及时 UDF 和自定义算子进行单元测试
 
-Testing the functionality of a user-defined function, which makes use of managed state or timers is more difficult because it involves testing the interaction between the user code and Flink's runtime.
-For this Flink comes with a collection of so called test harnesses, which can be used to test such user-defined functions as well as custom operators:
+对使用管理状态或定时器的用户自定义函数的功能测试会更加困难，因为它涉及到测试用户代码和 Flink 运行时的交互。
+为此，Flink 提供了一组所谓的测试工具，可用于测试用户自定义函数和自定义算子：
 
-* `OneInputStreamOperatorTestHarness` (for operators on `DataStream`s)
-* `KeyedOneInputStreamOperatorTestHarness` (for operators on `KeyedStream`s)
-* `TwoInputStreamOperatorTestHarness` (for operators of `ConnectedStreams` of two `DataStream`s)
-* `KeyedTwoInputStreamOperatorTestHarness` (for operators on `ConnectedStreams` of two `KeyedStream`s)
+* `OneInputStreamOperatorTestHarness` (适用于 `DataStream` 上的算子)
+* `KeyedOneInputStreamOperatorTestHarness` (适用于 `KeyedStream` 上的算子)
+* `TwoInputStreamOperatorTestHarness` (f适用于两个 `DataStream` 的 `ConnectedStreams` 算子)
+* `KeyedTwoInputStreamOperatorTestHarness` (适用于两个 `KeyedStream` 上的 `ConnectedStreams` 算子)
 
-To use the test harnesses a set of additional dependencies (test scoped) is needed.
+要使用测试工具，还需要一组其他的依赖项（测试范围）。
 
 {% highlight xml %}
 <dependency>
@@ -177,7 +177,7 @@ To use the test harnesses a set of additional dependencies (test scoped) is need
 </dependency>
 {% endhighlight %}
 
-Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
+现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -270,7 +270,7 @@ class StatefulFlatMapFunctionTest extends FlatSpec with Matchers with BeforeAndA
 </div>
 </div>
 
-`KeyedOneInputStreamOperatorTestHarness` and `KeyedTwoInputStreamOperatorTestHarness` are instantiated by additionally providing a `KeySelector` including `TypeInformation` for the class of the key.
+`KeyedOneInputStreamOperatorTestHarness` 和 `KeyedTwoInputStreamOperatorTestHarness` 可以通过为键的类另外提供一个包含 `TypeInformation` 的 `KeySelector` 来实例化。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -325,18 +325,18 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
 </div>
 </div>
 
-Many more examples for the usage of these test harnesses can be found in the Flink code base, e.g.:
+在 Flink 代码库里可以找到更多使用这些测试工具的示例，例如：
 
-* `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` is a good example for testing operators and user-defined functions, which depend on processing or event time.
-* `org.apache.flink.streaming.api.functions.sink.filesystem.LocalStreamingFileSinkTest` shows how to test a custom sink with the `AbstractStreamOperatorTestHarness`. Specifically, it uses `AbstractStreamOperatorTestHarness.snapshot` and `AbstractStreamOperatorTestHarness.initializeState` to tests its interaction with Flink's checkpointing mechanism.
+* `org.apache.flink.streaming.runtime.operators.windowing.WindowOperatorTest` 是测试算子和用户自定义函数（取决于处理时间和事件时间）的一个很好的例子。
+* `org.apache.flink.streaming.api.functions.sink.filesystem.LocalStreamingFileSinkTest` 展示了如何使用 `AbstractStreamOperatorTestHarness` 测试自定义 sink。具体来说，它使用 `AbstractStreamOperatorTestHarness.snapshot` 和 `AbstractStreamOperatorTestHarness.initializeState` 来测试它与 Flink checkpoint 机制的交互。
 
-<span class="label label-info">Note</span> Be aware that `AbstractStreamOperatorTestHarness` and its derived classes are currently not part of the public API and can be subject to change.
+<span class="label label-info">注意</span> `AbstractStreamOperatorTestHarness` 及其派生类目前不属于公共 API，可以进行更改。
 
-#### Unit Testing ProcessFunction
+#### 单元测试 Process Function
 
-Given its importance, in addition to the previous test harnesses that can be used directly to test a `ProcessFunction`, Flink provides a test harness factory named `ProcessFunctionTestHarnesses` that allows for easier test harness instantiation. Considering this example:
+考虑到它的重要性，除了之前可以直接用于测试 `ProcessFunction` 的测试工具之外，Flink 还提供了一个名为 `ProcessFunctionTestHarnesses` 的测试工具工厂类，可以简化测试工具的实例化。考虑以下示例：
 
-<span class="label label-info">Note</span> Be aware that to use this test harness, you also need to introduce the dependencies mentioned in the last section.
+<span class="label label-info">注意</span> 要使用此测试工具，还需要引入上一节中介绍的依赖项。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -364,7 +364,7 @@ class PassThroughProcessFunction extends ProcessFunction[Integer, Integer] {
 </div>
 </div>
 
-It is very easy to unit test such a function with `ProcessFunctionTestHarnesses` by passing suitable arguments and verifying the output.
+通过传递合适的参数并验证输出，对使用 `ProcessFunctionTestHarnesses` 是很容易进行单元测试并验证输出。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -414,16 +414,16 @@ class PassThroughProcessFunctionTest extends FlatSpec with Matchers {
 </div>
 </div>
 
-For more examples on how to use the `ProcessFunctionTestHarnesses` in order to test the different flavours of the `ProcessFunction`, e.g. `KeyedProcessFunction`, `KeyedCoProcessFunction`, `BroadcastProcessFunction`, etc, the user is encouraged to look at the `ProcessFunctionTestHarnessesTest`.
+有关如何使用 `ProcessFunctionTestHarnesses` 来测试 `ProcessFunction` 不同风格的更多示例，, 例如 `KeyedProcessFunction`，`KeyedCoProcessFunction`，`BroadcastProcessFunction`等，鼓励用户自行查看 `ProcessFunctionTestHarnessesTest`。
 
-## Testing Flink Jobs
+## 测试 Flink 作业
 
-### JUnit Rule `MiniClusterWithClientResource`
+### JUnit 规则 `MiniClusterWithClientResource`
 
-Apache Flink provides a JUnit rule called `MiniClusterWithClientResource` for testing complete jobs against a local, embedded mini cluster.
-called `MiniClusterWithClientResource`.
+Apache Flink 提供了一个名为 `MiniClusterWithClientResource` 的 Junit 规则，用于针对本地嵌入式小型集群测试完整的作业。
+叫做 `MiniClusterWithClientResource`.
 
-To use `MiniClusterWithClientResource` one additional dependency (test scoped) is needed.
+要使用 `MiniClusterWithClientResource`，需要添加一个额外的依赖项（测试范围）。
 
 {% highlight xml %}
 <dependency>
@@ -433,7 +433,7 @@ To use `MiniClusterWithClientResource` one additional dependency (test scoped) i
 </dependency>
 {% endhighlight %}
 
-Let us take the same simple `MapFunction` as in the previous sections.
+让我们采用与前面几节相同的简单 `MapFunction`来做示例。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -460,7 +460,7 @@ class IncrementMapFunction extends MapFunction[Long, Long] {
 </div>
 </div>
 
-A simple pipeline using this `MapFunction` can now be tested in a local Flink cluster as follows.
+现在，可以在本地 Flink 集群使用这个 `MapFunction` 的简单 pipeline，如下所示。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -501,10 +501,10 @@ public class ExampleIntegrationTest {
     private static class CollectSink implements SinkFunction<Long> {
 
         // must be static
-        public static final List<Long> values = new ArrayList<>();
+        public static final List<Long> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public synchronized void invoke(Long value) throws Exception {
+        public void invoke(Long value) throws Exception {
             values.add(value);
         }
     }
@@ -556,34 +556,32 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
 class CollectSink extends SinkFunction[Long] {
 
   override def invoke(value: Long): Unit = {
-    synchronized {
-      CollectSink.values.add(value)
-    }
+    CollectSink.values.add(value)
   }
 }
 
 object CollectSink {
     // must be static
-    val values: util.List[Long] = new util.ArrayList()
+    val values: util.List[Long] = Collections.synchronizedList(new util.ArrayList())
 }
 {% endhighlight %}
 </div>
 </div>
 
-A few remarks on integration testing with `MiniClusterWithClientResource`:
+关于使用 `MiniClusterWithClientResource` 进行集成测试的几点备注：
 
-* In order not to copy your whole pipeline code from production to test, make sources and sinks pluggable in your production code and inject special test sources and test sinks in your tests.
+* 为了不将整个 pipeline 代码从生产复制到测试，请将你的 source 和 sink 在生产代码中设置成可插拔的，并在测试中注入特殊的测试 source 和测试 sink。
 
-* The static variable in `CollectSink` is used here because Flink serializes all operators before distributing them across a cluster.
-Communicating with operators instantiated by a local Flink mini cluster via static variables is one way around this issue.
-Alternatively, you could write the data to files in a temporary directory with your test sink.
+* 这里使用 `CollectSink` 中的静态变量，是因为Flink 在将所有算子分布到整个集群之前先对其进行了序列化。
+解决此问题的一种方法是与本地 Flink 小型集群通过实例化算子的静态变量进行通信。
+或者，你可以使用测试的 sink 将数据写入临时目录的文件中。
 
-* You can implement a custom *parallel* source function for emitting watermarks if your job uses event time timers.
+* 如果你的作业使用事件时间计时器，则可以实现自定义的 *并行* 源函数来发出 watermark。
 
-* It is recommended to always test your pipelines locally with a parallelism > 1 to identify bugs which only surface for the pipelines executed in parallel.
+* 建议始终以 parallelism > 1 的方式在本地测试 pipeline，以识别只有在并行执行 pipeline 时才会出现的 bug。
 
-* Prefer `@ClassRule` over `@Rule` so that multiple tests can share the same Flink cluster. Doing so saves a significant amount of time since the startup and shutdown of Flink clusters usually dominate the execution time of the actual tests.
+* 优先使用 `@ClassRule` 而不是 `@Rule`，这样多个测试可以共享同一个 Flink 集群。这样做可以节省大量的时间，因为 Flink 集群的启动和关闭通常会占用实际测试的执行时间。
 
-* If your pipeline contains custom state handling, you can test its correctness by enabling checkpointing and restarting the job within the mini cluster. For this, you need to trigger a failure by throwing an exception from (a test-only) user-defined function in your pipeline.
+* 如果你的 pipeline 包含自定义状态处理，则可以通过启用 checkpoint 并在小型集群中重新启动作业来测试其正确性。为此，你需要在 pipeline 中（仅测试）抛出用户自定义函数的异常来触发失败。
 
 {% top %}

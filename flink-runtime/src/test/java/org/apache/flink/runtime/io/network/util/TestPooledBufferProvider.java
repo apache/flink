@@ -28,7 +28,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Queues;
 
-import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -39,124 +38,134 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 public class TestPooledBufferProvider implements BufferProvider {
 
-	private final BlockingQueue<Buffer> buffers = new LinkedBlockingDeque<>();
+    private final BlockingQueue<Buffer> buffers = new LinkedBlockingDeque<>();
 
-	private final TestBufferFactory bufferFactory;
+    private final TestBufferFactory bufferFactory;
 
-	private final PooledBufferProviderRecycler bufferRecycler;
+    private final PooledBufferProviderRecycler bufferRecycler;
 
-	public TestPooledBufferProvider(int poolSize) {
-		this(poolSize, 32 * 1024);
-	}
+    public TestPooledBufferProvider(int poolSize) {
+        this(poolSize, 32 * 1024);
+    }
 
-	public TestPooledBufferProvider(int poolSize, int bufferSize) {
-		checkArgument(poolSize > 0);
+    public TestPooledBufferProvider(int poolSize, int bufferSize) {
+        checkArgument(poolSize > 0);
 
-		this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
-		this.bufferFactory = new TestBufferFactory(poolSize, bufferSize, bufferRecycler);
-	}
+        this.bufferRecycler = new PooledBufferProviderRecycler(buffers);
+        this.bufferFactory = new TestBufferFactory(poolSize, bufferSize, bufferRecycler);
+    }
 
-	@Override
-	public Buffer requestBuffer() throws IOException {
-		final Buffer buffer = buffers.poll();
-		if (buffer != null) {
-			return buffer;
-		}
+    @Override
+    public Buffer requestBuffer() {
+        final Buffer buffer = buffers.poll();
+        if (buffer != null) {
+            return buffer;
+        }
 
-		return bufferFactory.create();
-	}
+        return bufferFactory.create();
+    }
 
-	@Override
-	public BufferBuilder requestBufferBuilder() throws IOException {
-		Buffer buffer = requestBuffer();
-		if (buffer != null) {
-			return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
-		}
-		return null;
-	}
+    @Override
+    public BufferBuilder requestBufferBuilder() {
+        Buffer buffer = requestBuffer();
+        if (buffer != null) {
+            return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
+        }
+        return null;
+    }
 
-	private Buffer requestBufferBlocking() throws IOException, InterruptedException {
-		Buffer buffer = buffers.poll();
-		if (buffer != null) {
-			return buffer;
-		}
+    @Override
+    public BufferBuilder requestBufferBuilder(int targetChannel) {
+        return requestBufferBuilder();
+    }
 
-		buffer = bufferFactory.create();
-		if (buffer != null) {
-			return buffer;
-		}
+    private Buffer requestBufferBlocking() throws InterruptedException {
+        Buffer buffer = buffers.poll();
+        if (buffer != null) {
+            return buffer;
+        }
 
-		return buffers.take();
-	}
+        buffer = bufferFactory.create();
+        if (buffer != null) {
+            return buffer;
+        }
 
-	@Override
-	public BufferBuilder requestBufferBuilderBlocking() throws IOException, InterruptedException {
-		Buffer buffer = requestBufferBlocking();
-		return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
-	}
+        return buffers.take();
+    }
 
-	@Override
-	public boolean addBufferListener(BufferListener listener) {
-		return bufferRecycler.registerListener(listener);
-	}
+    @Override
+    public BufferBuilder requestBufferBuilderBlocking() throws InterruptedException {
+        Buffer buffer = requestBufferBlocking();
+        return new BufferBuilder(buffer.getMemorySegment(), buffer.getRecycler());
+    }
 
-	@Override
-	public boolean isDestroyed() {
-		return false;
-	}
+    @Override
+    public BufferBuilder requestBufferBuilderBlocking(int targetChannel)
+            throws InterruptedException {
+        return requestBufferBuilderBlocking();
+    }
 
-	@Override
-	public CompletableFuture<?> getAvailableFuture() {
-		return AVAILABLE;
-	}
+    @Override
+    public boolean addBufferListener(BufferListener listener) {
+        return bufferRecycler.registerListener(listener);
+    }
 
-	public int getNumberOfAvailableBuffers() {
-		return buffers.size();
-	}
+    @Override
+    public boolean isDestroyed() {
+        return false;
+    }
 
-	public int getNumberOfCreatedBuffers() {
-		return bufferFactory.getNumberOfCreatedBuffers();
-	}
+    @Override
+    public CompletableFuture<?> getAvailableFuture() {
+        return AVAILABLE;
+    }
 
-	private static class PooledBufferProviderRecycler implements BufferRecycler {
+    public int getNumberOfAvailableBuffers() {
+        return buffers.size();
+    }
 
-		private final Object listenerRegistrationLock = new Object();
+    public int getNumberOfCreatedBuffers() {
+        return bufferFactory.getNumberOfCreatedBuffers();
+    }
 
-		private final Queue<Buffer> buffers;
+    private static class PooledBufferProviderRecycler implements BufferRecycler {
 
-		private final ConcurrentLinkedQueue<BufferListener> registeredListeners =
-				Queues.newConcurrentLinkedQueue();
+        private final Object listenerRegistrationLock = new Object();
 
-		public PooledBufferProviderRecycler(Queue<Buffer> buffers) {
-			this.buffers = buffers;
-		}
+        private final Queue<Buffer> buffers;
 
-		@Override
-		public void recycle(MemorySegment segment) {
-			synchronized (listenerRegistrationLock) {
-				final Buffer buffer = new NetworkBuffer(segment, this);
+        private final ConcurrentLinkedQueue<BufferListener> registeredListeners =
+                Queues.newConcurrentLinkedQueue();
 
-				BufferListener listener = registeredListeners.poll();
+        public PooledBufferProviderRecycler(Queue<Buffer> buffers) {
+            this.buffers = buffers;
+        }
 
-				if (listener == null) {
-					buffers.add(buffer);
-				}
-				else {
-					listener.notifyBufferAvailable(buffer);
-				}
-			}
-		}
+        @Override
+        public void recycle(MemorySegment segment) {
+            synchronized (listenerRegistrationLock) {
+                final Buffer buffer = new NetworkBuffer(segment, this);
 
-		boolean registerListener(BufferListener listener) {
-			synchronized (listenerRegistrationLock) {
-				if (buffers.isEmpty()) {
-					registeredListeners.add(listener);
+                BufferListener listener = registeredListeners.poll();
 
-					return true;
-				}
+                if (listener == null) {
+                    buffers.add(buffer);
+                } else {
+                    listener.notifyBufferAvailable(buffer);
+                }
+            }
+        }
 
-				return false;
-			}
-		}
-	}
+        boolean registerListener(BufferListener listener) {
+            synchronized (listenerRegistrationLock) {
+                if (buffers.isEmpty()) {
+                    registeredListeners.add(listener);
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
+    }
 }

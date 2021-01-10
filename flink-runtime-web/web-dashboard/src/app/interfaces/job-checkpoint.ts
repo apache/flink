@@ -91,6 +91,7 @@ export interface CheckPointCompletedStatisticsInterface {
   tasks: CheckPointTaskStatisticsInterface;
   external_path: string;
   discarded: boolean;
+  checkpoint_type: string;
 }
 
 export interface CheckPointTaskStatisticsInterface {
@@ -114,6 +115,8 @@ export interface CheckPointConfigInterface {
     enabled: boolean;
     delete_on_cancellation: boolean;
   };
+  unaligned_checkpoints: boolean;
+  tolerable_failed_checkpoints: number;
 }
 
 export interface CheckPointDetailInterface {
@@ -130,6 +133,7 @@ export interface CheckPointDetailInterface {
   failure_message?: string;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
+  checkpoint_type: string;
   tasks: Array<{
     [ taskId: string ]: {
       id: number;

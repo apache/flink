@@ -28,23 +28,28 @@ This page describes the SQL language supported in Flink, including Data Definiti
 
 This page lists all the supported statements supported in Flink SQL for now:
 
-- [SELECT (Queries)](queries.html)
-- [CREATE TABLE, DATABASE, FUNCTION](create.html)
-- [DROP TABLE, DATABASE, FUNCTION](drop.html)
-- [ALTER TABLE, DATABASE, FUNCTION](alter.html)
-- [INSERT](insert.html)
+- [SELECT (Queries)]({% link dev/table/sql/queries.md %})
+- [CREATE TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/create.md %})
+- [DROP TABLE, DATABASE, VIEW, FUNCTION]({% link dev/table/sql/drop.md %})
+- [ALTER TABLE, DATABASE, FUNCTION]({% link dev/table/sql/alter.md %})
+- [INSERT]({% link dev/table/sql/insert.md %})
+- [SQL HINTS]({% link dev/table/sql/hints.md %})
+- [DESCRIBE]({% link dev/table/sql/describe.md %})
+- [EXPLAIN]({% link dev/table/sql/explain.md %})
+- [USE]({% link dev/table/sql/use.md %})
+- [SHOW]({% link dev/table/sql/show.md %})
 
 ## Data Types
 
-Please see the dedicated page about [data types]({{ site.baseurl }}/dev/table/types.html).
+Please see the dedicated page about [data types]({% link dev/table/types.md %}).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({% link dev/table/functions/systemFunctions.md %}#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({% link dev/table/functions/udfs.md %}).
 
-For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).
+For DDLs, we support full data types defined in page [Data Types]({% link dev/table/types.md %}).
 
 **Notes:** Some of the data types are not supported in SQL queries yet (i.e. in cast expressions or literals). E.g. `STRING`, `BYTES`, `RAW`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
 

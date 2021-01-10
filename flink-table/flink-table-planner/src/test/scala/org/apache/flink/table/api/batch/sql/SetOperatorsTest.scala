@@ -21,8 +21,7 @@ package org.apache.flink.table.api.batch.sql
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Expressions.$
-import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.runtime.utils.CommonTestData.NonPojo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
@@ -107,7 +106,7 @@ class SetOperatorsTest extends TableTestBase {
                 "DataSetCalc",
                 batchTableNode(table),
                 term("select", "b"),
-                term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+                term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
               ),
               term("select", "COUNT(*) AS $f0", "COUNT(b) AS $f1")
             ),
@@ -123,7 +122,7 @@ class SetOperatorsTest extends TableTestBase {
             "DataSetCalc",
             batchTableNode(table),
             term("select", "b", "true AS $f1"),
-            term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
+            term("where", "SEARCH(b, Sarg[1L:BIGINT, 6L:BIGINT]:BIGINT)")
           ),
           term("groupBy", "b"),
           term("select", "b", "MIN($f1) AS $f1")

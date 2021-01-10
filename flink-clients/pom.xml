@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-clients_${scala.binary.version}</artifactId>
-	<name>flink-clients</name>
+	<name>Flink : Clients</name>
 
 	<packaging>jar</packaging>
 
@@ -88,6 +88,14 @@ under the License.
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
 	</dependencies>
 
 	<!-- More information on this:
@@ -108,13 +116,46 @@ under the License.
 						<configuration>
 							<archive>
 								<manifest>
-									<mainClass>org.apache.flink.client.testjar.WordCount</mainClass>
+									<mainClass>org.apache.flink.client.testjar.TestJob</mainClass>
 								</manifest>
 							</archive>
 							<finalName>maven</finalName>
 							<attach>false</attach>
 							<descriptors>
 								<descriptor>src/test/assembly/test-assembly.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-test-dependency-user-jar</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.client.testjar.TestUserClassLoaderJob</mainClass>
+								</manifest>
+							</archive>
+							<finalName>maven</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-assembly-test-user-classloader-job-jar.xml</descriptor>
+							</descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>create-test-dependency-user-jar-depend</id>
+						<phase>process-test-classes</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+						<configuration>
+							<finalName>maven</finalName>
+							<attach>false</attach>
+							<descriptors>
+								<descriptor>src/test/assembly/test-assembly-test-user-classloader-job-lib-jar.xml</descriptor>
 							</descriptors>
 						</configuration>
 					</execution>
@@ -139,7 +180,7 @@ under the License.
 								<fileset>
 									<directory>${project.build.testOutputDirectory}</directory>
 									<includes>
-										<include>**/testjar/*.class</include>
+										<include>**/testjar/TestUser*.class</include>
 									</includes>
 								</fileset>
 							</filesets>

@@ -16,59 +16,58 @@
  * limitations under the License.
  */
 
-
 package org.apache.flink.testutils.serialization.types;
-
-import java.io.IOException;
-import java.util.Random;
 
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
+import java.io.IOException;
+import java.util.Random;
+
 public class UnsignedByteType implements SerializationTestType {
 
-	private int value;
+    private int value;
 
-	public UnsignedByteType() {
-		this.value = 0;
-	}
+    public UnsignedByteType() {
+        this.value = 0;
+    }
 
-	private UnsignedByteType(int value) {
-		this.value = value;
-	}
+    private UnsignedByteType(int value) {
+        this.value = value;
+    }
 
-	@Override
-	public UnsignedByteType getRandom(Random rnd) {
-		return new UnsignedByteType(rnd.nextInt(128) + 128);
-	}
+    @Override
+    public UnsignedByteType getRandom(Random rnd) {
+        return new UnsignedByteType(rnd.nextInt(128) + 128);
+    }
 
-	@Override
-	public int length() {
-		return 1;
-	}
+    @Override
+    public int length() {
+        return 1;
+    }
 
-	@Override
-	public void write(DataOutputView out) throws IOException {
-		out.writeByte(this.value);
-	}
+    @Override
+    public void write(DataOutputView out) throws IOException {
+        out.writeByte(this.value);
+    }
 
-	@Override
-	public void read(DataInputView in) throws IOException {
-		this.value = in.readUnsignedByte();
-	}
+    @Override
+    public void read(DataInputView in) throws IOException {
+        this.value = in.readUnsignedByte();
+    }
 
-	@Override
-	public int hashCode() {
-		return this.value;
-	}
+    @Override
+    public int hashCode() {
+        return this.value;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (obj instanceof UnsignedByteType) {
-			UnsignedByteType other = (UnsignedByteType) obj;
-			return this.value == other.value;
-		} else {
-			return false;
-		}
-	}
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof UnsignedByteType) {
+            UnsignedByteType other = (UnsignedByteType) obj;
+            return this.value == other.value;
+        } else {
+            return false;
+        }
+    }
 }

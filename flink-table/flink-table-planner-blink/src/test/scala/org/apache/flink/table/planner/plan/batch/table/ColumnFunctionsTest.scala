@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -30,7 +30,7 @@ import org.junit.Test
   */
 class ColumnFunctionsTest extends TableTestBase {
 
-  val util = batchTestUtil()
+  private val util = batchTestUtil()
 
   @Test
   def testOrderBy(): Unit = {
@@ -40,7 +40,7 @@ class ColumnFunctionsTest extends TableTestBase {
     val tab1 = t.orderBy(withColumns(1, 2 to 3))
     val tab2 = t.orderBy("withColumns(1, 2 to 3)")
     verifyTableEquals(tab1, tab2)
-    util.verifyPlan(tab1)
+    util.verifyExecPlan(tab1)
   }
 }
 

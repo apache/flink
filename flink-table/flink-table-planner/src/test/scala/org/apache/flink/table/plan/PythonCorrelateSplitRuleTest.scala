@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
 import org.apache.flink.table.utils.{MockPythonTableFunction, TableFunc1, TableTestBase}
+
 import org.junit.Test
 
 class PythonCorrelateSplitRuleTest extends TableTestBase {
@@ -102,7 +103,7 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     val pyFunc = new PythonScalarFunction("pyFunc")
     util.addFunction("pyFunc", pyFunc)
     val resultTable = table.select('a, 'b, 'c, 'd.flatten())
-      .joinLateral("tableFunc(a * d$_1, pyFunc(d$_2, c))")
+      .joinLateral(call("tableFunc", $"a" * $"d$$_1", call("pyFunc", $"d$$_2", $"c")))
 
     val expected = unaryNode(
       "DataStreamCalc",
@@ -139,7 +140,7 @@ class PythonCorrelateSplitRuleTest extends TableTestBase {
     val pyFunc = new PythonScalarFunction("pyFunc")
     util.addFunction("pyFunc", pyFunc)
     val result = table.select('a, 'b, 'c, 'd.flatten())
-      .joinLateral("tableFunc(pyFunc(d$_1))")
+      .joinLateral(call("tableFunc", call("pyFunc", $"d$$_1")))
 
     val expected = unaryNode(
       "DataStreamCalc",

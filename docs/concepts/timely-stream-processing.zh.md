@@ -1,8 +1,8 @@
 ---
-title: Timely Stream Processing
+title: 及时流处理
 nav-id: timely-stream-processing
 nav-pos: 3
-nav-title: Timely Stream Processing
+nav-title: 及时流处理
 nav-parent_id: concepts
 ---
 <!--
@@ -24,16 +24,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-`TODO: add introduction`
-
 * This will be replaced by the TOC
 {:toc}
 
-## Latency & Completeness
+## Introduction
 
-`TODO: add these two sections`
+Timely steam processing is an extension of [stateful stream processing]({% link
+concepts/stateful-stream-processing.zh.md %}) in which time plays some role in the
+computation. Among other things, this is the case when you do time series
+analysis, when doing aggregations based on certain time periods (typically
+called windows), or when you do event processing where the time when an event
+occurred is important.
 
-### Latency vs. Completeness in Batch & Stream Processing
+In the following sections we will highlight some of the topics that you should
+consider when working with timely Flink Applications.
 
 {% top %}
 
@@ -91,7 +95,7 @@ one can refer to different notions of *time*:
   real-time, they will use some *processing time* operations in order to
   guarantee that they are progressing in a timely fashion.
 
-<img src="{{ site.baseurl }}/fig/event_processing_time.svg" alt="Event Time and Processing Time" class="offset" width="80%" />
+<img src="{% link /fig/event_processing_time.svg %}" alt="Event Time and Processing Time" class="offset" width="80%" />
 
 {% top %}
 
@@ -133,7 +137,7 @@ watermarks flowing inline. In this example the events are in order (with
 respect to their timestamps), meaning that the watermarks are simply periodic
 markers in the stream.
 
-<img src="{{ site.baseurl }}/fig/stream_watermark_in_order.svg" alt="A data stream with events (in order) and watermarks" class="center" width="65%" />
+<img src="{% link /fig/stream_watermark_in_order.svg %}" alt="A data stream with events (in order) and watermarks" class="center" width="65%" />
 
 Watermarks are crucial for *out-of-order* streams, as illustrated below, where
 the events are not ordered by their timestamps.  In general a watermark is a
@@ -142,7 +146,7 @@ timestamp should have arrived.  Once a watermark reaches an operator, the
 operator can advance its internal *event time clock* to the value of the
 watermark.
 
-<img src="{{ site.baseurl }}/fig/stream_watermark_out_of_order.svg" alt="A data stream with events (out of order) and watermarks" class="center" width="65%" />
+<img src="{% link /fig/stream_watermark_out_of_order.svg %}" alt="A data stream with events (out of order) and watermarks" class="center" width="65%" />
 
 Note that event time is inherited by a freshly created stream element (or
 elements) from either the event that produced them or from watermark that
@@ -167,7 +171,7 @@ As its input streams update their event times, so does the operator.
 The figure below shows an example of events and watermarks flowing through
 parallel streams, and operators tracking event time.
 
-<img src="{{ site.baseurl }}/fig/parallel_streams_watermarks.svg" alt="Parallel data streams and operators with events and watermarks" class="center" width="80%" />
+<img src="{% link /fig/parallel_streams_watermarks.svg %}" alt="Parallel data streams and operators with events and watermarks" class="center" width="80%" />
 
 ## Lateness
 
@@ -200,12 +204,11 @@ Windows can be *time driven* (example: every 30 seconds) or *data driven*
 windows, such as *tumbling windows* (no overlap), *sliding windows* (with
 overlap), and *session windows* (punctuated by a gap of inactivity).
 
-<img src="{{ site.baseurl }}/fig/windows.svg" alt="Time- and Count Windows" class="offset" width="80%" />
+<img src="{% link /fig/windows.svg %}" alt="Time- and Count Windows" class="offset" width="80%" />
 
 Please check out this [blog
 post](https://flink.apache.org/news/2015/12/04/Introducing-windows.html) for
-additional examples of windows or take a look a [window documentation]({{
-site.baseurl }}{% link dev/stream/operators/windows.zh.md %}) of the DataStream
-API.
+additional examples of windows or take a look a [window documentation]({% link
+dev/stream/operators/windows.zh.md %}) of the DataStream API.
 
 {% top %}

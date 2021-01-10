@@ -19,11 +19,10 @@ package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Types}
+import org.apache.flink.table.api.{TableException, Types, _}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
 import org.junit.Test
 
@@ -34,14 +33,14 @@ abstract class AggregateTestBase extends TableTestBase {
     Array[TypeInformation[_]](
       Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
       Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
-      DecimalTypeInfo.of(30, 20), DecimalTypeInfo.of(10, 5)),
+      DecimalDataTypeInfo.of(30, 20), DecimalDataTypeInfo.of(10, 5)),
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
   util.addTableSource[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
 
   @Test
   def testAvg(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT AVG(`byte`),
         |       AVG(`short`),
@@ -57,7 +56,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testSum(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT SUM(`byte`),
         |       SUM(`short`),
@@ -73,7 +72,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testCount(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT COUNT(`byte`),
         |       COUNT(`short`),
@@ -94,7 +93,7 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testCountStart(): Unit = {
-    util.verifyPlanWithType("SELECT COUNT(*) FROM MyTable")
+    util.verifyRelPlanWithType("SELECT COUNT(*) FROM MyTable")
   }
 
 
@@ -103,12 +102,12 @@ abstract class AggregateTestBase extends TableTestBase {
     val sql = "SELECT b, COUNT(a, c) FROM MyTable1 GROUP BY b"
     thrown.expect(classOf[TableException])
     thrown.expectMessage("We now only support the count of one field")
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
   def testMinWithFixLengthType(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT MIN(`byte`),
         |       MIN(`short`),
@@ -128,12 +127,12 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMinWithVariableLengthType(): Unit = {
-    util.verifyPlanWithType("SELECT MIN(`string`) FROM MyTable")
+    util.verifyRelPlanWithType("SELECT MIN(`string`) FROM MyTable")
   }
 
   @Test
   def testMaxWithFixLengthType(): Unit = {
-    util.verifyPlanWithType(
+    util.verifyRelPlanWithType(
       """
         |SELECT MAX(`byte`),
         |       MAX(`short`),
@@ -153,50 +152,50 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testMaxWithVariableLengthType(): Unit = {
-    util.verifyPlanWithType("SELECT MAX(`string`) FROM MyTable")
+    util.verifyRelPlanWithType("SELECT MAX(`string`) FROM MyTable")
   }
 
   @Test
   def testAggregateWithoutFunction(): Unit = {
-    util.verifyPlan("SELECT a, b FROM MyTable1 GROUP BY a, b")
+    util.verifyExecPlan("SELECT a, b FROM MyTable1 GROUP BY a, b")
   }
 
   @Test
   def testAggregateWithoutGroupBy(): Unit = {
-    util.verifyPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1")
+    util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1")
   }
 
   @Test
   def testAggregateWithFilter(): Unit = {
-    util.verifyPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1")
+    util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1")
   }
 
   @Test
   def testAggregateWithFilterOnNestedFields(): Unit = {
     util.addTableSource[(Int, Long, (Int, Long))]("MyTable2", 'a, 'b, 'c)
-    util.verifyPlan("SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1")
+    util.verifyExecPlan("SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1")
   }
 
   @Test
   def testGroupAggregate(): Unit = {
-    util.verifyPlan("SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a")
+    util.verifyExecPlan("SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a")
   }
 
   @Test
   def testGroupAggregateWithFilter(): Unit = {
-    util.verifyPlan("SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a")
+    util.verifyExecPlan("SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a")
   }
 
   @Test
   def testAggNotSupportMerge(): Unit = {
     util.addFunction("var_sum", new VarSum2AggFunction)
-    util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
+    util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
   @Test
   def testPojoAccumulator(): Unit = {
     util.addFunction("var_sum", new VarSum1AggFunction)
-    util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
+    util.verifyExecPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
   @Test
@@ -205,7 +204,7 @@ abstract class AggregateTestBase extends TableTestBase {
       """
         |SELECT a, MAX(b), c FROM (SELECT a, 'test' AS c, b FROM MyTable1) t GROUP BY a, c
       """.stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   // TODO supports group sets

@@ -16,11 +16,11 @@
 # limitations under the License.
 ################################################################################
 
-import warnings
-
 from abc import ABCMeta
+from enum import Enum
 
 from py4j.java_gateway import get_java_class
+from typing import List, Optional
 
 from pyflink.java_gateway import get_gateway
 from pyflink.util.utils import load_java_class
@@ -57,7 +57,7 @@ def _from_j_state_backend(j_state_backend):
         return CustomStateBackend(j_state_backend)  # users' customized state backend
 
 
-class StateBackend(object):
+class StateBackend(object, metaclass=ABCMeta):
     """
     A **State Backend** defines how the state of a streaming application is stored and
     checkpointed. Different State Backends store their state in different fashions, and use
@@ -111,8 +111,6 @@ class StateBackend(object):
     State backend implementations have to be thread-safe. Multiple threads may be creating
     streams and keyed-/operator state backends concurrently.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, j_state_backend):
         self._j_state_backend = j_state_backend
@@ -226,7 +224,7 @@ class MemoryStateBackend(StateBackend):
         self._j_memory_state_backend = j_memory_state_backend
         super(MemoryStateBackend, self).__init__(j_memory_state_backend)
 
-    def get_max_state_size(self):
+    def get_max_state_size(self) -> int:
         """
         Gets the maximum size that an individual state can have, as configured in the
         constructor (by default :data:`DEFAULT_MAX_STATE_SIZE`).
@@ -235,7 +233,7 @@ class MemoryStateBackend(StateBackend):
         """
         return self._j_memory_state_backend.getMaxStateSize()
 
-    def is_using_asynchronous_snapshots(self):
+    def is_using_asynchronous_snapshots(self) -> bool:
         """
         Gets whether the key/value data structures are asynchronously snapshotted.
 
@@ -373,7 +371,7 @@ class FsStateBackend(StateBackend):
         self._j_fs_state_backend = j_fs_state_backend
         super(FsStateBackend, self).__init__(j_fs_state_backend)
 
-    def get_checkpoint_path(self):
+    def get_checkpoint_path(self) -> str:
         """
         Gets the base directory where all the checkpoints are stored.
         The job-specific checkpoint directory is created inside this directory.
@@ -382,7 +380,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.getCheckpointPath().toString()
 
-    def get_min_file_size_threshold(self):
+    def get_min_file_size_threshold(self) -> int:
         """
         Gets the threshold below which state is stored as part of the metadata, rather than in
         files. This threshold ensures that the backend does not create a large amount of very
@@ -395,7 +393,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.getMinFileSizeThreshold()
 
-    def is_using_asynchronous_snapshots(self):
+    def is_using_asynchronous_snapshots(self) -> bool:
         """
         Gets whether the key/value data structures are asynchronously snapshotted.
 
@@ -407,7 +405,7 @@ class FsStateBackend(StateBackend):
         """
         return self._j_fs_state_backend.isUsingAsynchronousSnapshots()
 
-    def get_write_buffer_size(self):
+    def get_write_buffer_size(self) -> int:
         """
         Gets the write buffer size for created checkpoint stream.
 
@@ -507,7 +505,7 @@ class RocksDBStateBackend(StateBackend):
         j_state_backend = self._j_rocks_db_state_backend.getCheckpointBackend()
         return _from_j_state_backend(j_state_backend)
 
-    def set_db_storage_paths(self, *paths):
+    def set_db_storage_paths(self, *paths: str):
         """
         Sets the directories in which the local RocksDB database puts its files (like SST and
         metadata files). These directories do not need to be persistent, they can be ephemeral,
@@ -535,7 +533,7 @@ class RocksDBStateBackend(StateBackend):
                 j_path_array[i] = paths[i]
             self._j_rocks_db_state_backend.setDbStoragePaths(j_path_array)
 
-    def get_db_storage_paths(self):
+    def get_db_storage_paths(self) -> List[str]:
         """
         Gets the configured local DB storage paths, or null, if none were configured.
 
@@ -551,7 +549,7 @@ class RocksDBStateBackend(StateBackend):
         """
         return list(self._j_rocks_db_state_backend.getDbStoragePaths())
 
-    def is_incremental_checkpoints_enabled(self):
+    def is_incremental_checkpoints_enabled(self) -> bool:
         """
         Gets whether incremental checkpoints are enabled for this state backend.
 
@@ -559,50 +557,7 @@ class RocksDBStateBackend(StateBackend):
         """
         return self._j_rocks_db_state_backend.isIncrementalCheckpointsEnabled()
 
-    def is_ttl_compaction_filter_enabled(self):
-        """
-        Gets whether compaction filter to cleanup state with TTL is enabled.
-
-        :return: True if enabled, false otherwise.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
-        """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
-        return self._j_rocks_db_state_backend.isTtlCompactionFilterEnabled()
-
-    def enable_ttl_compaction_filter(self):
-        """
-        Enable compaction filter to cleanup state with TTL.
-
-        .. note::
-            User can still decide in state TTL configuration in state descriptor
-            whether the filter is active for particular state or not.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
-        """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
-        self._j_rocks_db_state_backend.enableTtlCompactionFilter()
-
-    def disable_ttl_compaction_filter(self):
-        """
-        Disable compaction filter to cleanup state with TTL.
-
-        .. note::
-            This is an advanced option and the method should only be used
-            when experiencing serious performance degradations during compaction in RocksDB.
-
-        .. note:: Deprecated in 1.10. Enabled by default and will be removed in the future.
-        """
-        warnings.warn(
-            "Deprecated in 1.10. Enabled by default and will be removed in the future.",
-            DeprecationWarning)
-        self._j_rocks_db_state_backend.disableTtlCompactionFilter()
-
-    def set_predefined_options(self, options):
+    def set_predefined_options(self, options: 'PredefinedOptions'):
         """
         Sets the predefined options for RocksDB.
 
@@ -618,26 +573,9 @@ class RocksDBStateBackend(StateBackend):
 
         :param options: The options to set (must not be null), see :class:`PredefinedOptions`.
         """
-        gateway = get_gateway()
-        JPredefinedOptions = gateway.jvm.org.apache.flink.contrib.streaming.state.PredefinedOptions
-        if options == PredefinedOptions.DEFAULT:
-            self._j_rocks_db_state_backend.setPredefinedOptions(JPredefinedOptions.DEFAULT)
-        elif options == PredefinedOptions.SPINNING_DISK_OPTIMIZED:
-            self._j_rocks_db_state_backend.setPredefinedOptions(
-                JPredefinedOptions.SPINNING_DISK_OPTIMIZED)
-        elif options == PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM:
-            self._j_rocks_db_state_backend.setPredefinedOptions(
-                JPredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM)
-        elif options == PredefinedOptions.FLASH_SSD_OPTIMIZED:
-            self._j_rocks_db_state_backend.setPredefinedOptions(
-                JPredefinedOptions.FLASH_SSD_OPTIMIZED)
-        else:
-            raise TypeError("Unsupported options: %s, the supported options are: "
-                            "PredefinedOptions.DEFAULT, PredefinedOptions.SPINNING_DISK_OPTIMIZED,"
-                            " PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM and "
-                            "PredefinedOptions.FLASH_SSD_OPTIMIZED")
+        self._j_rocks_db_state_backend.setPredefinedOptions(options._to_j_predefined_options())
 
-    def get_predefined_options(self):
+    def get_predefined_options(self) -> 'PredefinedOptions':
         """
         Gets the current predefined options for RocksDB.
         The default options (if nothing was set via :func:`setPredefinedOptions`)
@@ -653,20 +591,9 @@ class RocksDBStateBackend(StateBackend):
         :return: Current predefined options.
         """
         j_predefined_options = self._j_rocks_db_state_backend.getPredefinedOptions()
-        gateway = get_gateway()
-        JPredefinedOptions = gateway.jvm.org.apache.flink.contrib.streaming.state.PredefinedOptions
-        if j_predefined_options == JPredefinedOptions.DEFAULT:
-            return PredefinedOptions.DEFAULT
-        elif j_predefined_options == JPredefinedOptions.FLASH_SSD_OPTIMIZED:
-            return PredefinedOptions.FLASH_SSD_OPTIMIZED
-        elif j_predefined_options == JPredefinedOptions.SPINNING_DISK_OPTIMIZED:
-            return PredefinedOptions.SPINNING_DISK_OPTIMIZED
-        elif j_predefined_options == JPredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM:
-            return PredefinedOptions.SPINNING_DISK_OPTIMIZED_HIGH_MEM
-        else:
-            raise Exception("Unsupported java options: %s" % j_predefined_options)
+        return PredefinedOptions._from_j_predefined_options(j_predefined_options)
 
-    def set_options(self, options_factory_class_name):
+    def set_options(self, options_factory_class_name: str):
         """
         Sets ``org.rocksdb.Options`` for the RocksDB instances.
         Because the options are not serializable and hold native code references,
@@ -682,26 +609,26 @@ class RocksDBStateBackend(StateBackend):
                                            The options factory must have a default constructor.
         """
         gateway = get_gateway()
-        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.OptionsFactory
+        JOptionsFactory = gateway.jvm.org.apache.flink.contrib.streaming.state.RocksDBOptionsFactory
         j_options_factory_clz = load_java_class(options_factory_class_name)
         if not get_java_class(JOptionsFactory).isAssignableFrom(j_options_factory_clz):
-            raise ValueError("The input class not implements OptionsFactory.")
-        self._j_rocks_db_state_backend.setOptions(j_options_factory_clz.newInstance())
+            raise ValueError("The input class does not implement RocksDBOptionsFactory.")
+        self._j_rocks_db_state_backend.setRocksDBOptions(j_options_factory_clz.newInstance())
 
-    def get_options(self):
+    def get_options(self) -> Optional[str]:
         """
         Gets the fully-qualified class name of the options factory in Java that lazily creates
         the RocksDB options.
 
         :return: The fully-qualified class name of the options factory in Java.
         """
-        j_options_factory = self._j_rocks_db_state_backend.getOptions()
+        j_options_factory = self._j_rocks_db_state_backend.getRocksDBOptions()
         if j_options_factory is not None:
             return j_options_factory.getClass().getName()
         else:
             return None
 
-    def get_number_of_transfering_threads(self):
+    def get_number_of_transfering_threads(self) -> int:
         """
         Gets the number of threads used to transfer files while snapshotting/restoring.
 
@@ -709,7 +636,7 @@ class RocksDBStateBackend(StateBackend):
         """
         return self._j_rocks_db_state_backend.getNumberOfTransferingThreads()
 
-    def set_number_of_transfering_threads(self, number_of_transfering_threads):
+    def set_number_of_transfering_threads(self, number_of_transfering_threads: int):
         """
         Sets the number of threads used to transfer files while snapshotting/restoring.
 
@@ -722,7 +649,7 @@ class RocksDBStateBackend(StateBackend):
         return self._j_rocks_db_state_backend.toString()
 
 
-class PredefinedOptions(object):
+class PredefinedOptions(Enum):
     """
     The :class:`PredefinedOptions` are configuration settings for the :class:`RocksDBStateBackend`.
     The various pre-defined choices are configurations that have been empirically
@@ -811,6 +738,15 @@ class PredefinedOptions(object):
     SPINNING_DISK_OPTIMIZED = 1
     SPINNING_DISK_OPTIMIZED_HIGH_MEM = 2
     FLASH_SSD_OPTIMIZED = 3
+
+    @staticmethod
+    def _from_j_predefined_options(j_predefined_options) -> 'PredefinedOptions':
+        return PredefinedOptions[j_predefined_options.name()]
+
+    def _to_j_predefined_options(self):
+        gateway = get_gateway()
+        JPredefinedOptions = gateway.jvm.org.apache.flink.contrib.streaming.state.PredefinedOptions
+        return getattr(JPredefinedOptions, self.name)
 
 
 class CustomStateBackend(StateBackend):

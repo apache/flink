@@ -22,11 +22,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-The Table API is a unified, relational API for stream and batch processing. Table API queries can be run on batch or streaming input without modifications. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. The Table API is a language-integrated API for Scala and Java. Instead of specifying queries as String values as common with SQL, Table API queries are defined in a language-embedded style in Java or Scala with IDE support like autocompletion and syntax validation. 
+The Table API is a unified, relational API for stream and batch processing. Table API queries can be run on batch or streaming input without modifications. The Table API is a super set of the SQL language and is specially designed for working with Apache Flink. The Table API is a language-integrated API for Scala, Java and Python. Instead of specifying queries as String values as common with SQL, Table API queries are defined in a language-embedded style in Java, Scala or Python with IDE support like autocompletion and syntax validation. 
 
-The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({{ site.baseurl }}/dev/table/common.html) to learn how to register tables or to create a `Table` object. The [Streaming Concepts](./streaming) pages discuss streaming specific concepts such as dynamic tables and time attributes.
+The Table API shares many concepts and parts of its API with Flink's SQL integration. Have a look at the [Common Concepts & API]({% link dev/table/common.zh.md %}) to learn how to register tables or to create a `Table` object. The [Streaming Concepts]({% link dev/table/streaming/index.zh.md %}) pages discuss streaming specific concepts such as dynamic tables and time attributes.
 
-The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute](./streaming/time_attributes.html) in streaming or a regular timestamp field in batch.
+The following examples assume a registered table called `Orders` with attributes `(a, b, c, rowtime)`. The `rowtime` field is either a logical [time attribute]({% link dev/table/streaming/time_attributes.zh.md %}) in streaming or a regular timestamp field in batch.
 
 * This will be replaced by the TOC
 {:toc}
@@ -34,18 +34,20 @@ The following examples assume a registered table called `Orders` with attributes
 Overview & Examples
 -----------------------------
 
-The Table API is available for Scala and Java. The Scala Table API leverages on Scala expressions, the Java Table API is based on strings which are parsed and converted into equivalent expressions.
+The Table API is available for Scala, Java and Python. The Scala Table API leverages on Scala expressions, the Java Table API supports both Expression DSL and strings which are parsed and converted into equivalent expressions, the Python Table API currently only supports strings which are parsed and converted into equivalent expressions.
 
-The following example shows the differences between the Scala and Java Table API. The table program is executed in a batch environment. It scans the `Orders` table, groups by field `a`, and counts the resulting rows per group. The result of the table program is converted into a `DataSet` of type `Row` and printed.
+The following example shows the differences between the Scala, Java and Python Table API. The table program is executed in a batch environment. It scans the `Orders` table, groups by field `a`, and counts the resulting rows per group.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
 The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. The following example shows how a Java Table API program is constructed and how expressions are specified as strings.
+For the Expression DSL it is also necessary to import static `org.apache.flink.table.api.Expressions.*`
 
 {% highlight java %}
-import org.apache.flink.table.api._
-import org.apache.flink.table.api.java._
+import org.apache.flink.table.api.*
+
+import static org.apache.flink.table.api.Expressions.*
 
 // environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
@@ -58,8 +60,8 @@ BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 Table orders = tEnv.from("Orders"); // schema (a, b, c, rowtime)
 
 Table counts = orders
-        .groupBy("a")
-        .select("a, b.count as cnt");
+        .groupBy($("a"))
+        .select($("a"), $("b").count().as("cnt"));
 
 // conversion to DataSet
 DataSet<Row> result = tEnv.toDataSet(counts, Row.class);
@@ -70,14 +72,14 @@ result.print();
 
 <div data-lang="scala" markdown="1">
 
-The Scala Table API is enabled by importing `org.apache.flink.api.scala._` and `org.apache.flink.table.api.scala._`.
+The Scala Table API is enabled by importing `org.apache.flink.table.api._`, `org.apache.flink.api.scala._`, and `org.apache.flink.table.api.bridge.scala._` (for bridging to/from DataStream).
 
-The following example shows how a Scala Table API program is constructed. Table attributes are referenced using [Scala Symbols](http://scala-lang.org/files/archive/spec/2.12/01-lexical-syntax.html#symbol-literals), which start with an apostrophe character (`'`).
+The following example shows how a Scala Table API program is constructed. Table fields are referenced using Scala's String interpolation using a dollar character (`$`).
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.bridge.scala._
 
 // environment configuration
 val env = ExecutionEnvironment.getExecutionEnvironment
@@ -90,8 +92,8 @@ val tEnv = BatchTableEnvironment.create(env)
 val orders = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result = orders
-               .groupBy('a)
-               .select('a, 'b.count as 'cnt)
+               .groupBy($"a")
+               .select($"a", $"b".count as "cnt")
                .toDataSet[Row] // conversion to DataSet
                .print()
 {% endhighlight %}
@@ -99,27 +101,49 @@ val result = orders
 </div>
 <div data-lang="python" markdown="1">
 
-使用`from pyflink.table import *`来导入Python Table API。
-
-下面这个例子演示了如何组织一个Python Table API程序，以及字符串形式的表达式用法。
+下面这个例子演示了如何组织一个 Python Table API 程序，以及字符串形式的表达式用法。
 
 {% highlight python %}
 from pyflink.table import *
-from pyflink.dataset import *
 
 # environment configuration
-env = ExecutionEnvironment.get_execution_environment()
-t_env = TableEnvironment.create(env, TableConfig())
+t_env = BatchTableEnvironment.create(
+    environment_settings=EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build())
 
 # register Orders table and Result table sink in table environment
-# ...
+source_data_path = "/path/to/source/directory/"
+result_data_path = "/path/to/result/directory/"
+source_ddl = f"""
+        create table Orders(
+            a VARCHAR,
+            b BIGINT,
+            c BIGINT,
+            rowtime TIMESTAMP(3),
+            WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND
+        ) with (
+            'connector' = 'filesystem',
+            'format' = 'csv',
+            'path' = '{source_data_path}'
+        )
+        """
+t_env.execute_sql(source_ddl)
+
+sink_ddl = f"""
+    create table `Result`(
+        a VARCHAR,
+        cnt BIGINT
+    ) with (
+        'connector' = 'filesystem',
+        'format' = 'csv',
+        'path' = '{result_data_path}'
+    )
+    """
+t_env.execute_sql(sink_ddl)
 
 # specify table program
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-orders.group_by("a").select("a, b.count as cnt").insert_into("result")
-
-t_env.execute("python_job")
+orders.group_by("a").select(orders.a, orders.b.count.alias('cnt')).execute_insert("result").wait()
 
 {% endhighlight %}
 
@@ -139,11 +163,16 @@ The next example shows a more complex Table API program. The program scans again
 Table orders = tEnv.from("Orders"); // schema (a, b, c, rowtime)
 
 Table result = orders
-        .filter("a.isNotNull && b.isNotNull && c.isNotNull")
-        .select("a.lowerCase() as a, b, rowtime")
-        .window(Tumble.over("1.hour").on("rowtime").as("hourlyWindow"))
-        .groupBy("hourlyWindow, a")
-        .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount");
+        .filter(
+            and(
+                $("a").isNotNull(),
+                $("b").isNotNull(),
+                $("c").isNotNull()
+            ))
+        .select($("a").lowerCase().as("a"), $("b"), $("rowtime"))
+        .window(Tumble.over(lit(1).hours()).on($("rowtime")).as("hourlyWindow"))
+        .groupBy($("hourlyWindow"), $("a"))
+        .select($("a"), $("hourlyWindow").end().as("hour"), $("b").avg().as("avgBillingAmount"));
 {% endhighlight %}
 
 </div>
@@ -158,11 +187,11 @@ Table result = orders
 val orders: Table = tEnv.from("Orders") // schema (a, b, c, rowtime)
 
 val result: Table = orders
-        .filter('a.isNotNull && 'b.isNotNull && 'c.isNotNull)
-        .select('a.lowerCase() as 'a, 'b, 'rowtime)
-        .window(Tumble over 1.hour on 'rowtime as 'hourlyWindow)
-        .groupBy('hourlyWindow, 'a)
-        .select('a, 'hourlyWindow.end as 'hour, 'b.avg as 'avgBillingAmount)
+        .filter($"a".isNotNull && $"b".isNotNull && $"c".isNotNull)
+        .select($"a".lowerCase() as "a", $"b", $"rowtime")
+        .window(Tumble over 1.hour on $"rowtime" as "hourlyWindow")
+        .groupBy($"hourlyWindow", $"a")
+        .select($"a", $"hourlyWindow".end as "hour", $"b".avg as "avgBillingAmount")
 {% endhighlight %}
 
 </div>
@@ -170,23 +199,22 @@ val result: Table = orders
 <div data-lang="python" markdown="1">
 
 {% highlight python %}
-# environment configuration
-# ...
-
 # specify table program
+from pyflink.table.expressions import col, lit
+
 orders = t_env.from_path("Orders")  # schema (a, b, c, rowtime)
 
-result = orders.filter("a.isNotNull && b.isNotNull && c.isNotNull") \
-               .select("a.lowerCase() as a, b, rowtime") \
-               .window(Tumble.over("1.hour").on("rowtime").alias("hourlyWindow")) \
-               .group_by("hourlyWindow, a") \
-               .select("a, hourlyWindow.end as hour, b.avg as avgBillingAmount")
+result = orders.filter(orders.a.is_not_null & orders.b.is_not_null & orders.c.is_not_null) \
+               .select(orders.a.lower_case.alias('a'), orders.b, orders.rowtime) \
+               .window(Tumble.over(lit(1).hour).on(orders.rowtime).alias("hourly_window")) \
+               .group_by(col('hourly_window'), col('a')) \
+               .select(col('a'), col('hourly_window').end.alias('hour'), b.avg.alias('avg_billing_amount'))
 {% endhighlight %}
 
 </div>
 </div>
 
-Since the Table API is a unified API for batch and streaming data, both example programs can be executed on batch and streaming inputs without any modification of the table program itself. In both cases, the program produces the same results given that streaming records are not late (see [Streaming Concepts](streaming) for details).
+Since the Table API is a unified API for batch and streaming data, both example programs can be executed on batch and streaming inputs without any modification of the table program itself. In both cases, the program produces the same results given that streaming records are not late (see [Streaming Concepts]({% link dev/table/streaming/index.zh.md %}) for details).
 
 {% top %}
 
@@ -220,6 +248,50 @@ Table orders = tableEnv.from("Orders");
 {% endhighlight %}
       </td>
   	</tr>
+  	<tr>
+      <td>
+            <strong>Values</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+          <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
+          <p>You can use a `row(...)` expression to create composite rows:</p>
+{% highlight java %}
+Table table = tEnv.fromValues(
+   row(1, "ABC"),
+   row(2L, "ABCDE")
+);
+{% endhighlight %}
+          <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+|-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized
+                            // to VARCHAR(5). VARCHAR is used instead of CHAR so that
+                            // no padding is applied
+{% endhighlight %}
+          <p>The method will derive the types automatically from the input expressions. If types
+          at a certain position differ, the method will try to find a common super type for all types. If a common
+          super type does not exist, an exception will be thrown.</p> 
+          <p>You can also specify the requested type explicitly. It might be helpful for assigning more generic types like  e.g. DECIMAL or naming the columns.</p>
+{% highlight java %}
+Table table = tEnv.fromValues(
+    DataTypes.ROW(
+        DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+        DataTypes.FIELD("name", DataTypes.STRING())
+    ),
+    row(1, "ABC"),
+    row(2L, "ABCDE")
+);
+{% endhighlight %}
+                    <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- id: DECIMAL(10, 2)
+|-- name: STRING
+{% endhighlight %}
+      </td>
+    </tr>
     <tr>
       <td>
         <strong>Select</strong><br>
@@ -229,11 +301,11 @@ Table orders = tableEnv.from("Orders");
         <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.select("a, c as d");
+Table result = orders.select($("a"), $("c").as("d"));
 {% endhighlight %}
         <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
 {% highlight java %}
-Table result = orders.select("*");
+Table result = orders.select($("*"));
 {% endhighlight %}
 </td>
         </tr>
@@ -260,12 +332,12 @@ Table result = orders.as("x, y, z, t");
         <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.where("b === 'red'");
+Table result = orders.where($("b").isEqual("red"));
 {% endhighlight %}
 or
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.filter("a % 2 === 0");
+Table result = orders.filter($("a").mod(2).isEqual(0));
 {% endhighlight %}
       </td>
     </tr>
@@ -297,6 +369,50 @@ val orders: Table = tableEnv.from("Orders")
   	</tr>
   	<tr>
       <td>
+            <strong>Values</strong><br>
+            <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+          <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
+          <p>You can use a `row(...)` expression to create composite rows:</p>
+{% highlight scala %}
+val table = tEnv.fromValues(
+   row(1, "ABC"),
+   row(2L, "ABCDE")
+)
+{% endhighlight %}
+          <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- f0: BIGINT NOT NULL     // original types INT and BIGINT are generalized to BIGINT
+|-- f1: VARCHAR(5) NOT NULL // original types CHAR(3) and CHAR(5) are generalized
+                            // to VARCHAR(5). VARCHAR is used instead of CHAR so that
+                            // no padding is applied
+{% endhighlight %}
+          <p>The method will derive the types automatically from the input expressions. If types
+          at a certain position differ, the method will try to find a common super type for all types. If a common
+          super type does not exist, an exception will be thrown.</p> 
+          <p>You can also specify the requested type explicitly. It might be helpful for assigning more generic types like  e.g. DECIMAL or naming the columns.</p>
+{% highlight scala %}
+val table = tEnv.fromValues(
+    DataTypes.ROW(
+        DataTypes.FIELD("id", DataTypes.DECIMAL(10, 2)),
+        DataTypes.FIELD("name", DataTypes.STRING())
+    ),
+    row(1, "ABC"),
+    row(2L, "ABCDE")
+)
+{% endhighlight %}
+                    <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- id: DECIMAL(10, 2)
+|-- name: STRING
+{% endhighlight %}
+      </td>
+    </tr>
+  	<tr>
+      <td>
         <strong>Select</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
@@ -304,12 +420,12 @@ val orders: Table = tableEnv.from("Orders")
         <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-val result = orders.select('a, 'c as 'd)
+val result = orders.select($"a", $"c" as "d")
 {% endhighlight %}
         <p>You can use star (<code>*</code>) to act as a wild card, selecting all of the columns in the table.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-val result = orders.select('*)
+val result = orders.select($"*")
 {% endhighlight %}
       </td>
     </tr>
@@ -321,7 +437,7 @@ val result = orders.select('*)
       <td>
         <p>Renames fields.</p>
 {% highlight scala %}
-val orders: Table = tableEnv.from("Orders").as('x, 'y, 'z, 't)
+val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 {% endhighlight %}
       </td>
     </tr>
@@ -335,12 +451,12 @@ val orders: Table = tableEnv.from("Orders").as('x, 'y, 'z, 't)
         <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-val result = orders.filter('a % 2 === 0)
+val result = orders.filter($"a" % 2 === 0)
 {% endhighlight %}
 or
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-val result = orders.where('b === "red")
+val result = orders.where($"b" === "red")
 {% endhighlight %}
       </td>
     </tr>
@@ -359,30 +475,75 @@ val result = orders.where('b === "red")
   <tbody>
   	<tr>
   		<td>
-        <strong>Scan</strong><br>
+        <strong>FromPath</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
   		<td>
-        <p>类似于SQL请求中的FROM子句，将一个环境中已注册的表转换成Table对象。</p>
+        <p>类似于 SQL 请求中的 FROM 子句，将一个环境中已注册的表转换成 Table 对象。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 {% endhighlight %}
       </td>
   	</tr>
+  	<tr>
+      <td>
+            <strong>FromElements</strong><br>
+            <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
+      </td>
+      <td>
+          <p>Similar to the VALUES clause in a SQL query. Produces an inline table out of the provided rows.</p>
+{% highlight python %}
+table = t_env.from_elements([(1, 'ABC'), (2, 'ABCDE')])
+{% endhighlight %}
+          <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- _1: BIGINT
+|-- _2: STRING
+{% endhighlight %}
+          <p>The method will derive the types automatically from the input data. The elements types must be acceptable
+          atomic types or acceptable composite types. All elements must be of the same type. If the elements types are
+          composite types, the composite types must be strictly equal, and its subtypes must also be acceptable types,
+          e.g. if the elements are tuples, the length of the tuples must be equal, the element types of the tuples must
+          be equal in order.</p>
+          <p>The built-in acceptable atomic element types contains:</p>
+          <p>int, long, str, unicode, bool, float, bytearray, datetime.date,
+          datetime.time, datetime.datetime, datetime.timedelta, decimal.Decimal</p>
+          <p>The built-in acceptable composite element types contains:</p>
+          <p>list, tuple, dict, array, pyflink.table.Row</p>
+          <p>You can also specify the requested type explicitly. It might be helpful for assigning more generic types
+          like  e.g. DECIMAL or naming the columns.</p>
+{% highlight python %}
+table = t_env.from_elements(
+    [(1, 'ABC'), (2, 'ABCDE')],
+    schema=DataTypes.ROW([DataTypes.FIELD('id', DataTypes.INT()),
+                          DataTypes.FIELD('name', DataTypes.STRING())]))
+)
+{% endhighlight %}
+                    <p>will produce a Table with a schema as follows:</p>
+{% highlight text %}
+root
+|-- id: INT
+|-- name: STRING
+{% endhighlight %}
+      </td>
+    </tr>
     <tr>
       <td>
         <strong>Select</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的SELECT子句，执行一个select操作。</p>
+        <p>类似于 SQL 请求中的 SELECT 子句，执行一个 select 操作。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.select("a, c as d")
+orders = t_env.from_path("Orders")
+result = orders.select(orders.a, orders.c.alias('d'))
 {% endhighlight %}
-        <p>您可以使用星号 (<code>*</code>) 表示选择表中的所有列。</p>
+        <p>你可以使用星号（<code>*</code>）表示选择表中的所有列。</p>
 {% highlight python %}
-result = orders.select("*")
+from pyflink.table.expressions import col
+
+result = orders.select(col("*"))
 {% endhighlight %}
 </td>
         </tr>
@@ -394,7 +555,7 @@ result = orders.select("*")
       <td>
         <p>重命名字段。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+orders = t_env.from_path("Orders")
 result = orders.alias("x, y, z, t")
 {% endhighlight %}
       </td>
@@ -406,15 +567,15 @@ result = orders.alias("x, y, z, t")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的WHERE子句，过滤掉表中不满足条件的行。</p>
+        <p>类似于 SQL 请求中的 WHERE 子句，过滤掉表中不满足条件的行。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.where("b === 'red'")
+orders = t_env.from_path("Orders")
+result = orders.where(orders.a == 'red')
 {% endhighlight %}
 or
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.filter("a % 2 === 0")
+orders = t_env.from_path("Orders")
+result = orders.filter(orders.b % 2 == 0)
 {% endhighlight %}
       </td>
     </tr>
@@ -447,21 +608,21 @@ result = orders.filter("a % 2 === 0")
           <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.addColumns("concat(c, 'sunny')");
+Table result = orders.addColumns(concat($("c"), "sunny"));
 {% endhighlight %}
 </td>
         </tr>
-
+        
  <tr>
      <td>
                     <strong>AddOrReplaceColumns</strong><br>
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                  <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                  <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.addOrReplaceColumns("concat(c, 'sunny') as desc");
+Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
 {% endhighlight %}
                   </td>
                 </tr>
@@ -474,7 +635,7 @@ Table result = orders.addOrReplaceColumns("concat(c, 'sunny') as desc");
                   <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.dropColumns("b, c");
+Table result = orders.dropColumns($("b"), $("c"));
 {% endhighlight %}
                   </td>
                 </tr>
@@ -487,7 +648,7 @@ Table result = orders.dropColumns("b, c");
                   <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.renameColumns("b as b2, c as c2");
+Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
 {% endhighlight %}
                   </td>
                 </tr>
@@ -514,7 +675,7 @@ Table result = orders.renameColumns("b as b2, c as c2");
             <p>Performs a field add operation. It will throw an exception if the added fields already exist.</p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
-val result = orders.addColumns(concat('c, "Sunny"))
+val result = orders.addColumns(concat($"c", "Sunny"))
 {% endhighlight %}
           </td>
         </tr>
@@ -524,10 +685,10 @@ val result = orders.addColumns(concat('c, "Sunny"))
                     <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
                   </td>
                   <td>
-                     <p>Performs a field add operation. Existing fields will be replaced if add columns name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
+                     <p>Performs a field add operation. Existing fields will be replaced if the added column name is the same as the existing column name.  Moreover, if the added fields have duplicate field name, then the last one is used. </p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
-val result = orders.addOrReplaceColumns(concat('c, "Sunny") as 'desc)
+val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 {% endhighlight %}
                   </td>
                 </tr>
@@ -540,7 +701,7 @@ val result = orders.addOrReplaceColumns(concat('c, "Sunny") as 'desc)
                     <p>Performs a field drop operation. The field expressions should be field reference expressions, and only existing fields can be dropped.</p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
-val result = orders.dropColumns('b, 'c)
+val result = orders.dropColumns($"b", $"c")
 {% endhighlight %}
                   </td>
                 </tr>
@@ -553,10 +714,10 @@ val result = orders.dropColumns('b, 'c)
                     <p>Performs a field rename operation. The field expressions should be alias expressions, and only the existing fields can be renamed.</p>
 {% highlight scala %}
 val orders = tableEnv.from("Orders");
-val result = orders.renameColumns('b as 'b2, 'c as 'c2)
+val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 {% endhighlight %}
                   </td>
-                </tr>
+                </tr>                
   </tbody>
 </table>
 </div>
@@ -578,8 +739,10 @@ val result = orders.renameColumns('b as 'b2, 'c as 'c2)
           <td>
           <p>执行新增字段操作。如果欲添加字段已经存在，将会抛出异常。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.add_columns("concat(c, 'sunny')")
+from pyflink.table.expressions import concat
+
+orders = t_env.from_path("Orders")
+result = orders.add_columns(concat(orders.c, 'sunny'))
 {% endhighlight %}
 </td>
         </tr>
@@ -592,8 +755,10 @@ result = orders.add_columns("concat(c, 'sunny')")
                   <td>
                   <p>执行新增字段操作。如果欲添加字段已经存在，将会替换该字段。如果新增字段列表中有同名字段，取最靠后的为有效字段。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.add_or_replace_columns("concat(c, 'sunny') as desc")
+from pyflink.table.expressions import concat
+
+orders = t_env.from_path("Orders")
+result = orders.add_or_replace_columns(concat(orders.c, 'sunny').alias('desc'))
 {% endhighlight %}
                   </td>
                 </tr>
@@ -605,8 +770,8 @@ result = orders.add_or_replace_columns("concat(c, 'sunny') as desc")
                   <td>
                   <p>执行删除字段操作。参数必须是字段列表，并且必须是已经存在的字段才能被删除。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.drop_columns("b, c")
+orders = t_env.from_path("Orders")
+result = orders.drop_columns(orders.b, orders.c)
 {% endhighlight %}
                   </td>
                 </tr>
@@ -616,10 +781,10 @@ result = orders.drop_columns("b, c")
                     <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
                   </td>
                   <td>
-                  <p>执行重命名字段操作。参数必须是字段别名(例：b as b2)列表，并且必须是已经存在的字段才能被重命名。</p>
+                  <p>执行重命名字段操作。参数必须是字段别名（例：b as b2）列表，并且必须是已经存在的字段才能被重命名。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.rename_columns("b as b2, c as c2")
+orders = t_env.from_path("Orders")
+result = orders.rename_columns(orders.b.alias('b2'), orders.c.alias('c2'))
 {% endhighlight %}
                   </td>
                 </tr>
@@ -654,9 +819,9 @@ result = orders.rename_columns("b as b2, c as c2")
         <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-Table result = orders.groupBy("a").select("a, b.sum as d");
+Table result = orders.groupBy($("a")).select($("a"), $("b").sum().as("d"));
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -669,9 +834,16 @@ Table result = orders.groupBy("a").select("a, b.sum as d");
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
-    .groupBy("a, w") // group by key and window
-    .select("a, w.start, w.end, w.rowtime, b.sum as d"); // access window properties and aggregate
+    .window(Tumble.over(lit(5).minutes()).on($("rowtime")).as("w")) // define window
+    .groupBy($("a"), $("w")) // group by key and window
+    // access window properties and aggregate
+    .select(
+        $("a"),
+        $("w").start(),
+        $("w").end(),
+        $("w").rowtime(),
+        $("b").sum().as("d")
+    );
 {% endhighlight %}
       </td>
     </tr>
@@ -686,15 +858,22 @@ Table result = orders
 Table orders = tableEnv.from("Orders");
 Table result = orders
     // define window
-    .window(Over
-      .partitionBy("a")
-      .orderBy("rowtime")
-      .preceding("UNBOUNDED_RANGE")
-      .following("CURRENT_RANGE")
-      .as("w"))
-    .select("a, b.avg over w, b.max over w, b.min over w"); // sliding aggregate
+    .window(
+        Over
+          .partitionBy($("a"))
+          .orderBy($("rowtime"))
+          .preceding(UNBOUNDED_RANGE)
+          .following(CURRENT_RANGE)
+          .as("w"))
+    // sliding aggregate
+    .select(
+        $("a"),
+        $("b").avg().over($("w")),
+        $("b").max().over($("w")),
+        $("b").min().over($("w"))
+    );
 {% endhighlight %}
-       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{% link dev/table/streaming/time_attributes.zh.md %}">time attribute</a>.</p>
       </td>
     </tr>
     <tr>
@@ -709,20 +888,29 @@ Table result = orders
 Table orders = tableEnv.from("Orders");
 // Distinct aggregation on group by
 Table groupByDistinctResult = orders
-    .groupBy("a")
-    .select("a, b.sum.distinct as d");
+    .groupBy($("a"))
+    .select($("a"), $("b").sum().distinct().as("d"));
 // Distinct aggregation on time window group by
 Table groupByWindowDistinctResult = orders
-    .window(Tumble.over("5.minutes").on("rowtime").as("w")).groupBy("a, w")
-    .select("a, b.sum.distinct as d");
+    .window(Tumble
+            .over(lit(5).minutes())
+            .on($("rowtime"))
+            .as("w")
+    )
+    .groupBy($("a"), $("w"))
+    .select($("a"), $("b").sum().distinct().as("d"));
 // Distinct aggregation on over window
 Table result = orders
     .window(Over
-        .partitionBy("a")
-        .orderBy("rowtime")
-        .preceding("UNBOUNDED_RANGE")
+        .partitionBy($("a"))
+        .orderBy($("rowtime"))
+        .preceding(UNBOUNDED_RANGE)
         .as("w"))
-    .select("a, b.avg.distinct over w, b.max over w, b.min over w");
+    .select(
+        $("a"), $("b").avg().distinct().over($("w")),
+        $("b").max().over($("w")),
+        $("b").min().over($("w"))
+    );
 {% endhighlight %}
         <p>User-defined aggregation function can also be used with DISTINCT modifiers. To calculate the aggregate results only for distinct values, simply add the distinct modifier towards the aggregation function. </p>
 {% highlight java %}
@@ -730,9 +918,13 @@ Table orders = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
 tEnv.registerFunction("myUdagg", new MyUdagg());
-orders.groupBy("users").select("users, myUdagg.distinct(points) as myDistinctResult");
+orders.groupBy("users")
+    .select(
+        $("users"),
+        call("myUdagg", $("points")).distinct().as("myDistinctResult")
+    );
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -747,7 +939,7 @@ orders.groupBy("users").select("users, myUdagg.distinct(points) as myDistinctRes
 Table orders = tableEnv.from("Orders");
 Table result = orders.distinct();
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -775,9 +967,9 @@ Table result = orders.distinct();
         <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-val result = orders.groupBy('a).select('a, 'b.sum as 'd)
+val result = orders.groupBy($"a").select($"a", $"b".sum().as("d"))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -790,9 +982,9 @@ val result = orders.groupBy('a).select('a, 'b.sum as 'd)
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
-    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
-    .groupBy('a, 'w) // group by key and window
-    .select('a, w.start, 'w.end, 'w.rowtime, 'b.sum as 'd) // access window properties and aggregate
+    .window(Tumble over 5.minutes on $"rowtime" as "w") // define window
+    .groupBy($"a", $"w") // group by key and window
+    .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".sum as "d") // access window properties and aggregate
 {% endhighlight %}
       </td>
     </tr>
@@ -807,15 +999,16 @@ val result: Table = orders
 val orders: Table = tableEnv.from("Orders")
 val result: Table = orders
     // define window
-    .window(Over
-      partitionBy 'a
-      orderBy 'rowtime
-      preceding UNBOUNDED_RANGE
-      following CURRENT_RANGE
-      as 'w)
-    .select('a, 'b.avg over 'w, 'b.max over 'w, 'b.min over 'w) // sliding aggregate
+    .window(
+        Over
+          partitionBy $"a"
+          orderBy $"rowtime"
+          preceding UNBOUNDED_RANGE
+          following CURRENT_RANGE
+          as "w")
+    .select($"a", $"b".avg over $"w", $"b".max().over($"w"), $"b".min().over($"w")) // sliding aggregate
 {% endhighlight %}
-       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
+       <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="{% link dev/table/streaming/time_attributes.zh.md %}">time attribute</a>.</p>
       </td>
     </tr>
     <tr>
@@ -830,20 +1023,20 @@ val result: Table = orders
 val orders: Table = tableEnv.from("Orders");
 // Distinct aggregation on group by
 val groupByDistinctResult = orders
-    .groupBy('a)
-    .select('a, 'b.sum.distinct as 'd)
+    .groupBy($"a")
+    .select($"a", $"b".sum.distinct as "d")
 // Distinct aggregation on time window group by
 val groupByWindowDistinctResult = orders
-    .window(Tumble over 5.minutes on 'rowtime as 'w).groupBy('a, 'w)
-    .select('a, 'b.sum.distinct as 'd)
+    .window(Tumble over 5.minutes on $"rowtime" as "w").groupBy($"a", $"w")
+    .select($"a", $"b".sum.distinct as "d")
 // Distinct aggregation on over window
 val result = orders
     .window(Over
-        partitionBy 'a
-        orderBy 'rowtime
+        partitionBy $"a"
+        orderBy $"rowtime"
         preceding UNBOUNDED_RANGE
-        as 'w)
-    .select('a, 'b.avg.distinct over 'w, 'b.max over 'w, 'b.min over 'w)
+        as $"w")
+    .select($"a", $"b".avg.distinct over $"w", $"b".max over $"w", $"b".min over $"w")
 {% endhighlight %}
         <p>User-defined aggregation function can also be used with DISTINCT modifiers. To calculate the aggregate results only for distinct values, simply add the distinct modifier towards the aggregation function. </p>
 {% highlight scala %}
@@ -851,15 +1044,16 @@ val orders: Table = tEnv.from("Orders");
 
 // Use distinct aggregation for user-defined aggregate functions
 val myUdagg = new MyUdagg();
-orders.groupBy('users).select('users, myUdagg.distinct('points) as 'myDistinctResult);
+orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
       <td>
         <strong>Distinct</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span> <br>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
@@ -867,7 +1061,7 @@ orders.groupBy('users).select('users, myUdagg.distinct('points) as 'myDistinctRe
 val orders: Table = tableEnv.from("Orders")
 val result = orders.distinct()
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct fields. Please provide a query configuration with valid retention interval to prevent excessive state size. If state cleaning is enabled, distinct have to emit messages to prevent too early state eviction of downstream operators which makes distinct contains result updating. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -890,12 +1084,12 @@ val result = orders.distinct()
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL的GROUP BY子句。将数据按照指定字段进行分组，之后对各组内数据执行聚合操作。</p>
+        <p>类似于 SQL 的 GROUP BY 子句。将数据按照指定字段进行分组，之后对各组内数据执行聚合操作。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.group_by("a").select("a, b.sum as d")
+orders = t_env.from_path("Orders")
+result = orders.group_by(orders.a).select(orders.a, orders.b.sum.alias('d'))
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于聚合操作的类型和分组的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于聚合操作的类型和分组的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
@@ -906,10 +1100,13 @@ result = orders.group_by("a").select("a, b.sum as d")
     	<td>
         <p>在一个窗口上分组和聚合数据，可包含其它分组字段。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \ 
-               .group_by("a, w") \
-               .select("a, w.start, w.end, w.rowtime, b.sum as d")
+from pyflink.table.window import Tumble
+from pyflink.table.expressions import lit, col
+
+orders = t_env.from_path("Orders")
+result = orders.window(Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")) \ 
+               .group_by(orders.a, col('w')) \
+               .select(orders.a, col('w').start, col('w').end, orders.b.sum.alias('d'))
 {% endhighlight %}
       </td>
     </tr>
@@ -919,15 +1116,18 @@ result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-       <p>类似于SQL中的OVER开窗函数。Over窗口聚合对每一行都进行一次聚合计算，聚合的对象是以当前行的位置为基准，向前向后取一个区间范围内的所有数据。详情请见<a href="#over-windows">Over窗口</a>一节。</p>
+       <p>类似于 SQL 中的 OVER 开窗函数。Over 窗口聚合对每一行都进行一次聚合计算，聚合的对象是以当前行的位置为基准，向前向后取一个区间范围内的所有数据。详情请见 <a href="#over-windows">Over 窗口</a>一节。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
-result = orders.over_window(Over.partition_by("a").order_by("rowtime")
-                            .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE")
+from pyflink.table.window import Over
+from pyflink.table.expressions import col, UNBOUNDED_RANGE, CURRENT_RANGE
+
+orders = t_env.from_path("Orders")
+result = orders.over_window(Over.partition_by(orders.a).order_by(orders.rowtime)
+                            .preceding(UNBOUNDED_RANGE).following(CURRENT_RANGE)
                             .alias("w")) \
-    .select("a, b.avg over w, b.max over w, b.min over w")
+               .select(orders.a, orders.b.avg.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
 {% endhighlight %}
-       <p><b>注意：</b> 所有的聚合操作必须在同一个窗口上定义，即分组，排序，范围等属性必须一致。目前，窗口区间范围的向前（PRECEDING）取值没有限制，可以为无界（UNBOUNDED），但是向后（FOLLOWING）只支持当前行（CURRENT ROW），其它向后范围取值暂不支持。排序（ORDER BY）属性必须指定单个<a href="streaming/time_attributes.html">时间属性</a>。</p>
+       <p><b>注意：</b> 所有的聚合操作必须在同一个窗口上定义，即分组，排序，范围等属性必须一致。目前，窗口区间范围的向前（PRECEDING）取值没有限制，可以为无界（UNBOUNDED），但是向后（FOLLOWING）只支持当前行（CURRENT ROW），其它向后范围取值暂不支持。排序（ORDER BY）属性必须指定单个<a href="{% link dev/table/streaming/time_attributes.zh.md %}">时间属性</a>。</p>
       </td>
     </tr>
     <tr>
@@ -937,26 +1137,27 @@ result = orders.over_window(Over.partition_by("a").order_by("rowtime")
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL聚合函数中的的DISTINCT关键字比如COUNT(DISTINCT a)。带有distinct标记的聚合函数只会接受不重复的输入，重复输入将被丢弃。这个去重特性可以在<b>分组聚合（GroupBy Aggregation）</b>，<b>分组窗口聚合（GroupBy Window Aggregation）</b>以及<b>Over窗口聚合（Over Window Aggregation）</b>上使用。</p>
+        <p>类似于 SQL 聚合函数中的的 DISTINCT 关键字比如 COUNT(DISTINCT a)。带有 distinct 标记的聚合函数只会接受不重复的输入，重复输入将被丢弃。这个去重特性可以在<b>分组聚合（GroupBy Aggregation）</b>，<b>分组窗口聚合（GroupBy Window Aggregation）</b>以及<b> Over窗口聚合（Over Window Aggregation）</b>上使用。</p>
 {% highlight python %}
-orders = table_env.from_path("Orders")
+from pyflink.table.expressions import col, lit, UNBOUNDED_RANGE
+
+orders = t_env.from_path("Orders")
 # Distinct aggregation on group by
-group_by_distinct_result = orders.group_by("a") \
-                                 .select("a, b.sum.distinct as d")
+group_by_distinct_result = orders.group_by(orders.a) \
+                                 .select(orders.a, orders.b.sum.distinct.alias('d'))
 # Distinct aggregation on time window group by
 group_by_window_distinct_result = orders.window(
-    Tumble.over("5.minutes").on("rowtime").alias("w")).groupBy("a, w") \
-    .select("a, b.sum.distinct as d")
+    Tumble.over(lit(5).minutes).on(orders.rowtime).alias("w")).group_by(orders.a, col('w')) \
+    .select(orders.a, orders.b.sum.distinct.alias('d'))
 # Distinct aggregation on over window
 result = orders.over_window(Over
-                       .partition_by("a")
-                       .order_by("rowtime")
-                       .preceding("UNBOUNDED_RANGE")
+                       .partition_by(orders.a)
+                       .order_by(orders.rowtime)
+                       .preceding(UNBOUNDED_RANGE)
                        .alias("w")) \
-                       .select(
-                       "a, b.avg.distinct over w, b.max over w, b.min over w")
+                       .select(orders.a, orders.b.avg.distinct.over(col('w')), orders.b.max.over(col('w')), orders.b.min.over(col('w')))
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
@@ -966,12 +1167,12 @@ result = orders.over_window(Over
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL中的DISTINCT子句。返回去重后的数据。</p>
-{% highlight java %}
-orders = table_env.from_path("Orders")
+        <p>类似于 SQL 中的 DISTINCT 子句。返回去重后的数据。</p>
+{% highlight python %}
+orders = t_env.from_path("Orders")
 result = orders.distinct()
 {% endhighlight %}
-        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体情况取决于执行去重判断时参与判断的字段的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
   </tbody>
@@ -1006,9 +1207,11 @@ result = orders.distinct()
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
-Table result = left.join(right).where("a = d").select("a, b, e");
+Table result = left.join(right)
+    .where($("a").isEqual($("d")))
+    .select($("a"), $("b"), $("e"));
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1025,23 +1228,26 @@ Table result = left.join(right).where("a = d").select("a, b, e");
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
 
-Table leftOuterResult = left.leftOuterJoin(right, "a = d").select("a, b, e");
-Table rightOuterResult = left.rightOuterJoin(right, "a = d").select("a, b, e");
-Table fullOuterResult = left.fullOuterJoin(right, "a = d").select("a, b, e");
+Table leftOuterResult = left.leftOuterJoin(right, $("a").isEqual($("d")))
+                            .select($("a"), $("b"), $("e"));
+Table rightOuterResult = left.rightOuterJoin(right, $("a").isEqual($("d")))
+                            .select($("a"), $("b"), $("e"));
+Table fullOuterResult = left.fullOuterJoin(right, $("a").isEqual($("d")))
+                            .select($("a"), $("b"), $("e"));
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Inner/Outer Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion. Both inner and outer joins are supported.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="{% link dev/table/streaming/time_attributes.zh.md %}">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
           <li><code>ltime === rtime</code></li>
@@ -1049,12 +1255,17 @@ Table fullOuterResult = left.fullOuterJoin(right, "a = d").select("a, b, e");
         </ul>
 
 {% highlight java %}
-Table left = tableEnv.fromDataSet(ds1, "a, b, c, ltime.rowtime");
-Table right = tableEnv.fromDataSet(ds2, "d, e, f, rtime.rowtime");
+Table left = tableEnv.fromDataSet(ds1, $("a"), $("b"), $("c"), $("ltime").rowtime());
+Table right = tableEnv.fromDataSet(ds2, $("d"), $("e"), $("f"), $("rtime").rowtime()));
 
 Table result = left.join(right)
-  .where("a = d && ltime >= rtime - 5.minutes && ltime < rtime + 10.minutes")
-  .select("a, b, e, ltime");
+  .where(
+    and(
+        $("a").isEqual($("d")),
+        $("ltime").isGreaterOrEqual($("rtime").minus(lit(5).minutes())),
+        $("ltime").isLess($("rtime").plus(lit(10).minutes()))
+    ))
+  .select($("a"), $("b"), $("e"), $("ltime"));
 {% endhighlight %}
       </td>
     </tr>
@@ -1068,14 +1279,14 @@ Table result = left.join(right)
         </p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .joinLateral("split(c).as(s, t, v)")
-    .select("a, b, s, t, v");
+    .joinLateral(call("split", $("c")).as("s", "t", "v"))
+    .select($("a"), $("b"), $("s"), $("t"), $("v"));
 {% endhighlight %}
       </td>
     </tr>
@@ -1089,14 +1300,14 @@ Table result = orders
         <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
 {% highlight java %}
 // register User-Defined Table Function
-TableFunction<String> split = new MySplitUDTF();
+TableFunction<Tuple3<String,String,String>> split = new MySplitUDTF();
 tableEnv.registerFunction("split", split);
 
 // join
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .leftOuterJoinLateral("split(c).as(s, t, v)")
-    .select("a, b, s, t, v");
+    .leftOuterJoinLateral(call("split", $("c")).as("s", "t", "v"))
+    .select($("a"), $("b"), $("s"), $("t"), $("v"));
 {% endhighlight %}
       </td>
     </tr>
@@ -1106,8 +1317,8 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal tables</a> are tables that track changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1123,9 +1334,9 @@ tableEnv.registerFunction("rates", rates);
 // join with "Orders" based on the time attribute and key
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .joinLateral("rates(o_proctime)", "o_currency = r_currency")
+    .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")))
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.zh.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -1153,11 +1364,11 @@ Table result = orders
       <td>
         <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'd, 'e, 'f)
-val result = left.join(right).where('a === 'd).select('a, 'b, 'e)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"d", $"e", $"f")
+val result = left.join(right).where($"a" === $"d").select($"a", $"b", $"e")
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
@@ -1170,39 +1381,39 @@ val result = left.join(right).where('a === 'd).select('a, 'b, 'e)
       <td>
         <p>Similar to SQL LEFT/RIGHT/FULL OUTER JOIN clauses. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined.</p>
 {% highlight scala %}
-val left = tableEnv.fromDataSet(ds1, 'a, 'b, 'c)
-val right = tableEnv.fromDataSet(ds2, 'd, 'e, 'f)
+val left = tableEnv.fromDataSet(ds1, $"a", $"b", $"c")
+val right = tableEnv.fromDataSet(ds2, $"d", $"e", $"f")
 
-val leftOuterResult = left.leftOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
-val rightOuterResult = left.rightOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
-val fullOuterResult = left.fullOuterJoin(right, 'a === 'd).select('a, 'b, 'e)
+val leftOuterResult = left.leftOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
+val rightOuterResult = left.rightOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
+val fullOuterResult = left.fullOuterJoin(right, $"a" === $"d").select($"a", $"b", $"e")
 {% endhighlight %}
-<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+<p><b>Note:</b> For streaming queries the required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">Batch</span>
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><b>Note:</b> Time-windowed joins are a subset of regular joins that can be processed in a streaming fashion.</p>
+        <p><b>Note:</b> Interval joins are a subset of regular joins that can be processed in a streaming fashion.</p>
 
-        <p>A time-windowed join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="streaming/time_attributes.html">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
-        <p>For example, the following predicates are valid window join conditions:</p>
+        <p>An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Such a condition can be defined by two appropriate range predicates (<code>&lt;, &lt;=, &gt;=, &gt;</code>) or a single equality predicate that compares <a href="{% link dev/table/streaming/time_attributes.zh.md %}">time attributes</a> of the same type (i.e., processing time or event time) of both input tables.</p>
+        <p>For example, the following predicates are valid interval join conditions:</p>
 
         <ul>
-          <li><code>'ltime === 'rtime</code></li>
-          <li><code>'ltime &gt;= 'rtime &amp;&amp; 'ltime &lt; 'rtime + 10.minutes</code></li>
+          <li><code>$"ltime" === $"rtime"</code></li>
+          <li><code>$"ltime" &gt;= $"rtime" &amp;&amp; $"ltime" &lt; $"rtime" + 10.minutes</code></li>
         </ul>
 
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c, 'ltime.rowtime)
-val right = ds2.toTable(tableEnv, 'd, 'e, 'f, 'rtime.rowtime)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c", $"ltime".rowtime)
+val right = ds2.toTable(tableEnv, $"d", $"e", $"f", $"rtime".rowtime)
 
 val result = left.join(right)
-  .where('a === 'd && 'ltime >= 'rtime - 5.minutes && 'ltime < 'rtime + 10.minutes)
-  .select('a, 'b, 'e, 'ltime)
+  .where($"a" === $"d" && $"ltime" >= $"rtime" - 5.minutes && $"ltime" < $"rtime" + 10.minutes)
+  .select($"a", $"b", $"e", $"ltime")
 {% endhighlight %}
       </td>
     </tr>
@@ -1220,8 +1431,8 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .joinLateral(split('c) as ('s, 't, 'v))
-    .select('a, 'b, 's, 't, 'v)
+    .joinLateral(split($"c") as ("s", "t", "v"))
+    .select($"a", $"b", $"s", $"t", $"v")
 {% endhighlight %}
         </td>
     </tr>
@@ -1238,8 +1449,8 @@ val split: TableFunction[_] = new MySplitUDTF()
 
 // join
 val result: Table = table
-    .leftOuterJoinLateral(split('c) as ('s, 't, 'v))
-    .select('a, 'b, 's, 't, 'v)
+    .leftOuterJoinLateral(split($"c") as ("s", "t", "v"))
+    .select($"a", $"b", $"s", $"t", $"v")
 {% endhighlight %}
       </td>
     </tr>
@@ -1250,8 +1461,8 @@ val result: Table = table
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p><a href="streaming/temporal_tables.html">Temporal tables</a> are tables that track their changes over time.</p>
-        <p>A <a href="streaming/temporal_tables.html#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
+        <p><a href="{% link dev/table/streaming/legacy.zh.md %}">Temporal tables</a> are tables that track their changes over time.</p>
+        <p>A <a href="{% link dev/table/streaming/legacy.zh.md %}#temporal-table-functions">temporal table function</a> provides access to the state of a temporal table at a specific point in time.
         The syntax to join a table with a temporal table function is the same as in <i>Inner Join with Table Function</i>.</p>
 
         <p>Currently only inner joins with temporal tables are supported.</p>
@@ -1259,14 +1470,14 @@ val result: Table = table
 val ratesHistory = tableEnv.from("RatesHistory")
 
 // register temporal table function with a time attribute and primary key
-val rates = ratesHistory.createTemporalTableFunction('r_proctime, 'r_currency)
+val rates = ratesHistory.createTemporalTableFunction($"r_proctime", $"r_currency")
 
 // join with "Orders" based on the time attribute and key
 val orders = tableEnv.from("Orders")
 val result = orders
-    .joinLateral(rates('o_rowtime), 'r_currency === 'o_currency)
+    .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 {% endhighlight %}
-        <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">temporal tables concept description</a>.</p>
+        <p>For more information please check the more detailed <a href="{% link dev/table/streaming/legacy.zh.md %}">temporal tables concept description</a>.</p>
       </td>
     </tr>
 
@@ -1290,13 +1501,15 @@ val result = orders
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的JOIN子句。对两张表执行内连接操作。两张表必须具有不同的字段名称，并且必须在join方法或者随后的where或filter方法中定义至少一个等值连接条件。</p>
+        <p>类似于 SQL 的 JOIN 子句。对两张表执行内连接操作。两张表必须具有不同的字段名称，并且必须在 join 方法或者随后的 where 或 filter 方法中定义至少一个等值连接条件。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("d, e, f")
-result = left.join(right).where("a = d").select("a, b, e")
+from pyflink.table.expressions import col
+
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
+result = left.join(right).where(left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
 
@@ -1308,26 +1521,47 @@ result = left.join(right).where("a = d").select("a, b, e")
         <span class="label label-info">结果持续更新</span>
       </td>
       <td>
-        <p>类似于SQL的LEFT/RIGHT/FULL OUTER JOIN子句。对两张表执行外连接操作。两张表必须具有不同的字段名称，并且必须定义至少一个等值连接条件。</p>
+        <p>类似于 SQL 的 LEFT/RIGHT/FULL OUTER JOIN 子句。对两张表执行外连接操作。两张表必须具有不同的字段名称，并且必须定义至少一个等值连接条件。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("d, e, f")
+from pyflink.table.expressions import col
 
-left_outer_result = left.left_outer_join(right, "a = d").select("a, b, e")
-right_outer_result = left.right_outer_join(right, "a = d").select("a, b, e")
-full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'))
+
+left_outer_result = left.left_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
+right_outer_result = left.right_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
+full_outer_result = left.full_outer_join(right, left.a == right.d).select(left.a, left.b, right.e)
 {% endhighlight %}
-<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+<p><b>注意：</b> 对于流式查询，计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
     <tr>
-      <td><strong>Time-windowed Join</strong><br>
+      <td><strong>Interval Join</strong><br>
         <span class="label label-primary">批处理</span>
         <span class="label label-primary">流处理</span>
       </td>
+      
       <td>
-        <p>Python API暂不支持。</p>
+                    <p><b>注意：</b> Interval Join 是所有常规流式数据处理 join 操作中的其中一种场景。</p>               
+                    <p>Interval Join 要求至少有一个等值连接条件以及一个用于划定时间间隔的条件。对两条数据流时间的划定可以通过两个范围比较确定一个合适时间区间（<code>&lt;, &lt;=, &gt;=, &gt;</code>），也可以简单的通过对相同<a href="{% link dev/table/streaming/time_attributes.zh.md %}">时间属性</a>（当前处理时间或事件时间）的时间值进行等值比较确定。</p>
+                    <p>如下示例是合法的 Interval Join 条件：</p>
+            
+                    <ul>
+                      <li><code>ltime = rtime</code></li>
+                      <li><code>ltime &gt;= rtime &amp;&amp; ltime &lt; rtime + 2.second</code></li>
+                    </ul>
+            
+            {% highlight python %}
+from pyflink.table.expressions import col
+
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'), col('rowtime1'))
+right = t_env.from_path("Source2").select(col('d'), col('e'), col('f'), col('rowtime2'))
+  
+joined_table = left.join(right).where(left.a == right.d & left.rowtime1 >= right.rowtime2 - lit(1).second & left.rowtime1 <= right.rowtime2 + lit(2).seconds)
+result = joined_table.select(joined_table.a, joined_table.b, joined_table.e, joined_table.rowtime1)
+      {% endhighlight %}
       </td>
+      
     </tr>
     <tr>
     	<td>
@@ -1335,15 +1569,18 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
     	<td>
-        <p>将一张表与一个表函数的执行结果执行内连接操作。左表的每一行都会进行一次表函数调用，调用将会返回0个，1个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，则这行数据会被丢弃。
+        <p>将一张表与一个表函数的执行结果执行内连接操作。左表的每一行都会进行一次表函数调用，调用将会返回 0 个，1 个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，则这行数据会被丢弃。
         </p>
 {% highlight python %}
-# register Java User-Defined Table Function
-table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+# register User-Defined Table Function
+@udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
+def split(x):
+    return [Row(1, 2, 3)]
 
 # join
-orders = table_env.from_path("Orders")
-result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+orders = t_env.from_path("Orders")
+joined_table = orders.join_lateral(split(orders.c).alias("s, t, v"))
+result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 {% endhighlight %}
       </td>
     </tr>
@@ -1353,15 +1590,18 @@ result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>将一张表与一个表函数的执行结果执行左连接操作。左表的每一行都会进行一次表函数调用，调用将会返回0个，1个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，这行数据依然会被保留，对应的右表数值用null(python为None)填充。</p>
-        <p><b>注意：</b>目前，表函数的左连接操作的连接条件(join predicate)只能为空或者为"true"常量。</p>
+        <p>将一张表与一个表函数的执行结果执行左连接操作。左表的每一行都会进行一次表函数调用，调用将会返回 0 个，1 个或多个结果，再与这些结果执行连接操作。如果一行数据对应的表函数调用返回了一个空的结果集，这行数据依然会被保留，对应的右表数值用 null（python为None）填充。</p>
+        <p><b>注意：</b>目前，表函数的左连接操作的连接条件（join predicate）只能为空或者为"true"常量。</p>
 {% highlight python %}
-# register Java User-Defined Table Function
-table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+# register User-Defined Table Function
+@udtf(result_types=[DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
+def split(x):
+    return [Row(1, 2, 3)]
 
 # join
-orders = table_env.from_path("Orders")
-result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+orders = t_env.from_path("Orders")
+joined_table = orders.left_outer_join_lateral(split(orders.c).alias("s, t, v"))
+result = joined_table.select(joined_table.a, joined_table.b, joined_table.s, joined_table.t, joined_table.v)
 {% endhighlight %}
       </td>
     </tr>
@@ -1371,7 +1611,7 @@ result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s,
         <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>Python API暂不支持。</p>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
 
@@ -1497,15 +1737,10 @@ Table result = left.minusAll(right);
 Table left = ds1.toTable(tableEnv, "a, b, c");
 Table right = ds2.toTable(tableEnv, "a");
 
-// using implicit registration
-Table result = left.select("a, b, c").where("a.in(" + right + ")");
-
-// using explicit registration
-tableEnv.createTemporaryView("RightTable", right);
-Table result = left.select("a, b, c").where("a.in(RightTable)");
+Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));
 {% endhighlight %}
 
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
   </tbody>
@@ -1530,8 +1765,8 @@ Table result = left.select("a, b, c").where("a.in(RightTable)");
       <td>
         <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"a", $"b", $"c")
 val result = left.union(right)
 {% endhighlight %}
       </td>
@@ -1546,8 +1781,8 @@ val result = left.union(right)
       <td>
         <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"a", $"b", $"c")
 val result = left.unionAll(right)
 {% endhighlight %}
       </td>
@@ -1561,8 +1796,8 @@ val result = left.unionAll(right)
       <td>
         <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present in one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'e, 'f, 'g)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"e", $"f", $"g")
 val result = left.intersect(right)
 {% endhighlight %}
       </td>
@@ -1576,8 +1811,8 @@ val result = left.intersect(right)
       <td>
         <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'e, 'f, 'g)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"e", $"f", $"g")
 val result = left.intersectAll(right)
 {% endhighlight %}
       </td>
@@ -1591,8 +1826,8 @@ val result = left.intersectAll(right)
       <td>
         <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"a", $"b", $"c")
 val result = left.minus(right)
 {% endhighlight %}
       </td>
@@ -1606,8 +1841,8 @@ val result = left.minus(right)
       <td>
         <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"a", $"b", $"c")
 val result = left.minusAll(right)
 {% endhighlight %}
       </td>
@@ -1621,11 +1856,11 @@ val result = left.minusAll(right)
       <td>
         <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight scala %}
-val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
-val right = ds2.toTable(tableEnv, 'a)
-val result = left.select('a, 'b, 'c).where('a.in(right))
+val left = ds1.toTable(tableEnv, $"a", $"b", $"c")
+val right = ds2.toTable(tableEnv, $"a")
+val result = left.select($"a", $"b", $"c").where($"a".in(right))
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries the operation is rewritten in a join and group operation. The required state to compute the query result might grow infinitely depending on the number of distinct input rows. Please provide a query configuration with valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -1648,10 +1883,12 @@ val result = left.select('a, 'b, 'c).where('a.in(right))
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的UNION子句。将两张表组合成一张表，这张表拥有二者去除重复后的全部数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 UNION 子句。将两张表组合成一张表，这张表拥有二者去除重复后的全部数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+from pyflink.table.expressions import col
+
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
 result = left.union(right)
 {% endhighlight %}
       </td>
@@ -1663,10 +1900,10 @@ result = left.union(right)
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的UNION ALL子句。将两张表组合成一张表，这张表拥有二者的全部数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 UNION ALL 子句。将两张表组合成一张表，这张表拥有二者的全部数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
 result = left.union_all(right)
 {% endhighlight %}
       </td>
@@ -1678,10 +1915,10 @@ result = left.union_all(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的INTERSECT子句。Intersect返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则只返回一次，即结果表没有重复记录。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 INTERSECT 子句。Intersect 返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则只返回一次，即结果表没有重复记录。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
 result = left.intersect(right)
 {% endhighlight %}
       </td>
@@ -1693,10 +1930,10 @@ result = left.intersect(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的INTERSECT ALL子句。IntersectAll返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则按照它在两张表中都出现的次数返回，即结果表可能包含重复数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 INTERSECT ALL 子句。IntersectAll 返回在两张表中都存在的数据。如果一个记录在两张表中不止出现一次，则按照它在两张表中都出现的次数返回，即结果表可能包含重复数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
 result = left.intersect_all(right)
 {% endhighlight %}
       </td>
@@ -1708,11 +1945,11 @@ result = left.intersect_all(right)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的EXCEPT子句。Minus返回仅存在于左表，不存在于右表中的数据。左表中的相同数据只会返回一次，即数据会被去重。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 EXCEPT 子句。Minus 返回仅存在于左表，不存在于右表中的数据。左表中的相同数据只会返回一次，即数据会被去重。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
-result = left.minus(right);
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
+result = left.minus(right)
 {% endhighlight %}
       </td>
     </tr>
@@ -1723,10 +1960,10 @@ result = left.minus(right);
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的EXCEPT ALL子句。MinusAll返回仅存在于左表，不存在于右表中的数据。如果一条数据在左表中出现了n次，在右表中出现了m次，最终这条数据将会被返回(n - m)次，即按右表中出现的次数来移除数据。两张表的字段和类型必须完全一致。</p>
+        <p>类似于 SQL 的 EXCEPT ALL 子句。MinusAll 返回仅存在于左表，不存在于右表中的数据。如果一条数据在左表中出现了 n 次，在右表中出现了 m 次，最终这条数据将会被返回（n - m）次，即按右表中出现的次数来移除数据。两张表的字段和类型必须完全一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a, b, c")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'), col('b'), col('c'))
 result = left.minus_all(right)
 {% endhighlight %}
       </td>
@@ -1738,20 +1975,15 @@ result = left.minus_all(right)
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL的IN子句。如果In左边表达式的值在给定的子查询结果中则返回true。子查询的结果必须为单列。此列数据类型必须和表达式一致。</p>
+        <p>类似于 SQL 的 IN 子句。如果 In 左边表达式的值在给定的子查询结果中则返回 true。子查询的结果必须为单列。此列数据类型必须和表达式一致。</p>
 {% highlight python %}
-left = table_env.from_path("Source1").select("a, b, c")
-right = table_env.from_path("Source2").select("a")
+left = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+right = t_env.from_path("Source2").select(col('a'))
 
-# using implicit registration
-result = left.select("a, b, c").where("a.in(%s)" % right)
-
-# using explicit registration
-table_env.register_table("RightTable", right)
-result = left.select("a, b, c").where("a.in(RightTable)")
+result = left.select(left.a, left.b, left.c).where(left.a.in_(right))
 {% endhighlight %}
 
-        <p><b>注意：</b> 对于流式查询，这个操作会被替换成一个连接操作和一个分组操作。计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。您可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="streaming/query_configuration.html">查询配置</a>。</p>
+        <p><b>注意：</b> 对于流式查询，这个操作会被替换成一个连接操作和一个分组操作。计算查询结果所需的状态（state）可能会无限增长，具体取决于不重复的输入行的数量。你可能需要在查询配置中设置状态保留时间，以防止状态过大。详情请看<a href="{% link dev/table/streaming/query_configuration.zh.md %}">查询配置</a>。</p>
       </td>
     </tr>
   </tbody>
@@ -1777,13 +2009,13 @@ result = left.select("a, b, c").where("a.in(RightTable)")
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
-Table result = in.orderBy("a.asc");
+Table result = in.orderBy($("a").asc()");
 {% endhighlight %}
       </td>
     </tr>
@@ -1791,21 +2023,21 @@ Table result = in.orderBy("a.asc");
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 
 // returns the first 5 records from the sorted result
-Table result1 = in.orderBy("a.asc").fetch(5);
+Table result1 = in.orderBy($("a").asc()).fetch(5);
 
 // skips the first 3 records and returns all following records from the sorted result
-Table result2 = in.orderBy("a.asc").offset(3);
+Table result2 = in.orderBy($("a").asc()).offset(3);
 
 // skips the first 10 records and returns the next 5 records from the sorted result
-Table result3 = in.orderBy("a.asc").offset(10).fetch(5);
+Table result3 = in.orderBy($("a").asc()).offset(10).fetch(5);
 {% endhighlight %}
       </td>
     </tr>
@@ -1826,13 +2058,13 @@ Table result3 = in.orderBy("a.asc").offset(10).fetch(5);
     <tr>
       <td>
         <strong>Order By</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions. For unbounded tables, this operation requires a sorting on a time attribute or a subsequent fetch operation.</p>
 {% highlight scala %}
-val in = ds.toTable(tableEnv, 'a, 'b, 'c)
-val result = in.orderBy('a.asc)
+val in = ds.toTable(tableEnv, $"a", $"b", $"c")
+val result = in.orderBy($"a".asc)
 {% endhighlight %}
       </td>
     </tr>
@@ -1840,21 +2072,22 @@ val result = in.orderBy('a.asc)
     <tr>
       <td>
         <strong>Offset &amp; Fetch</strong><br>
-        <span class="label label-primary">Batch</span>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to the SQL OFFSET and FETCH clauses. Offset and Fetch limit the number of records returned from a sorted result. Offset and Fetch are technically part of the Order By operator and thus must be preceded by it.</p>
+        <p>Similar to the SQL OFFSET and FETCH clauses. The offset operation limits a (possibly sorted) result from an offset position. The fetch operation limits a (possibly sorted) result to the first n rows. Usually, the two operations are preceded by an ordering operator. For unbounded tables, a fetch operation is required for an offset operation.</p>
 {% highlight scala %}
-val in = ds.toTable(tableEnv, 'a, 'b, 'c)
+val in = ds.toTable(tableEnv, $"a", $"b", $"c")
 
 // returns the first 5 records from the sorted result
-val result1: Table = in.orderBy('a.asc).fetch(5)
+val result1: Table = in.orderBy($"a".asc).fetch(5)
 
 // skips the first 3 records and returns all following records from the sorted result
-val result2: Table = in.orderBy('a.asc).offset(3)
+val result2: Table = in.orderBy($"a".asc).offset(3)
 
 // skips the first 10 records and returns the next 5 records from the sorted result
-val result3: Table = in.orderBy('a.asc).offset(10).fetch(5)
+val result3: Table = in.orderBy($"a".asc).offset(10).fetch(5)
 {% endhighlight %}
       </td>
     </tr>
@@ -1877,10 +2110,10 @@ val result3: Table = in.orderBy('a.asc).offset(10).fetch(5)
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的ORDER BY子句。返回包括所有子并发分区内所有数据的全局排序结果。</p>
+        <p>类似于 SQL 的 ORDER BY 子句。返回包括所有子并发分区内所有数据的全局排序结果。</p>
 {% highlight python %}
-in = table_env.from_path("Source1").select("a, b, c")
-result = in.order_by("a.asc")
+in = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
+result = in.order_by(in.a.asc)
 {% endhighlight %}
       </td>
     </tr>
@@ -1891,18 +2124,18 @@ result = in.order_by("a.asc")
         <span class="label label-primary">批处理</span>
       </td>
       <td>
-        <p>类似于SQL的OFFSET和FETCH子句。Offset和Fetch从已排序的结果中返回指定数量的数据。Offset和Fetch在技术上是Order By操作的一部分，因此必须紧跟其后出现。</p>
+        <p>类似于 SQL 的 OFFSET 和 FETCH 子句。Offset 和 Fetch 从已排序的结果中返回指定数量的数据。Offset 和 Fetch 在技术上是 Order By 操作的一部分，因此必须紧跟其后出现。</p>
 {% highlight python %}
-in = table_env.from_path("Source1").select("a, b, c")
+table = t_env.from_path("Source1").select(col('a'), col('b'), col('c'))
 
 # returns the first 5 records from the sorted result
-result1 = in.order_by("a.asc").fetch(5)
+result1 = table.order_by(table.a.asc).fetch(5)
 
 # skips the first 3 records and returns all following records from the sorted result
-result2 = in.order_by("a.asc").offset(3)
+result2 = table.order_by(table.a.asc).offset(3)
 
 # skips the first 10 records and returns the next 5 records from the sorted result
-result3 = in.order_by("a.asc").offset(10).fetch(5)
+result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 {% endhighlight %}
       </td>
     </tr>
@@ -1931,13 +2164,13 @@ result3 = in.order_by("a.asc").offset(10).fetch(5)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="{% link dev/table/common.zh.md %}#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight java %}
 Table orders = tableEnv.from("Orders");
-orders.insertInto("OutOrders");
+orders.executeInsert("OutOrders");
 {% endhighlight %}
       </td>
     </tr>
@@ -1961,13 +2194,13 @@ orders.insertInto("OutOrders");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.</p>
 
-        <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
+        <p>Output tables must be registered in the TableEnvironment (see <a href="{% link dev/table/common.zh.md %}#connector-tables">Connector tables</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
 {% highlight scala %}
 val orders: Table = tableEnv.from("Orders")
-orders.insertInto("OutOrders")
+orders.executeInsert("OutOrders")
 {% endhighlight %}
       </td>
     </tr>
@@ -1991,13 +2224,13 @@ orders.insertInto("OutOrders")
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>
-        <p>类似于SQL请求中的INSERT INTO子句。将数据输出到一个已注册的输出表中。</p>
+        <p>类似于 SQL 请求中的 INSERT INTO 子句。将数据输出到一个已注册的输出表中。`execute_insert` 方法会立即提交一个 Flink 作业，触发插入操作。</p>
 
-        <p>输出表必须先在TableEnvironment中注册（详见<a href="common.html#register-a-tablesink">注册一个TableSink</a>）。此外，注册的表的模式（schema）必须和请求的结果的模式（schema）相匹配。</p>
+        <p>输出表必须先在 TableEnvironment 中注册（详见<a href="{% link dev/table/common.zh.md %}#register-a-tablesink">注册一个 TableSink</a>）。此外，注册的表的模式（schema）必须和请求的结果的模式（schema）相匹配。</p>
 
 {% highlight python %}
-orders = table_env.from_path("Orders");
-orders.insert_into("OutOrders");
+orders = t_env.from_path("Orders")
+orders.execute_insert("OutOrders")
 {% endhighlight %}
       </td>
     </tr>
@@ -2013,65 +2246,77 @@ orders.insert_into("OutOrders");
 
 Group window aggregates group rows into finite groups based on time or row-count intervals and evaluate aggregation functions once per group. For batch tables, windows are a convenient shortcut to group records by time intervals.
 
-Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute.
-The following example shows how to define a window aggregation on a table.
-
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
+Windows are defined using the `window(GroupWindow w)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+The following example shows how to define a window aggregation on a table.
+
 {% highlight java %}
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy("w")  // group the table by window w
-  .select("b.sum");  // aggregate
+  .groupBy($("w"))  // group the table by window w
+  .select($("b").sum());  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `as` clause. In order to group a table by a window, the window alias must be referenced in the `groupBy(...)` clause like a regular grouping attribute. 
+The following example shows how to define a window aggregation on a table.
+
 {% highlight scala %}
 val table = input
-  .window([w: GroupWindow] as 'w)  // define window with alias w
-  .groupBy('w)   // group the table by window w
-  .select('b.sum)  // aggregate
+  .window([w: GroupWindow] as $"w")  // define window with alias w
+  .groupBy($"w")   // group the table by window w
+  .select($"b".sum)  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
+Windows are defined using the `window(w: GroupWindow)` clause and require an alias, which is specified using the `alias` clause. In order to group a table by a window, the window alias must be referenced in the `group_by(...)` clause like a regular grouping attribute. 
+The following example shows how to define a window aggregation on a table.
+
 {% highlight python %}
 # define window with alias w, group the table by window w, then aggregate
-table = input.window([GroupWindow w].alias("w")) \
-             .group_by("w").select("b.sum")
+table = input.window([w: GroupWindow].alias("w")) \
+             .group_by(col('w')).select(input.b.sum)
 {% endhighlight %}
 </div>
 </div>
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
 The following example shows how to define a window aggregation with additional grouping attributes.
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy("w, a")  // group the table by attribute a and window w
-  .select("a, b.sum");  // aggregate
+  .groupBy($("w"), $("a"))  // group the table by attribute a and window w
+  .select($("a"), $("b").sum());  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `groupBy(...)` clause references a window alias and at least one additional attribute. A `groupBy(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
+The following example shows how to define a window aggregation with additional grouping attributes.
+
 {% highlight scala %}
 val table = input
-  .window([w: GroupWindow] as 'w) // define window with alias w
-  .groupBy('w, 'a)  // group the table by attribute a and window w
-  .select('a, 'b.sum)  // aggregate
+  .window([w: GroupWindow] as $"w") // define window with alias w
+  .groupBy($"w", $"a")  // group the table by attribute a and window w
+  .select($"a", $"b".sum)  // aggregate
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
+In streaming environments, window aggregates can only be computed in parallel if they group on one or more attributes in addition to the window, i.e., the `group_by(...)` clause references a window alias and at least one additional attribute. A `group_by(...)` clause that only references a window alias (such as in the example above) can only be evaluated by a single, non-parallel task.
+The following example shows how to define a window aggregation with additional grouping attributes.
+
 {% highlight python %}
 # define window with alias w, group the table by attribute a and window w,
 # then aggregate
-table = input.window([GroupWindow w].alias("w")) \
-             .group_by("w, a").select("b.sum")
+table = input.window([w: GroupWindow].alias("w")) \
+             .group_by(col('w'), input.a).select(input.b.sum)
 {% endhighlight %}
 </div>
 </div>
@@ -2083,17 +2328,17 @@ Window properties such as the start, end, or rowtime timestamp of a time window 
 {% highlight java %}
 Table table = input
   .window([GroupWindow w].as("w"))  // define window with alias w
-  .groupBy("w, a")  // group the table by attribute a and window w
-  .select("a, w.start, w.end, w.rowtime, b.count"); // aggregate and add window start, end, and rowtime timestamps
+  .groupBy($("w"), $("a"))  // group the table by attribute a and window w
+  .select($("a"), $("w").start(), $("w").end(), $("w").rowtime(), $("b").count()); // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: GroupWindow] as 'w)  // define window with alias w
-  .groupBy('w, 'a)  // group the table by attribute a and window w
-  .select('a, 'w.start, 'w.end, 'w.rowtime, 'b.count) // aggregate and add window start, end, and rowtime timestamps
+  .window([w: GroupWindow] as $"w")  // define window with alias w
+  .groupBy($"w", $"a")  // group the table by attribute a and window w
+  .select($"a", $"w".start, $"w".end, $"w".rowtime, $"b".count) // aggregate and add window start, end, and rowtime timestamps
 {% endhighlight %}
 </div>
 
@@ -2101,9 +2346,9 @@ val table = input
 {% highlight python %}
 # define window with alias w, group the table by attribute a and window w,
 # then aggregate and add window start, end, and rowtime timestamps
-table = input.window([GroupWindow w].alias("w")) \
-             .group_by("w, a") \
-             .select("a, w.start, w.end, w.rowtime, b.count")
+table = input.window([w: GroupWindow].alias("w")) \
+             .group_by(col('w'), input.a) \
+             .select(input.a, col('w').start, col('w').end, col('w').rowtime, input.b.count)
 {% endhighlight %}
 </div>
 </div>
@@ -2114,6 +2359,8 @@ The `Window` parameter defines how rows are mapped to windows. `Window` is not a
 
 A tumbling window assigns rows to non-overlapping, continuous windows of fixed length. For example, a tumbling window of 5 minutes groups rows in 5 minutes intervals. Tumbling windows can be defined on event-time, processing-time, or on a row-count.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Tumbling windows are defined by using the `Tumble` class as follows:
 
 <table class="table table-bordered">
@@ -2131,7 +2378,7 @@ Tumbling windows are defined by using the `Tumble` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2140,43 +2387,93 @@ Tumbling windows are defined by using the `Tumble` class as follows:
   </tbody>
 </table>
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 // Tumbling Event-time Window
-.window(Tumble.over("10.minutes").on("rowtime").as("w"));
+.window(Tumble.over(lit(10).minutes()).on($("rowtime")).as("w"));
 
 // Tumbling Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Tumble.over("10.minutes").on("proctime").as("w"));
+.window(Tumble.over(lit(10).minutes()).on($("proctime")).as("w"));
 
 // Tumbling Row-count Window (assuming a processing-time attribute "proctime")
-.window(Tumble.over("10.rows").on("proctime").as("w"));
+.window(Tumble.over(rowInterval(10)).on($("proctime")).as("w"));
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+Tumbling windows are defined by using the `Tumble` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Defines the length the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight scala %}
 // Tumbling Event-time Window
-.window(Tumble over 10.minutes on 'rowtime as 'w)
+.window(Tumble over 10.minutes on $"rowtime" as $"w")
 
 // Tumbling Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Tumble over 10.minutes on 'proctime as 'w)
+.window(Tumble over 10.minutes on $"proctime" as $"w")
 
 // Tumbling Row-count Window (assuming a processing-time attribute "proctime")
-.window(Tumble over 10.rows on 'proctime as 'w)
+.window(Tumble over 10.rows on $"proctime" as $"w")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
+Tumbling windows are defined by using the `Tumble` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Defines the length the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>alias</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight python %}
 # Tumbling Event-time Window
-.window(Tumble.over("10.minutes").on("rowtime").alias("w"))
+.window(Tumble.over(lit(10).minutes).on(col('rowtime')).alias("w"))
 
 # Tumbling Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Tumble.over("10.minutes").on("proctime").alias("w"))
+.window(Tumble.over(lit(10).minutes).on(col('proctime')).alias("w"))
 
 # Tumbling Row-count Window (assuming a processing-time attribute "proctime")
-.window(Tumble.over("10.rows").on("proctime").alias("w"));
+.window(Tumble.over(row_interval(10)).on(col('proctime')).alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2185,6 +2482,8 @@ Tumbling windows are defined by using the `Tumble` class as follows:
 
 A sliding window has a fixed size and slides by a specified slide interval. If the slide interval is smaller than the window size, sliding windows are overlapping. Thus, rows can be assigned to multiple windows. For example, a sliding window of 15 minutes size and 5 minute slide interval assigns each row to 3 different windows of 15 minute size, which are evaluated in an interval of 5 minutes. Sliding windows can be defined on event-time, processing-time, or on a row-count.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 Sliding windows are defined by using the `Slide` class as follows:
 
 <table class="table table-bordered">
@@ -2206,7 +2505,7 @@ Sliding windows are defined by using the `Slide` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2215,43 +2514,107 @@ Sliding windows are defined by using the `Slide` class as follows:
   </tbody>
 </table>
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 // Sliding Event-time Window
-.window(Slide.over("10.minutes").every("5.minutes").on("rowtime").as("w"));
+.window(Slide.over(lit(10).minutes())
+            .every(lit(5).minutes())
+            .on($("rowtime"))
+            .as("w"));
 
 // Sliding Processing-time window (assuming a processing-time attribute "proctime")
-.window(Slide.over("10.minutes").every("5.minutes").on("proctime").as("w"));
+.window(Slide.over(lit(10).minutes())
+            .every(lit(5).minutes())
+            .on($("proctime"))
+            .as("w"));
 
 // Sliding Row-count window (assuming a processing-time attribute "proctime")
-.window(Slide.over("10.rows").every("5.rows").on("proctime").as("w"));
+.window(Slide.over(rowInterval(10)).every(rowInterval(5)).on($("proctime")).as("w"));
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+Sliding windows are defined by using the `Slide` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Defines the length of the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>every</code></td>
+      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight scala %}
 // Sliding Event-time Window
-.window(Slide over 10.minutes every 5.minutes on 'rowtime as 'w)
+.window(Slide over 10.minutes every 5.minutes on $"rowtime" as $"w")
 
 // Sliding Processing-time window (assuming a processing-time attribute "proctime")
-.window(Slide over 10.minutes every 5.minutes on 'proctime as 'w)
+.window(Slide over 10.minutes every 5.minutes on $"proctime" as $"w")
 
 // Sliding Row-count window (assuming a processing-time attribute "proctime")
-.window(Slide over 10.rows every 5.rows on 'proctime as 'w)
+.window(Slide over 10.rows every 5.rows on $"proctime" as $"w")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
+Sliding windows are defined by using the `Slide` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>over</code></td>
+      <td>Defines the length of the window, either as time or row-count interval.</td>
+    </tr>
+    <tr>
+      <td><code>every</code></td>
+      <td>Defines the slide interval, either as time or row-count interval. The slide interval must be of the same type as the size interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>alias</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight python %}
 # Sliding Event-time Window
-.window(Slide.over("10.minutes").every("5.minutes").on("rowtime").alias("w"))
+.window(Slide.over(lit(10).minutes).every(lit(5).minutes).on(col('rowtime')).alias("w"))
 
 # Sliding Processing-time window (assuming a processing-time attribute "proctime")
-.window(Slide.over("10.minutes").every("5.minutes").on("proctime").alias("w"))
+.window(Slide.over(lit(10).minutes).every(lit(5).minutes).on(col('proctime')).alias("w"))
 
 # Sliding Row-count window (assuming a processing-time attribute "proctime")
-.window(Slide.over("10.rows").every("5.rows").on("proctime").alias("w"))
+.window(Slide.over(row_interval(10)).every(row_interval(5)).on(col('proctime')).alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2260,6 +2623,8 @@ Sliding windows are defined by using the `Slide` class as follows:
 
 Session windows do not have a fixed size but their bounds are defined by an interval of inactivity, i.e., a session window is closes if no event appears for a defined gap period. For example a session window with a 30 minute gap starts when a row is observed after 30 minutes inactivity (otherwise the row would be added to an existing window) and is closed if no row is added within 30 minutes. Session windows can work on event-time or processing-time.
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 A session window is defined by using the `Session` class as follows:
 
 <table class="table table-bordered">
@@ -2277,7 +2642,7 @@ A session window is defined by using the `Session` class as follows:
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>.</td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -2286,34 +2651,84 @@ A session window is defined by using the `Session` class as follows:
   </tbody>
 </table>
 
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
 {% highlight java %}
 // Session Event-time Window
-.window(Session.withGap("10.minutes").on("rowtime").as("w"));
+.window(Session.withGap(lit(10).minutes()).on($("rowtime")).as("w"));
 
 // Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session.withGap("10.minutes").on("proctime").as("w"));
+.window(Session.withGap(lit(10).minutes()).on($("proctime")).as("w"));
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
+A session window is defined by using the `Session` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>withGap</code></td>
+      <td>Defines the gap between two windows as time interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>as</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>groupBy()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight scala %}
 // Session Event-time Window
-.window(Session withGap 10.minutes on 'rowtime as 'w)
+.window(Session withGap 10.minutes on $"rowtime" as $"w")
 
 // Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session withGap 10.minutes on 'proctime as 'w)
+.window(Session withGap 10.minutes on $"proctime" as $"w")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
+A session window is defined by using the `Session` class as follows:
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>with_gap</code></td>
+      <td>Defines the gap between two windows as time interval.</td>
+    </tr>
+    <tr>
+      <td><code>on</code></td>
+      <td>The time attribute to group (time interval) or sort (row count) on. For batch queries this might be any Long or Timestamp attribute. For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>.</td>
+    </tr>
+    <tr>
+      <td><code>alias</code></td>
+      <td>Assigns an alias to the window. The alias is used to reference the window in the following <code>group_by()</code> clause and optionally to select window properties such as window start, end, or rowtime timestamps in the <code>select()</code> clause.</td>
+    </tr>
+  </tbody>
+</table>
+
 {% highlight python %}
 # Session Event-time Window
-.window(Session.with_gap("10.minutes").on("rowtime").alias("w"))
+.window(Session.with_gap(lit(10).minutes).on(col('rowtime')).alias("w"))
 
 # Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session.with_gap("10.minutes").on("proctime").alias("w"))
+.window(Session.with_gap(lit(10).minutes).on(col('proctime')).alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2324,36 +2739,36 @@ A session window is defined by using the `Session` class as follows:
 
 Over window aggregates are known from standard SQL (`OVER` clause) and defined in the `SELECT` clause of a query. Unlike group windows, which are specified in the `GROUP BY` clause, over windows do not collapse rows. Instead over window aggregates compute an aggregate for each input row over a range of its neighboring rows.
 
-Over windows are defined using the `window(w: OverWindow*)` clause (在Python API中为`over_window(*OverWindow)`) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
+Over windows are defined using the `window(w: OverWindow*)` clause (using `over_window(*OverWindow)` in Python API) and referenced via an alias in the `select()` method. The following example shows how to define an over window aggregation on a table.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
 Table table = input
   .window([OverWindow w].as("w"))           // define over window with alias w
-  .select("a, b.sum over w, c.min over w"); // aggregate over the over window w
+  .select($("a"), $("b").sum().over($("w")), $("c").min().over($("w"))); // aggregate over the over window w
 {% endhighlight %}
 </div>
-
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 val table = input
-  .window([w: OverWindow] as 'w)              // define over window with alias w
-  .select('a, 'b.sum over 'w, 'c.min over 'w) // aggregate over the over window w
+  .window([w: OverWindow] as $"w")              // define over window with alias w
+  .select($"a", $"b".sum over $"w", $"c".min over $"w") // aggregate over the over window w
 {% endhighlight %}
 </div>
-
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # define over window with alias w and aggregate over the over window w
-table = input.over_window([OverWindow w].alias("w")) \
-    .select("a, b.sum over w, c.min over w")
+table = input.over_window([w: OverWindow].alias("w")) \
+    .select(input.a, input.b.sum.over(col('w')), input.c.min.over(col('w')))
 {% endhighlight %}
 </div>
 </div>
 
 The `OverWindow` defines a range of rows over which aggregates are computed. `OverWindow` is not an interface that users can implement. Instead, the Table API provides the `Over` class to configure the properties of the over window. Over windows can be defined on event-time or processing-time and on ranges specified as time interval or row-count. The supported over window definitions are exposed as methods on `Over` (and other classes) and are listed below:
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="java/scala" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -2379,7 +2794,7 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.</p>
 
-        <p><b>Note:</b> For streaming queries this must be a <a href="streaming/time_attributes.html">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
+        <p><b>Note:</b> For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
       </td>
     </tr>
     <tr>
@@ -2388,9 +2803,9 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
       <td>
         <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
 
-        <p><a href="tableApi.html#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
+        <p><a href="{% link dev/table/tableApi.zh.md %}#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
 
-        <p><a href="tableApi.html#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
+        <p><a href="{% link dev/table/tableApi.zh.md %}#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
 
         <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
       </td>
@@ -2420,6 +2835,77 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
     </tr>
   </tbody>
 </table>
+</div>
+
+<div data-lang="python" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Method</th>
+      <th class="text-left">Required</th>
+      <th class="text-left">Description</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <tr>
+      <td><code>partition_by</code></td>
+      <td>Optional</td>
+      <td>
+        <p>Defines a partitioning of the input on one or more attributes. Each partition is individually sorted and aggregate functions are applied to each partition separately.</p>
+
+        <p><b>Note:</b> In streaming environments, over window aggregates can only be computed in parallel if the window includes a partition by clause. Without <code>partition_by(...)</code> the stream is processed by a single, non-parallel task.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>order_by</code></td>
+      <td>Required</td>
+      <td>
+        <p>Defines the order of rows within each partition and thereby the order in which the aggregate functions are applied to rows.</p>
+
+        <p><b>Note:</b> For streaming queries this must be a <a href="{% link dev/table/streaming/time_attributes.zh.md %}">declared event-time or processing-time time attribute</a>. Currently, only a single sort attribute is supported.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>preceding</code></td>
+      <td>Optional</td>
+      <td>
+        <p>Defines the interval of rows that are included in the window and precede the current row. The interval can either be specified as time or row-count interval.</p>
+
+        <p><a href="{% link dev/table/tableApi.zh.md %}#bounded-over-windows">Bounded over windows</a> are specified with the size of the interval, e.g., <code>10.minutes</code> for a time interval or <code>10.rows</code> for a row-count interval.</p>
+
+        <p><a href="{% link dev/table/tableApi.zh.md %}#unbounded-over-windows">Unbounded over windows</a> are specified using a constant, i.e., <code>UNBOUNDED_RANGE</code> for a time interval or <code>UNBOUNDED_ROW</code> for a row-count interval. Unbounded over windows start with the first row of a partition.</p>
+
+        <p>If the <code>preceding</code> clause is omitted, <code>UNBOUNDED_RANGE</code> and <code>CURRENT_RANGE</code> are used as the default <code>preceding</code> and <code>following</code> for the window.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>following</code></td>
+      <td>Optional</td>
+      <td>
+        <p>Defines the window interval of rows that are included in the window and follow the current row. The interval must be specified in the same unit as the preceding interval (time or row-count).</p>
+
+        <p>At the moment, over windows with rows following the current row are not supported. Instead you can specify one of two constants:</p>
+
+        <ul>
+          <li><code>CURRENT_ROW</code> sets the upper bound of the window to the current row.</li>
+          <li><code>CURRENT_RANGE</code> sets the upper bound of the window to sort key of the current row, i.e., all rows with the same sort key as the current row are included in the window.</li>
+        </ul>
+
+        <p>If the <code>following</code> clause is omitted, the upper bound of a time interval window is defined as <code>CURRENT_RANGE</code> and the upper bound of a row-count interval window is defined as <code>CURRENT_ROW</code>.</p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>alias</code></td>
+      <td>Required</td>
+      <td>
+        <p>Assigns an alias to the over window. The alias is used to reference the over window in the following <code>select()</code> clause.</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
 
 **Note:** Currently, all aggregation functions in the same `select()` call must be computed of the same over window.
 
@@ -2428,48 +2914,48 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_range").as("w"));
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_RANGE).as("w"));
 
 // Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy("a").orderBy("proctime").preceding("unbounded_range").as("w"));
+.window(Over.partitionBy($("a")).orderBy("proctime").preceding(UNBOUNDED_RANGE).as("w"));
 
 // Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"));
-
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(UNBOUNDED_ROW).as("w"));
+ 
 // Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy("a").orderBy("proctime").preceding("unbounded_row").as("w"));
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(UNBOUNDED_ROW).as("w"));
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_RANGE as "w")
 
 // Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy 'a orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_RANGE as "w")
 
 // Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
-
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding UNBOUNDED_ROW as "w")
+ 
 // Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy 'a orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
+.window(Over partitionBy $"a" orderBy $"proctime" preceding UNBOUNDED_ROW as "w")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Unbounded Event-time over window (assuming an event-time attribute "rowtime")
-.over_window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(UNBOUNDED_RANGE).alias("w"))
 
 # Unbounded Processing-time over window (assuming a processing-time attribute "proctime")
-.over_window(Over.partition_by("a").order_by("proctime").preceding("unbounded_range").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(UNBOUNDED_RANGE).alias("w"))
 
 # Unbounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.over_window(Over.partition_by("a").order_by("rowtime").preceding("unbounded_row").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(UNBOUNDED_ROW).alias("w"))
  
 # Unbounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.over_window(Over.partition_by("a").order_by("proctime").preceding("unbounded_row").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(UNBOUNDED_ROW).alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2479,48 +2965,48 @@ The `OverWindow` defines a range of rows over which aggregates are computed. `Ov
 <div data-lang="java" markdown="1">
 {% highlight java %}
 // Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy("a").orderBy("rowtime").preceding("1.minutes").as("w"))
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(lit(1).minutes()).as("w"))
 
 // Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy("a").orderBy("proctime").preceding("1.minutes").as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(lit(1).minutes()).as("w"))
 
 // Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over.partitionBy("a").orderBy("rowtime").preceding("10.rows").as("w"))
-
+.window(Over.partitionBy($("a")).orderBy($("rowtime")).preceding(rowInterval(10)).as("w"))
+ 
 // Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over.partitionBy("a").orderBy("proctime").preceding("10.rows").as("w"))
+.window(Over.partitionBy($("a")).orderBy($("proctime")).preceding(rowInterval(10)).as("w"))
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
 // Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy 'a orderBy 'rowtime preceding 1.minutes as 'w)
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding 1.minutes as "w")
 
 // Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy 'a orderBy 'proctime preceding 1.minutes as 'w)
+.window(Over partitionBy $"a" orderBy $"proctime" preceding 1.minutes as "w")
 
 // Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.window(Over partitionBy 'a orderBy 'rowtime preceding 10.rows as 'w)
-
+.window(Over partitionBy $"a" orderBy $"rowtime" preceding 10.rows as "w")
+  
 // Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.window(Over partitionBy 'a orderBy 'proctime preceding 10.rows as 'w)
+.window(Over partitionBy $"a" orderBy $"proctime" preceding 10.rows as "w")
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Bounded Event-time over window (assuming an event-time attribute "rowtime")
-.over_window(Over.partition_by("a").order_by("rowtime").preceding("1.minutes").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(lit(1).minutes).alias("w"))
 
 # Bounded Processing-time over window (assuming a processing-time attribute "proctime")
-.over_window(Over.partition_by("a").order_by("proctime").preceding("1.minutes").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(lit(1).minutes).alias("w"))
 
 # Bounded Event-time Row-count over window (assuming an event-time attribute "rowtime")
-.over_window(Over.partition_by("a").order_by("rowtime").preceding("10.rows").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('rowtime')).preceding(row_interval(10)).alias("w"))
  
 # Bounded Processing-time Row-count over window (assuming a processing-time attribute "proctime")
-.over_window(Over.partition_by("a").order_by("proctime").preceding("10.rows").alias("w"))
+.over_window(Over.partition_by(col('a')).order_by(col('proctime')).preceding(row_interval(10)).alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2563,7 +3049,7 @@ ScalarFunction func = new MyMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .map("func(c)").as("a, b")
+  .map(call("func", $("c")).as("a", "b"))
 {% endhighlight %}
       </td>
     </tr>
@@ -2597,7 +3083,7 @@ TableFunction func = new MyFlatMapFunction();
 tableEnv.registerFunction("func", func);
 
 Table table = input
-  .flatMap("func(c)").as("a, b")
+  .flatMap(call("func", $("c")).as("a", "b"))
 {% endhighlight %}
       </td>
     </tr>
@@ -2651,9 +3137,9 @@ public class MyMinMax extends AggregateFunction<Row, MyMinMaxAcc> {
 AggregateFunction myAggFunc = new MyMinMax();
 tableEnv.registerFunction("myAggFunc", myAggFunc);
 Table table = input
-  .groupBy("key")
-  .aggregate("myAggFunc(a) as (x, y)")
-  .select("key, x, y")
+  .groupBy($("key"))
+  .aggregate(call("myAggFunc", $("a")).as("x", "y"))
+  .select($("key"), $("x"), $("y"))
 {% endhighlight %}
       </td>
     </tr>
@@ -2670,10 +3156,12 @@ AggregateFunction myAggFunc = new MyMinMax();
 tableEnv.registerFunction("myAggFunc", myAggFunc);
 
 Table table = input
-    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
-    .groupBy("key, w") // group by key and window
-    .aggregate("myAggFunc(a) as (x, y)")
-    .select("key, x, y, w.start, w.end"); // access window properties and aggregate results
+    .window(Tumble.over(lit(5).minutes())
+                  .on($("rowtime"))
+                  .as("w")) // define window
+    .groupBy($("key"), $("w")) // group by key and window
+    .aggregate(call("myAggFunc", $("a")).as("x", "y"))
+    .select($("key"), $("x"), $("y"), $("w").start(), $("w").end()); // access window properties and aggregate results
 {% endhighlight %}
       </td>
     </tr>
@@ -2686,7 +3174,7 @@ Table table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.zh.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight java %}
 /**
  * Accumulator for Top2.
@@ -2740,11 +3228,11 @@ public class Top2 extends TableAggregateFunction<Tuple2<Integer, Integer>, Top2A
 tEnv.registerFunction("top2", new Top2());
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .groupBy("key")
-    .flatAggregate("top2(a) as (v, rank)")
-    .select("key, v, rank");
+    .groupBy($("key"))
+    .flatAggregate(call("top2", $("a")).as("v", "rank"))
+    .select($("key"), $("v"), $("rank");
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -2760,10 +3248,12 @@ Table result = orders
 tableEnv.registerFunction("top2", new Top2());
 Table orders = tableEnv.from("Orders");
 Table result = orders
-    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
-    .groupBy("a, w") // group by key and window
-    .flatAggregate("top2(b) as (v, rank)")
-    .select("a, w.start, w.end, w.rowtime, v, rank"); // access window properties and aggregate results
+    .window(Tumble.over(lit(5).minutes())
+                  .on($("rowtime"))
+                  .as("w")) // define window
+    .groupBy($("a"), $("w")) // group by key and window
+    .flatAggregate(call("top2", $("b").as("v", "rank"))
+    .select($("a"), $("w").start(), $("w").end(), $("w").rowtime(), $("v"), $("rank")); // access window properties and aggregate results
 {% endhighlight %}
       </td>
     </tr>
@@ -2799,7 +3289,7 @@ class MyMapFunction extends ScalarFunction {
 
 val func = new MyMapFunction()
 val table = input
-  .map(func('c)).as('a, 'b)
+  .map(func($"c")).as("a", "b")
 {% endhighlight %}
       </td>
     </tr>
@@ -2831,7 +3321,7 @@ class MyFlatMapFunction extends TableFunction[Row] {
 
 val func = new MyFlatMapFunction
 val table = input
-  .flatMap(func('c)).as('a, 'b)
+  .flatMap(func($"c")).as("a", "b")
 {% endhighlight %}
       </td>
     </tr>
@@ -2876,9 +3366,9 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
 
 val myAggFunc = new MyMinMax
 val table = input
-  .groupBy('key)
-  .aggregate(myAggFunc('a) as ('x, 'y))
-  .select('key, 'x, 'y)
+  .groupBy($"key")
+  .aggregate(myAggFunc($"a") as ("x", "y"))
+  .select($"key", $"x", $"y")
 {% endhighlight %}
       </td>
     </tr>
@@ -2893,10 +3383,10 @@ val table = input
 {% highlight scala %}
 val myAggFunc = new MyMinMax
 val table = input
-    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
-    .groupBy('key, 'w) // group by key and window
-    .aggregate(myAggFunc('a) as ('x, 'y))
-    .select('key, 'x, 'y, 'w.start, 'w.end) // access window properties and aggregate results
+    .window(Tumble over 5.minutes on $"rowtime" as "w") // define window
+    .groupBy($"key", $"w") // group by key and window
+    .aggregate(myAggFunc($"a") as ("x", "y"))
+    .select($"key", $"x", $"y", $"w".start, $"w".end) // access window properties and aggregate results
 
 {% endhighlight %}
       </td>
@@ -2910,7 +3400,7 @@ val table = input
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{{ site.baseurl }}/dev/table/functions/udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="{% link dev/table/functions/udfs.zh.md %}#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight scala %}
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -2968,11 +3458,11 @@ class Top2 extends TableAggregateFunction[JTuple2[JInteger, JInteger], Top2Accum
 val top2 = new Top2
 val orders: Table = tableEnv.from("Orders")
 val result = orders
-    .groupBy('key)
-    .flatAggregate(top2('a) as ('v, 'rank))
-    .select('key, 'v, 'rank)
+    .groupBy($"key")
+    .flatAggregate(top2($"a") as ($"v", $"rank"))
+    .select($"key", $"v", $"rank")
 {% endhighlight %}
-        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="streaming/query_configuration.html">Query Configuration</a> for details.</p>
+        <p><b>Note:</b> For streaming queries, the required state to compute the query result might grow infinitely depending on the type of aggregation and the number of distinct grouping keys. Please provide a query configuration with a valid retention interval to prevent excessive state size. See <a href="{% link dev/table/streaming/query_configuration.zh.md %}">Query Configuration</a> for details.</p>
       </td>
     </tr>
 
@@ -2987,12 +3477,86 @@ val result = orders
 val top2 = new Top2
 val orders: Table = tableEnv.from("Orders")
 val result = orders
-    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
-    .groupBy('a, 'w) // group by key and window
-    .flatAggregate(top2('b) as ('v, 'rank))
-    .select('a, w.start, 'w.end, 'w.rowtime, 'v, 'rank) // access window properties and aggregate results
+    .window(Tumble over 5.minutes on $"rowtime" as "w") // define window
+    .groupBy($"a", $"w") // group by key and window
+    .flatAggregate(top2($"b") as ($"v", $"rank"))
+    .select($"a", w.start, $"w".end, $"w".rowtime, $"v", $"rank") // access window properties and aggregate results
 
 {% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<div data-lang="python" markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operators</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Map</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>FlatMap</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>Group Window Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        <strong>FlatAggregate</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+        <span class="label label-info">Result Updating</span>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
+      </td>
+    </tr>
+
+
+    <tr>
+      <td>
+        <strong>Group Window FlatAggregate</strong><br>
+        <span class="label label-primary">Streaming</span><br>
+      </td>
+      <td>
+        <p>Python Table API 暂不支持。</p>
       </td>
     </tr>
   </tbody>
@@ -3005,13 +3569,13 @@ val result = orders
 Data Types
 ----------
 
-Please see the dedicated page about [data types](types.html).
+Please see the dedicated page about [data types]({% link dev/table/types.zh.md %}).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{ site.baseurl }}/dev/table/functions/systemFunctions.html#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({% link dev/table/functions/systemFunctions.zh.md %}#value-access-functions).
 
-Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{ site.baseurl }}/dev/table/functions/udfs.html).
+Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({% link dev/table/functions/udfs.zh.md %}).
 
 {% top %}
 
@@ -3106,6 +3670,6 @@ timeIndicator = fieldReference , "." , ( "proctime" | "rowtime" ) ;
 
 **Temporal intervals:** Temporal intervals can be represented as number of months (`Types.INTERVAL_MONTHS`) or number of milliseconds (`Types.INTERVAL_MILLIS`). Intervals of same type can be added or subtracted (e.g. `1.hour + 10.minutes`). Intervals of milliseconds can be added to time points (e.g. `"2016-08-10".toDate + 5.days`).
 
-**Scala expressions:** Scala expressions use implicit conversions. Therefore, make sure to add the wildcard import `org.apache.flink.table.api.scala._` to your programs. In case a literal is not treated as an expression, use `.toExpr` such as `3.toExpr` to force a literal to be converted.
+**Scala expressions:** Scala expressions use implicit conversions. Therefore, make sure to add the wildcard import `org.apache.flink.table.api._` to your programs. In case a literal is not treated as an expression, use `.toExpr` such as `3.toExpr` to force a literal to be converted.
 
 {% top %}

@@ -33,62 +33,91 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-/**
- * A simple inputs locations retriever for testing purposes.
- */
+/** A simple inputs locations retriever for testing purposes. */
 class TestingInputsLocationsRetriever implements InputsLocationsRetriever {
 
-	private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer;
+    private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer;
 
-	private final Map<ExecutionVertexID, CompletableFuture<TaskManagerLocation>> taskManagerLocationsByVertex = new HashMap<>();
+    private final Map<ExecutionVertexID, CompletableFuture<TaskManagerLocation>>
+            taskManagerLocationsByVertex = new HashMap<>();
 
-	TestingInputsLocationsRetriever(final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer) {
-		this.producersByConsumer = new HashMap<>(producersByConsumer);
-	}
+    TestingInputsLocationsRetriever(
+            final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer) {
+        this.producersByConsumer = new HashMap<>(producersByConsumer);
+    }
 
-	@Override
-	public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(final ExecutionVertexID executionVertexId) {
-		final Map<JobVertexID, List<ExecutionVertexID>> executionVerticesByJobVertex =
-				producersByConsumer.getOrDefault(executionVertexId, Collections.emptyList())
-						.stream()
-						.collect(Collectors.groupingBy(ExecutionVertexID::getJobVertexId));
+    @Override
+    public Collection<Collection<ExecutionVertexID>> getConsumedResultPartitionsProducers(
+            final ExecutionVertexID executionVertexId) {
+        final Map<JobVertexID, List<ExecutionVertexID>> executionVerticesByJobVertex =
+                producersByConsumer.getOrDefault(executionVertexId, Collections.emptyList())
+                        .stream()
+                        .collect(Collectors.groupingBy(ExecutionVertexID::getJobVertexId));
 
-		return new ArrayList<>(executionVerticesByJobVertex.values());
-	}
+        return new ArrayList<>(executionVerticesByJobVertex.values());
+    }
 
-	@Override
-	public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(final ExecutionVertexID executionVertexId) {
-		return Optional.ofNullable(taskManagerLocationsByVertex.get(executionVertexId));
-	}
+    @Override
+    public Optional<CompletableFuture<TaskManagerLocation>> getTaskManagerLocation(
+            final ExecutionVertexID executionVertexId) {
+        return Optional.ofNullable(taskManagerLocationsByVertex.get(executionVertexId));
+    }
 
-	public void markScheduled(final ExecutionVertexID executionVertexId) {
-		taskManagerLocationsByVertex.put(executionVertexId, new CompletableFuture<>());
-	}
+    public void markScheduled(final ExecutionVertexID executionVertexId) {
+        taskManagerLocationsByVertex.put(executionVertexId, new CompletableFuture<>());
+    }
 
-	public void assignTaskManagerLocation(final ExecutionVertexID executionVertexId) {
-		taskManagerLocationsByVertex.compute(executionVertexId, (key, future) -> {
-			if (future == null) {
-				return CompletableFuture.completedFuture(new LocalTaskManagerLocation());
-			}
-			future.complete(new LocalTaskManagerLocation());
-			return future;
-		});
-	}
+    public void assignTaskManagerLocation(final ExecutionVertexID executionVertexId) {
+        taskManagerLocationsByVertex.compute(
+                executionVertexId,
+                (key, future) -> {
+                    if (future == null) {
+                        return CompletableFuture.completedFuture(new LocalTaskManagerLocation());
+                    }
+                    future.complete(new LocalTaskManagerLocation());
+                    return future;
+                });
+    }
 
-	static class Builder {
+    void failTaskManagerLocation(final ExecutionVertexID executionVertexId, final Throwable cause) {
+        taskManagerLocationsByVertex.compute(
+                executionVertexId,
+                (key, future) -> {
+                    CompletableFuture<TaskManagerLocation> futureToFail = future;
+                    if (futureToFail == null) {
+                        futureToFail = new CompletableFuture<>();
+                    }
+                    futureToFail.completeExceptionally(cause);
+                    return futureToFail;
+                });
+    }
 
-		private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer = new HashMap<>();
+    void cancelTaskManagerLocation(final ExecutionVertexID executionVertexId) {
+        taskManagerLocationsByVertex.compute(
+                executionVertexId,
+                (key, future) -> {
+                    CompletableFuture<TaskManagerLocation> futureToCancel = future;
+                    if (futureToCancel == null) {
+                        futureToCancel = new CompletableFuture<>();
+                    }
+                    futureToCancel.cancel(true);
+                    return futureToCancel;
+                });
+    }
 
-		public Builder connectConsumerToProducer(final ExecutionVertexID consumer, final ExecutionVertexID producer) {
-			producersByConsumer
-				.computeIfAbsent(consumer, (key) -> new ArrayList<>())
-				.add(producer);
-			return this;
-		}
+    static class Builder {
 
-		public TestingInputsLocationsRetriever build() {
-			return new TestingInputsLocationsRetriever(producersByConsumer);
-		}
+        private final Map<ExecutionVertexID, List<ExecutionVertexID>> producersByConsumer =
+                new HashMap<>();
 
-	}
+        public Builder connectConsumerToProducer(
+                final ExecutionVertexID consumer, final ExecutionVertexID producer) {
+            producersByConsumer.computeIfAbsent(consumer, (key) -> new ArrayList<>()).add(producer);
+            return this;
+        }
+
+        public TestingInputsLocationsRetriever build() {
+            return new TestingInputsLocationsRetriever(producersByConsumer);
+        }
+    }
 }

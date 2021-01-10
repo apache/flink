@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.operators.wmassigners;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -30,35 +30,32 @@ import java.util.List;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Base class for watermark assigner operator test.
- */
+/** Base class for watermark assigner operator test. */
 public abstract class WatermarkAssignerOperatorTestBase {
 
-	protected Tuple2<Long, Long> validateElement(Object element, long nextElementValue, long currentWatermark) {
-		if (element instanceof StreamRecord) {
-			@SuppressWarnings("unchecked")
-			StreamRecord<BaseRow> record = (StreamRecord<BaseRow>) element;
-			assertEquals(nextElementValue, record.getValue().getLong(0));
-			return new Tuple2<>(nextElementValue + 1, currentWatermark);
-		}
-		else if (element instanceof Watermark) {
-			long wt = ((Watermark) element).getTimestamp();
-			assertTrue(wt > currentWatermark);
-			return new Tuple2<>(nextElementValue, wt);
-		}
-		else {
-			throw new IllegalArgumentException("unrecognized element: " + element);
-		}
-	}
+    protected Tuple2<Long, Long> validateElement(
+            Object element, long nextElementValue, long currentWatermark) {
+        if (element instanceof StreamRecord) {
+            @SuppressWarnings("unchecked")
+            StreamRecord<RowData> record = (StreamRecord<RowData>) element;
+            assertEquals(nextElementValue, record.getValue().getLong(0));
+            return new Tuple2<>(nextElementValue + 1, currentWatermark);
+        } else if (element instanceof Watermark) {
+            long wt = ((Watermark) element).getTimestamp();
+            assertTrue(wt > currentWatermark);
+            return new Tuple2<>(nextElementValue, wt);
+        } else {
+            throw new IllegalArgumentException("unrecognized element: " + element);
+        }
+    }
 
-	protected List<Watermark> extractWatermarks(Collection<Object> collection) {
-		List<Watermark> watermarks = new ArrayList<>();
-		for (Object obj : collection) {
-			if (obj instanceof Watermark) {
-				watermarks.add((Watermark) obj);
-			}
-		}
-		return watermarks;
-	}
+    protected List<Watermark> extractWatermarks(Collection<Object> collection) {
+        List<Watermark> watermarks = new ArrayList<>();
+        for (Object obj : collection) {
+            if (obj instanceof Watermark) {
+                watermarks.add((Watermark) obj);
+            }
+        }
+        return watermarks;
+    }
 }

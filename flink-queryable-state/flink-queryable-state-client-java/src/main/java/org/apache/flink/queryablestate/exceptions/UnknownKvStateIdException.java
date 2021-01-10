@@ -23,20 +23,21 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.network.BadRequestException;
 import org.apache.flink.util.Preconditions;
 
-/**
- * Thrown if no KvState with the given ID cannot found by the server handler.
- */
+/** Thrown if no KvState with the given ID cannot found by the server handler. */
 @Internal
 public class UnknownKvStateIdException extends BadRequestException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * Creates the exception.
-	 * @param serverName the name of the server that threw the exception.
-	 * @param kvStateId the state id for which no state was found.
-	 */
-	public UnknownKvStateIdException(String serverName, KvStateID kvStateId) {
-		super(serverName, "No registered state with ID " + Preconditions.checkNotNull(kvStateId) + '.');
-	}
+    /**
+     * Creates the exception.
+     *
+     * @param serverName the name of the server that threw the exception.
+     * @param kvStateId the state id for which no state was found.
+     */
+    public UnknownKvStateIdException(String serverName, KvStateID kvStateId) {
+        super(
+                serverName,
+                "No registered state with ID " + Preconditions.checkNotNull(kvStateId) + '.');
+    }
 }

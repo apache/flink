@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Slide, TableException, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -43,7 +42,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 2.rows on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -51,14 +50,12 @@ class GroupWindowTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string)
 
-    val myWeightedAvg = new WeightedAvgWithMerge
-
     val windowedTable = table
       .window(Tumble over 5.millis on 'long as 'w)
       .groupBy('w, 'string)
-      .select('string, myWeightedAvg('long, 'int))
+      .select('string, call(classOf[WeightedAvgWithMerge], 'long, 'int))
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -71,7 +68,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -83,7 +80,7 @@ class GroupWindowTest extends TableTestBase {
       .window(Tumble over 5.millis on 'long as 'w)
       .groupBy('w)
       .select('int.count)
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test(expected = classOf[TableException])
@@ -96,7 +93,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w)
       .select('int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -109,7 +106,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test
@@ -122,7 +119,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count, 'w.start, 'w.end, 'w.rowtime)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   //===============================================================================================
@@ -139,7 +136,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
   @Test(expected = classOf[TableException])
@@ -152,7 +149,7 @@ class GroupWindowTest extends TableTestBase {
       .groupBy('w, 'string)
       .select('string, 'int.count)
 
-    util.verifyPlan(windowedTable)
+    util.verifyExecPlan(windowedTable)
   }
 
 }

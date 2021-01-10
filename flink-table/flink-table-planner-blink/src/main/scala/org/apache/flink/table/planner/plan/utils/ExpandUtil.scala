@@ -62,12 +62,17 @@ object ExpandUtil {
     val commonGroupSet = groupSets.asList().reduce((g1, g2) => g1.intersect(g2)).asList()
     val duplicateFieldIndexes = aggCalls.zipWithIndex.flatMap {
       case (aggCall, idx) =>
+        // filterArg should also be considered here.
+        val allArgList = new util.ArrayList[Integer](aggCall.getArgList)
+        if (aggCall.filterArg > -1) {
+          allArgList.add(aggCall.filterArg)
+        }
         if (groupIdExprs.contains(idx)) {
           List.empty[Integer]
-        } else if (commonGroupSet.containsAll(aggCall.getArgList)) {
+        } else if (commonGroupSet.containsAll(allArgList)) {
           List.empty[Integer]
         } else {
-          aggCall.getArgList.diff(commonGroupSet)
+          allArgList.diff(commonGroupSet)
         }
     }.intersect(groupSet.asList()).sorted.toArray[Integer]
 

@@ -31,7 +31,6 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
@@ -40,7 +39,6 @@ import akka.actor.ActorSystem;
 import org.junit.AssumptionViolatedException;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.net.Inet6Address;
@@ -55,115 +53,122 @@ import scala.Some;
 
 import static org.junit.Assert.fail;
 
-/**
- * Test proper handling of IPv6 address literals in URLs.
- */
+/** Test proper handling of IPv6 address literals in URLs. */
 @SuppressWarnings("serial")
-@Category(AlsoRunWithLegacyScheduler.class)
 public class IPv6HostnamesITCase extends TestLogger {
 
-	@Rule
-	public final MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(2)
-			.setNumberSlotsPerTaskManager(2)
-			.build());
+    @Rule
+    public final MiniClusterWithClientResource miniClusterResource =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(2)
+                            .setNumberSlotsPerTaskManager(2)
+                            .build());
 
-	private Configuration getConfiguration() {
-		final Inet6Address ipv6address = getLocalIPv6Address();
-		if (ipv6address == null) {
-			throw new AssumptionViolatedException("--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
-		}
-		final String addressString = ipv6address.getHostAddress();
-		log.info("Test will use IPv6 address " + addressString + " for connection tests");
+    private Configuration getConfiguration() {
+        final Inet6Address ipv6address = getLocalIPv6Address();
+        if (ipv6address == null) {
+            throw new AssumptionViolatedException(
+                    "--- Cannot find a non-loopback local IPv6 address that Akka/Netty can bind to; skipping IPv6HostnamesITCase");
+        }
+        final String addressString = ipv6address.getHostAddress();
+        log.info("Test will use IPv6 address " + addressString + " for connection tests");
 
-		Configuration config = new Configuration();
-		config.setString(JobManagerOptions.ADDRESS, addressString);
-		config.setString(TaskManagerOptions.HOST, addressString);
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
-		return config;
-	}
+        Configuration config = new Configuration();
+        config.setString(JobManagerOptions.ADDRESS, addressString);
+        config.setString(TaskManagerOptions.HOST, addressString);
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("16m"));
+        return config;
+    }
 
-	@Test
-	public void testClusterWithIPv6host() {
-		try {
+    @Test
+    public void testClusterWithIPv6host() {
+        try {
 
-			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-			env.setParallelism(4);
+            ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(4);
 
-			// get input data
-			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
+            // get input data
+            DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));
 
-			DataSet<Tuple2<String, Integer>> counts = text
-					.flatMap(new FlatMapFunction<String, Tuple2<String, Integer>>() {
-						@Override
-						public void flatMap(String value, Collector<Tuple2<String, Integer>> out) throws Exception {
-							for (String token : value.toLowerCase().split("\\W+")) {
-								if (token.length() > 0) {
-									out.collect(new Tuple2<String, Integer>(token, 1));
-								}
-							}
-						}
-					})
-					.groupBy(0).sum(1);
+            DataSet<Tuple2<String, Integer>> counts =
+                    text.flatMap(
+                                    new FlatMapFunction<String, Tuple2<String, Integer>>() {
+                                        @Override
+                                        public void flatMap(
+                                                String value,
+                                                Collector<Tuple2<String, Integer>> out)
+                                                throws Exception {
+                                            for (String token : value.toLowerCase().split("\\W+")) {
+                                                if (token.length() > 0) {
+                                                    out.collect(
+                                                            new Tuple2<String, Integer>(token, 1));
+                                                }
+                                            }
+                                        }
+                                    })
+                            .groupBy(0)
+                            .sum(1);
 
-			List<Tuple2<String, Integer>> result = counts.collect();
+            List<Tuple2<String, Integer>> result = counts.collect();
 
-			TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	private Inet6Address getLocalIPv6Address() {
-		try {
-			Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
-			while (e.hasMoreElements()) {
-				NetworkInterface netInterface = e.nextElement();
+    private Inet6Address getLocalIPv6Address() {
+        try {
+            Enumeration<NetworkInterface> e = NetworkInterface.getNetworkInterfaces();
+            while (e.hasMoreElements()) {
+                NetworkInterface netInterface = e.nextElement();
 
-				// for each address of the network interface
-				Enumeration<InetAddress> ee = netInterface.getInetAddresses();
-				while (ee.hasMoreElements()) {
-					InetAddress addr = ee.nextElement();
+                // for each address of the network interface
+                Enumeration<InetAddress> ee = netInterface.getInetAddresses();
+                while (ee.hasMoreElements()) {
+                    InetAddress addr = ee.nextElement();
 
-					if (addr instanceof Inet6Address && (!addr.isLoopbackAddress()) && (!addr.isAnyLocalAddress())) {
-						// see if it is possible to bind to the address
-						InetSocketAddress socketAddress = new InetSocketAddress(addr, 0);
+                    if (addr instanceof Inet6Address
+                            && (!addr.isLoopbackAddress())
+                            && (!addr.isAnyLocalAddress())) {
+                        // see if it is possible to bind to the address
+                        InetSocketAddress socketAddress = new InetSocketAddress(addr, 0);
 
-						try {
-							log.info("Considering address " + addr);
+                        try {
+                            log.info("Considering address " + addr);
 
-							// test whether we can bind a socket to that address
-							log.info("Testing whether sockets can bind to " + addr);
-							ServerSocket sock = new ServerSocket();
-							sock.bind(socketAddress);
-							sock.close();
+                            // test whether we can bind a socket to that address
+                            log.info("Testing whether sockets can bind to " + addr);
+                            ServerSocket sock = new ServerSocket();
+                            sock.bind(socketAddress);
+                            sock.close();
 
-							// test whether Akka's netty can bind to the address
-							log.info("Testing whether Akka can use " + addr);
-							int port = NetUtils.getAvailablePort();
-							ActorSystem as = AkkaUtils.createActorSystem(
-									new Configuration(),
-									new Some<scala.Tuple2<String, Object>>(new scala.Tuple2<String, Object>(addr.getHostAddress(), port)));
-							as.terminate();
+                            // test whether Akka's netty can bind to the address
+                            log.info("Testing whether Akka can use " + addr);
+                            int port = NetUtils.getAvailablePort();
+                            ActorSystem as =
+                                    AkkaUtils.createActorSystem(
+                                            new Configuration(),
+                                            new Some<scala.Tuple2<String, Object>>(
+                                                    new scala.Tuple2<String, Object>(
+                                                            addr.getHostAddress(), port)));
+                            as.terminate();
 
-							log.info("Using address " + addr);
-							return (Inet6Address) addr;
-						}
-						catch (IOException ignored) {
-							// fall through the loop
-						}
-					}
-				}
-			}
+                            log.info("Using address " + addr);
+                            return (Inet6Address) addr;
+                        } catch (IOException ignored) {
+                            // fall through the loop
+                        }
+                    }
+                }
+            }
 
-			return null;
-		}
-		catch (Exception e) {
-			return null;
-		}
-	}
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

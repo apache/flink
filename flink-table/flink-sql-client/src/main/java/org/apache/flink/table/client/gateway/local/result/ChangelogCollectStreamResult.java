@@ -33,71 +33,71 @@ import java.util.List;
  *
  * @param <C> cluster id to which this result belongs to
  */
-public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C> implements ChangelogResult<C> {
+public class ChangelogCollectStreamResult<C> extends CollectStreamResult<C>
+        implements ChangelogResult<C> {
 
-	private List<Tuple2<Boolean, Row>> changeRecordBuffer;
-	private static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
+    private List<Tuple2<Boolean, Row>> changeRecordBuffer;
+    private static final int CHANGE_RECORD_BUFFER_SIZE = 5_000;
 
-	public ChangelogCollectStreamResult(
-			TableSchema tableSchema,
-			ExecutionConfig config,
-			InetAddress gatewayAddress,
-			int gatewayPort,
-			ClassLoader classLoader) {
-		super(tableSchema, config, gatewayAddress, gatewayPort, classLoader);
+    public ChangelogCollectStreamResult(
+            TableSchema tableSchema,
+            ExecutionConfig config,
+            InetAddress gatewayAddress,
+            int gatewayPort) {
+        super(tableSchema, config, gatewayAddress, gatewayPort);
 
-		// prepare for changelog
-		changeRecordBuffer = new ArrayList<>();
-	}
+        // prepare for changelog
+        changeRecordBuffer = new ArrayList<>();
+    }
 
-	@Override
-	public boolean isMaterialized() {
-		return false;
-	}
+    @Override
+    public boolean isMaterialized() {
+        return false;
+    }
 
-	@Override
-	public TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges() {
-		synchronized (resultLock) {
-			// retrieval thread is alive return a record if available
-			// but the program must not have failed
-			if (isRetrieving() && executionException.get() == null) {
-				if (changeRecordBuffer.isEmpty()) {
-					return TypedResult.empty();
-				} else {
-					final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
-					changeRecordBuffer.clear();
-					resultLock.notify();
-					return TypedResult.payload(change);
-				}
-			}
-			// retrieval thread is dead but there is still a record to be delivered
-			else if (!isRetrieving() && !changeRecordBuffer.isEmpty()) {
-				final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
-				changeRecordBuffer.clear();
-				return TypedResult.payload(change);
-			}
-			// no results can be returned anymore
-			else {
-				return handleMissingResult();
-			}
-		}
-	}
+    @Override
+    public TypedResult<List<Tuple2<Boolean, Row>>> retrieveChanges() {
+        synchronized (resultLock) {
+            // retrieval thread is alive return a record if available
+            // but the program must not have failed
+            if (isRetrieving() && executionException.get() == null) {
+                if (changeRecordBuffer.isEmpty()) {
+                    return TypedResult.empty();
+                } else {
+                    final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
+                    changeRecordBuffer.clear();
+                    resultLock.notify();
+                    return TypedResult.payload(change);
+                }
+            }
+            // retrieval thread is dead but there is still a record to be delivered
+            else if (!isRetrieving() && !changeRecordBuffer.isEmpty()) {
+                final List<Tuple2<Boolean, Row>> change = new ArrayList<>(changeRecordBuffer);
+                changeRecordBuffer.clear();
+                return TypedResult.payload(change);
+            }
+            // no results can be returned anymore
+            else {
+                return handleMissingResult();
+            }
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	@Override
-	protected void processRecord(Tuple2<Boolean, Row> change) {
-		synchronized (resultLock) {
-			// wait if the buffer is full
-			if (changeRecordBuffer.size() >= CHANGE_RECORD_BUFFER_SIZE) {
-				try {
-					resultLock.wait();
-				} catch (InterruptedException e) {
-					// ignore
-				}
-			} else {
-				changeRecordBuffer.add(change);
-			}
-		}
-	}
+    @Override
+    protected void processRecord(Tuple2<Boolean, Row> change) {
+        synchronized (resultLock) {
+            // wait if the buffer is full
+            if (changeRecordBuffer.size() >= CHANGE_RECORD_BUFFER_SIZE) {
+                try {
+                    resultLock.wait();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+            } else {
+                changeRecordBuffer.add(change);
+            }
+        }
+    }
 }

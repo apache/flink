@@ -44,109 +44,111 @@ import java.util.stream.Collectors;
 @Internal
 public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType> {
 
-	@Override
-	public LogicalType visit(ArrayType arrayType) {
-		return new ArrayType(
-			arrayType.isNullable(),
-			arrayType.getElementType().accept(this));
-	}
+    @Override
+    public LogicalType visit(ArrayType arrayType) {
+        return new ArrayType(arrayType.isNullable(), arrayType.getElementType().accept(this));
+    }
 
-	@Override
-	public LogicalType visit(MultisetType multisetType) {
-		return new MultisetType(
-			multisetType.isNullable(),
-			multisetType.getElementType().accept(this));
-	}
+    @Override
+    public LogicalType visit(MultisetType multisetType) {
+        return new MultisetType(
+                multisetType.isNullable(), multisetType.getElementType().accept(this));
+    }
 
-	@Override
-	public LogicalType visit(MapType mapType) {
-		return new MapType(
-			mapType.isNullable(),
-			mapType.getKeyType().accept(this),
-			mapType.getValueType().accept(this));
-	}
+    @Override
+    public LogicalType visit(MapType mapType) {
+        return new MapType(
+                mapType.isNullable(),
+                mapType.getKeyType().accept(this),
+                mapType.getValueType().accept(this));
+    }
 
-	@Override
-	public LogicalType visit(RowType rowType) {
-		final List<RowField> fields = rowType.getFields().stream()
-			.map(f -> {
-				if (f.getDescription().isPresent()) {
-					return new RowField(
-						f.getName(),
-						f.getType().accept(this),
-						f.getDescription().get());
-				}
-				return new RowField(f.getName(), f.getType().accept(this));
-			})
-			.collect(Collectors.toList());
+    @Override
+    public LogicalType visit(RowType rowType) {
+        final List<RowField> fields =
+                rowType.getFields().stream()
+                        .map(
+                                f -> {
+                                    if (f.getDescription().isPresent()) {
+                                        return new RowField(
+                                                f.getName(),
+                                                f.getType().accept(this),
+                                                f.getDescription().get());
+                                    }
+                                    return new RowField(f.getName(), f.getType().accept(this));
+                                })
+                        .collect(Collectors.toList());
 
-		return new RowType(
-			rowType.isNullable(),
-			fields);
-	}
+        return new RowType(rowType.isNullable(), fields);
+    }
 
-	@Override
-	public LogicalType visit(DistinctType distinctType) {
-		final DistinctType.Builder builder = DistinctType.newBuilder(
-			distinctType.getObjectIdentifier(),
-			distinctType.getSourceType().accept(this));
-		distinctType.getDescription().ifPresent(builder::description);
-		return builder.build();
-	}
+    @Override
+    public LogicalType visit(DistinctType distinctType) {
+        final DistinctType.Builder builder =
+                DistinctType.newBuilder(
+                        distinctType.getObjectIdentifier().orElseThrow(IllegalStateException::new),
+                        distinctType.getSourceType().accept(this));
+        distinctType.getDescription().ifPresent(builder::description);
+        return builder.build();
+    }
 
-	@Override
-	public LogicalType visit(StructuredType structuredType) {
-		final StructuredType.Builder builder = instantiateStructuredBuilder(structuredType);
-		builder.attributes(duplicateStructuredAttributes(structuredType));
-		builder.setNullable(structuredType.isNullable());
-		builder.setFinal(structuredType.isFinal());
-		builder.setInstantiable(structuredType.isInstantiable());
-		builder.comparision(structuredType.getComparision());
-		structuredType.getSuperType().ifPresent(st -> {
-			final LogicalType visited = st.accept(this);
-			if (!(visited instanceof StructuredType)) {
-				throw new TableException("Unexpected super type. Structured type expected but was: " + visited);
-			}
-			builder.superType((StructuredType) visited);
-		});
-		structuredType.getDescription().ifPresent(builder::description);
-		return builder.build();
-	}
+    @Override
+    public LogicalType visit(StructuredType structuredType) {
+        final StructuredType.Builder builder = instantiateStructuredBuilder(structuredType);
+        builder.attributes(duplicateStructuredAttributes(structuredType));
+        builder.setNullable(structuredType.isNullable());
+        builder.setFinal(structuredType.isFinal());
+        builder.setInstantiable(structuredType.isInstantiable());
+        builder.comparision(structuredType.getComparision());
+        structuredType
+                .getSuperType()
+                .ifPresent(
+                        st -> {
+                            final LogicalType visited = st.accept(this);
+                            if (!(visited instanceof StructuredType)) {
+                                throw new TableException(
+                                        "Unexpected super type. Structured type expected but was: "
+                                                + visited);
+                            }
+                            builder.superType((StructuredType) visited);
+                        });
+        structuredType.getDescription().ifPresent(builder::description);
+        return builder.build();
+    }
 
-	@Override
-	protected LogicalType defaultMethod(LogicalType logicalType) {
-		return logicalType.copy();
-	}
+    @Override
+    protected LogicalType defaultMethod(LogicalType logicalType) {
+        return logicalType.copy();
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
-		final Optional<ObjectIdentifier> identifier = structuredType.getOptionalObjectIdentifier();
-		final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
-		if (identifier.isPresent() && implementationClass.isPresent()) {
-			return StructuredType.newBuilder(identifier.get(), implementationClass.get());
-		} else if (identifier.isPresent()) {
-			return StructuredType.newBuilder(identifier.get());
-		} else if (implementationClass.isPresent()) {
-			return StructuredType.newBuilder(implementationClass.get());
-		} else {
-			throw new TableException("Invalid structured type.");
-		}
-	}
+    private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
+        final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
+        final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
+        if (identifier.isPresent() && implementationClass.isPresent()) {
+            return StructuredType.newBuilder(identifier.get(), implementationClass.get());
+        } else if (identifier.isPresent()) {
+            return StructuredType.newBuilder(identifier.get());
+        } else if (implementationClass.isPresent()) {
+            return StructuredType.newBuilder(implementationClass.get());
+        } else {
+            throw new TableException("Invalid structured type.");
+        }
+    }
 
-	private List<StructuredAttribute> duplicateStructuredAttributes(StructuredType structuredType) {
-		return structuredType.getAttributes().stream()
-			.map(a -> {
-				if (a.getDescription().isPresent()) {
-					return new StructuredAttribute(
-						a.getName(),
-						a.getType().accept(this),
-						a.getDescription().get());
-				}
-				return new StructuredAttribute(
-					a.getName(),
-					a.getType().accept(this));
-			})
-			.collect(Collectors.toList());
-	}
+    private List<StructuredAttribute> duplicateStructuredAttributes(StructuredType structuredType) {
+        return structuredType.getAttributes().stream()
+                .map(
+                        a -> {
+                            if (a.getDescription().isPresent()) {
+                                return new StructuredAttribute(
+                                        a.getName(),
+                                        a.getType().accept(this),
+                                        a.getDescription().get());
+                            }
+                            return new StructuredAttribute(a.getName(), a.getType().accept(this));
+                        })
+                .collect(Collectors.toList());
+    }
 }

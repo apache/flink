@@ -19,18 +19,13 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalJoin, FlinkLogicalRel, FlinkLogicalSnapshot}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecJoin
-import org.apache.flink.table.planner.plan.utils.{TemporalJoinUtil, WindowJoinUtil}
-
-import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.flink.table.planner.plan.utils.{IntervalJoinUtil, TemporalJoinUtil}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
-
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -39,11 +34,7 @@ import scala.collection.JavaConversions._
   * to [[StreamExecJoin]].
   */
 class StreamExecJoinRule
-  extends RelOptRule(
-    operand(classOf[FlinkLogicalJoin],
-      operand(classOf[FlinkLogicalRel], any()),
-      operand(classOf[FlinkLogicalRel], any())),
-    "StreamExecJoinRule") {
+  extends StreamExecJoinRuleBase("StreamExecJoinRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: FlinkLogicalJoin = call.rel(0)
@@ -53,7 +44,6 @@ class StreamExecJoinRule
     }
     val left: FlinkLogicalRel = call.rel(1).asInstanceOf[FlinkLogicalRel]
     val right: FlinkLogicalRel = call.rel(2).asInstanceOf[FlinkLogicalRel]
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
     val joinRowType = join.getRowType
 
     if (left.isInstanceOf[FlinkLogicalSnapshot]) {
@@ -67,20 +57,14 @@ class StreamExecJoinRule
       return false
     }
 
-    val (windowBounds, remainingPreds) = WindowJoinUtil.extractWindowBoundsFromPredicate(
-      join.getCondition,
-      join.getLeft.getRowType.getFieldCount,
-      joinRowType,
-      join.getCluster.getRexBuilder,
-      tableConfig)
-
+    val (windowBounds, remainingPreds) = extractWindowBounds(join)
     if (windowBounds.isDefined) {
       return false
     }
 
     // remaining predicate must not access time attributes
     val remainingPredsAccessTime = remainingPreds.isDefined &&
-      WindowJoinUtil.accessesTimeAttribute(remainingPreds.get, joinRowType)
+      IntervalJoinUtil.accessesTimeAttribute(remainingPreds.get, joinRowType)
 
     val rowTimeAttrInOutput = joinRowType.getFieldList
       .exists(f => FlinkTypeFactory.isRowtimeIndicatorType(f.getType))
@@ -97,42 +81,20 @@ class StreamExecJoinRule
     !remainingPredsAccessTime
   }
 
-  override def onMatch(call: RelOptRuleCall): Unit = {
-    val join: FlinkLogicalJoin = call.rel(0)
-    val left = join.getLeft
-    val right = join.getRight
-
-    def toHashTraitByColumns(
-        columns: util.Collection[_ <: Number],
-        inputTraitSets: RelTraitSet): RelTraitSet = {
-      val distribution = if (columns.isEmpty) {
-        FlinkRelDistribution.SINGLETON
-      } else {
-        FlinkRelDistribution.hash(columns)
-      }
-      inputTraitSets
-        .replace(FlinkConventions.STREAM_PHYSICAL)
-        .replace(distribution)
-    }
-
-    val joinInfo = join.analyzeCondition()
-    val (leftRequiredTrait, rightRequiredTrait) = (
-      toHashTraitByColumns(joinInfo.leftKeys, left.getTraitSet),
-      toHashTraitByColumns(joinInfo.rightKeys, right.getTraitSet))
-
-    val providedTraitSet = join.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-
-    val newLeft: RelNode = RelOptRule.convert(left, leftRequiredTrait)
-    val newRight: RelNode = RelOptRule.convert(right, rightRequiredTrait)
-
-    val newJoin = new StreamExecJoin(
+  override protected def transform(
+      join: FlinkLogicalJoin,
+      leftInput: FlinkRelNode,
+      leftConversion: RelNode => RelNode,
+      rightInput: FlinkRelNode,
+      rightConversion: RelNode => RelNode,
+      providedTraitSet: RelTraitSet): FlinkRelNode = {
+    new StreamExecJoin(
       join.getCluster,
       providedTraitSet,
-      newLeft,
-      newRight,
+      leftConversion(leftInput),
+      rightConversion(rightInput),
       join.getCondition,
       join.getJoinType)
-    call.transformTo(newJoin)
   }
 }
 

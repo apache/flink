@@ -16,6 +16,84 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testExplainMultipleInput[extended=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+      :  +- LogicalProject(a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right])
+:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])
+:  +- Exchange(distribution=[hash[a]])
+:     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+:        +- Calc(select=[a, b])
+:           +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])
+   +- Exchange(distribution=[hash[d]])
+      +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+         +- Calc(select=[d, e])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+
+== Optimized Execution Plan ==
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+:     +- Calc(select=[a, b])
+:        +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+      +- Calc(select=[d, e])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExplainMultipleInput[extended=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], EXPR$1=[$1], d=[$2], EXPR$10=[$3])
++- LogicalFilter(condition=[=($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+      :  +- LogicalProject(a=[$0], b=[$1])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+         +- LogicalProject(d=[$0], e=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, EXPR$1, d, EXPR$10], build=[right]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:  +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:     +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:        +- Calc(select=[a, b]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+:           +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
++- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- Exchange(distribution=[hash[d]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- Calc(select=[d, e]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, EXPR$1, d, EXPR$10], build=[right])\n:- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#1] Exchange(distribution=[hash[a]])\n+- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_SUM(sum$0) AS EXPR$1])\n   +- [#2] Exchange(distribution=[hash[d]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+:     +- Calc(select=[a, b])
+:        +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- Exchange(distribution=[hash[d]])
+   +- LocalHashAggregate(groupBy=[d], select=[d, Partial_SUM(e) AS sum$0])
+      +- Calc(select=[d, e])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExplainWithAgg[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -24,7 +102,7 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
@@ -32,30 +110,13 @@ Calc(select=[EXPR$0])
          +- Calc(select=[a])
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
-					ship_strategy : HASH[a]
-
-					 : Operator
-						content : Calc(select=[EXPR$0])
-						ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[a])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -67,7 +128,7 @@ LogicalProject(EXPR$0=[$1])
    +- LogicalProject(a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -75,30 +136,13 @@ Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, m
          +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
             +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
-					ship_strategy : HASH[a]
-
-					 : Operator
-						content : Calc(select=[EXPR$0])
-						ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0])
++- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+         +- Calc(select=[a])
+            +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -108,17 +152,11 @@ Calc(select=[EXPR$0]): rowcount = , cumulative cost = {rows, cpu, io, network, m
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -128,17 +166,11 @@ BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -149,22 +181,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)])
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[((a MOD 2) = 0)])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
++- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -175,22 +198,13 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[=(MOD($0, 2), 0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c], where=[=(MOD(a, 2), 0)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[((a MOD 2) = 0)])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c], where=[(MOD(a, 2) = 0)])
++- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -203,7 +217,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c, e, f])
 +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
    :- Exchange(distribution=[hash[a]])
@@ -211,29 +225,13 @@ Calc(select=[a, b, c, e, f])
    +- Exchange(distribution=[hash[d]])
       +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
-				ship_strategy : HASH[a]
-
-				 : Operator
-					content : Calc(select=[a, b, c, e, f])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, e, f])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
+   :- Exchange(distribution=[hash[a]])
+   :  +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -246,7 +244,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], e=[$4], f=[$5])
       :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Calc(select=[a, b, c, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    :- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -254,259 +252,155 @@ Calc(select=[a, b, c, e, f]): rowcount = , cumulative cost = {rows, cpu, io, net
    +- Exchange(distribution=[hash[d]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
-				ship_strategy : HASH[a]
-
-				 : Operator
-					content : Calc(select=[a, b, c, e, f])
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, e, f])
++- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
+   :- Exchange(distribution=[hash[a]])
+   :  +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt], reuse_id=[1])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[>(cnt, 10)])
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[<(cnt, 10)])
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])(reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
    +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
       +- Calc(select=[a])
          +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[>(cnt, 10)])
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
-+- Calc(select=[a, cnt], where=[<(cnt, 10)])
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
    +- Reused(reference_id=[1])
-
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
-					ship_strategy : HASH[a]
-
-					 : Operator
-						content : Calc(select=[a, cnt], where=[(cnt > 10)])
-						ship_strategy : FORWARD
-
-						 : Operator
-							content : SinkConversionToRow
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : Calc(select=[a, cnt], where=[(cnt < 10)])
-								ship_strategy : FORWARD
-
-								 : Operator
-									content : SinkConversionToRow
-									ship_strategy : FORWARD
-
-									 : Data Sink
-										content : Sink: collect
-										ship_strategy : REBALANCE
-
-										 : Data Sink
-											content : Sink: collect
-											ship_strategy : REBALANCE
-
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testExplainWithMultiSinks[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt], reuse_id=[1]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-+- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-      +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-
-Sink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
-   +- Reused(reference_id=[1])
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+      +- Exchange(distribution=[hash[a]]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+            +- Calc(select=[a]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])(reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+      +- Calc(select=[a])
+         +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+
+LegacySink(name=[`default_catalog`.`default_database`.`sink1`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt > 10)])
    +- Reused(reference_id=[1])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-				ship_strategy : FORWARD
-
-				 : Operator
-					content : HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
-					ship_strategy : HASH[a]
-
-					 : Operator
-						content : Calc(select=[a, cnt], where=[(cnt > 10)])
-						ship_strategy : FORWARD
-
-						 : Operator
-							content : SinkConversionToRow
-							ship_strategy : FORWARD
-
-							 : Operator
-								content : Calc(select=[a, cnt], where=[(cnt < 10)])
-								ship_strategy : FORWARD
-
-								 : Operator
-									content : SinkConversionToRow
-									ship_strategy : FORWARD
-
-									 : Data Sink
-										content : Sink: collect
-										ship_strategy : REBALANCE
-
-										 : Data Sink
-											content : Sink: collect
-											ship_strategy : REBALANCE
-
+LegacySink(name=[`default_catalog`.`default_database`.`sink2`], fields=[a, cnt])
++- Calc(select=[a, cnt], where=[(cnt < 10)])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testExplainWithSingleSink[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[(a > 10)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				 : Data Sink
-					content : Sink: collect
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Calc(select=[a, b, c], where=[(a > 10)])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
-Sink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : Calc(select=[a, b, c], where=[(a > 10)])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SinkConversionToRow
-				ship_strategy : FORWARD
-
-				 : Data Sink
-					content : Sink: collect
-					ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`sink`], fields=[a, b, c])
++- Calc(select=[a, b, c], where=[(a > 10)])
+   +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -517,28 +411,17 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false])
       +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
-				ship_strategy : GLOBAL
-
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -549,28 +432,17 @@ LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[5])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Exchange(distribution=[single]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false])
-			ship_strategy : FORWARD
-
-			 : Operator
-				content : SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
-				ship_strategy : GLOBAL
-
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[false])
+      +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -580,17 +452,11 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], global=[true]): rowcount = , c
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-== Optimized Logical Plan ==
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+== Optimized Physical Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -600,17 +466,11 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 
-== Optimized Logical Plan ==
-TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+== Optimized Physical Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable, source: [TestTableSource(a, b, c)]], fields=[a, b, c])
-		ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -623,26 +483,15 @@ LogicalUnion(all=[true])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Union(all=[true], union=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 :- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Union(all=[true], union=[a, b, c])
+:- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>
@@ -655,26 +504,15 @@ LogicalUnion(all=[true])
 +- LogicalProject(d=[$0], e=[$1], f=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 
-== Optimized Logical Plan ==
+== Optimized Physical Plan ==
 Union(all=[true], union=[a, b, c])
 :- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 
-== Physical Execution Plan ==
- : Data Source
-	content : Source: Collection Source
-
- : Data Source
-	content : Source: Collection Source
-
-	 : Operator
-		content : SourceConversion(table=[default_catalog.default_database.MyTable1], fields=[a, b, c])
-		ship_strategy : FORWARD
-
-		 : Operator
-			content : SourceConversion(table=[default_catalog.default_database.MyTable2], fields=[d, e, f])
-			ship_strategy : FORWARD
-
+== Optimized Execution Plan ==
+Union(all=[true], union=[a, b, c])
+:- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- BoundedStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

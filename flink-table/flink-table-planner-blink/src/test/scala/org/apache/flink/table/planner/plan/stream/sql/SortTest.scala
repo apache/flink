@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
@@ -33,47 +33,47 @@ class SortTest extends TableTestBase {
   @Test
   def testSortProcessingTime(): Unit = {
     // be converted to TemporalSort
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime, c")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY proctime, c")
   }
 
   @Test
   def testSortRowTime(): Unit = {
     // be converted to TemporalSort
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime, c")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY rowtime, c")
   }
 
   @Test
   def testSortProcessingTimeDesc(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY proctime desc, c")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY proctime desc, c")
   }
 
   @Test
   def testSortRowTimeDesc(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY rowtime desc, c")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY rowtime desc, c")
   }
 
   @Test
   def testSortProcessingTimeSecond(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, proctime")
   }
 
   @Test
   def testSortRowTimeSecond(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, rowtime")
   }
 
   @Test
   def testSortProcessingTimeSecondDesc(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY c, proctime desc")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, proctime desc")
   }
 
   @Test
   def testSortRowTimeSecondDesc(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY c, rowtime desc")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c, rowtime desc")
   }
 
   @Test
   def testSortWithoutTime(): Unit = {
-    util.verifyPlan("SELECT a FROM MyTable ORDER BY c")
+    util.verifyExecPlan("SELECT a FROM MyTable ORDER BY c")
   }
 }

@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-metrics-prometheus_${scala.binary.version}</artifactId>
-	<name>flink-metrics-prometheus</name>
+	<name>Flink : Metrics : Prometheus</name>
 
 	<dependencies>
 		<dependency>

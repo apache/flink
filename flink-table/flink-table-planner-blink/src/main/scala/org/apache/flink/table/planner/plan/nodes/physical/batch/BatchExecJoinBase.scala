@@ -18,11 +18,11 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.nodes.exec.BatchExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.LegacyBatchExecNode
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.types.logical.RowType
 
@@ -48,7 +48,7 @@ abstract class BatchExecJoinBase(
     joinType: JoinRelType)
   extends CommonPhysicalJoin(cluster, traitSet, leftRel, rightRel, condition, joinType)
   with BatchPhysicalRel
-  with BatchExecNode[BaseRow] {
+  with LegacyBatchExecNode[RowData] {
 
   private[flink] def generateCondition(
       config: TableConfig,

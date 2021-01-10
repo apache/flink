@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 
@@ -25,11 +26,11 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createView;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -40,119 +41,133 @@ import static org.junit.Assert.assertTrue;
  */
 public class BoundedBlockingSubpartitionAvailabilityTest {
 
-	@ClassRule
-	public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
 
-	private static final int BUFFER_SIZE = 32 * 1024;
+    private static final int BUFFER_SIZE = 32 * 1024;
 
-	@Test
-	public void testInitiallyAvailable() throws Exception {
-		final ResultSubpartition subpartition = createPartitionWithData(10);
-		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
+    @Test
+    public void testInitiallyNotAvailable() throws Exception {
+        final ResultSubpartition subpartition = createPartitionWithData(10);
+        final CountingAvailabilityListener listener = new CountingAvailabilityListener();
 
-		// test
-		final ResultSubpartitionView subpartitionView = subpartition.createReadView(listener);
+        // test
+        final ResultSubpartitionView subpartitionView = createView(subpartition, listener);
 
-		// assert
-		assertEquals(1, listener.numNotifications);
+        // assert
+        assertEquals(0, listener.numNotifications);
 
-		// cleanup
-		subpartitionView.releaseAllResources();
-		subpartition.release();
-	}
+        // cleanup
+        subpartitionView.releaseAllResources();
+        subpartition.release();
+    }
 
-	@Test
-	public void testUnavailableWhenBuffersExhausted() throws Exception {
-		// setup
-		final BoundedBlockingSubpartition subpartition = createPartitionWithData(100_000);
-		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = subpartition.createReadView(listener);
+    @Test
+    public void testUnavailableWhenBuffersExhausted() throws Exception {
+        // setup
+        final ResultSubpartition subpartition = createPartitionWithData(100_000);
+        final CountingAvailabilityListener listener = new CountingAvailabilityListener();
+        final ResultSubpartitionView reader = createView(subpartition, listener);
 
-		// test
-		final List<BufferAndBacklog> data = drainAvailableData(reader);
+        // test
+        final List<BufferAndBacklog> data = drainAvailableData(reader);
 
-		// assert
-		assertFalse(reader.isAvailable());
-		assertFalse(data.get(data.size() - 1).isMoreAvailable());
+        // assert
+        assertFalse(reader.isAvailable(Integer.MAX_VALUE));
+        assertFalse(data.get(data.size() - 1).isDataAvailable());
 
-		// cleanup
-		reader.releaseAllResources();
-		subpartition.release();
-	}
+        // cleanup
+        reader.releaseAllResources();
+        subpartition.release();
+    }
 
-	@Test
-	public void testAvailabilityNotificationWhenBuffersReturn() throws Exception {
-		// setup
-		final ResultSubpartition subpartition = createPartitionWithData(100_000);
-		final CountingAvailabilityListener listener = new CountingAvailabilityListener();
-		final ResultSubpartitionView reader = subpartition.createReadView(listener);
+    @Test
+    public void testAvailabilityNotificationWhenBuffersReturn() throws Exception {
+        // setup
+        final ResultSubpartition subpartition = createPartitionWithData(100_000);
+        final CountingAvailabilityListener listener = new CountingAvailabilityListener();
+        final ResultSubpartitionView reader = createView(subpartition, listener);
 
-		// test
-		final List<ResultSubpartition.BufferAndBacklog> data = drainAvailableData(reader);
-		data.get(0).buffer().recycleBuffer();
-		data.get(1).buffer().recycleBuffer();
+        // test
+        final List<ResultSubpartition.BufferAndBacklog> data = drainAvailableData(reader);
+        data.get(0).buffer().recycleBuffer();
+        data.get(1).buffer().recycleBuffer();
 
-		// assert
-		assertTrue(reader.isAvailable());
-		assertEquals(2, listener.numNotifications); // one initial, one for new availability
+        // assert
+        assertTrue(reader.isAvailable(Integer.MAX_VALUE));
+        assertEquals(1, listener.numNotifications);
 
-		// cleanup
-		reader.releaseAllResources();
-		subpartition.release();
-	}
+        // cleanup
+        reader.releaseAllResources();
+        subpartition.release();
+    }
 
-	@Test
-	public void testNotAvailableWhenEmpty() throws Exception {
-		// setup
-		final ResultSubpartition subpartition = createPartitionWithData(100_000);
-		final ResultSubpartitionView reader = subpartition.createReadView(new NoOpBufferAvailablityListener());
+    @Test
+    public void testNotAvailableWhenEmpty() throws Exception {
+        // setup
+        final ResultSubpartition subpartition = createPartitionWithData(100_000);
+        final ResultSubpartitionView reader =
+                subpartition.createReadView(new NoOpBufferAvailablityListener());
 
-		// test
-		drainAllData(reader);
+        // test
+        drainAllData(reader);
 
-		// assert
-		assertFalse(reader.isAvailable());
+        // assert
+        assertFalse(reader.isAvailable(Integer.MAX_VALUE));
 
-		// cleanup
-		reader.releaseAllResources();
-		subpartition.release();
-	}
+        // cleanup
+        reader.releaseAllResources();
+        subpartition.release();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static BoundedBlockingSubpartition createPartitionWithData(int numberOfBuffers) throws IOException {
-		ResultPartition parent = PartitionTestUtils.createPartition();
+    private static ResultSubpartition createPartitionWithData(int numberOfBuffers)
+            throws IOException {
+        BoundedBlockingResultPartition parent =
+                (BoundedBlockingResultPartition)
+                        new ResultPartitionBuilder()
+                                .setResultPartitionType(ResultPartitionType.BLOCKING_PERSISTENT)
+                                .setBoundedBlockingSubpartitionType(
+                                        BoundedBlockingSubpartitionType.FILE)
+                                .setSSLEnabled(true)
+                                .setFileChannelManager(
+                                        new FileChannelManagerImpl(
+                                                new String[] {TMP_FOLDER.newFolder().toString()},
+                                                "data"))
+                                .setNetworkBufferSize(BUFFER_SIZE)
+                                .build();
 
-		BoundedBlockingSubpartition partition = BoundedBlockingSubpartition.createWithFileChannel(
-			0, parent, new File(TMP_FOLDER.newFolder(), "data"), BUFFER_SIZE);
+        ResultSubpartition partition = parent.getAllPartitions()[0];
 
-		writeBuffers(partition, numberOfBuffers);
-		partition.finish();
+        writeBuffers(partition, numberOfBuffers);
+        partition.finish();
 
-		return partition;
-	}
+        return partition;
+    }
 
-	private static void writeBuffers(ResultSubpartition partition, int numberOfBuffers) throws IOException {
-		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(BUFFER_SIZE));
-		}
-	}
+    private static void writeBuffers(ResultSubpartition partition, int numberOfBuffers)
+            throws IOException {
+        for (int i = 0; i < numberOfBuffers; i++) {
+            partition.add(BufferBuilderTestUtils.createFilledFinishedBufferConsumer(BUFFER_SIZE));
+        }
+    }
 
-	private static List<BufferAndBacklog> drainAvailableData(ResultSubpartitionView reader) throws Exception {
-		final ArrayList<BufferAndBacklog> list = new ArrayList<>();
+    private static List<BufferAndBacklog> drainAvailableData(ResultSubpartitionView reader)
+            throws Exception {
+        final ArrayList<BufferAndBacklog> list = new ArrayList<>();
 
-		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
-			list.add(bab);
-		}
+        BufferAndBacklog bab;
+        while ((bab = reader.getNextBuffer()) != null) {
+            list.add(bab);
+        }
 
-		return list;
-	}
+        return list;
+    }
 
-	private static void drainAllData(ResultSubpartitionView reader) throws Exception {
-		BufferAndBacklog bab;
-		while ((bab = reader.getNextBuffer()) != null) {
-			bab.buffer().recycleBuffer();
-		}
-	}
+    private static void drainAllData(ResultSubpartitionView reader) throws Exception {
+        BufferAndBacklog bab;
+        while ((bab = reader.getNextBuffer()) != null) {
+            bab.buffer().recycleBuffer();
+        }
+    }
 }

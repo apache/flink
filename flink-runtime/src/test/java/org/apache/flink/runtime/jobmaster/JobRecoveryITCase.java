@@ -29,13 +29,11 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -43,93 +41,91 @@ import java.util.concurrent.CompletableFuture;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the recovery of task failures.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Tests for the recovery of task failures. */
 public class JobRecoveryITCase extends TestLogger {
 
-	private static final int NUM_TMS = 1;
-	private static final int SLOTS_PER_TM = 11;
-	private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
+    private static final int NUM_TMS = 1;
+    private static final int SLOTS_PER_TM = 11;
+    private static final int PARALLELISM = NUM_TMS * SLOTS_PER_TM;
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setNumberTaskManagers(NUM_TMS)
-			.setNumberSlotsPerTaskManager(SLOTS_PER_TM)
-			.build());
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(NUM_TMS)
+                            .setNumberSlotsPerTaskManager(SLOTS_PER_TM)
+                            .build());
 
-	@Test
-	public void testTaskFailureRecovery() throws Exception {
-		runTaskFailureRecoveryTest(createjobGraph(false));
-	}
+    @Test
+    public void testTaskFailureRecovery() throws Exception {
+        runTaskFailureRecoveryTest(createjobGraph(false));
+    }
 
-	@Test
-	public void testTaskFailureWithSlotSharingRecovery() throws Exception {
-		runTaskFailureRecoveryTest(createjobGraph(true));
-	}
+    @Test
+    public void testTaskFailureWithSlotSharingRecovery() throws Exception {
+        runTaskFailureRecoveryTest(createjobGraph(true));
+    }
 
-	private void runTaskFailureRecoveryTest(final JobGraph jobGraph) throws Exception {
-		final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
+    private void runTaskFailureRecoveryTest(final JobGraph jobGraph) throws Exception {
+        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
 
-		miniCluster.submitJob(jobGraph).get();
+        miniCluster.submitJob(jobGraph).get();
 
-		final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
+        final CompletableFuture<JobResult> jobResultFuture =
+                miniCluster.requestJobResult(jobGraph.getJobID());
 
-		assertThat(jobResultFuture.get().isSuccess(), is(true));
-	}
+        assertThat(jobResultFuture.get().isSuccess(), is(true));
+    }
 
-	private JobGraph createjobGraph(boolean slotSharingEnabled) throws IOException {
-		final JobVertex sender = new JobVertex("Sender");
-		sender.setParallelism(PARALLELISM);
-		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
+    private JobGraph createjobGraph(boolean slotSharingEnabled) throws IOException {
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(PARALLELISM);
+        sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
 
-		final JobVertex receiver = new JobVertex("Receiver");
-		receiver.setParallelism(PARALLELISM);
-		receiver.setInvokableClass(FailingOnceReceiver.class);
-		FailingOnceReceiver.reset();
+        final JobVertex receiver = new JobVertex("Receiver");
+        receiver.setParallelism(PARALLELISM);
+        receiver.setInvokableClass(FailingOnceReceiver.class);
+        FailingOnceReceiver.reset();
 
-		if (slotSharingEnabled) {
-			final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-			receiver.setSlotSharingGroup(slotSharingGroup);
-			sender.setSlotSharingGroup(slotSharingGroup);
-		}
+        if (slotSharingEnabled) {
+            final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+            receiver.setSlotSharingGroup(slotSharingGroup);
+            sender.setSlotSharingGroup(slotSharingGroup);
+        }
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        receiver.connectNewDataSetAsInput(
+                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		final ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
+        final ExecutionConfig executionConfig = new ExecutionConfig();
+        executionConfig.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0L));
 
-		final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
-		jobGraph.setExecutionConfig(executionConfig);
+        final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
+        jobGraph.setExecutionConfig(executionConfig);
 
-		return jobGraph;
-	}
+        return jobGraph;
+    }
 
-	/**
-	 * Receiver which fails once before successfully completing.
-	 */
-	public static final class FailingOnceReceiver extends TestingAbstractInvokables.Receiver {
+    /** Receiver which fails once before successfully completing. */
+    public static final class FailingOnceReceiver extends TestingAbstractInvokables.Receiver {
 
-		private static volatile boolean failed = false;
+        private static volatile boolean failed = false;
 
-		public FailingOnceReceiver(Environment environment) {
-			super(environment);
-		}
+        public FailingOnceReceiver(Environment environment) {
+            super(environment);
+        }
 
-		@Override
-		public void invoke() throws Exception {
-			if (!failed && getEnvironment().getTaskInfo().getIndexOfThisSubtask() == 0) {
-				failed = true;
-				throw new FlinkRuntimeException(getClass().getSimpleName());
-			} else {
-				super.invoke();
-			}
-		}
+        @Override
+        public void invoke() throws Exception {
+            if (!failed && getEnvironment().getTaskInfo().getIndexOfThisSubtask() == 0) {
+                failed = true;
+                throw new FlinkRuntimeException(getClass().getSimpleName());
+            } else {
+                super.invoke();
+            }
+        }
 
-		private static void reset() {
-			failed = false;
-		}
-	}
+        private static void reset() {
+            failed = false;
+        }
+    }
 }

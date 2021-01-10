@@ -33,102 +33,103 @@ import java.util.UUID;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * A {@link RecoverableWriter} for the {@link LocalFileSystem}.
- */
+/** A {@link RecoverableWriter} for the {@link LocalFileSystem}. */
 @Internal
 public class LocalRecoverableWriter implements RecoverableWriter {
 
-	private final LocalFileSystem fs;
+    private final LocalFileSystem fs;
 
-	public LocalRecoverableWriter(LocalFileSystem fs) {
-		this.fs = checkNotNull(fs);
-	}
+    public LocalRecoverableWriter(LocalFileSystem fs) {
+        this.fs = checkNotNull(fs);
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
-		final File targetFile = fs.pathToFile(filePath);
-		final File tempFile = generateStagingTempFilePath(targetFile);
+    @Override
+    public RecoverableFsDataOutputStream open(Path filePath) throws IOException {
+        final File targetFile = fs.pathToFile(filePath);
+        final File tempFile = generateStagingTempFilePath(targetFile);
 
-		// try to create the parent
-		final File parent = tempFile.getParentFile();
-		if (parent != null && !parent.mkdirs() && !parent.exists()) {
-			throw new IOException("Failed to create the parent directory: " + parent);
-		}
+        // try to create the parent
+        final File parent = tempFile.getParentFile();
+        if (parent != null && !parent.mkdirs() && !parent.exists()) {
+            throw new IOException("Failed to create the parent directory: " + parent);
+        }
 
-		return new LocalRecoverableFsDataOutputStream(targetFile, tempFile);
-	}
+        return new LocalRecoverableFsDataOutputStream(targetFile, tempFile);
+    }
 
-	@Override
-	public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
-		if (recoverable instanceof LocalRecoverable) {
-			return new LocalRecoverableFsDataOutputStream((LocalRecoverable) recoverable);
-		}
-		else {
-			throw new IllegalArgumentException(
-					"LocalFileSystem cannot recover recoverable for other file system: " + recoverable);
-		}
-	}
+    @Override
+    public RecoverableFsDataOutputStream recover(ResumeRecoverable recoverable) throws IOException {
+        if (recoverable instanceof LocalRecoverable) {
+            return new LocalRecoverableFsDataOutputStream((LocalRecoverable) recoverable);
+        } else {
+            throw new IllegalArgumentException(
+                    "LocalFileSystem cannot recover recoverable for other file system: "
+                            + recoverable);
+        }
+    }
 
-	@Override
-	public boolean requiresCleanupOfRecoverableState() {
-		return false;
-	}
+    @Override
+    public boolean requiresCleanupOfRecoverableState() {
+        return false;
+    }
 
-	@Override
-	public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
-		throw new UnsupportedOperationException();
-	}
+    @Override
+    public boolean cleanupRecoverableState(ResumeRecoverable resumable) throws IOException {
+        return false;
+    }
 
-	@Override
-	public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
-		if (recoverable instanceof LocalRecoverable) {
-			return new LocalRecoverableFsDataOutputStream.LocalCommitter((LocalRecoverable) recoverable);
-		}
-		else {
-			throw new IllegalArgumentException(
-					"LocalFileSystem cannot recover recoverable for other file system: " + recoverable);
-		}
-	}
+    @Override
+    public Committer recoverForCommit(CommitRecoverable recoverable) throws IOException {
+        if (recoverable instanceof LocalRecoverable) {
+            return new LocalRecoverableFsDataOutputStream.LocalCommitter(
+                    (LocalRecoverable) recoverable);
+        } else {
+            throw new IllegalArgumentException(
+                    "LocalFileSystem cannot recover recoverable for other file system: "
+                            + recoverable);
+        }
+    }
 
-	@Override
-	public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
-		@SuppressWarnings("unchecked")
-		SimpleVersionedSerializer<CommitRecoverable> typedSerializer = (SimpleVersionedSerializer<CommitRecoverable>)
-				(SimpleVersionedSerializer<?>) LocalRecoverableSerializer.INSTANCE;
+    @Override
+    public SimpleVersionedSerializer<CommitRecoverable> getCommitRecoverableSerializer() {
+        @SuppressWarnings("unchecked")
+        SimpleVersionedSerializer<CommitRecoverable> typedSerializer =
+                (SimpleVersionedSerializer<CommitRecoverable>)
+                        (SimpleVersionedSerializer<?>) LocalRecoverableSerializer.INSTANCE;
 
-		return typedSerializer;
-	}
+        return typedSerializer;
+    }
 
-	@Override
-	public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
-		@SuppressWarnings("unchecked")
-		SimpleVersionedSerializer<ResumeRecoverable> typedSerializer = (SimpleVersionedSerializer<ResumeRecoverable>)
-				(SimpleVersionedSerializer<?>) LocalRecoverableSerializer.INSTANCE;
+    @Override
+    public SimpleVersionedSerializer<ResumeRecoverable> getResumeRecoverableSerializer() {
+        @SuppressWarnings("unchecked")
+        SimpleVersionedSerializer<ResumeRecoverable> typedSerializer =
+                (SimpleVersionedSerializer<ResumeRecoverable>)
+                        (SimpleVersionedSerializer<?>) LocalRecoverableSerializer.INSTANCE;
 
-		return typedSerializer;
-	}
+        return typedSerializer;
+    }
 
-	@Override
-	public boolean supportsResume() {
-		return true;
-	}
+    @Override
+    public boolean supportsResume() {
+        return true;
+    }
 
-	@VisibleForTesting
-	static File generateStagingTempFilePath(File targetFile) {
-		checkArgument(targetFile.isAbsolute(), "targetFile must be absolute");
-		checkArgument(!targetFile.isDirectory(), "targetFile must not be a directory");
+    @VisibleForTesting
+    static File generateStagingTempFilePath(File targetFile) {
+        checkArgument(!targetFile.isDirectory(), "targetFile must not be a directory");
 
-		final File parent = targetFile.getParentFile();
-		final String name = targetFile.getName();
+        final File parent = targetFile.getParentFile();
+        final String name = targetFile.getName();
 
-		checkArgument(parent != null, "targetFile must not be the root directory");
+        checkArgument(parent != null, "targetFile must not be the root directory");
 
-		while (true) {
-			File candidate = new File(parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
-			if (!candidate.exists()) {
-				return candidate;
-			}
-		}
-	}
+        while (true) {
+            File candidate =
+                    new File(parent, "." + name + ".inprogress." + UUID.randomUUID().toString());
+            if (!candidate.exists()) {
+                return candidate;
+            }
+        }
+    }
 }

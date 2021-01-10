@@ -32,7 +32,7 @@ these notes carefully if you are planning to upgrade your Flink version to 1.10.
 ### Clusters & Deployment
 #### FileSystems should be loaded via Plugin Architecture ([FLINK-11956](https://issues.apache.org/jira/browse/FLINK-11956))
 s3-hadoop and s3-presto filesystems do no longer use class relocations and need
-to be loaded through [plugins]({{ site.baseurl }}/ops/filesystems/#pluggable-file-systems)
+to be loaded through [plugins]({% link deployment/filesystems/index.zh.md %}#pluggable-file-systems)
 but now seamlessly integrate with all credential providers. Other filesystems
 are strongly recommended to be only used as plugins as we will continue to
 remove relocations.
@@ -90,8 +90,7 @@ be removed in a future release. However, users that experience issues related to
 scheduling can fallback to the legacy scheduler by setting
 `jobmanager.scheduler` to `legacy` in their `flink-conf.yaml` for the time
 being. Note, however, that using the legacy scheduler with the [Pipelined Region
-Failover Strategy]({{ site.baseurl
-}}/dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy)
+Failover Strategy]({% link dev/task_failure_recovery.zh.md %}#restart-pipelined-region-failover-strategy)
 enabled has the following caveats:
 
 * Exceptions that caused a job to restart will not be shown on the job overview page of the Web UI ([FLINK-15917](https://issues.apache.org/jira/browse/FLINK-15917)).
@@ -157,7 +156,7 @@ If you try to reuse your previous Flink configuration without any adjustments,
 the new memory model can result in differently computed memory parameters for
 the JVM and, thus, performance changes.
 
-Please, check [the user documentation](../ops/memory/mem_setup.html) for more details.
+Please, check [the user documentation](../deployment/memory/mem_setup.html) for more details.
 
 ##### Deprecation and breaking changes
 The following options have been removed and have no effect anymore:
@@ -245,7 +244,7 @@ Furthermore, users can tune RocksDB's write/read memory ratio
 reserved memory fraction for indices/filters
 (`state.backend.rocksdb.memory.high-prio-pool-ratio`, by default `0.1`). More
 details and advanced configuration options can be found in the [Flink user
-documentation]({{ site.baseurl }}/ops/state/large_state_tuning.html#tuning-rocksdb-memory).
+documentation]({% link ops/state/large_state_tuning.zh.md %}#tuning-rocksdb-memory).
 
 #### Fine-grained Operator Resource Management ([FLINK-14058](https://issues.apache.org/jira/browse/FLINK-14058))
 Config options `table.exec.resource.external-buffer-memory`,
@@ -268,7 +267,7 @@ Kafka Connector properties `connector.properties` and
 `connector.specific-offsets`. Furthermore, the Elasticsearch Connector
 property `connector.hosts` is affected. The aforementioned, old properties are
 deprecated and will be removed in future versions. Please consult the [Table
-Connectors documentation]({{ site.baseurl }}/dev/table/connect.html#table-connectors)
+Connectors documentation]({% link dev/table/connect.zh.md %}#table-connectors)
 for the new property names.
 
 #### Methods for interacting with temporary Tables & Views ([FLINK-14490](https://issues.apache.org/jira/browse/FLINK-14490))
@@ -298,7 +297,7 @@ The deprecated `ExternalCatalog` API has been dropped. This includes:
 * `ExternalCatalog` (and all dependent classes, e.g., `ExternalTable`)
 * `SchematicDescriptor`, `MetadataDescriptor`, `StatisticsDescriptor`
 
-Users are advised to use the [new Catalog API]({{ site.baseurl }}/dev/table/catalogs.html#catalog-api).
+Users are advised to use the [new Catalog API]({% link dev/table/catalogs.zh.md %}#catalog-api).
 
 
 ### Configuration
@@ -318,7 +317,7 @@ Previously, if the user had set `restart-strategy.fixed-delay.attempts` or
 `restart-strategy`, the cluster-level restart strategy would have been
 `fixed-delay`. Now the cluster-level restart strategy is only determined by
 the config option `restart-strategy` and whether checkpointing is enabled. See
-[_"Task Failure Recovery"_]({{ site.baseurl }}/dev/task_failure_recovery.html)
+[_"Task Failure Recovery"_]({% link dev/task_failure_recovery.zh.md %})
 for details.
 
 #### Disable memory-mapped BoundedBlockingSubpartition by default ([FLINK-14952](https://issues.apache.org/jira/browse/FLINK-14952))
@@ -341,7 +340,7 @@ since it is no longer used.
 
 ### State
 #### Enable Background Cleanup of State with TTL by default ([FLINK-14898](https://issues.apache.org/jira/browse/FLINK-14898))
-[Background cleanup of expired state with TTL]({{ site.baseurl }}/dev/stream/state/state.html#cleanup-of-expired-state)
+[Background cleanup of expired state with TTL]({% link dev/stream/state/state.zh.md %}#cleanup-of-expired-state)
 is activated by default now for all state backends shipped with Flink.
 Note that the RocksDB state backend implements background cleanup by employing
 a compaction filter. This has the caveat that even if a Flink job does not
@@ -464,3 +463,7 @@ blocked. The `MailboxExecutor` can be accessed by using
 Interfaces `OptionsFactory` and `ConfigurableOptionsFactory` have been
 deprecated in favor of `RocksDBOptionsFactory` and
 `ConfigurableRocksDBOptionsFactory`, respectively.
+
+#### Incompatibility of serialized JobGraphs ([FLINK-14594](https://issues.apache.org/jira/browse/FLINK-14594))
+Serialized `JobGraphs` which set the `ResourceSpec` created by Flink versions < `1.10` are no longer compatible with Flink >= `1.10`. 
+If you want to migrate these jobs to Flink >= `1.10` you will have to stop the job with a savepoint and then resume it from this savepoint on the Flink >= `1.10` cluster.

@@ -20,23 +20,21 @@ package org.apache.flink.test.plugin.jar.plugina;
 
 import org.apache.flink.test.plugin.TestSpi;
 
-/**
- * First implementation of {@link TestSpi}.
- */
+/** First implementation of {@link TestSpi}. */
 public class TestServiceA implements TestSpi {
 
-	private final TestSpi dynamicDelegate;
+    private final TestSpi dynamicDelegate;
 
-	public TestServiceA() {
-		try {
-			dynamicDelegate = (TestSpi) Class.forName(DynamicClassA.class.getName()).newInstance();
-		} catch (Exception e) {
-			throw new IllegalStateException("Unable to load dynamic class.");
-		}
-	}
+    public TestServiceA() {
+        try {
+            dynamicDelegate = (TestSpi) Class.forName(DynamicClassA.class.getName()).newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to load dynamic class.");
+        }
+    }
 
-	@Override
-	public String testMethod() {
-		return getClass().getName() + "(" + dynamicDelegate.testMethod() + ")";
-	}
+    @Override
+    public String testMethod() {
+        return getClass().getName() + "(" + dynamicDelegate.testMethod() + ")";
+    }
 }

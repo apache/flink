@@ -34,53 +34,61 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 /**
- * Testing implementation of {@link JobManagerRunnerFactory} which returns a {@link TestingJobManagerRunner}.
+ * Testing implementation of {@link JobManagerRunnerFactory} which returns a {@link
+ * TestingJobManagerRunner}.
  */
 public class TestingJobManagerRunnerFactory implements JobManagerRunnerFactory {
 
-	private final BlockingQueue<TestingJobManagerRunner> createdJobManagerRunner = new ArrayBlockingQueue<>(16);
+    private final BlockingQueue<TestingJobManagerRunner> createdJobManagerRunner =
+            new ArrayBlockingQueue<>(16);
 
-	private int numBlockingJobManagerRunners;
+    private int numBlockingJobManagerRunners;
 
-	public TestingJobManagerRunnerFactory() {
-		this(0);
-	}
+    public TestingJobManagerRunnerFactory() {
+        this(0);
+    }
 
-	public TestingJobManagerRunnerFactory(int numBlockingJobManagerRunners) {
-		this.numBlockingJobManagerRunners = numBlockingJobManagerRunners;
-	}
+    public TestingJobManagerRunnerFactory(int numBlockingJobManagerRunners) {
+        this.numBlockingJobManagerRunners = numBlockingJobManagerRunners;
+    }
 
-	@Override
-	public TestingJobManagerRunner createJobManagerRunner(
-			JobGraph jobGraph,
-			Configuration configuration,
-			RpcService rpcService,
-			HighAvailabilityServices highAvailabilityServices,
-			HeartbeatServices heartbeatServices,
-			JobManagerSharedServices jobManagerServices,
-			JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
-		final TestingJobManagerRunner testingJobManagerRunner = createTestingJobManagerRunner(jobGraph);
-		createdJobManagerRunner.offer(testingJobManagerRunner);
+    @Override
+    public TestingJobManagerRunner createJobManagerRunner(
+            JobGraph jobGraph,
+            Configuration configuration,
+            RpcService rpcService,
+            HighAvailabilityServices highAvailabilityServices,
+            HeartbeatServices heartbeatServices,
+            JobManagerSharedServices jobManagerServices,
+            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
+            FatalErrorHandler fatalErrorHandler,
+            long initializationTimestamp)
+            throws Exception {
+        final TestingJobManagerRunner testingJobManagerRunner =
+                createTestingJobManagerRunner(jobGraph);
+        createdJobManagerRunner.offer(testingJobManagerRunner);
 
-		return testingJobManagerRunner;
-	}
+        return testingJobManagerRunner;
+    }
 
-	@Nonnull
-	private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
-		final boolean blockingTermination;
+    @Nonnull
+    private TestingJobManagerRunner createTestingJobManagerRunner(JobGraph jobGraph) {
+        final boolean blockingTermination;
 
-		if (numBlockingJobManagerRunners > 0) {
-			numBlockingJobManagerRunners--;
-			blockingTermination = true;
-		} else {
-			blockingTermination = false;
-		}
+        if (numBlockingJobManagerRunners > 0) {
+            numBlockingJobManagerRunners--;
+            blockingTermination = true;
+        } else {
+            blockingTermination = false;
+        }
 
-		return new TestingJobManagerRunner(jobGraph.getJobID(), blockingTermination);
-	}
+        return new TestingJobManagerRunner.Builder()
+                .setJobId(jobGraph.getJobID())
+                .setBlockingTermination(blockingTermination)
+                .build();
+    }
 
-	public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {
-		return createdJobManagerRunner.take();
-	}
+    public TestingJobManagerRunner takeCreatedJobManagerRunner() throws InterruptedException {
+        return createdJobManagerRunner.take();
+    }
 }

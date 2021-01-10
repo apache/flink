@@ -22,103 +22,110 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
-
 
 /**
  * Overlays an SSL keystore/truststore into a container.
  *
- * The following files are placed into the container:
- *  - keystore.jks
- *  - truststore.jks
+ * <p>The following files are placed into the container: - keystore.jks - truststore.jks
  *
- * The following Flink configuration entries are set:
- *  - security.ssl.keystore
- *  - security.ssl.truststore
+ * <p>The following Flink configuration entries are set: - security.ssl.keystore -
+ * security.ssl.truststore
  */
 public class SSLStoreOverlay extends AbstractContainerOverlay {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SSLStoreOverlay.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SSLStoreOverlay.class);
 
-	static final Path TARGET_KEYSTORE_PATH = new Path("keystore.jks");
-	static final Path TARGET_TRUSTSTORE_PATH = new Path("truststore.jks");
+    static final Path TARGET_KEYSTORE_PATH = new Path("keystore.jks");
+    static final Path TARGET_TRUSTSTORE_PATH = new Path("truststore.jks");
 
-	final Path keystore;
-	final Path truststore;
+    final Path keystore;
+    final Path truststore;
 
-	public SSLStoreOverlay(@Nullable File keystoreFile, @Nullable File truststoreFile) {
-		this.keystore = keystoreFile != null ? new Path(keystoreFile.toURI()) : null;
-		this.truststore = truststoreFile != null ? new Path(truststoreFile.toURI()) : null;
-	}
+    public SSLStoreOverlay(@Nullable File keystoreFile, @Nullable File truststoreFile) {
+        this.keystore = keystoreFile != null ? new Path(keystoreFile.toURI()) : null;
+        this.truststore = truststoreFile != null ? new Path(truststoreFile.toURI()) : null;
+    }
 
-	@Override
-	public void configure(ContainerSpecification container) throws IOException {
-		if(keystore != null) {
-			container.getArtifacts().add(ContainerSpecification.Artifact.newBuilder()
-				.setSource(keystore)
-				.setDest(TARGET_KEYSTORE_PATH)
-				.setCachable(false)
-				.build());
-			container.getFlinkConfiguration().setString(SecurityOptions.SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
-		}
-		if(truststore != null) {
-			container.getArtifacts().add(ContainerSpecification.Artifact.newBuilder()
-				.setSource(truststore)
-				.setDest(TARGET_TRUSTSTORE_PATH)
-				.setCachable(false)
-				.build());
-			container.getFlinkConfiguration().setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
-		}
-	}
+    @Override
+    public void configure(ContainerSpecification container) throws IOException {
+        if (keystore != null) {
+            container
+                    .getArtifacts()
+                    .add(
+                            ContainerSpecification.Artifact.newBuilder()
+                                    .setSource(keystore)
+                                    .setDest(TARGET_KEYSTORE_PATH)
+                                    .setCachable(false)
+                                    .build());
+            container
+                    .getFlinkConfiguration()
+                    .setString(SecurityOptions.SSL_KEYSTORE, TARGET_KEYSTORE_PATH.getPath());
+        }
+        if (truststore != null) {
+            container
+                    .getArtifacts()
+                    .add(
+                            ContainerSpecification.Artifact.newBuilder()
+                                    .setSource(truststore)
+                                    .setDest(TARGET_TRUSTSTORE_PATH)
+                                    .setCachable(false)
+                                    .build());
+            container
+                    .getFlinkConfiguration()
+                    .setString(SecurityOptions.SSL_TRUSTSTORE, TARGET_TRUSTSTORE_PATH.getPath());
+        }
+    }
 
-	public static Builder newBuilder() {
-		return new Builder();
-	}
+    public static Builder newBuilder() {
+        return new Builder();
+    }
 
-	/**
-	 * A builder for the {@link Krb5ConfOverlay}.
-	 */
-	public static class Builder {
+    /** A builder for the {@link Krb5ConfOverlay}. */
+    public static class Builder {
 
-		File keystorePath;
+        File keystorePath;
 
-		File truststorePath;
+        File truststorePath;
 
-		/**
-		 * Configures the overlay using the current environment (and global configuration).
-		 *
-		 * The following Flink configuration settings are used to source the keystore and truststore:
-		 *  - security.ssl.keystore
-		 *  - security.ssl.truststore
-		 */
-		public Builder fromEnvironment(Configuration globalConfiguration)  {
+        /**
+         * Configures the overlay using the current environment (and global configuration).
+         *
+         * <p>The following Flink configuration settings are used to source the keystore and
+         * truststore: - security.ssl.keystore - security.ssl.truststore
+         */
+        public Builder fromEnvironment(Configuration globalConfiguration) {
 
-			String keystore = globalConfiguration.getString(SecurityOptions.SSL_KEYSTORE);
-			if(keystore != null) {
-				keystorePath = new File(keystore);
-				if(!keystorePath.exists()) {
-					throw new IllegalStateException("Invalid configuration for " + SecurityOptions.SSL_KEYSTORE.key());
-				}
-			}
+            String keystore = globalConfiguration.getString(SecurityOptions.SSL_KEYSTORE);
+            if (keystore != null) {
+                keystorePath = new File(keystore);
+                if (!keystorePath.exists()) {
+                    throw new IllegalStateException(
+                            "Invalid configuration for " + SecurityOptions.SSL_KEYSTORE.key());
+                }
+            }
 
-			String truststore = globalConfiguration.getString(SecurityOptions.SSL_TRUSTSTORE);
-			if(truststore != null) {
-				truststorePath = new File(truststore);
-				if(!truststorePath.exists()) {
-					throw new IllegalStateException("Invalid configuration for " + SecurityOptions.SSL_TRUSTSTORE.key());
-				}
-			}
+            String truststore = globalConfiguration.getString(SecurityOptions.SSL_TRUSTSTORE);
+            if (truststore != null) {
+                truststorePath = new File(truststore);
+                if (!truststorePath.exists()) {
+                    throw new IllegalStateException(
+                            "Invalid configuration for " + SecurityOptions.SSL_TRUSTSTORE.key());
+                }
+            }
 
-			return this;
-		}
+            return this;
+        }
 
-		public SSLStoreOverlay build() {
-			return new SSLStoreOverlay(keystorePath, truststorePath);
-		}
-	}
+        public SSLStoreOverlay build() {
+            return new SSLStoreOverlay(keystorePath, truststorePath);
+        }
+    }
 }

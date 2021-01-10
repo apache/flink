@@ -21,47 +21,45 @@ package org.apache.flink.table.planner.runtime.utils;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.BoxedWrapperRow;
+import org.apache.flink.table.data.BoxedWrapperRowData;
+import org.apache.flink.table.data.RowData;
 
 import java.io.IOException;
 
-/**
- * An input format that returns objects from a range.
- */
-public class RangeInputFormat extends GenericInputFormat<BaseRow> implements NonParallelInput {
+/** An input format that returns objects from a range. */
+public class RangeInputFormat extends GenericInputFormat<RowData> implements NonParallelInput {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private long start;
-	private long end;
+    private long start;
+    private long end;
 
-	private transient long current;
-	private transient BoxedWrapperRow reuse;
+    private transient long current;
+    private transient BoxedWrapperRowData reuse;
 
-	public RangeInputFormat(long start, long end) {
-		this.start = start;
-		this.end = end;
-	}
+    public RangeInputFormat(long start, long end) {
+        this.start = start;
+        this.end = end;
+    }
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return current >= end;
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return current >= end;
+    }
 
-	@Override
-	public void open(GenericInputSplit split) throws IOException {
-		super.open(split);
-		this.current = start;
-	}
+    @Override
+    public void open(GenericInputSplit split) throws IOException {
+        super.open(split);
+        this.current = start;
+    }
 
-	@Override
-	public BaseRow nextRecord(BaseRow ignore) throws IOException {
-		if (reuse == null) {
-			reuse = new BoxedWrapperRow(1);
-		}
-		reuse.setLong(0, current);
-		current++;
-		return reuse;
-	}
+    @Override
+    public RowData nextRecord(RowData ignore) throws IOException {
+        if (reuse == null) {
+            reuse = new BoxedWrapperRowData(1);
+        }
+        reuse.setLong(0, current);
+        current++;
+        return reuse;
+    }
 }

@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-queryable-state</artifactId>
-	<name>flink-queryable-state</name>
+	<name>Flink : Queryable state : </name>
 	<packaging>pom</packaging>
 
 	<modules>

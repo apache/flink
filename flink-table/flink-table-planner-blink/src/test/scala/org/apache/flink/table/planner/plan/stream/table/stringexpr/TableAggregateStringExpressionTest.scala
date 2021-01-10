@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.utils.{EmptyTableAggFunc, TableTestBase}
 import org.junit.Test
@@ -77,19 +78,18 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('a, 'b, 'c)
 
-    val top3 = new EmptyTableAggFunc
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[EmptyTableAggFunc])
     util.addFunction("Func0", Func0)
 
     // Expression / Scala API
     val resScala = t
-      .flatAggregate(top3('a) as ('d, 'e))
+      .flatAggregate(call("top3", 'a) as ('d, 'e))
       .select('*)
 
     // String / Java API
     val resJava = t
       .flatAggregate("top3(a) as (d, e)")
-      .select("*")
+      .select($"*")
 
     verifyTableEquals(resJava, resScala)
   }
@@ -99,21 +99,20 @@ class TableAggregateStringExpressionTest extends TableTestBase {
     val util = streamTestUtil()
     val t = util.addTableSource[(Int, Long, String)]('a, 'b, 'c)
 
-    val top3 = new EmptyTableAggFunc
-    util.addFunction("top3", top3)
+    util.addTemporarySystemFunction("top3", classOf[EmptyTableAggFunc])
     util.addFunction("Func0", Func0)
 
     // Expression / Scala API
     val resScala = t
       .groupBy('b)
-      .flatAggregate(top3('a) as ('d, 'e))
+      .flatAggregate(call("top3", 'a) as ('d, 'e))
       .select('*)
 
     // String / Java API
     val resJava = t
       .groupBy("b")
       .flatAggregate("top3(a) as (d, e)")
-      .select("*")
+      .select($"*")
 
     verifyTableEquals(resJava, resScala)
   }

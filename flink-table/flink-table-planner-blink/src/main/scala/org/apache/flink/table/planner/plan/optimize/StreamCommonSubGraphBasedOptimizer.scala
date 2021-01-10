@@ -25,14 +25,13 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConvert
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecIntermediateTableScan, StreamPhysicalRel}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecIntermediateTableScan, StreamPhysicalDataStreamScan, StreamPhysicalRel}
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.TableConfigUtils
-import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -61,8 +60,8 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       val miniBatchInterval: MiniBatchInterval = if (config.getConfiguration.getBoolean(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency = getMillisecondFromConfigDuration(config,
-          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
+        val miniBatchLatency = config.getConfiguration.get(
+          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
         MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)
@@ -109,10 +108,10 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     val blockLogicalPlan = block.getPlan
     blockLogicalPlan match {
-      case s: Sink =>
+      case _: LegacySink | _: Sink =>
         require(isSinkBlock)
         val optimizedTree = optimizeTree(
-          s,
+          blockLogicalPlan,
           updateBeforeRequired = block.isUpdateBeforeRequired,
           miniBatchInterval = block.getMiniBatchInterval,
           isSinkBlock = true)
@@ -178,7 +177,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       def getMiniBatchInterval: MiniBatchInterval = miniBatchInterval
 
-      override def needFinalTimeIndicatorConversion: Boolean = true
+      override def needFinalTimeIndicatorConversion: Boolean = isSinkBlock
     })
   }
 
@@ -210,10 +209,10 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
     val blockLogicalPlan = block.getPlan
     blockLogicalPlan match {
-      case n: Sink =>
+      case _: LegacySink | _: Sink =>
         require(isSinkBlock)
         val optimizedPlan = optimizeTree(
-          n, updateBeforeRequired, miniBatchInterval, isSinkBlock = true)
+          blockLogicalPlan, updateBeforeRequired, miniBatchInterval, isSinkBlock = true)
         block.setOptimizedPlan(optimizedPlan)
 
       case o =>
@@ -247,7 +246,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
         rel: RelNode,
         miniBatchInterval: MiniBatchInterval): Unit = {
       rel match {
-        case _: StreamExecDataStreamScan | _: StreamExecIntermediateTableScan =>
+        case _: StreamPhysicalDataStreamScan | _: StreamExecIntermediateTableScan =>
           val scan = rel.asInstanceOf[TableScan]
           val updateKindTrait = scan.getTraitSet.getTrait(UpdateKindTraitDef.INSTANCE)
           val miniBatchIntervalTrait = scan.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)

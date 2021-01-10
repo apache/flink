@@ -20,19 +20,20 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.DataTypes._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.api._
+import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.planner.expressions.utils.{Func13, RichFunc1, RichFunc2, RichFunc3, SplitUDF}
+import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.test.util.TestBaseUtils.compareResultAsText
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Rule, Test}
 
 import java.sql.{Date, Time, Timestamp}
 import java.time.LocalDateTime
@@ -42,6 +43,9 @@ import scala.collection.JavaConverters._
 import scala.collection.{Seq, mutable}
 
 class CalcITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   @Before
   override def before(): Unit = {
@@ -264,8 +268,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("After implement BatchExecHashJoin")
   @Test
   def testCalcJoin(): Unit = {
     val ds1 = CollectionBatchExecTable.getSmall3TupleDataSet(tEnv, "a, b, c")
@@ -279,8 +281,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Implicit type converter")
   @Test
   def testAdvancedDataTypes(): Unit = {
 
@@ -296,8 +296,8 @@ class CalcITCase extends BatchTestBase {
           Timestamp.valueOf("1984-07-12 14:34:24"))
 
     // inferred Decimal(p,s) from BigDecimal.class
-    val bd1x = bd1.setScale(Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
-    val bd2x = bd2.setScale(Decimal.DECIMAL_SYSTEM_DEFAULT.getScale)
+    val bd1x = bd1.setScale(DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
+    val bd2x = bd2.setScale(DecimalDataUtils.DECIMAL_SYSTEM_DEFAULT.getScale)
 
     val expected = s"$bd1x,$bd2x,1984-07-12,14:34:24,1984-07-12T14:34:24," +
       "11.2,11.2,1984-07-12,14:34:24,1984-07-12T14:34:24"
@@ -315,8 +315,6 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Implicit type converter")
   @Test
   def testNumericAutocastInArithmetic() {
     val table = BatchTableEnvUtil.fromElements(tEnv,
@@ -455,8 +453,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   def testRowType(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Jack#22"))
@@ -468,29 +464,29 @@ class CalcITCase extends BatchTestBase {
     // literals
     val result1 = in.select(row(1, "Hi", true))
     executeQuery(result1).foreach { record =>
-      val baseRow = record.getField(0).asInstanceOf[Row]
-      assertEquals(1, baseRow.getField(0))
-      assertEquals("Hi", baseRow.getField(1))
-      assertEquals(true, baseRow.getField(2))
+      val row = record.getField(0).asInstanceOf[Row]
+      assertEquals(1, row.getField(0))
+      assertEquals("Hi", row.getField(1))
+      assertEquals(true, row.getField(2))
     }
 
     // primitive type
     val result2 = in.select(row(1, 'a, 'b))
     executeQuery(result2).zipWithIndex.foreach { case (record, idx) =>
-      val baseRow = record.getField(0).asInstanceOf[Row]
-      assertEquals(1, baseRow.getField(0))
-      assertEquals(data(idx)._1, baseRow.getField(1))
-      assertEquals(data(idx)._2, baseRow.getField(2))
+      val row = record.getField(0).asInstanceOf[Row]
+      assertEquals(1, row.getField(0))
+      assertEquals(data(idx)._1, row.getField(1))
+      assertEquals(data(idx)._2, row.getField(2))
     }
 
     // non-primitive type
-    val d = Decimal.castFrom(2.0002, 5, 4)
+    val d = DecimalDataUtils.castFrom(2.0002, 5, 4)
     val result3 = in.select(row(BigDecimal(2.0002), 'a, 'c))
     executeQuery(result3).zipWithIndex.foreach { case (record, idx) =>
-      val baseRow = record.getField(0).asInstanceOf[Row]
-      assertEquals(d.toBigDecimal, baseRow.getField(0))
-      assertEquals(data(idx)._1, baseRow.getField(1))
-      assertEquals(data(idx)._3, baseRow.getField(2))
+      val row = record.getField(0).asInstanceOf[Row]
+      assertEquals(d.toBigDecimal, row.getField(0))
+      assertEquals(data(idx)._1, row.getField(1))
+      assertEquals(data(idx)._3, row.getField(2))
     }
   }
 
@@ -559,7 +555,7 @@ class CalcITCase extends BatchTestBase {
       .select(map('a, 'b, 'c, 'd))
     val result4 = executeQuery(t4)
     val expected4 = "{AAA=123.45, BBB=234.56}\n" +
-      "{DDD=456.78, CCC=345.67}\n" +
+      "{CCC=345.67, DDD=456.78}\n" +
       "{EEE=567.89, FFF=678.99}\n"
     TestBaseUtils.compareResultAsText(result4.asJava, expected4)
   }
@@ -575,10 +571,10 @@ class CalcITCase extends BatchTestBase {
 
     val result = executeQuery(t)
 
-    val baseRow = result.head.getField(0).asInstanceOf[Row]
-    assertEquals(data.head._1, baseRow.getField(0))
-    assertEquals(data.head._2, baseRow.getField(1))
-    assertEquals(data.head._3, baseRow.getField(2))
+    val nestedRow = result.head.getField(0).asInstanceOf[Row]
+    assertEquals(data.head._1, nestedRow.getField(0))
+    assertEquals(data.head._2, nestedRow.getField(1))
+    assertEquals(data.head._3, nestedRow.getField(2))
 
     val arr = result.head.getField(1).asInstanceOf[Array[Integer]]
     assertEquals(12, arr(0))
@@ -602,9 +598,9 @@ class CalcITCase extends BatchTestBase {
     val results = executeQuery(table)
     results.zipWithIndex.foreach {
       case (row, i) =>
-        val baseRow = row.getField(0).asInstanceOf[Row]
-        assertEquals(i, baseRow.getField(0))
-        assertEquals(i, baseRow.getField(1))
+        val nestedRow = row.getField(0).asInstanceOf[Row]
+        assertEquals(i, nestedRow.getField(0))
+        assertEquals(i, nestedRow.getField(1))
         assertEquals(i.toString, row.getField(1))
     }
   }
@@ -636,14 +632,12 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("Type question, should be fixed later.")
   def testSplitFieldsOnCustomType(): Unit = {
     tEnv.getConfig.setMaxGeneratedCodeLength(1) // splits fields
 
-    val ds = CollectionBatchExecTable.getCustomTypeDataSet(tEnv, "i, l, s")
-      .filter('s.like("%a%") && 's.charLength() > 12)
-      .select('i, 'l, 's.charLength())
+    val ds = CollectionBatchExecTable.getCustomTypeDataSet(tEnv, "myInt, myLong, myString")
+      .filter('myString.like("%a%") && 'myString.charLength() > 12)
+      .select('myInt, 'myLong, 'myString.charLength())
 
     val expected = "3,3,25\n" + "3,5,14\n"
     val results = executeQuery(ds)

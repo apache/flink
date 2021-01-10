@@ -41,104 +41,109 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Tests that snapshot utils can properly snapshot an operator.
- */
+/** Tests that snapshot utils can properly snapshot an operator. */
 public class SnapshotUtilsTest {
 
-	private static final List<String> EXPECTED_CALL_OPERATOR_SNAPSHOT = Arrays.asList(
-		"prepareSnapshotPreBarrier",
-		"snapshotState",
-		"notifyCheckpointComplete");
+    private static final List<String> EXPECTED_CALL_OPERATOR_SNAPSHOT =
+            Arrays.asList("prepareSnapshotPreBarrier", "snapshotState", "notifyCheckpointComplete");
 
-	@Rule
-	public TemporaryFolder folder = new TemporaryFolder();
+    @Rule public TemporaryFolder folder = new TemporaryFolder();
 
-	private static final List<String> ACTUAL_ORDER_TRACKING =
-		Collections.synchronizedList(new ArrayList<>(EXPECTED_CALL_OPERATOR_SNAPSHOT.size()));
+    private static final List<String> ACTUAL_ORDER_TRACKING =
+            Collections.synchronizedList(new ArrayList<>(EXPECTED_CALL_OPERATOR_SNAPSHOT.size()));
 
-	@Test
-	public void testSnapshotUtilsLifecycle() throws Exception {
-		StreamOperator<Void> operator 		= new LifecycleOperator();
-		CheckpointStorageWorkerView storage = new MockStateBackend().createCheckpointStorage(new JobID());
+    @Test
+    public void testSnapshotUtilsLifecycle() throws Exception {
+        StreamOperator<Void> operator = new LifecycleOperator();
+        CheckpointStorageWorkerView storage =
+                new MockStateBackend().createCheckpointStorage(new JobID());
 
-		Path path = new Path(folder.newFolder().getAbsolutePath());
+        Path path = new Path(folder.newFolder().getAbsolutePath());
 
-		SnapshotUtils.snapshot(operator, 0, 0L, storage, path);
+        SnapshotUtils.snapshot(operator, 0, 0L, true, false, storage, path);
 
-		Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
-	}
+        Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
+    }
 
-	private static class LifecycleOperator implements StreamOperator<Void> {
-		private static final long serialVersionUID = 1L;
+    private static class LifecycleOperator implements StreamOperator<Void> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void open() throws Exception {
-			ACTUAL_ORDER_TRACKING.add("open");
-		}
+        @Override
+        public void open() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("open");
+        }
 
-		@Override
-		public void close() throws Exception {
-			ACTUAL_ORDER_TRACKING.add("close");
-		}
+        @Override
+        public void close() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("close");
+        }
 
-		@Override
-		public void dispose() throws Exception {
-			ACTUAL_ORDER_TRACKING.add("dispose");
-		}
+        @Override
+        public void dispose() throws Exception {
+            ACTUAL_ORDER_TRACKING.add("dispose");
+        }
 
-		@Override
-		public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("prepareSnapshotPreBarrier");
-		}
+        @Override
+        public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+            ACTUAL_ORDER_TRACKING.add("prepareSnapshotPreBarrier");
+        }
 
-		@Override
-		public OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions, CheckpointStreamFactory storageLocation) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("snapshotState");
-			return new OperatorSnapshotFutures();
-		}
+        @Override
+        public OperatorSnapshotFutures snapshotState(
+                long checkpointId,
+                long timestamp,
+                CheckpointOptions checkpointOptions,
+                CheckpointStreamFactory storageLocation)
+                throws Exception {
+            ACTUAL_ORDER_TRACKING.add("snapshotState");
+            return new OperatorSnapshotFutures();
+        }
 
-		@Override
-		public void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("initializeState");
-		}
+        @Override
+        public void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+                throws Exception {
+            ACTUAL_ORDER_TRACKING.add("initializeState");
+        }
 
-		@Override
-		public void setKeyContextElement1(StreamRecord<?> record) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("setKeyContextElement1");
-		}
+        @Override
+        public void setKeyContextElement1(StreamRecord<?> record) throws Exception {
+            ACTUAL_ORDER_TRACKING.add("setKeyContextElement1");
+        }
 
-		@Override
-		public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("setKeyContextElement2");
-		}
+        @Override
+        public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
+            ACTUAL_ORDER_TRACKING.add("setKeyContextElement2");
+        }
 
-		@Override
-		public MetricGroup getMetricGroup() {
-			ACTUAL_ORDER_TRACKING.add("getMetricGroup");
-			return null;
-		}
+        @Override
+        public MetricGroup getMetricGroup() {
+            ACTUAL_ORDER_TRACKING.add("getMetricGroup");
+            return null;
+        }
 
-		@Override
-		public OperatorID getOperatorID() {
-			ACTUAL_ORDER_TRACKING.add("getOperatorID");
-			return null;
-		}
+        @Override
+        public OperatorID getOperatorID() {
+            ACTUAL_ORDER_TRACKING.add("getOperatorID");
+            return null;
+        }
 
-		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
-			ACTUAL_ORDER_TRACKING.add("notifyCheckpointComplete");
-		}
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            ACTUAL_ORDER_TRACKING.add("notifyCheckpointComplete");
+        }
 
-		@Override
-		public void setCurrentKey(Object key) {
-			ACTUAL_ORDER_TRACKING.add("setCurrentKey");
-		}
+        @Override
+        public void notifyCheckpointAborted(long checkpointId) {}
 
-		@Override
-		public Object getCurrentKey() {
-			ACTUAL_ORDER_TRACKING.add("getCurrentKey");
-			return null;
-		}
-	}
+        @Override
+        public void setCurrentKey(Object key) {
+            ACTUAL_ORDER_TRACKING.add("setCurrentKey");
+        }
+
+        @Override
+        public Object getCurrentKey() {
+            ACTUAL_ORDER_TRACKING.add("getCurrentKey");
+            return null;
+        }
+    }
 }

@@ -22,55 +22,57 @@ import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.common.io.NonParallelInput;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.core.io.GenericInputSplit;
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedInput;
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-/**
- * Generated ValuesInputFormat.
- */
-public class ValuesInputFormat
-		extends GenericInputFormat<BaseRow>
-		implements NonParallelInput, ResultTypeQueryable<BaseRow> {
+/** Generated ValuesInputFormat. */
+public class ValuesInputFormat extends GenericInputFormat<RowData>
+        implements NonParallelInput, ResultTypeQueryable<RowData> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
-	private GeneratedInput<GenericInputFormat<BaseRow>> generatedInput;
-	private final BaseRowTypeInfo returnType;
-	private GenericInputFormat<BaseRow> format;
+    private static final Logger LOG = LoggerFactory.getLogger(ValuesInputFormat.class);
+    private static final long serialVersionUID = 1L;
 
-	public ValuesInputFormat(GeneratedInput<GenericInputFormat<BaseRow>> generatedInput, BaseRowTypeInfo returnType) {
-		this.generatedInput = generatedInput;
-		this.returnType = returnType;
-	}
+    private GeneratedInput<GenericInputFormat<RowData>> generatedInput;
+    private final InternalTypeInfo<RowData> returnType;
+    private GenericInputFormat<RowData> format;
 
-	@Override
-	public void open(GenericInputSplit split) {
-		LOG.debug("Compiling GenericInputFormat: {} \n\n Code:\n{}",
-				generatedInput.getClassName(), generatedInput.getCode());
-		LOG.debug("Instantiating GenericInputFormat.");
+    public ValuesInputFormat(
+            GeneratedInput<GenericInputFormat<RowData>> generatedInput,
+            InternalTypeInfo<RowData> returnType) {
+        this.generatedInput = generatedInput;
+        this.returnType = returnType;
+    }
 
-		format = generatedInput.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		generatedInput = null;
-	}
+    @Override
+    public void open(GenericInputSplit split) {
+        LOG.debug(
+                "Compiling GenericInputFormat: {} \n\n Code:\n{}",
+                generatedInput.getClassName(),
+                generatedInput.getCode());
+        LOG.debug("Instantiating GenericInputFormat.");
 
-	@Override
-	public boolean reachedEnd() throws IOException {
-		return format.reachedEnd();
-	}
+        format = generatedInput.newInstance(getRuntimeContext().getUserCodeClassLoader());
+        generatedInput = null;
+    }
 
-	@Override
-	public BaseRow nextRecord(BaseRow reuse) throws IOException {
-		return format.nextRecord(reuse);
-	}
+    @Override
+    public boolean reachedEnd() throws IOException {
+        return format.reachedEnd();
+    }
 
-	@Override
-	public BaseRowTypeInfo getProducedType() {
-		return returnType;
-	}
+    @Override
+    public RowData nextRecord(RowData reuse) throws IOException {
+        return format.nextRecord(reuse);
+    }
 
+    @Override
+    public InternalTypeInfo<RowData> getProducedType() {
+        return returnType;
+    }
 }

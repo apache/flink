@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.TableProgramsCollectionTestBase
@@ -30,6 +30,7 @@ import org.apache.flink.table.utils.NonMergableCount
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 
+import org.apache.calcite.runtime.SqlFunctions.{internalToTimestamp => toTimestamp}
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -592,7 +593,7 @@ class AggregateITCase(
       ") GROUP BY b " +
       "ORDER BY b"
 
-    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as('a, 'b, 'c)
+    val t = CollectionDataSets.get3TupleDataSet(env).toTable(tEnv).as("a", "b", "c")
     tEnv.registerTable("MyTable", t)
 
     val result = tEnv.sqlQuery(sqlQuery).toDataSet[Row].collect()

@@ -17,17 +17,6 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import java.util
-import java.util.{SortedSet => JSortedSet}
-
-import com.google.common.collect.ImmutableMap
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.Window.Group
-import org.apache.calcite.rel.core.{AggregateCall, Window}
-import org.apache.calcite.rel.{RelCollation, RelWriter}
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SqlKind
-import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.CalcitePair
@@ -35,6 +24,18 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindow
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+
+import com.google.common.collect.ImmutableMap
+import org.apache.calcite.rel.{RelCollation, RelWriter}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.Window.Group
+import org.apache.calcite.rel.core.{AggregateCall, Window}
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
+
+import java.util
+import java.util.{SortedSet => JSortedSet}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -45,11 +46,11 @@ import scala.collection.mutable
 object RelExplainUtil {
 
   /**
-    * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
-    * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
-    * The [[RelDescriptionWriterImpl]] is mainly used to generate
-    * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
-    */
+   * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
+   * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
+   * The [[RelDescriptionWriterImpl]] is mainly used to generate
+   * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
+   */
   def preferExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
     // infix format is more readable for displaying
     case _: RelDescriptionWriterImpl => ExpressionFormat.Infix

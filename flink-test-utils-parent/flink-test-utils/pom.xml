@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-test-utils-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
-	<name>flink-test-utils</name>
+	<name>Flink : Test utils : Utils</name>
 
 	<packaging>jar</packaging>
 

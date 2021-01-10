@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.api.stream.table.validation
 
-import java.math.BigDecimal
-
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableException, Tumble, ValidationException}
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
+
 import org.junit.Test
+
+import java.math.BigDecimal
 
 class CalcValidationTest extends TableTestBase {
 
@@ -136,7 +136,7 @@ class CalcValidationTest extends TableTestBase {
     util.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
     util.addTable[(Int)](
       "MyTable", 'int)
-      .map("weightedAvg(int, int)") // do not support AggregateFunction as input
+      .map(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
   @Test(expected = classOf[ValidationException])
@@ -146,6 +146,6 @@ class CalcValidationTest extends TableTestBase {
     util.tableEnv.registerFunction("func", new TableFunc0)
     util.addTable[(String)](
       "MyTable", 'string)
-      .map("func(string) as a") // do not support TableFunction as input
+      .map(call("func", $"string") as "a") // do not support TableFunction as input
   }
 }

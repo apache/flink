@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-formats</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-json</artifactId>
-	<name>flink-json</name>
+	<name>Flink : Formats : Json</name>
 
 	<packaging>jar</packaging>
 
@@ -69,15 +69,32 @@ under the License.
 			<type>test-jar</type>
 		</dependency>
 
-		<!-- TODO This could be dropped if we change JsonRowFormatFactoryTest -->
+		<!-- JSON RowData schema test dependency -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
 
-		<!-- TODO This could be dropped if we change JsonRowFormatFactoryTest -->
+		<!-- Json filesystem format factory ITCase test dependency -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
+		<!-- test utils dependency -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- JSON RowData schema test dependency -->
 		<dependency>
 			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-compiler</artifactId>

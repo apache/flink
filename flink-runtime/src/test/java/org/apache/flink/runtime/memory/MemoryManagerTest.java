@@ -19,9 +19,7 @@
 package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.memory.MemoryManager.AllocationRequest;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
 import org.junit.After;
@@ -29,350 +27,381 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofAllTypes;
-import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofType;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the memory manager.
- */
+/** Tests for the memory manager. */
 public class MemoryManagerTest {
 
-	private static final long RANDOM_SEED = 643196033469871L;
+    private static final long RANDOM_SEED = 643196033469871L;
 
-	private static final int MEMORY_SIZE = 1024 * 1024 * 72; // 72 MiBytes
+    private static final int MEMORY_SIZE = 1024 * 1024 * 72; // 72 MiBytes
 
-	private static final int PAGE_SIZE = 1024 * 32; // 32 KiBytes
+    private static final int PAGE_SIZE = 1024 * 32; // 32 KiBytes
 
-	private static final int NUM_PAGES = MEMORY_SIZE / PAGE_SIZE;
+    private static final int NUM_PAGES = MEMORY_SIZE / PAGE_SIZE;
 
-	private MemoryManager memoryManager;
+    private MemoryManager memoryManager;
 
-	private Random random;
+    private Random random;
 
-	@Before
-	public void setUp() {
-		this.memoryManager = MemoryManagerBuilder
-			.newBuilder()
-			.setMemorySize(MemoryType.HEAP, MEMORY_SIZE / 2)
-			.setMemorySize(MemoryType.OFF_HEAP, MEMORY_SIZE / 2)
-			.setPageSize(PAGE_SIZE)
-			.build();
-		this.random = new Random(RANDOM_SEED);
-	}
+    @Before
+    public void setUp() {
+        this.memoryManager =
+                MemoryManagerBuilder.newBuilder()
+                        .setMemorySize(MEMORY_SIZE)
+                        .setPageSize(PAGE_SIZE)
+                        .build();
+        this.random = new Random(RANDOM_SEED);
+    }
 
-	@After
-	public void tearDown() {
-		if (!this.memoryManager.verifyEmpty()) {
-			fail("Memory manager is not complete empty and valid at the end of the test.");
-		}
-		this.memoryManager = null;
-		this.random = null;
-	}
+    @After
+    public void tearDown() {
+        if (!this.memoryManager.verifyEmpty()) {
+            fail("Memory manager is not complete empty and valid at the end of the test.");
+        }
+        this.memoryManager = null;
+        this.random = null;
+    }
 
-	@Test
-	public void allocateAllSingle() {
-		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
-			List<MemorySegment> segments = new ArrayList<MemorySegment>();
+    @Test
+    public void allocateAllSingle() {
+        try {
+            final AbstractInvokable mockInvoke = new DummyInvokable();
+            List<MemorySegment> segments = new ArrayList<MemorySegment>();
 
-			try {
-				for (int i = 0; i < NUM_PAGES; i++) {
-					segments.add(this.memoryManager.allocatePages(mockInvoke, 1).get(0));
-				}
-			}
-			catch (MemoryAllocationException e) {
-				fail("Unable to allocate memory");
-			}
+            try {
+                for (int i = 0; i < NUM_PAGES; i++) {
+                    segments.add(this.memoryManager.allocatePages(mockInvoke, 1).get(0));
+                }
+            } catch (MemoryAllocationException e) {
+                fail("Unable to allocate memory");
+            }
 
-			this.memoryManager.release(segments);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            this.memoryManager.release(segments);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void allocateAllMulti() {
-		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
-			final List<MemorySegment> segments = new ArrayList<MemorySegment>();
+    @Test
+    public void allocateAllMulti() {
+        try {
+            final AbstractInvokable mockInvoke = new DummyInvokable();
+            final List<MemorySegment> segments = new ArrayList<MemorySegment>();
 
-			try {
-				for (int i = 0; i < NUM_PAGES / 2; i++) {
-					segments.addAll(this.memoryManager.allocatePages(mockInvoke, 2));
-				}
-			} catch (MemoryAllocationException e) {
-				Assert.fail("Unable to allocate memory");
-			}
+            try {
+                for (int i = 0; i < NUM_PAGES / 2; i++) {
+                    segments.addAll(this.memoryManager.allocatePages(mockInvoke, 2));
+                }
+            } catch (MemoryAllocationException e) {
+                Assert.fail("Unable to allocate memory");
+            }
 
-			this.memoryManager.release(segments);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            this.memoryManager.release(segments);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void allocateMultipleOwners() {
-		final int numOwners = 17;
+    @Test
+    public void allocateMultipleOwners() {
+        final int numOwners = 17;
 
-		try {
-			AbstractInvokable[] owners = new AbstractInvokable[numOwners];
+        try {
+            AbstractInvokable[] owners = new AbstractInvokable[numOwners];
 
-			@SuppressWarnings("unchecked")
-			List<MemorySegment>[] mems = (List<MemorySegment>[]) new List<?>[numOwners];
+            @SuppressWarnings("unchecked")
+            List<MemorySegment>[] mems = (List<MemorySegment>[]) new List<?>[numOwners];
 
-			for (int i = 0; i < numOwners; i++) {
-				owners[i] = new DummyInvokable();
-				mems[i] = new ArrayList<MemorySegment>(64);
-			}
+            for (int i = 0; i < numOwners; i++) {
+                owners[i] = new DummyInvokable();
+                mems[i] = new ArrayList<MemorySegment>(64);
+            }
 
-			// allocate all memory to the different owners
-			for (int i = 0; i < NUM_PAGES; i++) {
-				final int owner = this.random.nextInt(numOwners);
-				mems[owner].addAll(this.memoryManager.allocatePages(owners[owner], 1));
-			}
+            // allocate all memory to the different owners
+            for (int i = 0; i < NUM_PAGES; i++) {
+                final int owner = this.random.nextInt(numOwners);
+                mems[owner].addAll(this.memoryManager.allocatePages(owners[owner], 1));
+            }
 
-			// free one owner at a time
-			for (int i = 0; i < numOwners; i++) {
-				this.memoryManager.releaseAll(owners[i]);
-				owners[i] = null;
-				Assert.assertTrue("Released memory segments have not been destroyed.", allMemorySegmentsFreed(mems[i]));
-				mems[i] = null;
+            // free one owner at a time
+            for (int i = 0; i < numOwners; i++) {
+                this.memoryManager.releaseAll(owners[i]);
+                owners[i] = null;
+                Assert.assertTrue(
+                        "Released memory segments have not been destroyed.",
+                        allMemorySegmentsFreed(mems[i]));
+                mems[i] = null;
 
-				// check that the owner owners were not affected
-				for (int k = i + 1; k < numOwners; k++) {
-					Assert.assertTrue("Non-released memory segments are accidentaly destroyed.", allMemorySegmentsValid(mems[k]));
-				}
-			}
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+                // check that the owner owners were not affected
+                for (int k = i + 1; k < numOwners; k++) {
+                    Assert.assertTrue(
+                            "Non-released memory segments are accidentaly destroyed.",
+                            allMemorySegmentsValid(mems[k]));
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void allocateTooMuch() {
-		try {
-			final AbstractInvokable mockInvoke = new DummyInvokable();
+    @Test
+    public void allocateTooMuch() {
+        try {
+            final AbstractInvokable mockInvoke = new DummyInvokable();
 
-			List<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
+            List<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
 
-			testCannotAllocateAnymore(ofAllTypes(mockInvoke, 1));
+            testCannotAllocateAnymore(mockInvoke, 1);
 
-			Assert.assertTrue("The previously allocated segments were not valid any more.",
-																	allMemorySegmentsValid(segs));
+            Assert.assertTrue(
+                    "The previously allocated segments were not valid any more.",
+                    allMemorySegmentsValid(segs));
 
-			this.memoryManager.releaseAll(mockInvoke);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
+            this.memoryManager.releaseAll(mockInvoke);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail(e.getMessage());
+        }
+    }
 
-	@Test
-	public void doubleReleaseReturnsMemoryOnlyOnce() throws MemoryAllocationException {
-		final AbstractInvokable mockInvoke = new DummyInvokable();
+    @Test
+    public void doubleReleaseReturnsMemoryOnlyOnce() throws MemoryAllocationException {
+        final AbstractInvokable mockInvoke = new DummyInvokable();
 
-		Collection<MemorySegment> segs = this.memoryManager.allocatePages(ofAllTypes(mockInvoke, NUM_PAGES));
-		MemorySegment segment = segs.iterator().next();
+        Collection<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
+        MemorySegment segment = segs.iterator().next();
 
-		this.memoryManager.release(segment);
-		this.memoryManager.release(segment);
+        this.memoryManager.release(segment);
+        this.memoryManager.release(segment);
 
-		testCannotAllocateAnymore(ofAllTypes(mockInvoke, 2));
+        testCannotAllocateAnymore(mockInvoke, 2);
 
-		this.memoryManager.releaseAll(mockInvoke);
-	}
+        this.memoryManager.releaseAll(mockInvoke);
+    }
 
-	private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {
-		for (MemorySegment seg : memSegs) {
-			if (seg.isFreed()) {
-				return false;
-			}
-		}
-		return true;
-	}
+    private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {
+        for (MemorySegment seg : memSegs) {
+            if (seg.isFreed()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	private boolean allMemorySegmentsFreed(List<MemorySegment> memSegs) {
-		for (MemorySegment seg : memSegs) {
-			if (!seg.isFreed()) {
-				return false;
-			}
-		}
-		return true;
-	}
+    private boolean allMemorySegmentsFreed(List<MemorySegment> memSegs) {
+        for (MemorySegment seg : memSegs) {
+            if (!seg.isFreed()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
-	@Test
-	@SuppressWarnings("NumericCastThatLosesPrecision")
-	public void testAllocateMixedMemoryType() throws MemoryAllocationException {
-		int totalHeapPages = (int) memoryManager.getMemorySizeByType(MemoryType.HEAP) / PAGE_SIZE;
-		int totalOffHeapPages = (int) memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP) / PAGE_SIZE;
-		int pagesToAllocate =  totalHeapPages + totalOffHeapPages / 2;
+    @Test
+    public void testMemoryReservation() throws MemoryReservationException {
+        Object owner = new Object();
 
-		Object owner = new Object();
-		Collection<MemorySegment> segments = memoryManager.allocatePages(ofAllTypes(owner, pagesToAllocate));
-		Map<MemoryType, Integer> split = calcMemoryTypeSplitForSegments(segments);
+        memoryManager.reserveMemory(owner, PAGE_SIZE);
+        memoryManager.releaseMemory(owner, PAGE_SIZE);
+    }
 
-		assertThat(split.get(MemoryType.HEAP), lessThanOrEqualTo(totalHeapPages));
-		assertThat(split.get(MemoryType.OFF_HEAP), lessThanOrEqualTo(totalOffHeapPages));
-		assertThat(split.get(MemoryType.HEAP) + split.get(MemoryType.OFF_HEAP), is(pagesToAllocate));
+    @Test
+    public void testAllMemoryReservation() throws MemoryReservationException {
+        Object owner = new Object();
 
-		memoryManager.release(segments);
-	}
+        memoryManager.reserveMemory(owner, memoryManager.getMemorySize());
+        memoryManager.releaseAllMemory(owner);
+    }
 
-	private static Map<MemoryType, Integer> calcMemoryTypeSplitForSegments(Iterable<MemorySegment> segments) {
-		int heapPages = 0;
-		int offHeapPages = 0;
-		for (MemorySegment memorySegment : segments) {
-			if (memorySegment.isOffHeap()) {
-				offHeapPages++;
-			} else {
-				heapPages++;
-			}
-		}
-		Map<MemoryType, Integer> split = new EnumMap<>(MemoryType.class);
-		split.put(MemoryType.HEAP, heapPages);
-		split.put(MemoryType.OFF_HEAP, offHeapPages);
-		return split;
-	}
+    @Test
+    public void testCannotReserveBeyondTheLimit() throws MemoryReservationException {
+        Object owner = new Object();
+        memoryManager.reserveMemory(owner, memoryManager.getMemorySize());
+        testCannotReserveAnymore(1L);
+        memoryManager.releaseAllMemory(owner);
+    }
 
-	@Test
-	public void testMemoryReservation() throws MemoryReservationException {
-		Object owner = new Object();
+    @Test
+    public void testMemoryTooBigReservation() {
+        long size = memoryManager.getMemorySize() + PAGE_SIZE;
+        testCannotReserveAnymore(size);
+    }
 
-		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.reserveMemory(owner, MemoryType.OFF_HEAP, memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP));
+    @Test
+    public void testMemoryReleaseMultipleTimes() throws MemoryReservationException {
+        Object owner = new Object();
+        Object owner2 = new Object();
+        long totalHeapMemorySize = memoryManager.availableMemory();
+        // to prevent memory size exceeding the limit, reserve some memory from another owner.
+        memoryManager.reserveMemory(owner2, PAGE_SIZE);
 
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseAllMemory(owner, MemoryType.OFF_HEAP);
-	}
+        // reserve once but release twice
+        memoryManager.reserveMemory(owner, PAGE_SIZE);
+        memoryManager.releaseMemory(owner, PAGE_SIZE);
+        memoryManager.releaseMemory(owner, PAGE_SIZE);
+        long heapMemoryLeft = memoryManager.availableMemory();
+        assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+        memoryManager.releaseAllMemory(owner2);
+    }
 
-	@Test
-	public void testCannotReserveBeyondTheLimit() throws MemoryReservationException {
-		Object owner = new Object();
-		memoryManager.reserveMemory(owner, MemoryType.OFF_HEAP, memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP));
-		testCannotReserveAnymore(MemoryType.OFF_HEAP, 1L);
-		memoryManager.releaseAllMemory(owner, MemoryType.OFF_HEAP);
-	}
+    @Test
+    public void testMemoryReleaseMoreThanReserved() throws MemoryReservationException {
+        Object owner = new Object();
+        Object owner2 = new Object();
+        long totalHeapMemorySize = memoryManager.availableMemory();
+        // to prevent memory size exceeding the limit, reserve some memory from another owner.
+        memoryManager.reserveMemory(owner2, PAGE_SIZE);
 
-	@Test
-	public void testMemoryTooBigReservation() {
-		long size = memoryManager.getMemorySizeByType(MemoryType.HEAP) + PAGE_SIZE;
-		testCannotReserveAnymore(MemoryType.HEAP, size);
-	}
+        // release more than reserved size
+        memoryManager.reserveMemory(owner, PAGE_SIZE);
+        memoryManager.releaseMemory(owner, PAGE_SIZE * 2);
+        long heapMemoryLeft = memoryManager.availableMemory();
+        assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
+        memoryManager.releaseAllMemory(owner2);
+    }
 
-	@Test
-	public void testMemoryReleaseMultipleTimes() throws MemoryReservationException {
-		Object owner = new Object();
-		Object owner2 = new Object();
-		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
-		// to prevent memory size exceeding the limit, reserve some memory from another owner.
-		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+    @Test
+    public void testMemoryAllocationAndReservation()
+            throws MemoryAllocationException, MemoryReservationException {
+        @SuppressWarnings("NumericCastThatLosesPrecision")
+        int totalPagesForType = (int) memoryManager.getMemorySize() / PAGE_SIZE;
 
-		// reserve once but release twice
-		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
-		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
-		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
-	}
+        // allocate half memory for segments
+        Object owner1 = new Object();
+        memoryManager.allocatePages(owner1, totalPagesForType / 2);
 
-	@Test
-	public void testMemoryReleaseMoreThanReserved() throws MemoryReservationException {
-		Object owner = new Object();
-		Object owner2 = new Object();
-		long totalHeapMemorySize = memoryManager.availableMemory(MemoryType.HEAP);
-		// to prevent memory size exceeding the limit, reserve some memory from another owner.
-		memoryManager.reserveMemory(owner2, MemoryType.HEAP, PAGE_SIZE);
+        // reserve the other half of memory
+        Object owner2 = new Object();
+        memoryManager.reserveMemory(owner2, (long) PAGE_SIZE * totalPagesForType / 2);
 
-		// release more than reserved size
-		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
-		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE * 2);
-		long heapMemoryLeft = memoryManager.availableMemory(MemoryType.HEAP);
-		assertEquals("Memory leak happens", totalHeapMemorySize - PAGE_SIZE, heapMemoryLeft);
-		memoryManager.releaseAllMemory(owner2, MemoryType.HEAP);
-	}
+        testCannotAllocateAnymore(new Object(), 1);
+        testCannotReserveAnymore(1L);
 
-	@Test
-	public void testMemoryAllocationAndReservation() throws MemoryAllocationException, MemoryReservationException {
-		MemoryType type = MemoryType.OFF_HEAP;
-		@SuppressWarnings("NumericCastThatLosesPrecision")
-		int totalPagesForType = (int) memoryManager.getMemorySizeByType(type) / PAGE_SIZE;
+        memoryManager.releaseAll(owner1);
+        memoryManager.releaseAllMemory(owner2);
+    }
 
-		// allocate half memory for segments
-		Object owner1 = new Object();
-		memoryManager.allocatePages(ofType(owner1, totalPagesForType / 2, MemoryType.OFF_HEAP));
+    @Test(expected = MemoryAllocationException.class)
+    public void testAllocationFailsIfSegmentsNotGced() throws MemoryAllocationException {
+        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        // this allocation should fail
+        memoryManager.allocatePages(new Object(), 1);
+        // this should not be reached but keeps the reference to the allocated memory and prevents
+        // its GC
+        byteBuffers.get(0).put(0, (byte) 1);
+    }
 
-		// reserve the other half of memory
-		Object owner2 = new Object();
-		memoryManager.reserveMemory(owner2, type, (long) PAGE_SIZE * totalPagesForType / 2);
+    @Test(expected = MemoryReservationException.class)
+    public void testReservationFailsIfSegmentsNotGced()
+            throws MemoryAllocationException, MemoryReservationException {
+        List<ByteBuffer> byteBuffers = allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        // this allocation should fail
+        memoryManager.reserveMemory(new Object(), MemoryManager.DEFAULT_PAGE_SIZE);
+        // this should not be reached but keeps the reference to the allocated memory and prevents
+        // its GC
+        byteBuffers.get(0).put(0, (byte) 1);
+    }
 
-		testCannotAllocateAnymore(ofType(new Object(), 1, type));
-		testCannotReserveAnymore(type, 1L);
+    @Test
+    public void testAllocationSuccessIfSegmentsGced() throws MemoryAllocationException {
+        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        // no reference to the allocated segments at this point, so the memory should be released by
+        // GC
+        // and this allocation should be successful
+        memoryManager.release(memoryManager.allocatePages(new Object(), 1));
+    }
 
-		memoryManager.releaseAll(owner1);
-		memoryManager.releaseAllMemory(owner2, type);
-	}
+    @Test
+    public void testReservationSuccessIfSegmentsGced()
+            throws MemoryAllocationException, MemoryReservationException {
+        allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs();
+        // no reference to the allocated segments at this point, so the memory should be released by
+        // GC
+        Object owner = new Object();
+        // and this reservation should be successful
+        memoryManager.reserveMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+        memoryManager.releaseMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+    }
 
-	@Test
-	public void testComputeMemorySize() {
-		double fraction = 0.6;
-		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
+    private List<ByteBuffer> allocateAndReleaseAllSegmentsButKeepWrappedBufferRefs()
+            throws MemoryAllocationException {
+        List<MemorySegment> segments = memoryManager.allocatePages(new Object(), NUM_PAGES);
+        List<ByteBuffer> buffers =
+                segments.stream().map(segment -> segment.wrap(0, 1)).collect(Collectors.toList());
+        memoryManager.release(segments);
+        return buffers;
+    }
 
-		fraction = 1.0;
-		assertEquals((long) (memoryManager.getMemorySize() * fraction), memoryManager.computeMemorySize(fraction));
-	}
+    @Test
+    public void testComputeMemorySize() {
+        double fraction = 0.6;
+        assertEquals(
+                (long) (memoryManager.getMemorySize() * fraction),
+                memoryManager.computeMemorySize(fraction));
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testComputeMemorySizeFailForZeroFraction() {
-		memoryManager.computeMemorySize(0.0);
-	}
+        fraction = 1.0;
+        assertEquals(
+                (long) (memoryManager.getMemorySize() * fraction),
+                memoryManager.computeMemorySize(fraction));
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testComputeMemorySizeFailForTooLargeFraction() {
-		memoryManager.computeMemorySize(1.1);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testComputeMemorySizeFailForZeroFraction() {
+        memoryManager.computeMemorySize(0.0);
+    }
 
-	@Test(expected = IllegalArgumentException.class)
-	public void testComputeMemorySizeFailForNegativeFraction() {
-		memoryManager.computeMemorySize(-0.1);
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testComputeMemorySizeFailForTooLargeFraction() {
+        memoryManager.computeMemorySize(1.1);
+    }
 
-	private void testCannotAllocateAnymore(AllocationRequest request) {
-		try {
-			memoryManager.allocatePages(request);
-			Assert.fail("Expected MemoryAllocationException. " +
-				"We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
-		} catch (MemoryAllocationException maex) {
-			// expected
-		}
-	}
+    @Test(expected = IllegalArgumentException.class)
+    public void testComputeMemorySizeFailForNegativeFraction() {
+        memoryManager.computeMemorySize(-0.1);
+    }
 
-	private void testCannotReserveAnymore(MemoryType type, long size) {
-		try {
-			memoryManager.reserveMemory(new Object(), type, size);
-			Assert.fail("Expected MemoryAllocationException. " +
-				"We should not be able to any more memory after allocating or(and) reserving all memory of a certain type.");
-		} catch (MemoryReservationException maex) {
-			// expected
-		}
-	}
+    @Test
+    public void testVerifyEmptyCanBeDoneAfterShutdown()
+            throws MemoryAllocationException, MemoryReservationException {
+        memoryManager.release(memoryManager.allocatePages(new Object(), 1));
+        Object owner = new Object();
+        memoryManager.reserveMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+        memoryManager.releaseMemory(owner, MemoryManager.DEFAULT_PAGE_SIZE);
+        memoryManager.shutdown();
+        memoryManager.verifyEmpty();
+    }
+
+    private void testCannotAllocateAnymore(Object owner, int numPages) {
+        try {
+            memoryManager.allocatePages(owner, numPages);
+            Assert.fail(
+                    "Expected MemoryAllocationException. "
+                            + "We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
+        } catch (MemoryAllocationException maex) {
+            // expected
+        }
+    }
+
+    private void testCannotReserveAnymore(long size) {
+        try {
+            memoryManager.reserveMemory(new Object(), size);
+            Assert.fail(
+                    "Expected MemoryAllocationException. "
+                            + "We should not be able to any more memory after allocating or(and) reserving all memory of a certain type.");
+        } catch (MemoryReservationException maex) {
+            // expected
+        }
+    }
 }

@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testInUncorrelated">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[IN($0, {
 LogicalProject(x=[$0])
@@ -26,19 +26,19 @@ LogicalProject(x=[$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[LeftSemiJoin], where=[=(a, x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[LeftSemiJoin], where=[(a = x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[x]])
    +- Calc(select=[x])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(x, y)]]], fields=[x, y])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(x, y)]]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testFilterUnionTranspose">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$1], b=[$0], c=[$2])
 +- LogicalAggregate(group=[{1}], EXPR$0=[SUM($0)], EXPR$1=[COUNT($2)])
@@ -48,21 +48,21 @@ LogicalProject(a=[$1], b=[$0], c=[$2])
          +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
 +- GroupAggregate(groupBy=[b], select=[b, SUM(a) AS EXPR$0, COUNT(c) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- Union(all=[true], union=[a, b, c])
-         :- Calc(select=[a, b, c], where=[>(a, 0)])
-         :  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-         +- Calc(select=[a, b, c], where=[>(a, 0)])
-            +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         :- Calc(select=[a, b, c], where=[(a > 0)])
+         :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Calc(select=[a, b, c], where=[(a > 0)])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testInUncorrelatedWithConditionAndAgg">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[IN($0, {
 LogicalProject(EXPR$0=[$1])
@@ -73,22 +73,22 @@ LogicalProject(EXPR$0=[$1])
 +- LogicalTableScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[LeftSemiJoin], where=[=(a, EXPR$0)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[LeftSemiJoin], where=[(a = EXPR$0)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[a]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 +- Exchange(distribution=[hash[EXPR$0]])
    +- Calc(select=[EXPR$0])
       +- GroupAggregate(groupBy=[y], select=[y, SUM(x) AS EXPR$0])
          +- Exchange(distribution=[hash[y]])
             +- Calc(select=[x, y], where=[LIKE(y, _UTF-16LE'%Hanoi%')])
-               +- TableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testProjectUnionTranspose">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$1], c=[$2])
 +- LogicalUnion(all=[true])
@@ -98,18 +98,17 @@ LogicalProject(b=[$1], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Union(all=[true], union=[b, c])
-:- Calc(select=[b, c])
-:  +- TableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-+- Calc(select=[b, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+Calc(select=[b, c])
++- Union(all=[true], union=[a, b, c])
+   :- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testInWithMultiUncorrelatedCondition">
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalFilter(condition=[AND(IN($0, {
 LogicalProject(x=[$0])
@@ -121,19 +120,19 @@ LogicalProject(w=[$0])
 +- LogicalTableScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Join(joinType=[LeftSemiJoin], where=[=(b, w)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+Join(joinType=[LeftSemiJoin], where=[(b = w)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :- Exchange(distribution=[hash[b]])
-:  +- Join(joinType=[LeftSemiJoin], where=[=(a, x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:  +- Join(joinType=[LeftSemiJoin], where=[(a = x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
 :     :- Exchange(distribution=[hash[a]])
-:     :  +- TableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:     :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableA, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 :     +- Exchange(distribution=[hash[x]])
 :        +- Calc(select=[x])
-:           +- TableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableB, source: [TestTableSource(x, y)]]], fields=[x, y])
 +- Exchange(distribution=[hash[w]])
    +- Calc(select=[w])
-      +- TableSourceScan(table=[[default_catalog, default_database, tableC, source: [TestTableSource(w, z)]]], fields=[w, z])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, tableC, source: [TestTableSource(w, z)]]], fields=[w, z])
 ]]>
     </Resource>
   </TestCase>

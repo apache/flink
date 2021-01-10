@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobgraph.utils.JobGraphTestUtils;
 import org.apache.flink.runtime.jobmaster.utils.JobMasterBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -46,7 +45,6 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -60,8 +58,6 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
@@ -69,221 +65,233 @@ import java.util.function.Function;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-/**
- * Tests for the partition release logic of the {@link JobMaster}.
- */
+/** Tests for the partition release logic of the {@link JobMaster}. */
 public class JobMasterPartitionReleaseTest extends TestLogger {
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final Time testingTimeout = Time.seconds(10L);
+    private static final Time testingTimeout = Time.seconds(10L);
 
-	private static TestingRpcService rpcService;
+    private static TestingRpcService rpcService;
 
-	private TestingFatalErrorHandler testingFatalErrorHandler;
+    private TestingFatalErrorHandler testingFatalErrorHandler;
 
-	@BeforeClass
-	public static void setupClass() {
-		rpcService = new TestingRpcService();
-	}
+    @BeforeClass
+    public static void setupClass() {
+        rpcService = new TestingRpcService();
+    }
 
-	@Before
-	public void setup() throws IOException {
-		testingFatalErrorHandler = new TestingFatalErrorHandler();
-	}
+    @Before
+    public void setup() throws IOException {
+        testingFatalErrorHandler = new TestingFatalErrorHandler();
+    }
 
-	@After
-	public void teardown() throws Exception {
-		if (testingFatalErrorHandler != null) {
-			testingFatalErrorHandler.rethrowError();
-		}
+    @After
+    public void teardown() throws Exception {
+        if (testingFatalErrorHandler != null) {
+            testingFatalErrorHandler.rethrowError();
+        }
 
-		rpcService.clearGateways();
-	}
+        rpcService.clearGateways();
+    }
 
-	@AfterClass
-	public static void teardownClass() {
-		if (rpcService != null) {
-			rpcService.stopService();
-			rpcService = null;
-		}
-	}
+    @AfterClass
+    public static void teardownClass() {
+        if (rpcService != null) {
+            rpcService.stopService();
+            rpcService = null;
+        }
+    }
 
-	@Test
-	public void testPartitionTableCleanupOnDisconnect() throws Exception {
-		final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
-		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setDisconnectJobManagerConsumer((jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
-			.createTestingTaskExecutorGateway();
+    @Test
+    public void testPartitionTableCleanupOnDisconnect() throws Exception {
+        final CompletableFuture<JobID> disconnectTaskExecutorFuture = new CompletableFuture<>();
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setDisconnectJobManagerConsumer(
+                                (jobID, throwable) -> disconnectTaskExecutorFuture.complete(jobID))
+                        .createTestingTaskExecutorGateway();
 
-		try (final TestSetup testSetup = new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
-			final JobMasterGateway jobMasterGateway = testSetup.jobMaster.getSelfGateway(JobMasterGateway.class);
+        try (final TestSetup testSetup =
+                new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
+            final JobMasterGateway jobMasterGateway =
+                    testSetup.jobMaster.getSelfGateway(JobMasterGateway.class);
 
-			jobMasterGateway.disconnectTaskManager(testSetup.getTaskExecutorResourceID(), new Exception("test"));
-			disconnectTaskExecutorFuture.get();
+            jobMasterGateway.disconnectTaskManager(
+                    testSetup.getTaskExecutorResourceID(), new Exception("test"));
+            disconnectTaskExecutorFuture.get();
 
-			assertThat(testSetup.getStopTrackingPartitionsTargetResourceId().get(), equalTo(testSetup.getTaskExecutorResourceID()));
-		}
-	}
+            assertThat(
+                    testSetup.getStopTrackingPartitionsTargetResourceId().get(),
+                    equalTo(testSetup.getTaskExecutorResourceID()));
+        }
+    }
 
-	@Test
-	public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
-		testPartitionReleaseOrPromotionOnJobTermination(TestSetup::getReleaseOrPromotePartitionsTargetResourceId, ExecutionState.FINISHED);
-	}
+    @Test
+    public void testPartitionReleaseOrPromotionOnJobSuccess() throws Exception {
+        testPartitionReleaseOrPromotionOnJobTermination(
+                TestSetup::getReleaseOrPromotePartitionsTargetResourceId, ExecutionState.FINISHED);
+    }
 
-	@Test
-	public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
-		testPartitionReleaseOrPromotionOnJobTermination(TestSetup::getReleasePartitionsTargetResourceId, ExecutionState.FAILED);
-	}
+    @Test
+    public void testPartitionReleaseOrPromotionOnJobFailure() throws Exception {
+        testPartitionReleaseOrPromotionOnJobTermination(
+                TestSetup::getReleasePartitionsTargetResourceId, ExecutionState.FAILED);
+    }
 
-	private void testPartitionReleaseOrPromotionOnJobTermination(Function<TestSetup, CompletableFuture<ResourceID>> taskExecutorCallSelector, ExecutionState finalExecutionState) throws Exception {
-		final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture = new CompletableFuture<>();
-		final TestingTaskExecutorGateway testingTaskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setSubmitTaskConsumer((tdd, ignored) -> {
-				taskDeploymentDescriptorFuture.complete(tdd);
-				return CompletableFuture.completedFuture(Acknowledge.get());
-			})
-			.createTestingTaskExecutorGateway();
+    private void testPartitionReleaseOrPromotionOnJobTermination(
+            Function<TestSetup, CompletableFuture<ResourceID>> taskExecutorCallSelector,
+            ExecutionState finalExecutionState)
+            throws Exception {
+        final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture =
+                new CompletableFuture<>();
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setSubmitTaskConsumer(
+                                (tdd, ignored) -> {
+                                    taskDeploymentDescriptorFuture.complete(tdd);
+                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                                })
+                        .createTestingTaskExecutorGateway();
 
-		try (final TestSetup testSetup = new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
-			final JobMasterGateway jobMasterGateway = testSetup.getJobMasterGateway();
+        try (final TestSetup testSetup =
+                new TestSetup(rpcService, testingFatalErrorHandler, testingTaskExecutorGateway)) {
+            final JobMasterGateway jobMasterGateway = testSetup.getJobMasterGateway();
 
-			// update the execution state of the only execution to target state
-			// this should trigger the job to finish
-			final TaskDeploymentDescriptor taskDeploymentDescriptor = taskDeploymentDescriptorFuture.get();
-			jobMasterGateway.updateTaskExecutionState(
-				new TaskExecutionState(
-					taskDeploymentDescriptor.getJobId(),
-					taskDeploymentDescriptor.getExecutionAttemptId(),
-					finalExecutionState));
+            // update the execution state of the only execution to target state
+            // this should trigger the job to finish
+            final TaskDeploymentDescriptor taskDeploymentDescriptor =
+                    taskDeploymentDescriptorFuture.get();
+            jobMasterGateway.updateTaskExecutionState(
+                    new TaskExecutionState(
+                            taskDeploymentDescriptor.getJobId(),
+                            taskDeploymentDescriptor.getExecutionAttemptId(),
+                            finalExecutionState));
 
-			assertThat(taskExecutorCallSelector.apply(testSetup).get(), equalTo(testSetup.getTaskExecutorResourceID()));
-		}
-	}
+            assertThat(
+                    taskExecutorCallSelector.apply(testSetup).get(),
+                    equalTo(testSetup.getTaskExecutorResourceID()));
+        }
+    }
 
-	private static final class AllocationIdsResourceManagerGateway extends TestingResourceManagerGateway {
-		private final BlockingQueue<AllocationID> allocationIds;
+    private static class TestSetup implements AutoCloseable {
 
-		private AllocationIdsResourceManagerGateway() {
-			this.allocationIds = new ArrayBlockingQueue<>(10);
-			setRequestSlotConsumer(
-				slotRequest -> allocationIds.offer(slotRequest.getAllocationId())
-			);
-		}
+        private final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-		AllocationID takeAllocationId() {
-			try {
-				return allocationIds.take();
-			} catch (InterruptedException e) {
-				ExceptionUtils.rethrow(e);
-				return null;
-			}
-		}
-	}
+        private final LocalUnresolvedTaskManagerLocation localTaskManagerUnresolvedLocation =
+                new LocalUnresolvedTaskManagerLocation();
 
-	private static class TestSetup implements AutoCloseable {
+        private final CompletableFuture<ResourceID> taskExecutorIdForStopTracking =
+                new CompletableFuture<>();
+        private final CompletableFuture<ResourceID> taskExecutorIdForPartitionRelease =
+                new CompletableFuture<>();
+        private final CompletableFuture<ResourceID> taskExecutorIdForPartitionReleaseOrPromote =
+                new CompletableFuture<>();
 
-		private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+        private JobMaster jobMaster;
 
-		private final LocalUnresolvedTaskManagerLocation localTaskManagerUnresolvedLocation = new LocalUnresolvedTaskManagerLocation();
+        public TestSetup(
+                TestingRpcService rpcService,
+                FatalErrorHandler fatalErrorHandler,
+                TaskExecutorGateway taskExecutorGateway)
+                throws Exception {
 
-		private final CompletableFuture<ResourceID> taskExecutorIdForStopTracking = new CompletableFuture<>();
-		private final CompletableFuture<ResourceID> taskExecutorIdForPartitionRelease = new CompletableFuture<>();
-		private final CompletableFuture<ResourceID> taskExecutorIdForPartitionReleaseOrPromote = new CompletableFuture<>();
+            temporaryFolder.create();
 
-		private JobMaster jobMaster;
+            TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
+            haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
-		public TestSetup(TestingRpcService rpcService, FatalErrorHandler fatalErrorHandler, TaskExecutorGateway taskExecutorGateway) throws Exception {
+            haServices.setResourceManagerLeaderRetriever(
+                    new SettableLeaderRetrievalService(null, null));
 
-			temporaryFolder.create();
+            final TestingJobMasterPartitionTracker partitionTracker =
+                    new TestingJobMasterPartitionTracker();
 
-			TestingHighAvailabilityServices haServices = new TestingHighAvailabilityServices();
-			haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
+            partitionTracker.setStopTrackingAllPartitionsConsumer(
+                    taskExecutorIdForStopTracking::complete);
+            partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(
+                    taskExecutorIdForPartitionRelease::complete);
+            partitionTracker.setStopTrackingAndReleaseOrPromotePartitionsConsumer(
+                    taskExecutorIdForPartitionReleaseOrPromote::complete);
 
-			SettableLeaderRetrievalService rmLeaderRetrievalService = new SettableLeaderRetrievalService(
-				null,
-				null);
-			haServices.setResourceManagerLeaderRetriever(rmLeaderRetrievalService);
+            Configuration configuration = new Configuration();
+            configuration.setString(
+                    BlobServerOptions.STORAGE_DIRECTORY,
+                    temporaryFolder.newFolder().getAbsolutePath());
 
-			final TestingJobMasterPartitionTracker partitionTracker = new TestingJobMasterPartitionTracker();
+            HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 5_000_000L);
 
-			partitionTracker.setStopTrackingAllPartitionsConsumer(taskExecutorIdForStopTracking::complete);
-			partitionTracker.setStopTrackingAndReleaseAllPartitionsConsumer(taskExecutorIdForPartitionRelease::complete);
-			partitionTracker.setStopTrackingAndReleaseOrPromotePartitionsConsumer(taskExecutorIdForPartitionReleaseOrPromote::complete);
+            jobMaster =
+                    new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
+                            .withConfiguration(configuration)
+                            .withHighAvailabilityServices(haServices)
+                            .withJobManagerSharedServices(
+                                    new TestingJobManagerSharedServicesBuilder().build())
+                            .withFatalErrorHandler(fatalErrorHandler)
+                            .withHeartbeatServices(heartbeatServices)
+                            .withPartitionTrackerFactory(ignored -> partitionTracker)
+                            .createJobMaster();
 
-			Configuration configuration = new Configuration();
-			configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
+            jobMaster.start();
 
-			HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 5_000_000L);
+            registerTaskExecutorAtJobMaster(rpcService, getJobMasterGateway(), taskExecutorGateway);
+        }
 
-			jobMaster = new JobMasterBuilder(JobGraphTestUtils.createSingleVertexJobGraph(), rpcService)
-				.withConfiguration(configuration)
-				.withHighAvailabilityServices(haServices)
-				.withJobManagerSharedServices(new TestingJobManagerSharedServicesBuilder().build())
-				.withFatalErrorHandler(fatalErrorHandler)
-				.withHeartbeatServices(heartbeatServices)
-				.withPartitionTrackerFactory(ignored -> partitionTracker)
-				.createJobMaster();
+        private void registerTaskExecutorAtJobMaster(
+                TestingRpcService rpcService,
+                JobMasterGateway jobMasterGateway,
+                TaskExecutorGateway taskExecutorGateway)
+                throws ExecutionException, InterruptedException {
 
-			jobMaster.start(JobMasterId.generate()).get();
+            rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
 
-			registerTaskExecutorAtJobMaster(
-				rpcService,
-				getJobMasterGateway(),
-				taskExecutorGateway,
-				rmLeaderRetrievalService
-			);
-		}
+            jobMasterGateway
+                    .registerTaskManager(
+                            taskExecutorGateway.getAddress(),
+                            localTaskManagerUnresolvedLocation,
+                            testingTimeout)
+                    .get();
 
-		private void registerTaskExecutorAtJobMaster(
-				TestingRpcService rpcService,
-				JobMasterGateway jobMasterGateway,
-				TaskExecutorGateway taskExecutorGateway,
-				SettableLeaderRetrievalService rmLeaderRetrievalService) throws ExecutionException, InterruptedException {
+            Collection<SlotOffer> slotOffers =
+                    Collections.singleton(
+                            new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
 
-			final AllocationIdsResourceManagerGateway resourceManagerGateway = new AllocationIdsResourceManagerGateway();
-			rpcService.registerGateway(resourceManagerGateway.getAddress(), resourceManagerGateway);
-			rmLeaderRetrievalService.notifyListener(resourceManagerGateway.getAddress(), resourceManagerGateway.getFencingToken().toUUID());
+            jobMasterGateway
+                    .offerSlots(
+                            localTaskManagerUnresolvedLocation.getResourceID(),
+                            slotOffers,
+                            testingTimeout)
+                    .get();
+        }
 
-			rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+        public JobMasterGateway getJobMasterGateway() {
+            return jobMaster.getSelfGateway(JobMasterGateway.class);
+        }
 
-			jobMasterGateway.registerTaskManager(taskExecutorGateway.getAddress(), localTaskManagerUnresolvedLocation, testingTimeout).get();
+        public ResourceID getTaskExecutorResourceID() {
+            return localTaskManagerUnresolvedLocation.getResourceID();
+        }
 
-			final AllocationID allocationId = resourceManagerGateway.takeAllocationId();
-			Collection<SlotOffer> slotOffers = Collections.singleton(new SlotOffer(allocationId, 0, ResourceProfile.UNKNOWN));
+        public CompletableFuture<ResourceID> getStopTrackingPartitionsTargetResourceId() {
+            return taskExecutorIdForStopTracking;
+        }
 
-			jobMasterGateway.offerSlots(localTaskManagerUnresolvedLocation.getResourceID(), slotOffers, testingTimeout).get();
-		}
+        public CompletableFuture<ResourceID> getReleasePartitionsTargetResourceId() {
+            return taskExecutorIdForPartitionRelease;
+        }
 
-		public JobMasterGateway getJobMasterGateway() {
-			return jobMaster.getSelfGateway(JobMasterGateway.class);
-		}
+        public CompletableFuture<ResourceID> getReleaseOrPromotePartitionsTargetResourceId() {
+            return taskExecutorIdForPartitionReleaseOrPromote;
+        }
 
-		public ResourceID getTaskExecutorResourceID() {
-			return localTaskManagerUnresolvedLocation.getResourceID();
-		}
-
-		public CompletableFuture<ResourceID> getStopTrackingPartitionsTargetResourceId() {
-			return taskExecutorIdForStopTracking;
-		}
-
-		public CompletableFuture<ResourceID> getReleasePartitionsTargetResourceId() {
-			return taskExecutorIdForPartitionRelease;
-		}
-
-		public CompletableFuture<ResourceID> getReleaseOrPromotePartitionsTargetResourceId() {
-			return taskExecutorIdForPartitionReleaseOrPromote;
-		}
-
-		public void close() throws Exception {
-			try {
-				if (jobMaster != null) {
-					RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
-				}
-			} finally {
-				temporaryFolder.delete();
-			}
-		}
-	}
+        public void close() throws Exception {
+            try {
+                if (jobMaster != null) {
+                    RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+                }
+            } finally {
+                temporaryFolder.delete();
+            }
+        }
+    }
 }

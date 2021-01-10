@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-python_${scala.binary.version}</artifactId>
-	<name>flink-python</name>
+	<name>Flink : Python</name>
 
 	<packaging>jar</packaging>
 
@@ -92,6 +92,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-runners-java-fn-execution</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.beam</groupId>
+					<artifactId>beam-vendor-bytebuddy-1_10_8</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -271,7 +277,6 @@ under the License.
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
 								<delete dir="${project.basedir}/build"/>
-								<delete dir="${project.basedir}/dist"/>
 								<delete dir="${project.basedir}/apache_flink.egg-info"/>
 							</target>
 						</configuration>
@@ -333,10 +338,26 @@ under the License.
 								<filter>
 									<artifact>org.apache.beam:beam-sdks-java-core</artifact>
 									<excludes>
-										<exclude>org/apache/beam/vendor/bytebuddy/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/antlr/**</exclude>
+										<exclude>META-INF/maven/org.antlr/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/compress/**</exclude>
 										<exclude>org/apache/beam/repackaged/core/org/apache/commons/lang3/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>org.apache.beam:beam-vendor-grpc-1_26_0</artifact>
+									<excludes>
+										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/jboss/**</exclude>
+										<exclude>org/apache/beam/vendor/grpc/v1p26p0/org/eclipse/jetty/**</exclude>
+									</excludes>
+								</filter>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>LICENSE-junit.txt</exclude>
+										<exclude>LICENSE.txt</exclude>
+										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>*.proto</exclude>
 									</excludes>
 								</filter>
 							</filters>
@@ -449,6 +470,41 @@ under the License.
 							</includes>
 							<outputDirectory>
 								${project.build.directory}/javaDDL
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>data-stream-test</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/DataStreamTestCollectSink.class</include>
+								<include>**/MyCustomSourceFunction.class</include>
+								<include>**/PartitionCustomTestMapFunction.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/data-stream-test
+							</outputDirectory>
+						</configuration>
+					</execution>
+					<execution>
+						<id>dummy-job-jar</id>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+						<configuration>
+							<archive>
+								<manifest>
+									<mainClass>org.apache.flink.client.cli.TestJob</mainClass>
+								</manifest>
+							</archive>
+							<includes>
+								<include>**/TestJob.class</include>
+							</includes>
+							<outputDirectory>
+								${project.build.directory}/dummy-job-jar
 							</outputDirectory>
 						</configuration>
 					</execution>

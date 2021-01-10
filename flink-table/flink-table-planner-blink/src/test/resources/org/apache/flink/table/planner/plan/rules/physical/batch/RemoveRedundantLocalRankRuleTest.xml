@@ -24,26 +24,26 @@ SELECT a FROM (
 ) WHERE rk <= 5
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[<=($1, 5)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
       +- LogicalAggregate(group=[{0}], agg#0=[SUM($1)])
          +- LogicalProject(a=[$0], b=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1, w0$o0])
    +- Sort(orderBy=[a ASC, $f1 ASC])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -55,26 +55,26 @@ SELECT a FROM (
 ) WHERE rk <= 5 and rk >= 2
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[AND(<=($1, 5), >=($1, 2))])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
       +- LogicalAggregate(group=[{0}], agg#0=[SUM($1)])
          +- LogicalProject(a=[$0], b=[$1])
             +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a])
-+- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
++- Rank(rankType=[RANK], rankRange=[rankStart=2, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1, w0$o0])
    +- Sort(orderBy=[a ASC, $f1 ASC])
       +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
          +- Exchange(distribution=[hash[a]])
             +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -88,17 +88,17 @@ SELECT * FROM (
 ) WHERE rk1 <= 5
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], rk=[$2], rk1=[$3])
 +- LogicalFilter(condition=[<=($3, 5)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[$2], rk1=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[$2], rk1=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
       +- LogicalFilter(condition=[<=($2, 5)])
-         +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
             +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, $2, w0$o0])
 +- Calc(select=[a, b, $2])
@@ -107,7 +107,7 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], order
          +- Exchange(distribution=[hash[a]])
             +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
                +- Sort(orderBy=[a ASC, b ASC])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

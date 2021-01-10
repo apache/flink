@@ -23,8 +23,8 @@ import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
-import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingTableEnvironment}
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
+import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet}
 
 import org.hamcrest.Matchers._
 import org.junit.Assert.{assertEquals, assertThat}
@@ -83,7 +83,7 @@ class OptionsHintTest(param: Param)
     expectedException.expect(isA(classOf[ValidationException]))
     expectedException.expectMessage(s"OPTIONS hint is allowed only when "
       + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} is set to true")
-    util.verifyPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(connector='COLLECTION', k2='#v2') */")
   }
 
   @Test
@@ -93,24 +93,25 @@ class OptionsHintTest(param: Param)
          |insert into t1 /*+ OPTIONS(k1='#v1', k5='v5') */
          |select d, e from t2
          |""".stripMargin
-    util.tableEnv.sqlUpdate(sql)
-    val testTableEnv = util.tableEnv.asInstanceOf[TestingTableEnvironment]
-    val relNodes = testTableEnv.getBufferedOperations.map(util.getPlanner.translateToRel)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(sql)
+    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+    val relNodes = testStmtSet.getOperations.map(util.getPlanner.translateToRel)
     assertThat(relNodes.length, is(1))
-    assert(relNodes.head.isInstanceOf[LogicalSink])
-    val sink = relNodes.head.asInstanceOf[LogicalSink]
+    assert(relNodes.head.isInstanceOf[LogicalLegacySink])
+    val sink = relNodes.head.asInstanceOf[LogicalLegacySink]
     assertEquals("{k1=#v1, k2=v2, k5=v5}",
       sink.sink.asInstanceOf[OptionsTableSink].props.toString)
   }
 
   @Test
   def testAppendOptions(): Unit = {
-    util.verifyPlan("select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(k5='v5', 'a.b.c'='fakeVal') */")
   }
 
   @Test
   def testOverrideOptions(): Unit = {
-    util.verifyPlan("select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */")
+    util.verifyExecPlan("select * from t1/*+ OPTIONS(k1='#v1', k2='#v2') */")
   }
 
   @Test
@@ -123,7 +124,7 @@ class OptionsHintTest(param: Param)
          |t2 /*+ OPTIONS(k6='v6', 'd.e.f'='fakeVal') */
          |on t1.a = t2.d
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -136,7 +137,7 @@ class OptionsHintTest(param: Param)
          |t2 /*+ OPTIONS(k3='#v3', k4='#v4') */
          |on t1.a = t2.d
          |""".stripMargin
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -145,7 +146,7 @@ class OptionsHintTest(param: Param)
     util.tableEnv.createTemporaryView("view1", view1)
     // The table hints on view expect to be ignored.
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 
   @Test
@@ -178,7 +179,7 @@ class OptionsHintTest(param: Param)
       false)
     // The table hints on view expect to be ignored.
     val sql = "select * from view1/*+ OPTIONS(k1='#v1', k2='#v2', k3='#v3', k4='#v4') */"
-    util.verifyPlan(sql)
+    util.verifyExecPlan(sql)
   }
 }
 

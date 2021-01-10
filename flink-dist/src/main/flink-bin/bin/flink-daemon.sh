@@ -47,7 +47,7 @@ case $DAEMON in
     ;;
 
     (standalonejob)
-        CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneJobClusterEntryPoint
+        CLASS_TO_RUN=org.apache.flink.container.entrypoint.StandaloneApplicationClusterEntryPoint
     ;;
 
     (*)
@@ -88,20 +88,27 @@ out="${FLINK_LOG_PREFIX}.out"
 
 log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlog4j.configurationFile=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml")
 
-JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+function guaranteed_kill {
+  to_stop_pid=$1
+  daemon=$2
 
-# Only set JVM 8 arguments if we have correctly extracted the version
-if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
-    if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+  # send sigterm for graceful shutdown
+  kill $to_stop_pid
+  # if timeout exists, use it
+  if command -v timeout &> /dev/null ; then
+    # wait 10 seconds for process to stop. By default, Flink kills the JVM 5 seconds after sigterm.
+    timeout 10 tail --pid=$to_stop_pid -f /dev/null
+    if [ "$?" -eq 124 ]; then
+      echo "Daemon $daemon didn't stop within 10 seconds. Killing it."
+      # send sigkill
+      kill -9 $to_stop_pid
     fi
-fi
+  fi
+}
 
 case $STARTSTOP in
 
     (start)
-        # Rotate log files
-        rotateLogFilesWithPrefix "$FLINK_LOG_DIR" "$FLINK_LOG_PREFIX"
 
         # Print a warning if daemons are already running on host
         if [ -f "$pid" ]; then
@@ -153,7 +160,7 @@ case $STARTSTOP in
 
                 if kill -0 $to_stop > /dev/null 2>&1; then
                     echo "Stopping $DAEMON daemon (pid: $to_stop) on host $HOSTNAME."
-                    kill $to_stop
+                    guaranteed_kill $to_stop $DAEMON
                 else
                     echo "No $DAEMON daemon (pid: $to_stop) is running anymore on $HOSTNAME."
                 fi
@@ -170,7 +177,7 @@ case $STARTSTOP in
             while read to_stop; do
                 if kill -0 $to_stop > /dev/null 2>&1; then
                     echo "Stopping $DAEMON daemon (pid: $to_stop) on host $HOSTNAME."
-                    kill $to_stop
+                    guaranteed_kill $to_stop $DAEMON
                 else
                     echo "Skipping $DAEMON daemon (pid: $to_stop), because it is not running anymore on $HOSTNAME."
                 fi

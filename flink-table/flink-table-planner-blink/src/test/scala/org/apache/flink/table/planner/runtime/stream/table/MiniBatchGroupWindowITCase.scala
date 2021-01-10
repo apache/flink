@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Slide, Tumble}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupWindowAggregate
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -36,14 +37,14 @@ import org.junit.runners.Parameterized
 import java.math.BigDecimal
 
 /**
-  * Integrate tests for group window aggregate in SQL API.
-  *
-  * NOTE: All the cases in this file should support minibatch window, if not, please move to
-  * [[GroupWindowITCase]].
-  *
-  * For the requirements which windows support minibatch, please see
-  * [[org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupWindowAggregate]].
-  */
+ * Integrate tests for group window aggregate in SQL API.
+ *
+ * NOTE: All the cases in this file should support minibatch window, if not, please move to
+ * [[GroupWindowITCase]].
+ *
+ * For the requirements which windows support minibatch, please see
+ * [[StreamPhysicalGroupWindowAggregate]].
+ */
 @RunWith(classOf[Parameterized])
 class MiniBatchGroupWindowITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   extends StreamingWithMiniBatchTestBase(miniBatch, mode) {

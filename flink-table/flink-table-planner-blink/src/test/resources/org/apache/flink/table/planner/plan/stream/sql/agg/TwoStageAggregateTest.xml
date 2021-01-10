@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="sql">
       <![CDATA[SELECT AVG(a) FROM MyTable GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)])
@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, AVG((sum$0, count$1)) AS EXPR$0])
@@ -36,7 +36,7 @@ Calc(select=[EXPR$0])
       +- LocalGroupAggregate(groupBy=[b], select=[b, AVG(a) AS (sum$0, count$1)])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -44,21 +44,21 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT AVG(CAST(a AS DOUBLE)) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[AVG($0)]), rowType=[RecordType(DOUBLE EXPR$0)]
 +- LogicalProject($f0=[CAST($0):DOUBLE]), rowType=[RecordType(DOUBLE $f0)]
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized rel plan">
       <![CDATA[
 GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordType(DOUBLE EXPR$0)]
 +- Exchange(distribution=[single]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
    +- LocalGroupAggregate(select=[AVG($f0) AS (sum$0, count$1)]), rowType=[RecordType(DOUBLE sum$0, BIGINT count$1)]
       +- Calc(select=[CAST(a) AS $f0]), rowType=[RecordType(DOUBLE $f0)]
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c]), rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)]
 ]]>
     </Resource>
   </TestCase>
@@ -66,7 +66,7 @@ GlobalGroupAggregate(select=[AVG((sum$0, count$1)) AS EXPR$0]), rowType=[RecordT
     <Resource name="sql">
       <![CDATA[SELECT COUNT(a) FROM MyTable GROUP BY b]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
@@ -74,7 +74,7 @@ LogicalProject(EXPR$0=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(count$0) AS EXPR$0])
@@ -82,7 +82,7 @@ Calc(select=[EXPR$0])
       +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(a) AS count$0])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -90,7 +90,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MIN(c), AVG(a) FROM (SELECT a, b + 3 AS d, c FROM MyTable) GROUP BY d]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)], EXPR$1=[AVG($2)])
@@ -98,15 +98,15 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- GlobalGroupAggregate(groupBy=[d], select=[d, MIN(min$0) AS EXPR$0, AVG((sum$1, count$2)) AS EXPR$1])
    +- Exchange(distribution=[hash[d]])
       +- LocalGroupAggregate(groupBy=[d], select=[d, MIN(c) AS min$0, AVG(a) AS (sum$1, count$2)])
-         +- Calc(select=[+(b, 3) AS d, c, a])
+         +- Calc(select=[(b + 3) AS d, c, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -114,21 +114,21 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(a) FROM MyTable]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
 +- LogicalProject(a=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LocalGroupAggregate(select=[COUNT(a) AS count$0])
       +- Calc(select=[a])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -136,7 +136,7 @@ GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT b, SUM(a) FROM MyTable GROUP BY b) WHERE b = 2]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$1=[$1])
 +- LogicalFilter(condition=[=($0, 2)])
@@ -145,15 +145,15 @@ LogicalProject(b=[$0], EXPR$1=[$1])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
-         +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[=(b, 2:BIGINT)])
+         +- Calc(select=[CAST(2:BIGINT) AS b, a], where=[(b = 2:BIGINT)])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -161,7 +161,7 @@ Calc(select=[CAST(2:BIGINT) AS b, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT four, SUM(a) FROM (SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(four=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
@@ -169,7 +169,7 @@ LogicalProject(four=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[4 AS four, EXPR$1])
 +- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
@@ -177,7 +177,7 @@ Calc(select=[4 AS four, EXPR$1])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

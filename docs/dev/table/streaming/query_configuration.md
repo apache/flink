@@ -22,9 +22,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Table API and SQL queries have the same semantics regardless whether their input is bounded batch input or unbounded stream input. In many cases, continuous queries on streaming input are capable of computing accurate results that are identical to offline computed results. However, this is not possible in general case because continuous queries have to restrict the size of the state they are maintaining in order to avoid to run out of storage and to be able to process unbounded streaming data over a long period of time. As a result, a continuous query might only be able to provide approximated results depending on the characteristics of the input data and the query itself.
+Table API and SQL queries have the same semantics regardless whether their input is a finite set of rows or an unbounded stream of table changes. In many cases, continuous queries on streaming input are able to compute accurate results that are identical to offline computed results. However, for some continuous queries you have to limit the size of the state they are maintaining in order to avoid to run out of storage while ingesting an unbounded stream of input. It depends on the characteristics of the input data and the query itself whether you need to limit the state size and whether and how it affects the accuracy of the computed results.
 
-Flink's Table API and SQL interface provide parameters to tune the accuracy and resource consumption of continuous queries. The parameters are specified via a `TableConfig` object. The `TableConfig` can be obtained from the `TableEnvironment` and is passed back when a `Table` is translated, i.e., when it is [transformed into a DataStream]({{ site.baseurl }}/dev/table/common.html#convert-a-table-into-a-datastream-or-dataset) or [emitted via a TableSink](../common.html#emit-a-table).
+Flink's Table API and SQL interface provide parameters to tune the accuracy and resource consumption of continuous queries. The parameters are specified via a `TableConfig` object, which can be obtained from the `TableEnvironment`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -51,7 +51,7 @@ tableEnv.registerTableSink(
   sink);                       // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable");
+result.executeInsert("outputTable");
 
 // convert result Table into a DataStream<Row>
 DataStream<Row> stream = tableEnv.toAppendStream(result, Row.class);
@@ -82,7 +82,7 @@ tableEnv.registerTableSink(
   sink)                           // table sink
 
 // emit result Table via a TableSink
-result.insertInto("outputTable")
+result.executeInsert("outputTable")
 
 // convert result Table into a DataStream[Row]
 val stream: DataStream[Row] = result.toAppendStream[Row]
@@ -110,7 +110,7 @@ table_env.register_table_sink("outputTable",  # table name
                               sink)  # table sink
 
 # emit result Table via a TableSink
-result.insert_into("outputTable")
+result.execute_insert("outputTable").wait()
 
 {% endhighlight %}
 </div>

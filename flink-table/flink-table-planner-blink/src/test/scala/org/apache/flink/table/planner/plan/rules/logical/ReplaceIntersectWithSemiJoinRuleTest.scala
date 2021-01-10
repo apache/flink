@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -53,22 +53,23 @@ class ReplaceIntersectWithSemiJoinRuleTest extends TableTestBase {
 
   @Test
   def testIntersect(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectWithFilter(): Unit = {
-    util.verifyPlan("SELECT c FROM ((SELECT * FROM T1) INTERSECT (SELECT * FROM T2)) WHERE a > 1")
+    util.verifyRelPlan(
+      "SELECT c FROM ((SELECT * FROM T1) INTERSECT (SELECT * FROM T2)) WHERE a > 1")
   }
 
   @Test
   def testIntersectLeftIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
+    util.verifyRelPlan("SELECT c FROM T1 WHERE 1=0 INTERSECT SELECT f FROM T2")
   }
 
   @Test
   def testIntersectRightIsEmpty(): Unit = {
-    util.verifyPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
+    util.verifyRelPlan("SELECT c FROM T1 INTERSECT SELECT f FROM T2 WHERE 1=0")
   }
 
 }

@@ -30,15 +30,213 @@ generic type extraction, and type serialization framework. This document describ
 * This will be replaced by the TOC
 {:toc}
 
+## Supported Data Types
+
+Flink places some restrictions on the type of elements that can be in a DataSet or DataStream.
+The reason for this is that the system analyzes the types to determine
+efficient execution strategies.
+
+There are seven different categories of data types:
+
+1. **Java Tuples** and **Scala Case Classes**
+2. **Java POJOs**
+3. **Primitive Types**
+4. **Regular Classes**
+5. **Values**
+6. **Hadoop Writables**
+7. **Special Types**
+
+#### Tuples and Case Classes
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+
+Tuples are composite types that contain a fixed number of fields with various types.
+The Java API provides classes from `Tuple1` up to `Tuple25`. Every field of a tuple
+can be an arbitrary Flink type including further tuples, resulting in nested tuples. Fields of a
+tuple can be accessed directly using the field's name as `tuple.f4`, or using the generic getter method
+`tuple.getField(int position)`. The field indices start at 0. Note that this stands in contrast
+to the Scala tuples, but it is more consistent with Java's general indexing.
+
+{% highlight java %}
+DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
+    new Tuple2<String, Integer>("hello", 1),
+    new Tuple2<String, Integer>("world", 2));
+
+wordCounts.map(new MapFunction<Tuple2<String, Integer>, Integer>() {
+    @Override
+    public Integer map(Tuple2<String, Integer> value) throws Exception {
+        return value.f1;
+    }
+});
+
+wordCounts.keyBy(value -> value.f0);
+
+
+{% endhighlight %}
+
+</div>
+<div data-lang="scala" markdown="1">
+
+Scala case classes (and Scala tuples which are a special case of case classes), are composite types that contain a fixed number of fields with various types. Tuple fields are addressed by their 1-offset names such as `_1` for the first field. Case class fields are accessed by their name.
+
+{% highlight scala %}
+case class WordCount(word: String, count: Int)
+val input = env.fromElements(
+    WordCount("hello", 1),
+    WordCount("world", 2)) // Case Class Data Set
+
+input.keyBy(_.word)
+
+val input2 = env.fromElements(("hello", 1), ("world", 2)) // Tuple2 Data Set
+
+input2.keyBy(value => (value._1, value._2))
+{% endhighlight %}
+
+</div>
+</div>
+
+#### POJOs
+
+Java and Scala classes are treated by Flink as a special POJO data type if they fulfill the following requirements:
+
+- The class must be public.
+
+- It must have a public constructor without arguments (default constructor).
+
+- All fields are either public or must be accessible through getter and setter functions. For a field called `foo` the getter and setter methods must be named `getFoo()` and `setFoo()`.
+
+- The type of a field must be supported by a registered serializer.
+
+POJOs are generally represented with a `PojoTypeInfo` and serialized with the `PojoSerializer` (using [Kryo](https://github.com/EsotericSoftware/kryo) as configurable fallback).
+The exception is when the POJOs are actually Avro types (Avro Specific Records) or produced as "Avro Reflect Types". 
+In that case the POJO's are represented by an `AvroTypeInfo` and serialized with the `AvroSerializer`.
+You can also register your own custom serializer if required; see [Serialization](https://ci.apache.org/projects/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
+
+Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
+
+The following example shows a simple POJO with two public fields.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+public class WordWithCount {
+
+    public String word;
+    public int count;
+
+    public WordWithCount() {}
+
+    public WordWithCount(String word, int count) {
+        this.word = word;
+        this.count = count;
+    }
+}
+
+DataStream<WordWithCount> wordCounts = env.fromElements(
+    new WordWithCount("hello", 1),
+    new WordWithCount("world", 2));
+
+wordCounts.keyBy(value -> value.word);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+class WordWithCount(var word: String, var count: Int) {
+    def this() {
+      this(null, -1)
+    }
+}
+
+val input = env.fromElements(
+    new WordWithCount("hello", 1),
+    new WordWithCount("world", 2)) // Case Class Data Set
+
+input.keyBy(_.word)
+
+{% endhighlight %}
+</div>
+</div>
+
+#### Primitive Types
+
+Flink supports all Java and Scala primitive types such as `Integer`, `String`, and `Double`.
+
+#### General Class Types
+
+Flink supports most Java and Scala classes (API and custom).
+Restrictions apply to classes containing fields that cannot be serialized, like file pointers, I/O streams, or other native
+resources. Classes that follow the Java Beans conventions work well in general.
+
+All classes that are not identified as POJO types (see POJO requirements above) are handled by Flink as general class types.
+Flink treats these data types as black boxes and is not able to access their content (e.g., for efficient sorting). General types are de/serialized using the serialization framework [Kryo](https://github.com/EsotericSoftware/kryo).
+
+#### Values
+
+*Value* types describe their serialization and deserialization manually. Instead of going through a
+general purpose serialization framework, they provide custom code for those operations by means of
+implementing the `org.apache.flink.types.Value` interface with the methods `read` and `write`. Using
+a Value type is reasonable when general purpose serialization would be highly inefficient. An
+example would be a data type that implements a sparse vector of elements as an array. Knowing that
+the array is mostly zero, one can use a special encoding for the non-zero elements, while the
+general purpose serialization would simply write all array elements.
+
+The `org.apache.flink.types.CopyableValue` interface supports manual internal cloning logic in a
+similar way.
+
+Flink comes with pre-defined Value types that correspond to basic data types. (`ByteValue`,
+`ShortValue`, `IntValue`, `LongValue`, `FloatValue`, `DoubleValue`, `StringValue`, `CharValue`,
+`BooleanValue`). These Value types act as mutable variants of the basic data types: Their value can
+be altered, allowing programmers to reuse objects and take pressure off the garbage collector.
+
+
+#### Hadoop Writables
+
+You can use types that implement the `org.apache.hadoop.Writable` interface. The serialization logic
+defined in the `write()`and `readFields()` methods will be used for serialization.
+
+#### Special Types
+
+You can use special types, including Scala's `Either`, `Option`, and `Try`.
+The Java API has its own custom implementation of `Either`.
+Similarly to Scala's `Either`, it represents a value of two possible types, *Left* or *Right*.
+`Either` can be useful for error handling or operators that need to output two different types of records.
+
+#### Type Erasure & Type Inference
+
+*Note: This Section is only relevant for Java.*
+
+The Java compiler throws away much of the generic type information after compilation. This is
+known as *type erasure* in Java. It means that at runtime, an instance of an object does not know
+its generic type any more. For example, instances of `DataStream<String>` and `DataStream<Long>` look the
+same to the JVM.
+
+Flink requires type information at the time when it prepares the program for execution (when the
+main method of the program is called). The Flink Java API tries to reconstruct the type information
+that was thrown away in various ways and store it explicitly in the data sets and operators. You can
+retrieve the type via `DataStream.getType()`. The method returns an instance of `TypeInformation`,
+which is Flink's internal way of representing types.
+
+The type inference has its limits and needs the "cooperation" of the programmer in some cases.
+Examples for that are methods that create data sets from collections, such as
+`ExecutionEnvironment.fromCollection(),` where you can pass an argument that describes the type. But
+also generic functions like `MapFunction<I, O>` may need extra type information.
+
+The
+{% gh_link /flink-core/src/main/java/org/apache/flink/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %}
+interface can be implemented by input formats and functions to tell the API
+explicitly about their return type. The *input types* that the functions are invoked with can
+usually be inferred by the result types of the previous operations.
+
+{% top %}
+
 
 ## Type handling in Flink
 
 Flink tries to infer a lot of information about the data types that are exchanged and stored during the distributed computation.
 Think about it like a database that infers the schema of tables. In most cases, Flink infers all necessary information seamlessly
 by itself. Having the type information allows Flink to do some cool things:
-
-* Using POJOs types and grouping / joining / aggregating them by referring to field names (like `dataSet.keyBy("username")`).
-  The type information allows Flink to check (for typos and type compatibility) early rather than failing later at runtime.
 
 * The more Flink knows about data types, the better the serialization and data layout schemes are.
   That is quite important for the memory usage paradigm in Flink (work on serialized data inside/outside the heap where ever possible
@@ -62,7 +260,7 @@ The most frequent issues where users need to interact with Flink's data type han
   by itself. Not all types are seamlessly handled by Kryo (and thus by Flink). For example, many Google Guava collection types do not work well
   by default. The solution is to register additional serializers for the types that cause problems.
   Call `.getConfig().addDefaultKryoSerializer(clazz, serializer)` on the `StreamExecutionEnvironment` or `ExecutionEnvironment`.
-  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({{ site.baseurl }}/dev/custom_serializers.html) for more details on working with custom serializers.
+  Additional Kryo serializers are available in many libraries. See [Custom Serializers]({% link dev/custom_serializers.md %}) for more details on working with custom serializers.
 
 * **Adding Type Hints:** Sometimes, when Flink cannot infer the generic types despite all tricks, a user must pass a *type hint*. That is generally
   only necessary in the Java API. The [Type Hints Section](#type-hints-in-the-java-api) describes that in more detail.

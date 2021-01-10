@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
@@ -31,6 +32,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.TranslatableTable;
 import org.apache.calcite.schema.impl.AbstractTable;
 
@@ -38,64 +40,77 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * A bridge between a Flink's specific {@link QueryOperationCatalogView} and a Calcite's
- * {@link org.apache.calcite.schema.Table}. It implements {@link TranslatableTable} interface. This enables
- * direct translation from {@link org.apache.flink.table.operations.QueryOperation} to {@link RelNode}.
+ * A bridge between a Flink's specific {@link QueryOperationCatalogView} and a Calcite's {@link
+ * org.apache.calcite.schema.Table}. It implements {@link TranslatableTable} interface. This enables
+ * direct translation from {@link org.apache.flink.table.operations.QueryOperation} to {@link
+ * RelNode}.
  *
- * <p>NOTE: Due to legacy inconsistency in null handling in the {@link TableSchema} the translation might introduce
- * additional cast to comply with manifested schema in
- * {@link QueryOperationCatalogViewTable#getRowType(RelDataTypeFactory)}.
+ * <p>NOTE: Due to legacy inconsistency in null handling in the {@link TableSchema} the translation
+ * might introduce additional cast to comply with manifested schema in {@link
+ * QueryOperationCatalogViewTable#getRowType(RelDataTypeFactory)}.
  */
 @Internal
 public class QueryOperationCatalogViewTable extends AbstractTable implements TranslatableTable {
-	private final QueryOperationCatalogView catalogView;
-	private final RelProtoDataType rowType;
+    private final QueryOperationCatalogView catalogView;
+    private final RelProtoDataType rowType;
 
-	public static QueryOperationCatalogViewTable createCalciteTable(QueryOperationCatalogView catalogView) {
-		return new QueryOperationCatalogViewTable(catalogView, typeFactory -> {
-			TableSchema tableSchema = catalogView.getSchema();
-			final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
-			final RelDataType relType = flinkTypeFactory.buildLogicalRowType(tableSchema);
-			Boolean[] nullables = tableSchema
-				.getTableColumns()
-				.stream()
-				.map(c -> c.getType().getLogicalType().isNullable())
-				.toArray(Boolean[]::new);
-			final List<RelDataTypeField> fields = relType
-				.getFieldList()
-				.stream()
-				.map(f -> {
-					boolean nullable = nullables[f.getIndex()];
-					if (nullable != f.getType().isNullable()
-						&& !FlinkTypeFactory.isTimeIndicatorType(f.getType())) {
-						return new RelDataTypeFieldImpl(
-							f.getName(),
-							f.getIndex(),
-							flinkTypeFactory.createTypeWithNullability(f.getType(), nullable));
-					} else {
-						return f;
-					}
-				})
-				.collect(Collectors.toList());
-			return flinkTypeFactory.createStructType(fields);
-		});
-	}
+    @Override
+    public Statistic getStatistic() {
+        return FlinkStatistic.UNKNOWN();
+    }
 
-	private QueryOperationCatalogViewTable(QueryOperationCatalogView catalogView, RelProtoDataType rowType) {
-		this.catalogView = catalogView;
-		this.rowType = rowType;
-	}
+    public static QueryOperationCatalogViewTable createCalciteTable(
+            QueryOperationCatalogView catalogView, TableSchema resolvedSchema) {
+        return new QueryOperationCatalogViewTable(
+                catalogView,
+                typeFactory -> {
+                    final FlinkTypeFactory flinkTypeFactory = (FlinkTypeFactory) typeFactory;
+                    final RelDataType relType =
+                            flinkTypeFactory.buildLogicalRowType(resolvedSchema);
+                    Boolean[] nullables =
+                            resolvedSchema.getTableColumns().stream()
+                                    .map(c -> c.getType().getLogicalType().isNullable())
+                                    .toArray(Boolean[]::new);
+                    final List<RelDataTypeField> fields =
+                            relType.getFieldList().stream()
+                                    .map(
+                                            f -> {
+                                                boolean nullable = nullables[f.getIndex()];
+                                                if (nullable != f.getType().isNullable()
+                                                        && !FlinkTypeFactory.isTimeIndicatorType(
+                                                                f.getType())) {
+                                                    return new RelDataTypeFieldImpl(
+                                                            f.getName(),
+                                                            f.getIndex(),
+                                                            flinkTypeFactory
+                                                                    .createTypeWithNullability(
+                                                                            f.getType(), nullable));
+                                                } else {
+                                                    return f;
+                                                }
+                                            })
+                                    .collect(Collectors.toList());
+                    return flinkTypeFactory.createStructType(fields);
+                });
+    }
 
-	@Override
-	public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
-		FlinkRelBuilder relBuilder = FlinkRelBuilder.of(context.getCluster(), relOptTable.getRelOptSchema());
+    private QueryOperationCatalogViewTable(
+            QueryOperationCatalogView catalogView, RelProtoDataType rowType) {
+        this.catalogView = catalogView;
+        this.rowType = rowType;
+    }
 
-		RelNode relNode = relBuilder.tableOperation(catalogView.getQueryOperation()).build();
-		return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);
-	}
+    @Override
+    public RelNode toRel(RelOptTable.ToRelContext context, RelOptTable relOptTable) {
+        FlinkRelBuilder relBuilder =
+                FlinkRelBuilder.of(context.getCluster(), relOptTable.getRelOptSchema());
 
-	@Override
-	public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-		return rowType.apply(typeFactory);
-	}
+        RelNode relNode = relBuilder.tableOperation(catalogView.getQueryOperation()).build();
+        return RelOptUtil.createCastRel(relNode, rowType.apply(relBuilder.getTypeFactory()), false);
+    }
+
+    @Override
+    public RelDataType getRowType(RelDataTypeFactory typeFactory) {
+        return rowType.apply(typeFactory);
+    }
 }

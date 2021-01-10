@@ -37,67 +37,82 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
-/**
- * Tests for {@link OperatorSnapshotFutures}.
- */
+/** Tests for {@link OperatorSnapshotFutures}. */
 public class OperatorSnapshotFuturesTest extends TestLogger {
 
-	/**
-	 * Tests that all runnable futures in an OperatorSnapshotResult are properly cancelled and if
-	 * the StreamStateHandle result is retrievable that the state handle are discarded.
-	 */
-	@Test
-	public void testCancelAndCleanup() throws Exception {
-		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures();
+    /**
+     * Tests that all runnable futures in an OperatorSnapshotResult are properly cancelled and if
+     * the StreamStateHandle result is retrievable that the state handle are discarded.
+     */
+    @Test
+    public void testCancelAndCleanup() throws Exception {
+        OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures();
 
-		operatorSnapshotResult.cancel();
+        operatorSnapshotResult.cancel();
 
-		KeyedStateHandle keyedManagedStateHandle = mock(KeyedStateHandle.class);
-		SnapshotResult<KeyedStateHandle> keyedStateManagedResult = SnapshotResult.of(keyedManagedStateHandle);
-		RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture = spy(DoneFuture.of(keyedStateManagedResult));
+        KeyedStateHandle keyedManagedStateHandle = mock(KeyedStateHandle.class);
+        SnapshotResult<KeyedStateHandle> keyedStateManagedResult =
+                SnapshotResult.of(keyedManagedStateHandle);
+        RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture =
+                spy(DoneFuture.of(keyedStateManagedResult));
 
-		KeyedStateHandle keyedRawStateHandle = mock(KeyedStateHandle.class);
-		SnapshotResult<KeyedStateHandle> keyedStateRawResult = SnapshotResult.of(keyedRawStateHandle);
-		RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture = spy(DoneFuture.of(keyedStateRawResult));
+        KeyedStateHandle keyedRawStateHandle = mock(KeyedStateHandle.class);
+        SnapshotResult<KeyedStateHandle> keyedStateRawResult =
+                SnapshotResult.of(keyedRawStateHandle);
+        RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture =
+                spy(DoneFuture.of(keyedStateRawResult));
 
-		OperatorStateHandle operatorManagedStateHandle = mock(OperatorStreamStateHandle.class);
-		SnapshotResult<OperatorStateHandle> operatorStateManagedResult = SnapshotResult.of(operatorManagedStateHandle);
-		RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture = spy(DoneFuture.of(operatorStateManagedResult));
+        OperatorStateHandle operatorManagedStateHandle = mock(OperatorStreamStateHandle.class);
+        SnapshotResult<OperatorStateHandle> operatorStateManagedResult =
+                SnapshotResult.of(operatorManagedStateHandle);
+        RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture =
+                spy(DoneFuture.of(operatorStateManagedResult));
 
-		OperatorStateHandle operatorRawStateHandle = mock(OperatorStreamStateHandle.class);
-		SnapshotResult<OperatorStateHandle> operatorStateRawResult = SnapshotResult.of(operatorRawStateHandle);
-		RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture = spy(DoneFuture.of(operatorStateRawResult));
+        OperatorStateHandle operatorRawStateHandle = mock(OperatorStreamStateHandle.class);
+        SnapshotResult<OperatorStateHandle> operatorStateRawResult =
+                SnapshotResult.of(operatorRawStateHandle);
+        RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture =
+                spy(DoneFuture.of(operatorStateRawResult));
 
-		InputChannelStateHandle inputChannelRawStateHandle = mock(InputChannelStateHandle.class);
-		SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannelStateRawResult = SnapshotResult.of(StateObjectCollection.singleton(inputChannelRawStateHandle));
-		Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>> inputChannelStateRawFuture = spy(DoneFuture.of(inputChannelStateRawResult));
+        InputChannelStateHandle inputChannelRawStateHandle = mock(InputChannelStateHandle.class);
+        SnapshotResult<StateObjectCollection<InputChannelStateHandle>> inputChannelStateRawResult =
+                SnapshotResult.of(StateObjectCollection.singleton(inputChannelRawStateHandle));
+        Future<SnapshotResult<StateObjectCollection<InputChannelStateHandle>>>
+                inputChannelStateRawFuture = spy(DoneFuture.of(inputChannelStateRawResult));
 
-		ResultSubpartitionStateHandle resultSubpartitionRawStateHandle = mock(ResultSubpartitionStateHandle.class);
-		SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>> resultSubpartitionStateRawResult = SnapshotResult.of(StateObjectCollection.singleton(resultSubpartitionRawStateHandle));
-		Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>> resultSubpartitionStateRawFuture = spy(DoneFuture.of(resultSubpartitionStateRawResult));
+        ResultSubpartitionStateHandle resultSubpartitionRawStateHandle =
+                mock(ResultSubpartitionStateHandle.class);
+        SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>
+                resultSubpartitionStateRawResult =
+                        SnapshotResult.of(
+                                StateObjectCollection.singleton(resultSubpartitionRawStateHandle));
+        Future<SnapshotResult<StateObjectCollection<ResultSubpartitionStateHandle>>>
+                resultSubpartitionStateRawFuture =
+                        spy(DoneFuture.of(resultSubpartitionStateRawResult));
 
-		operatorSnapshotResult = new OperatorSnapshotFutures(
-			keyedStateManagedFuture,
-			keyedStateRawFuture,
-			operatorStateManagedFuture,
-			operatorStateRawFuture,
-			inputChannelStateRawFuture,
-			resultSubpartitionStateRawFuture);
+        operatorSnapshotResult =
+                new OperatorSnapshotFutures(
+                        keyedStateManagedFuture,
+                        keyedStateRawFuture,
+                        operatorStateManagedFuture,
+                        operatorStateRawFuture,
+                        inputChannelStateRawFuture,
+                        resultSubpartitionStateRawFuture);
 
-		operatorSnapshotResult.cancel();
+        operatorSnapshotResult.cancel();
 
-		verify(keyedStateManagedFuture).cancel(true);
-		verify(keyedStateRawFuture).cancel(true);
-		verify(operatorStateManagedFuture).cancel(true);
-		verify(operatorStateRawFuture).cancel(true);
-		verify(inputChannelStateRawFuture).cancel(true);
-		verify(resultSubpartitionStateRawFuture).cancel(true);
+        verify(keyedStateManagedFuture).cancel(true);
+        verify(keyedStateRawFuture).cancel(true);
+        verify(operatorStateManagedFuture).cancel(true);
+        verify(operatorStateRawFuture).cancel(true);
+        verify(inputChannelStateRawFuture).cancel(true);
+        verify(resultSubpartitionStateRawFuture).cancel(true);
 
-		verify(keyedManagedStateHandle).discardState();
-		verify(keyedRawStateHandle).discardState();
-		verify(operatorManagedStateHandle).discardState();
-		verify(operatorRawStateHandle).discardState();
-		verify(inputChannelRawStateHandle).discardState();
-		verify(resultSubpartitionRawStateHandle).discardState();
-	}
+        verify(keyedManagedStateHandle).discardState();
+        verify(keyedRawStateHandle).discardState();
+        verify(operatorManagedStateHandle).discardState();
+        verify(operatorRawStateHandle).discardState();
+        verify(inputChannelRawStateHandle).discardState();
+        verify(resultSubpartitionRawStateHandle).discardState();
+    }
 }

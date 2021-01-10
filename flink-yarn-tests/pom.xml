@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,7 +34,7 @@ under the License.
 	-->
 	
 	<artifactId>flink-yarn-tests</artifactId>
-	<name>flink-yarn-tests</name>
+	<name>Flink : Yarn Tests</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -90,14 +90,6 @@ under the License.
 			<artifactId>flink-yarn_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<!-- prevent flink-shaded-hadoop from being on the test classpath
-					 	to avoid conflicts with other dependencies -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -106,14 +98,6 @@ under the License.
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<!-- prevent flink-shaded-hadoop from being on the test classpath
-					 	to avoid conflicts with other dependencies -->
-					<groupId>org.apache.flink</groupId>
-					<artifactId>flink-shaded-hadoop-2</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -395,47 +379,53 @@ under the License.
 						<goals>
 							<goal>copy</goal>
 						</goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WordCount</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>BatchWordCount.jar</destFileName>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WordCount</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>StreamingWordCount.jar</destFileName>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.flink</groupId>
+									<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
+									<type>jar</type>
+									<classifier>WindowJoin</classifier>
+									<overWrite>true</overWrite>
+									<destFileName>WindowJoin.jar</destFileName>
+								</artifactItem>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/programs</outputDirectory>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+					<!-- Write classpath of flink-yarn-tests to a file, so that the yarn tests can use it as their classpath
+						for the YARN "containers".
+					-->
+					<execution>
+						<id>store-classpath-in-target-for-tests</id>
+						<phase>package</phase>
+						<goals>
+							<goal>build-classpath</goal>
+						</goals>
+						<configuration>
+							<outputFile>${project.build.directory}/yarn.classpath</outputFile>
+							<excludeGroupIds>org.apache.flink</excludeGroupIds>
+						</configuration>
 					</execution>
 				</executions>
-				<configuration>
-					<artifactItems>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-							<version>${hadoop.version}-${flink.shaded.version}</version>
-							<type>jar</type>
-							<overWrite>true</overWrite>
-							<outputDirectory>${project.build.directory}/shaded-hadoop</outputDirectory>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-batch_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WordCount</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>BatchWordCount.jar</destFileName>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WordCount</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>StreamingWordCount.jar</destFileName>
-						</artifactItem>
-						<artifactItem>
-							<groupId>org.apache.flink</groupId>
-							<artifactId>flink-examples-streaming_${scala.binary.version}</artifactId>
-							<type>jar</type>
-							<classifier>WindowJoin</classifier>
-							<overWrite>true</overWrite>
-							<destFileName>WindowJoin.jar</destFileName>
-						</artifactItem>
-					</artifactItems>
-					<outputDirectory>${project.build.directory}/programs</outputDirectory>
-					<overWriteReleases>false</overWriteReleases>
-					<overWriteSnapshots>true</overWriteSnapshots>
-				</configuration>
 			</plugin>
 		</plugins>
 	</build>

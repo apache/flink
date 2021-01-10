@@ -138,17 +138,17 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     }
   }
 
-  def getRowCount(rel: BatchExecGroupAggregateBase, mq: RelMetadataQuery): JDouble = {
+  def getRowCount(rel: BatchPhysicalGroupAggregateBase, mq: RelMetadataQuery): JDouble = {
     getRowCountOfBatchExecAgg(rel, mq)
   }
 
   private def getRowCountOfBatchExecAgg(rel: SingleRel, mq: RelMetadataQuery): JDouble = {
     val input = rel.getInput
     val (grouping, isFinal, isMerge) = rel match {
-      case agg: BatchExecGroupAggregateBase =>
-        (ImmutableBitSet.of(agg.getGrouping: _*), agg.isFinal, agg.isMerge)
-      case windowAgg: BatchExecWindowAggregateBase =>
-        (ImmutableBitSet.of(windowAgg.getGrouping: _*), windowAgg.isFinal, windowAgg.isMerge)
+      case agg: BatchPhysicalGroupAggregateBase =>
+        (ImmutableBitSet.of(agg.grouping: _*), agg.isFinal, agg.isMerge)
+      case windowAgg: BatchPhysicalWindowAggregateBase =>
+        (ImmutableBitSet.of(windowAgg.grouping: _*), windowAgg.isFinal, windowAgg.isMerge)
       case _ => throw new IllegalArgumentException(s"Unknown aggregate type ${rel.getRelTypeName}!")
     }
     val ndvOfGroupKeysOnGlobalAgg: JDouble = if (grouping.isEmpty) {
@@ -199,10 +199,10 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
     estimateRowCountOfWindowAgg(ndvOfGroupKeys, inputRowCount, rel.getWindow)
   }
 
-  def getRowCount(rel: BatchExecWindowAggregateBase, mq: RelMetadataQuery): JDouble = {
+  def getRowCount(rel: BatchPhysicalWindowAggregateBase, mq: RelMetadataQuery): JDouble = {
     val ndvOfGroupKeys = getRowCountOfBatchExecAgg(rel, mq)
     val inputRowCount = mq.getRowCount(rel.getInput)
-    estimateRowCountOfWindowAgg(ndvOfGroupKeys, inputRowCount, rel.getWindow)
+    estimateRowCountOfWindowAgg(ndvOfGroupKeys, inputRowCount, rel.window)
   }
 
   private def estimateRowCountOfWindowAgg(

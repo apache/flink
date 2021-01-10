@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
 
 import org.junit.Test;
 
@@ -32,94 +32,94 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-/**
- * Tests of {@link ProcTimeMiniBatchAssignerOperator}.
- */
+/** Tests of {@link ProcTimeMiniBatchAssignerOperator}. */
 public class ProcTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
-	@Test
-	public void testMiniBatchAssignerOperator() throws Exception {
-		final ProcTimeMiniBatchAssignerOperator operator = new ProcTimeMiniBatchAssignerOperator(100);
+    @Test
+    public void testMiniBatchAssignerOperator() throws Exception {
+        final ProcTimeMiniBatchAssignerOperator operator =
+                new ProcTimeMiniBatchAssignerOperator(100);
 
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator);
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                new OneInputStreamOperatorTestHarness<>(operator);
 
-		long currentTime = 0;
+        long currentTime = 0;
 
-		testHarness.open();
+        testHarness.open();
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(1L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(2L)));
-		testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(3L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(1L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(2L)));
+        testHarness.processWatermark(new Watermark(2)); // this watermark should be ignored
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(3L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
 
-		{
-			ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-			long currentElement = 1L;
-			long lastWatermark = 0L;
+        {
+            ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+            long currentElement = 1L;
+            long lastWatermark = 0L;
 
-			while (true) {
-				if (output.size() > 0) {
-					Object next = output.poll();
-					assertNotNull(next);
-					Tuple2<Long, Long> update = validateElement(next, currentElement, lastWatermark);
-					long nextElementValue = update.f0;
-					lastWatermark = update.f1;
-					if (next instanceof Watermark) {
-						assertEquals(100, lastWatermark);
-						break;
-					} else {
-						assertEquals(currentElement, nextElementValue - 1);
-						currentElement += 1;
-						assertEquals(0, lastWatermark);
-					}
-				} else {
-					currentTime = currentTime + 10;
-					testHarness.setProcessingTime(currentTime);
-				}
-			}
+            while (true) {
+                if (output.size() > 0) {
+                    Object next = output.poll();
+                    assertNotNull(next);
+                    Tuple2<Long, Long> update =
+                            validateElement(next, currentElement, lastWatermark);
+                    long nextElementValue = update.f0;
+                    lastWatermark = update.f1;
+                    if (next instanceof Watermark) {
+                        assertEquals(100, lastWatermark);
+                        break;
+                    } else {
+                        assertEquals(currentElement, nextElementValue - 1);
+                        currentElement += 1;
+                        assertEquals(0, lastWatermark);
+                    }
+                } else {
+                    currentTime = currentTime + 10;
+                    testHarness.setProcessingTime(currentTime);
+                }
+            }
 
-			output.clear();
-		}
+            output.clear();
+        }
 
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(4L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(5L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(6L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(7L)));
-		testHarness.processElement(new StreamRecord<>(GenericRow.of(8L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(4L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(5L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(6L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(7L)));
+        testHarness.processElement(new StreamRecord<>(GenericRowData.of(8L)));
 
-		{
-			ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
-			long currentElement = 4L;
-			long lastWatermark = 100L;
+        {
+            ConcurrentLinkedQueue<Object> output = testHarness.getOutput();
+            long currentElement = 4L;
+            long lastWatermark = 100L;
 
-			while (true) {
-				if (output.size() > 0) {
-					Object next = output.poll();
-					assertNotNull(next);
-					Tuple2<Long, Long> update = validateElement(next, currentElement, lastWatermark);
-					long nextElementValue = update.f0;
-					lastWatermark = update.f1;
-					if (next instanceof Watermark) {
-						assertEquals(200, lastWatermark);
-						break;
-					} else {
-						assertEquals(currentElement, nextElementValue - 1);
-						currentElement += 1;
-						assertEquals(100, lastWatermark);
-					}
-				} else {
-					currentTime = currentTime + 10;
-					testHarness.setProcessingTime(currentTime);
-				}
-			}
+            while (true) {
+                if (output.size() > 0) {
+                    Object next = output.poll();
+                    assertNotNull(next);
+                    Tuple2<Long, Long> update =
+                            validateElement(next, currentElement, lastWatermark);
+                    long nextElementValue = update.f0;
+                    lastWatermark = update.f1;
+                    if (next instanceof Watermark) {
+                        assertEquals(200, lastWatermark);
+                        break;
+                    } else {
+                        assertEquals(currentElement, nextElementValue - 1);
+                        currentElement += 1;
+                        assertEquals(100, lastWatermark);
+                    }
+                } else {
+                    currentTime = currentTime + 10;
+                    testHarness.setProcessingTime(currentTime);
+                }
+            }
 
-			output.clear();
-		}
+            output.clear();
+        }
 
-		testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
-		assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
-	}
-
+        testHarness.processWatermark(new Watermark(Long.MAX_VALUE));
+        assertEquals(Long.MAX_VALUE, ((Watermark) testHarness.getOutput().poll()).getTimestamp());
+    }
 }

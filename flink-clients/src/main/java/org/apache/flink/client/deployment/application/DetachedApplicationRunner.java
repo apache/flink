@@ -40,9 +40,9 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * An {@link ApplicationRunner} which runs the user specified application using the {@link EmbeddedExecutor}.
- * This runner invokes methods of the provided {@link DispatcherGateway} directly, and it does not go through
- * the REST API.
+ * An {@link ApplicationRunner} which runs the user specified application using the {@link
+ * EmbeddedExecutor}. This runner invokes methods of the provided {@link DispatcherGateway}
+ * directly, and it does not go through the REST API.
  *
  * <p>In addition, this runner does not wait for the application to finish, but it submits the
  * application in a {@code DETACHED} mode. As a consequence, applications with jobs that rely on
@@ -51,36 +51,43 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class DetachedApplicationRunner implements ApplicationRunner {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DetachedApplicationRunner.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DetachedApplicationRunner.class);
 
-	private final boolean enforceSingleJobExecution;
+    private final boolean enforceSingleJobExecution;
 
-	public DetachedApplicationRunner(final boolean enforceSingleJobExecution) {
-		this.enforceSingleJobExecution = enforceSingleJobExecution;
-	}
+    public DetachedApplicationRunner(final boolean enforceSingleJobExecution) {
+        this.enforceSingleJobExecution = enforceSingleJobExecution;
+    }
 
-	@Override
-	public List<JobID> run(final DispatcherGateway dispatcherGateway, final PackagedProgram program, final Configuration configuration) {
-		checkNotNull(dispatcherGateway);
-		checkNotNull(program);
-		checkNotNull(configuration);
-		return tryExecuteJobs(dispatcherGateway, program, configuration);
-	}
+    @Override
+    public List<JobID> run(
+            final DispatcherGateway dispatcherGateway,
+            final PackagedProgram program,
+            final Configuration configuration) {
+        checkNotNull(dispatcherGateway);
+        checkNotNull(program);
+        checkNotNull(configuration);
+        return tryExecuteJobs(dispatcherGateway, program, configuration);
+    }
 
-	private List<JobID> tryExecuteJobs(final DispatcherGateway dispatcherGateway, final PackagedProgram program, final Configuration configuration) {
-		configuration.set(DeploymentOptions.ATTACHED, false);
+    private List<JobID> tryExecuteJobs(
+            final DispatcherGateway dispatcherGateway,
+            final PackagedProgram program,
+            final Configuration configuration) {
+        configuration.set(DeploymentOptions.ATTACHED, false);
 
-		final List<JobID> applicationJobIds = new ArrayList<>();
-		final PipelineExecutorServiceLoader executorServiceLoader =
-				new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway);
+        final List<JobID> applicationJobIds = new ArrayList<>();
+        final PipelineExecutorServiceLoader executorServiceLoader =
+                new WebSubmissionExecutorServiceLoader(applicationJobIds, dispatcherGateway);
 
-		try {
-			ClientUtils.executeProgram(executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
-		} catch (ProgramInvocationException e) {
-			LOG.warn("Could not execute application: ", e);
-			throw new FlinkRuntimeException("Could not execute application.", e);
-		}
+        try {
+            ClientUtils.executeProgram(
+                    executorServiceLoader, configuration, program, enforceSingleJobExecution, true);
+        } catch (ProgramInvocationException e) {
+            LOG.warn("Could not execute application: ", e);
+            throw new FlinkRuntimeException("Could not execute application.", e);
+        }
 
-		return applicationJobIds;
-	}
+        return applicationJobIds;
+    }
 }

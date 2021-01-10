@@ -19,7 +19,8 @@
 package org.apache.flink.table.`match`
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.runtime.stream.sql.ToMillis
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg

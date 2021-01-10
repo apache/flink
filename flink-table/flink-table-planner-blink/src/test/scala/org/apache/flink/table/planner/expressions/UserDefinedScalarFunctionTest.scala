@@ -20,12 +20,11 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{DataTypes, Types, ValidationException}
+import org.apache.flink.table.api._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils.{ExpressionTestBase, _}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions._
-import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{DateFunction, DateTimeFunction, LocalDateFunction, LocalTimeFunction, TimeFunction, TimestampFunction}
+import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.types.Row
 

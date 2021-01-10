@@ -53,249 +53,283 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/**
- * Tests for {@link StreamOperatorWrapper}.
- */
+/** Tests for {@link StreamOperatorWrapper}. */
 public class StreamOperatorWrapperTest extends TestLogger {
 
-	private static SystemProcessingTimeService timerService;
+    private static SystemProcessingTimeService timerService;
 
-	private static final int numOperators = 3;
+    private static final int numOperators = 3;
 
-	private List<StreamOperatorWrapper<?, ?>> operatorWrappers;
+    private List<StreamOperatorWrapper<?, ?>> operatorWrappers;
 
-	private ConcurrentLinkedQueue<Object> output;
+    private ConcurrentLinkedQueue<Object> output;
 
-	private volatile StreamTask<?, ?> containingTask;
+    private volatile StreamTask<?, ?> containingTask;
 
-	@BeforeClass
-	public static void startTimeService() {
-		CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
-		timerService = new SystemProcessingTimeService(errorFuture::complete);
-	}
+    @BeforeClass
+    public static void startTimeService() {
+        CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
+        timerService = new SystemProcessingTimeService(errorFuture::complete);
+    }
 
-	@AfterClass
-	public static void shutdownTimeService() {
-		timerService.shutdownService();
-	}
+    @AfterClass
+    public static void shutdownTimeService() {
+        timerService.shutdownService();
+    }
 
-	@Before
-	public void setup() throws Exception {
-		this.operatorWrappers = new ArrayList<>();
-		this.output = new ConcurrentLinkedQueue<>();
+    @Before
+    public void setup() throws Exception {
+        this.operatorWrappers = new ArrayList<>();
+        this.output = new ConcurrentLinkedQueue<>();
 
-		try (MockEnvironment env = MockEnvironment.builder().build()) {
-			this.containingTask = new MockStreamTaskBuilder(env).build();
+        try (MockEnvironment env = MockEnvironment.builder().build()) {
+            this.containingTask = new MockStreamTaskBuilder(env).build();
 
-			// initialize operator wrappers
-			for (int i = 0; i < numOperators; i++) {
-				MailboxExecutor mailboxExecutor = containingTask.getMailboxExecutorFactory().createExecutor(i);
+            // initialize operator wrappers
+            for (int i = 0; i < numOperators; i++) {
+                MailboxExecutor mailboxExecutor =
+                        containingTask.getMailboxExecutorFactory().createExecutor(i);
 
-				TimerMailController timerMailController = new TimerMailController(containingTask, mailboxExecutor);
-				ProcessingTimeServiceImpl processingTimeService = new ProcessingTimeServiceImpl(
-					timerService,
-					timerMailController::wrapCallback);
+                TimerMailController timerMailController =
+                        new TimerMailController(containingTask, mailboxExecutor);
+                ProcessingTimeServiceImpl processingTimeService =
+                        new ProcessingTimeServiceImpl(
+                                timerService, timerMailController::wrapCallback);
 
-				TestOneInputStreamOperator streamOperator = new TestOneInputStreamOperator(
-					"Operator" + i, output, processingTimeService, mailboxExecutor, timerMailController);
-				streamOperator.setProcessingTimeService(processingTimeService);
+                TestOneInputStreamOperator streamOperator =
+                        new TestOneInputStreamOperator(
+                                "Operator" + i,
+                                output,
+                                processingTimeService,
+                                mailboxExecutor,
+                                timerMailController);
+                streamOperator.setProcessingTimeService(processingTimeService);
 
-				StreamOperatorWrapper<?, ?> operatorWrapper = new StreamOperatorWrapper<>(
-					streamOperator,
-					Optional.ofNullable(streamOperator.getProcessingTimeService()),
-					mailboxExecutor);
-				operatorWrappers.add(operatorWrapper);
-			}
+                StreamOperatorWrapper<?, ?> operatorWrapper =
+                        new StreamOperatorWrapper<>(
+                                streamOperator,
+                                Optional.ofNullable(streamOperator.getProcessingTimeService()),
+                                mailboxExecutor,
+                                i == 0);
+                operatorWrappers.add(operatorWrapper);
+            }
 
-			StreamOperatorWrapper<?, ?> previous = null;
-			for (StreamOperatorWrapper<?, ?> current : operatorWrappers) {
-				if (previous != null) {
-					previous.setNext(current);
-				}
-				current.setPrevious(previous);
-				previous = current;
-			}
-		}
-	}
+            StreamOperatorWrapper<?, ?> previous = null;
+            for (StreamOperatorWrapper<?, ?> current : operatorWrappers) {
+                if (previous != null) {
+                    previous.setNext(current);
+                }
+                current.setPrevious(previous);
+                previous = current;
+            }
+        }
+    }
 
-	@After
-	public void teardown() throws Exception {
-		containingTask.cleanup();
-	}
+    @After
+    public void teardown() throws Exception {
+        containingTask.cleanup();
+    }
 
-	@Test
-	public void testClose() throws Exception {
-		output.clear();
-		operatorWrappers.get(0).close(containingTask.getActionExecutor());
+    @Test
+    public void testClose() throws Exception {
+        output.clear();
+        operatorWrappers.get(0).close(containingTask.getActionExecutor());
 
-		List<Object> expected = new ArrayList<>();
-		for (int i = 0; i < operatorWrappers.size(); i++) {
-			String prefix = "[" + "Operator" + i + "]";
-			Collections.addAll(expected,
-				prefix + ": End of input",
-				prefix + ": Timer that was in mailbox before closing operator",
-				prefix + ": Bye",
-				prefix + ": Mail to put in mailbox when closing operator");
-		}
+        List<Object> expected = new ArrayList<>();
+        for (int i = 0; i < operatorWrappers.size(); i++) {
+            String prefix = "[" + "Operator" + i + "]";
+            Collections.addAll(
+                    expected,
+                    prefix + ": End of input",
+                    prefix + ": Timer that was in mailbox before closing operator",
+                    prefix + ": Bye",
+                    prefix + ": Mail to put in mailbox when closing operator");
+        }
 
-		assertArrayEquals(
-			"Output was not correct.",
-			expected.subList(2, expected.size()).toArray(),
-			output.toArray()
-		);
-	}
+        assertArrayEquals(
+                "Output was not correct.",
+                expected.subList(2, expected.size()).toArray(),
+                output.toArray());
+    }
 
-	@Test
-	public void testClosingOperatorWithException() {
-		AbstractStreamOperator streamOperator = new AbstractStreamOperator<Void>() {
-			@Override
-			public void close() throws Exception {
-				throw new Exception("test exception at closing");
-			}
-		};
+    @Test
+    public void testClosingOperatorWithException() {
+        AbstractStreamOperator streamOperator =
+                new AbstractStreamOperator<Void>() {
+                    @Override
+                    public void close() throws Exception {
+                        throw new Exception("test exception at closing");
+                    }
+                };
 
-		StreamOperatorWrapper<?, ?> operatorWrapper = new StreamOperatorWrapper<>(
-			streamOperator,
-			Optional.ofNullable(streamOperator.getProcessingTimeService()),
-			containingTask.getMailboxExecutorFactory().createExecutor(Integer.MAX_VALUE - 1));
+        StreamOperatorWrapper<?, ?> operatorWrapper =
+                new StreamOperatorWrapper<>(
+                        streamOperator,
+                        Optional.ofNullable(streamOperator.getProcessingTimeService()),
+                        containingTask
+                                .getMailboxExecutorFactory()
+                                .createExecutor(Integer.MAX_VALUE - 1),
+                        true);
 
-		try {
-			operatorWrapper.close(containingTask.getActionExecutor());
-			fail("should throw an exception");
-		} catch (Throwable t) {
-			Optional<Throwable> optional = ExceptionUtils.findThrowableWithMessage(t, "test exception at closing");
-			assertTrue(optional.isPresent());
-		}
-	}
+        try {
+            operatorWrapper.close(containingTask.getActionExecutor());
+            fail("should throw an exception");
+        } catch (Throwable t) {
+            Optional<Throwable> optional =
+                    ExceptionUtils.findThrowableWithMessage(t, "test exception at closing");
+            assertTrue(optional.isPresent());
+        }
+    }
 
-	@Test
-	public void testReadIterator() {
-		// traverse operators in forward order
-		Iterator<StreamOperatorWrapper<?, ?>> it = new StreamOperatorWrapper.ReadIterator(operatorWrappers.get(0), false);
-		for (int i = 0; i < operatorWrappers.size(); i++) {
-			assertTrue(it.hasNext());
+    @Test
+    public void testReadIterator() {
+        // traverse operators in forward order
+        Iterator<StreamOperatorWrapper<?, ?>> it =
+                new StreamOperatorWrapper.ReadIterator(operatorWrappers.get(0), false);
+        for (int i = 0; i < operatorWrappers.size(); i++) {
+            assertTrue(it.hasNext());
 
-			StreamOperatorWrapper<?, ?> next = it.next();
-			assertNotNull(next);
+            StreamOperatorWrapper<?, ?> next = it.next();
+            assertNotNull(next);
 
-			TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
-			assertEquals("Operator" + i, operator.getName());
-		}
-		assertFalse(it.hasNext());
+            TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
+            assertEquals("Operator" + i, operator.getName());
+        }
+        assertFalse(it.hasNext());
 
-		// traverse operators in reverse order
-		it = new StreamOperatorWrapper.ReadIterator(operatorWrappers.get(operatorWrappers.size() - 1), true);
-		for (int i = operatorWrappers.size() - 1; i >= 0; i--) {
-			assertTrue(it.hasNext());
+        // traverse operators in reverse order
+        it =
+                new StreamOperatorWrapper.ReadIterator(
+                        operatorWrappers.get(operatorWrappers.size() - 1), true);
+        for (int i = operatorWrappers.size() - 1; i >= 0; i--) {
+            assertTrue(it.hasNext());
 
-			StreamOperatorWrapper<?, ?> next = it.next();
-			assertNotNull(next);
+            StreamOperatorWrapper<?, ?> next = it.next();
+            assertNotNull(next);
 
-			TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
-			assertEquals("Operator" + i, operator.getName());
-		}
-		assertFalse(it.hasNext());
-	}
+            TestOneInputStreamOperator operator = getStreamOperatorFromWrapper(next);
+            assertEquals("Operator" + i, operator.getName());
+        }
+        assertFalse(it.hasNext());
+    }
 
-	private TestOneInputStreamOperator getStreamOperatorFromWrapper(StreamOperatorWrapper<?, ?> operatorWrapper) {
-		return (TestOneInputStreamOperator) Objects.requireNonNull(operatorWrapper.getStreamOperator());
-	}
+    private TestOneInputStreamOperator getStreamOperatorFromWrapper(
+            StreamOperatorWrapper<?, ?> operatorWrapper) {
+        return (TestOneInputStreamOperator)
+                Objects.requireNonNull(operatorWrapper.getStreamOperator());
+    }
 
-	private static class TimerMailController {
+    private static class TimerMailController {
 
-		private final StreamTask<?, ?> containingTask;
+        private final StreamTask<?, ?> containingTask;
 
-		private final MailboxExecutor mailboxExecutor;
+        private final MailboxExecutor mailboxExecutor;
 
-		private final ConcurrentHashMap<ProcessingTimeCallback, OneShotLatch> puttingLatches;
+        private final ConcurrentHashMap<ProcessingTimeCallback, OneShotLatch> puttingLatches;
 
-		private final ConcurrentHashMap<ProcessingTimeCallback, OneShotLatch> inMailboxLatches;
+        private final ConcurrentHashMap<ProcessingTimeCallback, OneShotLatch> inMailboxLatches;
 
-		TimerMailController(StreamTask<?, ?> containingTask, MailboxExecutor mailboxExecutor) {
-			this.containingTask = containingTask;
-			this.mailboxExecutor = mailboxExecutor;
+        TimerMailController(StreamTask<?, ?> containingTask, MailboxExecutor mailboxExecutor) {
+            this.containingTask = containingTask;
+            this.mailboxExecutor = mailboxExecutor;
 
-			this.puttingLatches = new ConcurrentHashMap<>();
-			this.inMailboxLatches = new ConcurrentHashMap<>();
-		}
+            this.puttingLatches = new ConcurrentHashMap<>();
+            this.inMailboxLatches = new ConcurrentHashMap<>();
+        }
 
-		OneShotLatch getPuttingLatch(ProcessingTimeCallback callback) {
-			return puttingLatches.get(callback);
-		}
+        OneShotLatch getPuttingLatch(ProcessingTimeCallback callback) {
+            return puttingLatches.get(callback);
+        }
 
-		OneShotLatch getInMailboxLatch(ProcessingTimeCallback callback) {
-			return inMailboxLatches.get(callback);
-		}
+        OneShotLatch getInMailboxLatch(ProcessingTimeCallback callback) {
+            return inMailboxLatches.get(callback);
+        }
 
-		ProcessingTimeCallback wrapCallback(ProcessingTimeCallback callback) {
-			puttingLatches.put(callback, new OneShotLatch());
-			inMailboxLatches.put(callback, new OneShotLatch());
+        ProcessingTimeCallback wrapCallback(ProcessingTimeCallback callback) {
+            puttingLatches.put(callback, new OneShotLatch());
+            inMailboxLatches.put(callback, new OneShotLatch());
 
-			return timestamp -> {
-				puttingLatches.get(callback).trigger();
-				containingTask.deferCallbackToMailbox(mailboxExecutor, callback).onProcessingTime(timestamp);
-				inMailboxLatches.get(callback).trigger();
-			};
-		}
-	}
+            return timestamp -> {
+                puttingLatches.get(callback).trigger();
+                containingTask
+                        .deferCallbackToMailbox(mailboxExecutor, callback)
+                        .onProcessingTime(timestamp);
+                inMailboxLatches.get(callback).trigger();
+            };
+        }
+    }
 
-	private static class TestOneInputStreamOperator extends AbstractStreamOperator<String>
-		implements OneInputStreamOperator<String, String>, BoundedOneInput {
+    private static class TestOneInputStreamOperator extends AbstractStreamOperator<String>
+            implements OneInputStreamOperator<String, String>, BoundedOneInput {
 
-		private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 1L;
 
-		private final String name;
+        private final String name;
 
-		private final ConcurrentLinkedQueue<Object> output;
+        private final ConcurrentLinkedQueue<Object> output;
 
-		private final ProcessingTimeService processingTimeService;
+        private final ProcessingTimeService processingTimeService;
 
-		private final MailboxExecutor mailboxExecutor;
+        private final MailboxExecutor mailboxExecutor;
 
-		private final TimerMailController timerMailController;
+        private final TimerMailController timerMailController;
 
-		TestOneInputStreamOperator(
-			String name,
-			ConcurrentLinkedQueue<Object> output,
-			ProcessingTimeService processingTimeService,
-			MailboxExecutor mailboxExecutor,
-			TimerMailController timerMailController) {
+        TestOneInputStreamOperator(
+                String name,
+                ConcurrentLinkedQueue<Object> output,
+                ProcessingTimeService processingTimeService,
+                MailboxExecutor mailboxExecutor,
+                TimerMailController timerMailController) {
 
-			this.name = name;
-			this.output = output;
-			this.processingTimeService = processingTimeService;
-			this.mailboxExecutor = mailboxExecutor;
-			this.timerMailController = timerMailController;
+            this.name = name;
+            this.output = output;
+            this.processingTimeService = processingTimeService;
+            this.mailboxExecutor = mailboxExecutor;
+            this.timerMailController = timerMailController;
 
-			processingTimeService.registerTimer(
-				Long.MAX_VALUE, t2 -> output.add("[" + name + "]: Timer not triggered"));
-		}
+            processingTimeService.registerTimer(
+                    Long.MAX_VALUE, t2 -> output.add("[" + name + "]: Timer not triggered"));
+        }
 
-		public String getName() {
-			return name;
-		}
+        public String getName() {
+            return name;
+        }
 
-		@Override
-		public void processElement(StreamRecord<String> element) {}
+        @Override
+        public void processElement(StreamRecord<String> element) {}
 
-		@Override
-		public void endInput() throws InterruptedException {
-			output.add("[" + name + "]: End of input");
+        @Override
+        public void endInput() throws InterruptedException {
+            output.add("[" + name + "]: End of input");
 
-			ProcessingTimeCallback callback = t1 -> output.add("[" + name + "]: Timer that was in mailbox before closing operator");
-			processingTimeService.registerTimer(0, callback);
-			timerMailController.getInMailboxLatch(callback).await();
-		}
+            ProcessingTimeCallback callback =
+                    t1 ->
+                            output.add(
+                                    "["
+                                            + name
+                                            + "]: Timer that was in mailbox before closing operator");
+            processingTimeService.registerTimer(0, callback);
+            timerMailController.getInMailboxLatch(callback).await();
+        }
 
-		@Override
-		public void close() throws Exception {
-			ProcessingTimeCallback callback = t1 -> output.add("[" + name + "]: Timer to put in mailbox when closing operator");
-			assertNotNull(processingTimeService.registerTimer(0, callback));
-			assertNull(timerMailController.getPuttingLatch(callback));
+        @Override
+        public void close() throws Exception {
+            ProcessingTimeCallback callback =
+                    t1 ->
+                            output.add(
+                                    "["
+                                            + name
+                                            + "]: Timer to put in mailbox when closing operator");
+            assertNotNull(processingTimeService.registerTimer(0, callback));
+            assertNull(timerMailController.getPuttingLatch(callback));
 
-			mailboxExecutor.submit(() -> output.add("[" + name + "]: Mail to put in mailbox when closing operator"), "");
+            mailboxExecutor.submit(
+                    () ->
+                            output.add(
+                                    "[" + name + "]: Mail to put in mailbox when closing operator"),
+                    "");
 
-			output.add("[" + name + "]: Bye");
-		}
-	}
+            output.add("[" + name + "]: Bye");
+        }
+    }
 }

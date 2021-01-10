@@ -25,18 +25,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for the {@link JavaGcCleanerWrapper}.
- */
+/** Tests for the {@link JavaGcCleanerWrapper}. */
 public class JavaGcCleanerWrapperTest {
-	@Test
-	public void testCleanOperationRunsOnlyOnceEitherOnGcOrExplicitly() throws InterruptedException {
-		AtomicInteger callCounter = new AtomicInteger();
-		Runnable cleaner = JavaGcCleanerWrapper.create(new Object(), callCounter::incrementAndGet);
-		System.gc(); // not guaranteed to be run always but should in practice
-		Thread.sleep(10); // more chance for GC to run
-		cleaner.run();
-		cleaner.run();
-		assertThat(callCounter.get(), is(1));
-	}
+    @Test
+    public void testCleanOperationRunsOnlyOnceEitherOnGcOrExplicitly() throws InterruptedException {
+        AtomicInteger callCounter = new AtomicInteger();
+        Runnable cleaner =
+                JavaGcCleanerWrapper.createCleaner(new Object(), callCounter::incrementAndGet);
+        System.gc(); // not guaranteed to be run always but should in practice
+        Thread.sleep(10); // more chance for GC to run
+        cleaner.run();
+        cleaner.run();
+        assertThat(callCounter.get(), is(1));
+    }
 }

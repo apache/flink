@@ -18,6 +18,7 @@
 
 package org.apache.flink.kubernetes.entrypoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.resources.CPUResource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
@@ -25,22 +26,22 @@ import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpecFactory;
 
-/**
- * Implementation of {@link WorkerResourceSpecFactory} for Kubernetes deployments.
- */
+/** Implementation of {@link WorkerResourceSpecFactory} for Kubernetes deployments. */
 public class KubernetesWorkerResourceSpecFactory extends WorkerResourceSpecFactory {
 
-	public static final KubernetesWorkerResourceSpecFactory INSTANCE = new KubernetesWorkerResourceSpecFactory();
+    public static final KubernetesWorkerResourceSpecFactory INSTANCE =
+            new KubernetesWorkerResourceSpecFactory();
 
-	private KubernetesWorkerResourceSpecFactory() {}
+    private KubernetesWorkerResourceSpecFactory() {}
 
-	@Override
-	public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
-		return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
-	}
+    @Override
+    public WorkerResourceSpec createDefaultWorkerResourceSpec(Configuration configuration) {
+        return workerResourceSpecFromConfigAndCpu(configuration, getDefaultCpus(configuration));
+    }
 
-	private static CPUResource getDefaultCpus(Configuration configuration) {
-		double fallback = configuration.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU);
-		return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback);
-	}
+    @VisibleForTesting
+    static CPUResource getDefaultCpus(Configuration configuration) {
+        double fallback = configuration.getDouble(KubernetesConfigOptions.TASK_MANAGER_CPU);
+        return TaskExecutorProcessUtils.getCpuCoresWithFallback(configuration, fallback);
+    }
 }

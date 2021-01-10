@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -26,28 +27,26 @@ import org.apache.flink.table.operations.Operation;
 
 import java.util.List;
 
-/**
- * Mocking {@link Planner} for tests.
- */
+/** Mocking {@link Planner} for tests. */
 public class PlannerMock implements Planner {
 
-	@Override
-	public Parser getParser() {
-		return new ParserMock();
-	}
+    @Override
+    public Parser getParser() {
+        return new ParserMock();
+    }
 
-	@Override
-	public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
-		return null;
-	}
+    @Override
+    public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+        return null;
+    }
 
-	@Override
-	public String explain(List<Operation> operations, boolean extended) {
-		return null;
-	}
+    @Override
+    public String explain(List<Operation> operations, ExplainDetail... extraDetails) {
+        return null;
+    }
 
-	@Override
-	public String[] getCompletionHints(String statement, int position) {
-		return new String[0];
-	}
+    @Override
+    public String[] getCompletionHints(String statement, int position) {
+        return new String[0];
+    }
 }

@@ -27,7 +27,7 @@ under the License.
 
 ## Reading from and writing to file systems
 
-The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/ops/filesystems/index.html) that can be used as backing stores
+The Apache Flink project supports multiple [file systems]({% link deployment/filesystems/index.md %}) that can be used as backing stores
 for input and output connectors. 
 
 ## Connecting to other systems using Input/OutputFormat wrappers for Hadoop
@@ -40,7 +40,7 @@ One implementation of these `InputFormat`s is the `HadoopInputFormat`. This is a
 users to use all existing Hadoop input formats with Flink.
 
 This section shows some examples for connecting Flink to other systems.
-[Read more about Hadoop compatibility in Flink]({{ site.baseurl }}/dev/batch/hadoop_compatibility.html).
+[Read more about Hadoop compatibility in Flink]({% link dev/batch/hadoop_compatibility.md %}).
 
 ## Avro support in Flink
 
@@ -182,11 +182,5 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 ## Access MongoDB
 
 This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
-
-## Hive Connector
-
-Starting from 1.9.0, Apache Flink provides Hive connector to access Apache Hive tables. [HiveCatalog]({{ site.baseurl }}/dev/table/catalogs.html#hivecatalog) is required in order to use the Hive connector.
-After HiveCatalog is setup, please refer to [Reading & Writing Hive Tables]({{ site.baseurl }}/dev/table/hive/read_write_hive.html) for the usage of the Hive connector and its limitations.
-Same as HiveCatalog, the officially supported Apache Hive versions for Hive connector are 2.3.4 and 1.2.1.
 
 {% top %}

@@ -37,109 +37,107 @@ import java.util.SortedMap;
 @PublicEvolving
 public class SortedMapTypeInfo<K, V> extends AbstractMapTypeInfo<K, V, SortedMap<K, V>> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/** The comparator for the keys in the map. */
-	private final Comparator<K> comparator;
+    /** The comparator for the keys in the map. */
+    private final Comparator<K> comparator;
 
-	public SortedMapTypeInfo(
-			TypeInformation<K> keyTypeInfo,
-			TypeInformation<V> valueTypeInfo,
-			Comparator<K> comparator) {
-		super(keyTypeInfo, valueTypeInfo);
+    public SortedMapTypeInfo(
+            TypeInformation<K> keyTypeInfo,
+            TypeInformation<V> valueTypeInfo,
+            Comparator<K> comparator) {
+        super(keyTypeInfo, valueTypeInfo);
 
-		Preconditions.checkNotNull(comparator, "The comparator cannot be null.");
-		this.comparator = comparator;
-	}
+        Preconditions.checkNotNull(comparator, "The comparator cannot be null.");
+        this.comparator = comparator;
+    }
 
-	public SortedMapTypeInfo(
-			Class<K> keyClass,
-			Class<V> valueClass,
-			Comparator<K> comparator) {
-		super(keyClass, valueClass);
+    public SortedMapTypeInfo(Class<K> keyClass, Class<V> valueClass, Comparator<K> comparator) {
+        super(keyClass, valueClass);
 
-		Preconditions.checkNotNull(comparator, "The comparator cannot be null.");
-		this.comparator = comparator;
-	}
+        Preconditions.checkNotNull(comparator, "The comparator cannot be null.");
+        this.comparator = comparator;
+    }
 
-	public SortedMapTypeInfo(Class<K> keyClass, Class<V> valueClass) {
-		super(keyClass, valueClass);
+    public SortedMapTypeInfo(Class<K> keyClass, Class<V> valueClass) {
+        super(keyClass, valueClass);
 
-		Preconditions.checkArgument(Comparable.class.isAssignableFrom(keyClass),
-				"The key class must be comparable when no comparator is given.");
-		this.comparator = new ComparableComparator<>();
-	}
+        Preconditions.checkArgument(
+                Comparable.class.isAssignableFrom(keyClass),
+                "The key class must be comparable when no comparator is given.");
+        this.comparator = new ComparableComparator<>();
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public Class<SortedMap<K, V>> getTypeClass() {
-		return (Class<SortedMap<K, V>>) (Class<?>) SortedMap.class;
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public Class<SortedMap<K, V>> getTypeClass() {
+        return (Class<SortedMap<K, V>>) (Class<?>) SortedMap.class;
+    }
 
-	@Override
-	public TypeSerializer<SortedMap<K, V>> createSerializer(ExecutionConfig config) {
-		TypeSerializer<K> keyTypeSerializer = keyTypeInfo.createSerializer(config);
-		TypeSerializer<V> valueTypeSerializer = valueTypeInfo.createSerializer(config);
+    @Override
+    public TypeSerializer<SortedMap<K, V>> createSerializer(ExecutionConfig config) {
+        TypeSerializer<K> keyTypeSerializer = keyTypeInfo.createSerializer(config);
+        TypeSerializer<V> valueTypeSerializer = valueTypeInfo.createSerializer(config);
 
-		return new SortedMapSerializer<>(comparator, keyTypeSerializer, valueTypeSerializer);
-	}
+        return new SortedMapSerializer<>(comparator, keyTypeSerializer, valueTypeSerializer);
+    }
 
-	@Override
-	public boolean canEqual(Object obj) {
-		return null != obj && getClass() == obj.getClass();
-	}
+    @Override
+    public boolean canEqual(Object obj) {
+        return null != obj && getClass() == obj.getClass();
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		if (!super.equals(o)) {
-			return false;
-		}
+    @Override
+    public boolean equals(Object o) {
+        if (!super.equals(o)) {
+            return false;
+        }
 
-		SortedMapTypeInfo<?, ?> that = (SortedMapTypeInfo<?, ?>) o;
+        SortedMapTypeInfo<?, ?> that = (SortedMapTypeInfo<?, ?>) o;
 
-		return comparator.equals(that.comparator);
-	}
+        return comparator.equals(that.comparator);
+    }
 
-	@Override
-	public int hashCode() {
-		int result = super.hashCode();
-		result = 31 * result + comparator.hashCode();
-		return result;
-	}
+    @Override
+    public int hashCode() {
+        int result = super.hashCode();
+        result = 31 * result + comparator.hashCode();
+        return result;
+    }
 
-	@Override
-	public String toString() {
-		return "SortedMapTypeInfo{" +
-				"comparator=" + comparator +
-				", keyTypeInfo=" + getKeyTypeInfo() +
-				", valueTypeInfo=" + getValueTypeInfo() +
-				"}";
-	}
+    @Override
+    public String toString() {
+        return "SortedMapTypeInfo{"
+                + "comparator="
+                + comparator
+                + ", keyTypeInfo="
+                + getKeyTypeInfo()
+                + ", valueTypeInfo="
+                + getValueTypeInfo()
+                + "}";
+    }
 
-	//--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
 
-	/**
-	 * The default comparator for comparable types.
-	 */
-	private static class ComparableComparator<K> implements Comparator<K>, Serializable {
-		private static final long serialVersionUID = 1L;
+    /** The default comparator for comparable types. */
+    private static class ComparableComparator<K> implements Comparator<K>, Serializable {
+        private static final long serialVersionUID = 1L;
 
-		@SuppressWarnings("unchecked")
-		public int compare(K obj1, K obj2) {
-			return ((Comparable<K>) obj1).compareTo(obj2);
-		}
+        @SuppressWarnings("unchecked")
+        public int compare(K obj1, K obj2) {
+            return ((Comparable<K>) obj1).compareTo(obj2);
+        }
 
-		@Override
-		public boolean equals(Object o) {
-			return (o == this) || (o != null && o.getClass() == getClass());
-		}
+        @Override
+        public boolean equals(Object o) {
+            return (o == this) || (o != null && o.getClass() == getClass());
+        }
 
-		@Override
-		public int hashCode() {
-			return "ComparableComparator".hashCode();
-		}
-
-	}
+        @Override
+        public int hashCode() {
+            return "ComparableComparator".hashCode();
+        }
+    }
 }

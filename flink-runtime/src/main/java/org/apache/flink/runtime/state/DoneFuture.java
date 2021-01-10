@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.state;
 
 import javax.annotation.Nullable;
+
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
@@ -30,47 +31,41 @@ import java.util.concurrent.TimeUnit;
  */
 public class DoneFuture<T> implements RunnableFuture<T> {
 
-	@Nullable
-	private final T payload;
+    @Nullable private final T payload;
 
-	protected DoneFuture(@Nullable T payload) {
-		this.payload = payload;
-	}
+    protected DoneFuture(@Nullable T payload) {
+        this.payload = payload;
+    }
 
-	@Override
-	public boolean cancel(boolean mayInterruptIfRunning) {
-		return false;
-	}
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+        return false;
+    }
 
-	@Override
-	public boolean isCancelled() {
-		return false;
-	}
+    @Override
+    public boolean isCancelled() {
+        return false;
+    }
 
-	@Override
-	public boolean isDone() {
-		return true;
-	}
+    @Override
+    public boolean isDone() {
+        return true;
+    }
 
-	@Override
-	public T get() {
-		return payload;
-	}
+    @Override
+    public T get() {
+        return payload;
+    }
 
-	@Override
-	public T get(
-			long timeout,
-			TimeUnit unit) {
-		return get();
-	}
+    @Override
+    public T get(long timeout, TimeUnit unit) {
+        return get();
+    }
 
-	@Override
-	public void run() {
+    @Override
+    public void run() {}
 
-	}
-
-
-	public static <T> DoneFuture<T> of(@Nullable T result) {
-		return new DoneFuture<>(result);
-	}
+    public static <T> DoneFuture<T> of(@Nullable T result) {
+        return new DoneFuture<>(result);
+    }
 }

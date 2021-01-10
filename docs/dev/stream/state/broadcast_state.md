@@ -152,7 +152,7 @@ across all tasks. Ignoring this rule would break the consistency guarantees of t
 often difficult to debug results.
 
 <div class="alert alert-info">
-  <strong>Attention:</strong> The logic implemented in `processBroadcast()` must have the same deterministic behavior
+  <strong>Attention:</strong> The logic implemented in `processBroadcastElement()` must have the same deterministic behavior
   across all parallel instances!
 </div>
 

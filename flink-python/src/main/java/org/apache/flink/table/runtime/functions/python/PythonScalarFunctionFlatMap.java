@@ -20,15 +20,14 @@ package org.apache.flink.table.runtime.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.runtime.runners.python.scalar.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
-
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 import java.io.IOException;
 
@@ -39,44 +38,57 @@ import java.io.IOException;
 @Internal
 public class PythonScalarFunctionFlatMap extends AbstractPythonScalarFunctionFlatMap {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public PythonScalarFunctionFlatMap(
-		Configuration config,
-		PythonFunctionInfo[] scalarFunctions,
-		RowType inputType,
-		RowType outputType,
-		int[] udfInputOffsets,
-		int[] forwardedFields) {
-		super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
-	}
+    private static final String SCALAR_FUNCTION_SCHEMA_CODER_URN =
+            "flink:coder:schema:scalar_function:v1";
 
-	@Override
-	public PythonFunctionRunner<Row> createPythonFunctionRunner() throws IOException {
-		FnDataReceiver<byte[]> userDefinedFunctionResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			userDefinedFunctionResultQueue.put(input);
-		};
+    /** The TypeSerializer for udf input elements. */
+    private transient TypeSerializer<Row> userDefinedFunctionInputTypeSerializer;
 
-		return new PythonScalarFunctionRunner(
-			getRuntimeContext().getTaskName(),
-			userDefinedFunctionResultReceiver,
-			scalarFunctions,
-			createPythonEnvironmentManager(),
-			userDefinedFunctionInputType,
-			userDefinedFunctionOutputType,
-			jobOptions,
-			getFlinkMetricContainer());
-	}
+    /** The TypeSerializer for user-defined function execution results. */
+    private transient TypeSerializer<Row> userDefinedFunctionOutputTypeSerializer;
 
-	@Override
-	public void emitResults() throws IOException {
-		byte[] rawUdfResult;
-		while ((rawUdfResult = userDefinedFunctionResultQueue.poll()) != null) {
-			Row input = forwardedInputQueue.poll();
-			bais.setBuffer(rawUdfResult, 0, rawUdfResult.length);
-			Row udfResult = userDefinedFunctionTypeSerializer.deserialize(baisWrapper);
-			this.resultCollector.collect(Row.join(input, udfResult));
-		}
-	}
+    public PythonScalarFunctionFlatMap(
+            Configuration config,
+            PythonFunctionInfo[] scalarFunctions,
+            RowType inputType,
+            RowType outputType,
+            int[] udfInputOffsets,
+            int[] forwardedFields) {
+        super(config, scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void open(Configuration parameters) throws Exception {
+        super.open(parameters);
+        userDefinedFunctionInputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionInputType);
+        userDefinedFunctionOutputTypeSerializer =
+                PythonTypeUtils.toFlinkTypeSerializer(userDefinedFunctionOutputType);
+    }
+
+    @Override
+    public String getInputOutputCoderUrn() {
+        return SCALAR_FUNCTION_SCHEMA_CODER_URN;
+    }
+
+    @Override
+    public void processElementInternal(Row value) throws Exception {
+        userDefinedFunctionInputTypeSerializer.serialize(getFunctionInput(value), baosWrapper);
+        pythonFunctionRunner.process(baos.toByteArray());
+        baos.reset();
+    }
+
+    @Override
+    @SuppressWarnings("ConstantConditions")
+    public void emitResult(Tuple2<byte[], Integer> resultTuple) throws IOException {
+        byte[] rawUdfResult = resultTuple.f0;
+        int length = resultTuple.f1;
+        Row input = forwardedInputQueue.poll();
+        bais.setBuffer(rawUdfResult, 0, length);
+        Row udfResult = userDefinedFunctionOutputTypeSerializer.deserialize(baisWrapper);
+        this.resultCollector.collect(Row.join(input, udfResult));
+    }
 }

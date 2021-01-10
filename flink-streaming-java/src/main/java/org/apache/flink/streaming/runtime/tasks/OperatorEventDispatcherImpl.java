@@ -43,75 +43,75 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 final class OperatorEventDispatcherImpl implements OperatorEventDispatcher {
 
-	private final Map<OperatorID, OperatorEventHandler> handlers;
+    private final Map<OperatorID, OperatorEventHandler> handlers;
 
-	private final ClassLoader classLoader;
+    private final ClassLoader classLoader;
 
-	private final TaskOperatorEventGateway toCoordinator;
+    private final TaskOperatorEventGateway toCoordinator;
 
-	OperatorEventDispatcherImpl(ClassLoader classLoader, TaskOperatorEventGateway toCoordinator) {
-		this.classLoader = checkNotNull(classLoader);
-		this.toCoordinator = checkNotNull(toCoordinator);
-		this.handlers = new HashMap<>();
-	}
+    OperatorEventDispatcherImpl(ClassLoader classLoader, TaskOperatorEventGateway toCoordinator) {
+        this.classLoader = checkNotNull(classLoader);
+        this.toCoordinator = checkNotNull(toCoordinator);
+        this.handlers = new HashMap<>();
+    }
 
-	void dispatchEventToHandlers(OperatorID operatorID, SerializedValue<OperatorEvent> serializedEvent) throws FlinkException {
-		final OperatorEvent evt;
-		try {
-			evt = serializedEvent.deserializeValue(classLoader);
-		}
-		catch (IOException | ClassNotFoundException e) {
-			throw new FlinkException("Could not deserialize operator event", e);
-		}
+    void dispatchEventToHandlers(
+            OperatorID operatorID, SerializedValue<OperatorEvent> serializedEvent)
+            throws FlinkException {
+        final OperatorEvent evt;
+        try {
+            evt = serializedEvent.deserializeValue(classLoader);
+        } catch (IOException | ClassNotFoundException e) {
+            throw new FlinkException("Could not deserialize operator event", e);
+        }
 
-		final OperatorEventHandler handler = handlers.get(operatorID);
-		if (handler != null) {
-			handler.handleOperatorEvent(evt);
-		}
-		else {
-			throw new FlinkException("Operator not registered for operator events");
-		}
-	}
+        final OperatorEventHandler handler = handlers.get(operatorID);
+        if (handler != null) {
+            handler.handleOperatorEvent(evt);
+        } else {
+            throw new FlinkException("Operator not registered for operator events");
+        }
+    }
 
-	@Override
-	public OperatorEventGateway registerEventHandler(OperatorID operator, OperatorEventHandler handler) {
-		final OperatorEventGateway gateway = new OperatorEventGatewayImpl(toCoordinator, operator);
-		final OperatorEventHandler prior = handlers.putIfAbsent(operator, handler);
+    @Override
+    public void registerEventHandler(OperatorID operator, OperatorEventHandler handler) {
+        final OperatorEventHandler prior = handlers.putIfAbsent(operator, handler);
+        if (prior != null) {
+            throw new IllegalStateException("already a handler registered for this operatorId");
+        }
+    }
 
-		if (prior == null) {
-			return gateway;
-		}
-		else {
-			throw new IllegalStateException("already a handler registered for this operatorId");
-		}
-	}
+    @Override
+    public OperatorEventGateway getOperatorEventGateway(OperatorID operatorId) {
+        return new OperatorEventGatewayImpl(toCoordinator, operatorId);
+    }
 
-	// ------------------------------------------------------------------------
+    // ------------------------------------------------------------------------
 
-	private static final class OperatorEventGatewayImpl implements OperatorEventGateway {
+    private static final class OperatorEventGatewayImpl implements OperatorEventGateway {
 
-		private final TaskOperatorEventGateway toCoordinator;
+        private final TaskOperatorEventGateway toCoordinator;
 
-		private final OperatorID operatorId;
+        private final OperatorID operatorId;
 
-		private OperatorEventGatewayImpl(TaskOperatorEventGateway toCoordinator, OperatorID operatorId) {
-			this.toCoordinator = toCoordinator;
-			this.operatorId = operatorId;
-		}
+        private OperatorEventGatewayImpl(
+                TaskOperatorEventGateway toCoordinator, OperatorID operatorId) {
+            this.toCoordinator = toCoordinator;
+            this.operatorId = operatorId;
+        }
 
-		@Override
-		public void sendEventToCoordinator(OperatorEvent event) {
-			final SerializedValue<OperatorEvent> serializedEvent;
-			try {
-				serializedEvent = new SerializedValue<>(event);
-			}
-			catch (IOException e) {
-				// this is not a recoverable situation, so we wrap this in an
-				// unchecked exception and let it bubble up
-				throw new FlinkRuntimeException("Cannot serialize operator event", e);
-			}
+        @Override
+        public void sendEventToCoordinator(OperatorEvent event) {
+            final SerializedValue<OperatorEvent> serializedEvent;
+            try {
+                serializedEvent = new SerializedValue<>(event);
+            } catch (IOException e) {
+                // this is not a recoverable situation, so we wrap this in an
+                // unchecked exception and let it bubble up
+                throw new FlinkRuntimeException("Cannot serialize operator event", e);
+            }
 
-			toCoordinator.sendOperatorEventToCoordinator(operatorId, serializedEvent);
-		}
-	}
+            toCoordinator.sendOperatorEventToCoordinator(operatorId, serializedEvent);
+        }
+    }
 }

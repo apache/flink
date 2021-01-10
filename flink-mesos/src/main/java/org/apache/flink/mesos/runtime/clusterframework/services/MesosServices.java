@@ -19,50 +19,61 @@
 package org.apache.flink.mesos.runtime.clusterframework.services;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerActorFactory;
 import org.apache.flink.mesos.runtime.clusterframework.store.MesosWorkerStore;
 import org.apache.flink.mesos.util.MesosArtifactServer;
+import org.apache.flink.mesos.util.MesosConfiguration;
 
 import akka.actor.ActorSystem;
+import org.apache.mesos.Scheduler;
+import org.apache.mesos.SchedulerDriver;
 
-import java.util.concurrent.Executor;
-
-/**
- * Service factory interface for Mesos.
- */
+/** Service factory interface for Mesos. */
 public interface MesosServices {
 
-	/**
-	 * Creates a {@link MesosWorkerStore} which is used to persist mesos worker in high availability
-	 * mode.
-	 *
-	 * @param configuration to be used
-	 * @param executor to run asynchronous tasks
-	 * @return a mesos worker store
-	 * @throws Exception if the mesos worker store could not be created
-	 */
-	MesosWorkerStore createMesosWorkerStore(
-		Configuration configuration,
-		Executor executor) throws Exception;
+    /**
+     * Creates a {@link MesosWorkerStore} which is used to persist mesos worker in high availability
+     * mode.
+     *
+     * @param configuration to be used
+     * @return a mesos worker store
+     * @throws Exception if the mesos worker store could not be created
+     */
+    MesosWorkerStore createMesosWorkerStore(Configuration configuration) throws Exception;
 
-	/**
-	 * Gets a local {@link ActorSystem} which is used for child actors within
-	 * {@link org.apache.flink.mesos.runtime.clusterframework.MesosResourceManager}.
-	 *
-	 * @return a reference to an actor system.
-	 */
-	ActorSystem getLocalActorSystem();
+    /**
+     * Gets a {@link MesosResourceManagerActorFactory} which creates child actors within {@link
+     * org.apache.flink.mesos.runtime.clusterframework.MesosResourceManagerDriver} in a local {@link
+     * ActorSystem}.
+     *
+     * @return the factory.
+     */
+    MesosResourceManagerActorFactory createMesosResourceManagerActorFactory();
 
-	/**
-	 * Gets the artifact server with which to serve essential resources to task managers.
-	 * @return a reference to an artifact server.
-	 */
-	MesosArtifactServer getArtifactServer();
+    /**
+     * Gets the artifact server with which to serve essential resources to task managers.
+     *
+     * @return a reference to an artifact server.
+     */
+    MesosArtifactServer getArtifactServer();
 
-	/**
-	 * Closes all state maintained by the mesos services implementation.
-	 *
-	 * @param cleanup is true if a cleanup shall be performed
-	 * @throws Exception if the closing operation failed
-	 */
-	void close(boolean cleanup) throws Exception;
+    /**
+     * Create the Mesos scheduler driver.
+     *
+     * @param mesosConfig configuration of the scheduler
+     * @param scheduler the scheduler to use.
+     * @param implicitAcknowledgements whether to configure the driver for implicit
+     *     acknowledgements.
+     * @return a scheduler driver.
+     */
+    SchedulerDriver createMesosSchedulerDriver(
+            MesosConfiguration mesosConfig, Scheduler scheduler, boolean implicitAcknowledgements);
+
+    /**
+     * Closes all state maintained by the mesos services implementation.
+     *
+     * @param cleanup is true if a cleanup shall be performed
+     * @throws Exception if the closing operation failed
+     */
+    void close(boolean cleanup) throws Exception;
 }

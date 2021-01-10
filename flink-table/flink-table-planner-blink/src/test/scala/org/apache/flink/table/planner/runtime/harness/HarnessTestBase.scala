@@ -31,7 +31,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
-import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
@@ -73,7 +73,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
   def createHarnessTester(
       ds: DataStream[_],
       prefixOperatorName: String)
-  : KeyedOneInputStreamOperatorTestHarness[BaseRow, BaseRow, BaseRow] = {
+  : KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData] = {
 
     val transformation = extractExpectedTransformation(
       ds.javaStream.getTransformation,
@@ -84,7 +84,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
     val keyType = transformation.getStateKeyType.asInstanceOf[TypeInformation[Any]]
 
     createHarnessTester(processOperator, keySelector, keyType)
-      .asInstanceOf[KeyedOneInputStreamOperatorTestHarness[BaseRow, BaseRow, BaseRow]]
+      .asInstanceOf[KeyedOneInputStreamOperatorTestHarness[RowData, RowData, RowData]]
   }
 
   private def extractExpectedTransformation(
@@ -95,7 +95,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
         if (one.getName.startsWith(prefixOperatorName)) {
           one
         } else {
-          extractExpectedTransformation(one.getInput, prefixOperatorName)
+          extractExpectedTransformation(one.getInputs.get(0), prefixOperatorName)
         }
       case _ => throw new Exception(
         s"Can not find the expected $prefixOperatorName transformation")
@@ -130,10 +130,10 @@ object HarnessTestBase {
     Seq[Array[AnyRef]](Array(HEAP_BACKEND), Array(ROCKSDB_BACKEND))
   }
 
-  class TestingBaseRowKeySelector(
-    private val selectorField: Int) extends KeySelector[BaseRow, JLong] {
+  class TestingRowDataKeySelector(
+    private val selectorField: Int) extends KeySelector[RowData, JLong] {
 
-    override def getKey(value: BaseRow): JLong = {
+    override def getKey(value: RowData): JLong = {
       value.getLong(selectorField)
     }
   }

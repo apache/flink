@@ -27,12 +27,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-state-backends</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-statebackend-heap-spillable_${scala.binary.version}</artifactId>
-	<name>flink-statebackend-heap-spillable</name>
+	<name>Flink : State backends : Heap spillable</name>
 
 	<packaging>jar</packaging>
 

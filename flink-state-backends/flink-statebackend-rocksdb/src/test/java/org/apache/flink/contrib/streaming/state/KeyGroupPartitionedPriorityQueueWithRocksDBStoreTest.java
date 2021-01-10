@@ -27,45 +27,50 @@ import org.apache.flink.runtime.state.heap.KeyGroupPartitionedPriorityQueue;
 import org.junit.Rule;
 
 /**
- * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link RocksDBCachingPriorityQueueSet}.
+ * Test of {@link KeyGroupPartitionedPriorityQueue} powered by a {@link
+ * RocksDBCachingPriorityQueueSet}.
  */
-public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest extends InternalPriorityQueueTestBase {
+public class KeyGroupPartitionedPriorityQueueWithRocksDBStoreTest
+        extends InternalPriorityQueueTestBase {
 
-	@Rule
-	public final RocksDBResource rocksDBResource = new RocksDBResource();
+    @Rule public final RocksDBResource rocksDBResource = new RocksDBResource();
 
-	@Override
-	protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
-		return new KeyGroupPartitionedPriorityQueue<>(
-			KEY_EXTRACTOR_FUNCTION,
-			TEST_ELEMENT_PRIORITY_COMPARATOR,
-			newFactory(),
-			KEY_GROUP_RANGE, KEY_GROUP_RANGE.getNumberOfKeyGroups());
-	}
+    @Override
+    protected InternalPriorityQueue<TestElement> newPriorityQueue(int initialCapacity) {
+        return new KeyGroupPartitionedPriorityQueue<>(
+                KEY_EXTRACTOR_FUNCTION,
+                TEST_ELEMENT_PRIORITY_COMPARATOR,
+                newFactory(),
+                KEY_GROUP_RANGE,
+                KEY_GROUP_RANGE.getNumberOfKeyGroups());
+    }
 
-	@Override
-	protected boolean testSetSemanticsAgainstDuplicateElements() {
-		return true;
-	}
+    @Override
+    protected boolean testSetSemanticsAgainstDuplicateElements() {
+        return true;
+    }
 
-	private KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<
-		TestElement, RocksDBCachingPriorityQueueSet<TestElement>> newFactory() {
+    private KeyGroupPartitionedPriorityQueue.PartitionQueueSetFactory<
+                    TestElement, RocksDBCachingPriorityQueueSet<TestElement>>
+            newFactory() {
 
-		return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) -> {
-			DataOutputSerializer outputStreamWithPos = new DataOutputSerializer(128);
-			DataInputDeserializer inputStreamWithPos = new DataInputDeserializer();
-			int keyGroupPrefixBytes = RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(numKeyGroups);
-			TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(32);
-			return new RocksDBCachingPriorityQueueSet<>(
-				keyGroupId,
-				keyGroupPrefixBytes,
-				rocksDBResource.getRocksDB(),
-				rocksDBResource.getDefaultColumnFamily(),
-				TestElementSerializer.INSTANCE,
-				outputStreamWithPos,
-				inputStreamWithPos,
-				rocksDBResource.getBatchWrapper(),
-				orderedSetCache);
-		};
-	}
+        return (keyGroupId, numKeyGroups, keyExtractorFunction, elementComparator) -> {
+            DataOutputSerializer outputStreamWithPos = new DataOutputSerializer(128);
+            DataInputDeserializer inputStreamWithPos = new DataInputDeserializer();
+            int keyGroupPrefixBytes =
+                    RocksDBKeySerializationUtils.computeRequiredBytesInKeyGroupPrefix(numKeyGroups);
+            TreeOrderedSetCache orderedSetCache = new TreeOrderedSetCache(32);
+            return new RocksDBCachingPriorityQueueSet<>(
+                    keyGroupId,
+                    keyGroupPrefixBytes,
+                    rocksDBResource.getRocksDB(),
+                    rocksDBResource.getReadOptions(),
+                    rocksDBResource.getDefaultColumnFamily(),
+                    TestElementSerializer.INSTANCE,
+                    outputStreamWithPos,
+                    inputStreamWithPos,
+                    rocksDBResource.getBatchWrapper(),
+                    orderedSetCache);
+        };
+    }
 }

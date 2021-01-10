@@ -29,48 +29,54 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/**
- * ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*).
- */
+/** ALTER TABLE [[catalogName.] dataBasesName].tableName SET ( name=value [, name=value]*). */
 public class SqlAlterTableProperties extends SqlAlterTable {
 
-	private final SqlNodeList propertyList;
+    private final SqlNodeList propertyList;
 
-	public SqlAlterTableProperties(SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
-		super(pos, tableName);
-		this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-	}
+    public SqlAlterTableProperties(
+            SqlParserPos pos, SqlIdentifier tableName, SqlNodeList propertyList) {
+        this(pos, tableName, null, propertyList);
+    }
 
-	@Override
-	public List<SqlNode> getOperandList() {
-		return ImmutableNullableList.of(tableIdentifier, propertyList);
-	}
+    public SqlAlterTableProperties(
+            SqlParserPos pos,
+            SqlIdentifier tableName,
+            SqlNodeList partitionSpec,
+            SqlNodeList propertyList) {
+        super(pos, tableName, partitionSpec);
+        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+    }
 
-	public SqlNodeList getPropertyList() {
-		return propertyList;
-	}
+    @Override
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(tableIdentifier, propertyList);
+    }
 
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		super.unparse(writer, leftPrec, rightPrec);
-		writer.keyword("SET");
-		SqlWriter.Frame withFrame = writer.startList("(", ")");
-		for (SqlNode property : propertyList) {
-			printIndent(writer);
-			property.unparse(writer, leftPrec, rightPrec);
-		}
-		writer.newlineAndIndent();
-		writer.endList(withFrame);
-	}
+    public SqlNodeList getPropertyList() {
+        return propertyList;
+    }
 
-	private void printIndent(SqlWriter writer) {
-		writer.sep(",", false);
-		writer.newlineAndIndent();
-		writer.print("  ");
-	}
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SET");
+        SqlWriter.Frame withFrame = writer.startList("(", ")");
+        for (SqlNode property : propertyList) {
+            printIndent(writer);
+            property.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.newlineAndIndent();
+        writer.endList(withFrame);
+    }
 
-	public String[] fullTableName() {
-		return tableIdentifier.names.toArray(new String[0]);
-	}
+    protected void printIndent(SqlWriter writer) {
+        writer.sep(",", false);
+        writer.newlineAndIndent();
+        writer.print("  ");
+    }
 
+    public String[] fullTableName() {
+        return tableIdentifier.names.toArray(new String[0]);
+    }
 }

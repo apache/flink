@@ -51,7 +51,8 @@ cd ..
 
 FLINK_DIR=`pwd`
 RELEASE_DIR=${FLINK_DIR}/tools/releasing/release
-mkdir -p ${RELEASE_DIR}
+PYTHON_RELEASE_DIR=${RELEASE_DIR}/python
+mkdir -p ${PYTHON_RELEASE_DIR}
 
 ###########################
 
@@ -95,6 +96,7 @@ make_python_release() {
   # use lint-python.sh script to create a python environment.
   dev/lint-python.sh -s basic
   source dev/.conda/bin/activate
+  pip install -r dev/dev-requirements.txt
   python setup.py sdist
   conda deactivate
   cd dist/
@@ -107,15 +109,39 @@ make_python_release() {
     exit 1
   fi
 
-  cp ${pyflink_actual_name} "${RELEASE_DIR}/${pyflink_release_name}"
+  cp ${pyflink_actual_name} "${PYTHON_RELEASE_DIR}/${pyflink_release_name}"
 
-  cd ${RELEASE_DIR}
+  wheel_packages_num=0
+  # py35,py36,py37,py38 for mac and linux (8 wheel packages)
+  EXPECTED_WHEEL_PACKAGES_NUM=8
+  # Need to move the downloaded wheel packages from Azure CI to the directory flink-python/dist manually.
+  for wheel_file in *.whl; do
+    if [[ ! ${wheel_file} =~ ^apache_flink-$PYFLINK_VERSION- ]]; then
+        echo -e "\033[31;1mThe file name of the python package: ${wheel_file} is not consistent with given release version: ${PYFLINK_VERSION}!\033[0m"
+        exit 1
+    fi
+    cp ${wheel_file} "${PYTHON_RELEASE_DIR}/${wheel_file}"
+    wheel_packages_num=$((wheel_packages_num+1))
+  done
+  if [[ ${wheel_packages_num} != ${EXPECTED_WHEEL_PACKAGES_NUM} ]]; then
+    echo -e "\033[31;1mThe number of wheel packages ${wheel_packages_num} is not equal to the expected number ${EXPECTED_WHEEL_PACKAGES_NUM}!\033[0m"
+    exit 1
+  fi
 
-  # Sign sha the tgz
+  cd ${PYTHON_RELEASE_DIR}
+
+  # Sign sha the tgz and wheel packages
   if [ "$SKIP_GPG" == "false" ] ; then
     gpg --armor --detach-sig "${pyflink_release_name}"
+    for wheel_file in *.whl; do
+      gpg --armor --detach-sig "${wheel_file}"
+    done
   fi
   $SHASUM "${pyflink_release_name}" > "${pyflink_release_name}.sha512"
+
+  for wheel_file in *.whl; do
+    $SHASUM "${wheel_file}" > "${wheel_file}.sha512"
+  done
 
   cd ${FLINK_DIR}
 }

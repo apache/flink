@@ -23,12 +23,12 @@
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-queryable-state-test_${scala.binary.version}</artifactId>
-	<name>flink-queryable-state-test</name>
+	<name>Flink : E2E Tests : Queryable state</name>
 
 	<packaging>jar</packaging>
 

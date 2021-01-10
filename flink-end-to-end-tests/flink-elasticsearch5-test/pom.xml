@@ -26,12 +26,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-elasticsearch5-test</artifactId>
-	<name>flink-elasticsearch5-test</name>
+	<name>Flink : E2E Tests : Elasticsearch 5</name>
 	<packaging>jar</packaging>
 
 	<dependencies>

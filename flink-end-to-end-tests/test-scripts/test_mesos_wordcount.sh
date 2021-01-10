@@ -29,8 +29,10 @@ TEST_PROGRAM_JAR=${FLINK_DIR}/examples/batch/WordCount.jar
 
 mkdir -p "${TEST_DATA_DIR}"
 
+set_hadoop_classpath
+
 start_flink_cluster_with_mesos
 
-docker exec mesos-master nohup bash -c "${FLINK_DIR}/bin/flink run -p 1 ${TEST_PROGRAM_JAR} ${INPUT_ARGS} --output ${OUTPUT_LOCATION}"
+docker exec --env HADOOP_CLASSPATH=$HADOOP_CLASSPATH mesos-master nohup bash -c "${FLINK_DIR}/bin/flink run -p 1 ${TEST_PROGRAM_JAR} ${INPUT_ARGS} --output ${OUTPUT_LOCATION}"
 
 check_result_hash "Mesos WordCount test" "${OUTPUT_LOCATION}" "${RESULT_HASH}"

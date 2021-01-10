@@ -24,126 +24,87 @@ import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EndOfSuperstepEvent;
+import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
+import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link EventSerializer}.
- */
+/** Tests for the {@link EventSerializer}. */
 public class EventSerializerTest {
 
-	@Test
-	public void testSerializeDeserializeEvent() throws Exception {
-		AbstractEvent[] events = {
-				EndOfPartitionEvent.INSTANCE,
-				EndOfSuperstepEvent.INSTANCE,
-				new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
-				new TestTaskEvent(Math.random(), 12361231273L),
-				new CancelCheckpointMarker(287087987329842L)
-		};
+    private final AbstractEvent[] events = {
+        EndOfPartitionEvent.INSTANCE,
+        EndOfSuperstepEvent.INSTANCE,
+        new CheckpointBarrier(
+                1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
+        new TestTaskEvent(Math.random(), 12361231273L),
+        new CancelCheckpointMarker(287087987329842L),
+        new EventAnnouncement(
+                new CheckpointBarrier(
+                        42L,
+                        1337L,
+                        CheckpointOptions.alignedWithTimeout(
+                                CheckpointStorageLocationReference.getDefault(), 10)),
+                44)
+    };
 
-		for (AbstractEvent evt : events) {
-			ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
-			assertTrue(serializedEvent.hasRemaining());
+    @Test
+    public void testSerializeDeserializeEvent() throws Exception {
+        for (AbstractEvent evt : events) {
+            ByteBuffer serializedEvent = EventSerializer.toSerializedEvent(evt);
+            assertTrue(serializedEvent.hasRemaining());
 
-			AbstractEvent deserialized =
-					EventSerializer.fromSerializedEvent(serializedEvent, getClass().getClassLoader());
-			assertNotNull(deserialized);
-			assertEquals(evt, deserialized);
-		}
-	}
+            AbstractEvent deserialized =
+                    EventSerializer.fromSerializedEvent(
+                            serializedEvent, getClass().getClassLoader());
+            assertNotNull(deserialized);
+            assertEquals(evt, deserialized);
+        }
+    }
 
-	/**
-	 * Tests {@link EventSerializer#isEvent(Buffer, Class)}
-	 * whether it peaks into the buffer only, i.e. after the call, the buffer
-	 * is still de-serializable.
-	 */
-	@Test
-	public void testIsEventPeakOnly() throws Exception {
-		final Buffer serializedEvent =
-			EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE);
-		try {
-			final ClassLoader cl = getClass().getClassLoader();
-			assertTrue(
-				EventSerializer.isEvent(serializedEvent, EndOfPartitionEvent.class));
-			EndOfPartitionEvent event = (EndOfPartitionEvent) EventSerializer
-				.fromBuffer(serializedEvent, cl);
-			assertEquals(EndOfPartitionEvent.INSTANCE, event);
-		} finally {
-			serializedEvent.recycleBuffer();
-		}
-	}
+    @Test
+    public void testToBufferConsumer() throws IOException {
+        for (AbstractEvent evt : events) {
+            BufferConsumer bufferConsumer = EventSerializer.toBufferConsumer(evt, false);
 
-	/**
-	 * Tests {@link EventSerializer#isEvent(Buffer, Class)} returns
-	 * the correct answer for various encoded event buffers.
-	 */
-	@Test
-	public void testIsEvent() throws Exception {
-		AbstractEvent[] events = {
-			EndOfPartitionEvent.INSTANCE,
-			EndOfSuperstepEvent.INSTANCE,
-			new CheckpointBarrier(1678L, 4623784L, CheckpointOptions.forCheckpointWithDefaultLocation()),
-			new TestTaskEvent(Math.random(), 12361231273L),
-			new CancelCheckpointMarker(287087987329842L)
-		};
+            assertFalse(bufferConsumer.isBuffer());
+            assertTrue(bufferConsumer.isFinished());
+            assertTrue(bufferConsumer.isDataAvailable());
+            assertFalse(bufferConsumer.isRecycled());
 
-		Class[] expectedClasses = Arrays.stream(events)
-			.map(AbstractEvent::getClass)
-			.toArray(Class[]::new);
+            if (evt instanceof CheckpointBarrier) {
+                assertTrue(bufferConsumer.build().getDataType().isBlockingUpstream());
+            } else {
+                assertEquals(Buffer.DataType.EVENT_BUFFER, bufferConsumer.build().getDataType());
+            }
+        }
+    }
 
-		for (AbstractEvent evt : events) {
-			for (Class<?> expectedClass: expectedClasses) {
-				if (expectedClass.equals(TestTaskEvent.class)) {
-					try {
-						checkIsEvent(evt, expectedClass);
-						fail("This should fail");
-					}
-					catch (UnsupportedOperationException ex) {
-						// expected
-					}
-				}
-				else if (evt.getClass().equals(expectedClass)) {
-					assertTrue(checkIsEvent(evt, expectedClass));
-				} else {
-					assertFalse(checkIsEvent(evt, expectedClass));
-				}
-			}
-		}
-	}
+    @Test
+    public void testToBuffer() throws IOException {
+        for (AbstractEvent evt : events) {
+            Buffer buffer = EventSerializer.toBuffer(evt, false);
 
-	/**
-	 * Returns the result of
-	 * {@link EventSerializer#isEvent(Buffer, Class)} on a buffer
-	 * that encodes the given <tt>event</tt>.
-	 *
-	 * @param event the event to encode
-	 * @param eventClass the event class to check against
-	 *
-	 * @return whether {@link EventSerializer#isEvent(ByteBuffer, Class)}
-	 * 		thinks the encoded buffer matches the class
-	 */
-	private boolean checkIsEvent(
-			AbstractEvent event,
-			Class<?> eventClass) throws IOException {
+            assertFalse(buffer.isBuffer());
+            assertTrue(buffer.readableBytes() > 0);
+            assertFalse(buffer.isRecycled());
 
-		final Buffer serializedEvent = EventSerializer.toBuffer(event);
-		try {
-			return EventSerializer.isEvent(serializedEvent, eventClass);
-		} finally {
-			serializedEvent.recycleBuffer();
-		}
-	}
+            if (evt instanceof CheckpointBarrier) {
+                assertTrue(buffer.getDataType().isBlockingUpstream());
+            } else {
+                assertEquals(Buffer.DataType.EVENT_BUFFER, buffer.getDataType());
+            }
+        }
+    }
 }

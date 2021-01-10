@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-optimizer_${scala.binary.version}</artifactId>
-	<name>flink-optimizer</name>
+	<name>Flink : Optimizer</name>
 
 	<packaging>jar</packaging>
 

@@ -86,238 +86,249 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
- * This test makes sure that jobs are canceled properly in cases where
- * the task manager went down and did not respond to cancel messages.
+ * This test makes sure that jobs are canceled properly in cases where the task manager went down
+ * and did not respond to cancel messages.
  */
 @SuppressWarnings("serial")
 public class ProcessFailureCancelingITCase extends TestLogger {
 
-	@Rule
-	public final BlobServerResource blobServerResource = new BlobServerResource();
+    @Rule public final BlobServerResource blobServerResource = new BlobServerResource();
 
-	@Rule
-	public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
+    @Rule public final ZooKeeperResource zooKeeperResource = new ZooKeeperResource();
 
-	@Rule
-	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	@Test
-	public void testCancelingOnProcessFailure() throws Exception {
-		final Time timeout = Time.minutes(2L);
+    @Test
+    public void testCancelingOnProcessFailure() throws Exception {
+        final Time timeout = Time.minutes(2L);
 
-		RestClusterClient<String> clusterClient = null;
-		TestProcess taskManagerProcess = null;
-		final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
+        RestClusterClient<String> clusterClient = null;
+        TestProcess taskManagerProcess = null;
+        final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
-		Configuration config = new Configuration();
-		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
-		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
-		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
-		config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
-		config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
-		config.set(TaskManagerOptions.CPU_CORES, 1.0);
-		config.setInteger(RestOptions.PORT, 0);
+        Configuration config = new Configuration();
+        config.setString(JobManagerOptions.ADDRESS, "localhost");
+        config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
+        config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
+        config.setString(
+                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
+        config.setString(
+                HighAvailabilityOptions.HA_STORAGE_PATH,
+                temporaryFolder.newFolder().getAbsolutePath());
+        config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
+        config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
+        config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
+        config.set(TaskManagerOptions.CPU_CORES, 1.0);
+        config.setInteger(RestOptions.PORT, 0);
 
-		final RpcService rpcService = AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
-		final int jobManagerPort = rpcService.getPort();
-		config.setInteger(JobManagerOptions.PORT, jobManagerPort);
+        final RpcService rpcService =
+                AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
+        final int jobManagerPort = rpcService.getPort();
+        config.setInteger(JobManagerOptions.PORT, jobManagerPort);
 
-		final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory = DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
-			StandaloneResourceManagerFactory.INSTANCE);
-		DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
+        final DispatcherResourceManagerComponentFactory resourceManagerComponentFactory =
+                DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+                        StandaloneResourceManagerFactory.getInstance());
+        DispatcherResourceManagerComponent dispatcherResourceManagerComponent = null;
 
-		final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
-		final HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
-			config,
-			ioExecutor,
-			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
+        final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
+        final HighAvailabilityServices haServices =
+                HighAvailabilityServicesUtils.createHighAvailabilityServices(
+                        config,
+                        ioExecutor,
+                        HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
-		try {
+        try {
 
-			// check that we run this test only if the java command
-			// is available on this machine
-			if (getJavaCommandPath() == null) {
-				System.out.println("---- Skipping Process Failure test : Could not find java executable ----");
-				return;
-			}
+            // check that we run this test only if the java command
+            // is available on this machine
+            if (getJavaCommandPath() == null) {
+                System.out.println(
+                        "---- Skipping Process Failure test : Could not find java executable ----");
+                return;
+            }
 
-			dispatcherResourceManagerComponent = resourceManagerComponentFactory.create(
-				config,
-				ioExecutor,
-				rpcService,
-				haServices,
-				blobServerResource.getBlobServer(),
-				new HeartbeatServices(100L, 1000L),
-				NoOpMetricRegistry.INSTANCE,
-				new MemoryArchivedExecutionGraphStore(),
-				VoidMetricQueryServiceRetriever.INSTANCE,
-				fatalErrorHandler);
+            dispatcherResourceManagerComponent =
+                    resourceManagerComponentFactory.create(
+                            config,
+                            ioExecutor,
+                            rpcService,
+                            haServices,
+                            blobServerResource.getBlobServer(),
+                            new HeartbeatServices(100L, 1000L),
+                            NoOpMetricRegistry.INSTANCE,
+                            new MemoryArchivedExecutionGraphStore(),
+                            VoidMetricQueryServiceRetriever.INSTANCE,
+                            fatalErrorHandler);
 
-			final Map<String, String> keyValues = config.toMap();
-			final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
+            final Map<String, String> keyValues = config.toMap();
+            final ArrayList<String> commands = new ArrayList<>((keyValues.size() << 1) + 8);
 
-			TestProcessBuilder taskManagerProcessBuilder = new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
-			taskManagerProcessBuilder.addConfigAsMainClassArgs(config);
+            TestProcessBuilder taskManagerProcessBuilder =
+                    new TestProcessBuilder(TaskExecutorProcessEntryPoint.class.getName());
+            taskManagerProcessBuilder.addConfigAsMainClassArgs(config);
 
-			taskManagerProcess = taskManagerProcessBuilder.start();
+            taskManagerProcess = taskManagerProcessBuilder.start();
 
-			final Throwable[] errorRef = new Throwable[1];
+            final Throwable[] errorRef = new Throwable[1];
 
-			// start the test program, which infinitely blocks
-			Runnable programRunner = new Runnable() {
-				@Override
-				public void run() {
-					try {
-						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, config);
-						env.setParallelism(2);
-						env.setRestartStrategy(RestartStrategies.noRestart());
+            // start the test program, which infinitely blocks
+            Runnable programRunner =
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                ExecutionEnvironment env =
+                                        ExecutionEnvironment.createRemoteEnvironment(
+                                                "localhost", 1337, config);
+                                env.setParallelism(2);
+                                env.setRestartStrategy(RestartStrategies.noRestart());
 
-						env.generateSequence(0, Long.MAX_VALUE)
+                                env.generateSequence(0, Long.MAX_VALUE)
+                                        .map(
+                                                new MapFunction<Long, Long>() {
 
-								.map(new MapFunction<Long, Long>() {
+                                                    @Override
+                                                    public Long map(Long value) throws Exception {
+                                                        synchronized (this) {
+                                                            wait();
+                                                        }
+                                                        return 0L;
+                                                    }
+                                                })
+                                        .output(new DiscardingOutputFormat<Long>());
 
-									@Override
-									public Long map(Long value) throws Exception {
-										synchronized (this) {
-											wait();
-										}
-										return 0L;
-									}
-								})
+                                env.execute();
+                            } catch (Throwable t) {
+                                errorRef[0] = t;
+                            }
+                        }
+                    };
 
-								.output(new DiscardingOutputFormat<Long>());
+            Thread programThread = new Thread(programRunner);
 
-						env.execute();
-					}
-					catch (Throwable t) {
-						errorRef[0] = t;
-					}
-				}
-			};
+            // kill the TaskManager
+            programThread.start();
 
-			Thread programThread = new Thread(programRunner);
+            final DispatcherGateway dispatcherGateway =
+                    retrieveDispatcherGateway(rpcService, haServices);
+            waitUntilAllSlotsAreUsed(dispatcherGateway, timeout);
 
-			// kill the TaskManager
-			programThread.start();
+            clusterClient = new RestClusterClient<>(config, "standalone");
 
-			final DispatcherGateway dispatcherGateway = retrieveDispatcherGateway(rpcService, haServices);
-			waitUntilAllSlotsAreUsed(dispatcherGateway, timeout);
+            final Collection<JobID> jobIds = waitForRunningJobs(clusterClient, timeout);
 
-			clusterClient = new RestClusterClient<>(config, "standalone");
+            assertThat(jobIds, hasSize(1));
+            final JobID jobId = jobIds.iterator().next();
 
-			final Collection<JobID> jobIds = waitForRunningJobs(clusterClient, timeout);
+            // kill the TaskManager after the job started to run
+            taskManagerProcess.destroy();
+            taskManagerProcess = null;
 
-			assertThat(jobIds, hasSize(1));
-			final JobID jobId = jobIds.iterator().next();
+            // try to cancel the job
+            clusterClient.cancel(jobId).get();
 
-			// kill the TaskManager after the job started to run
-			taskManagerProcess.destroy();
-			taskManagerProcess = null;
+            // we should see a failure within reasonable time (10s is the ask timeout).
+            // since the CI environment is often slow, we conservatively give it up to 2 minutes,
+            // to fail, which is much lower than the failure time given by the heartbeats ( > 2000s)
 
-			// try to cancel the job
-			clusterClient.cancel(jobId).get();
+            programThread.join(120000);
 
-			// we should see a failure within reasonable time (10s is the ask timeout).
-			// since the CI environment is often slow, we conservatively give it up to 2 minutes,
-			// to fail, which is much lower than the failure time given by the heartbeats ( > 2000s)
+            assertFalse("The program did not cancel in time (2 minutes)", programThread.isAlive());
 
-			programThread.join(120000);
+            Throwable error = errorRef[0];
+            assertNotNull("The program did not fail properly", error);
 
-			assertFalse("The program did not cancel in time (2 minutes)", programThread.isAlive());
+            assertTrue(error instanceof ProgramInvocationException);
+            // all seems well :-)
+        } catch (Exception e) {
+            printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
+            throw e;
+        } catch (Error e) {
+            printProcessLog("TaskManager 1", taskManagerProcess.getErrorOutput().toString());
+            throw e;
+        } finally {
+            if (taskManagerProcess != null) {
+                taskManagerProcess.destroy();
+            }
+            if (clusterClient != null) {
+                clusterClient.close();
+            }
+            if (dispatcherResourceManagerComponent != null) {
+                dispatcherResourceManagerComponent.deregisterApplicationAndClose(
+                        ApplicationStatus.SUCCEEDED, null);
+            }
 
-			Throwable error = errorRef[0];
-			assertNotNull("The program did not fail properly", error);
+            fatalErrorHandler.rethrowError();
 
-			assertTrue(error.getCause() instanceof ProgramInvocationException);
-			// all seems well :-)
-		}
-		catch (Exception e) {
-			printProcessLog("TaskManager", taskManagerProcess.getErrorOutput().toString());
-			throw e;
-		}
-		catch (Error e) {
-			printProcessLog("TaskManager 1", taskManagerProcess.getErrorOutput().toString());
-			throw e;
-		}
-		finally {
-			if (taskManagerProcess != null) {
-				taskManagerProcess.destroy();
-			}
-			if (clusterClient != null) {
-				clusterClient.close();
-			}
-			if (dispatcherResourceManagerComponent != null) {
-				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
-			}
+            RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
 
-			fatalErrorHandler.rethrowError();
+            haServices.closeAndCleanupAllData();
+        }
+    }
 
-			RpcUtils.terminateRpcService(rpcService, Time.seconds(100L));
+    /**
+     * Helper method to wait until the {@link Dispatcher} has set its fencing token.
+     *
+     * @param rpcService to use to connect to the dispatcher
+     * @param haServices high availability services to connect to the dispatcher
+     * @return {@link DispatcherGateway}
+     * @throws Exception if something goes wrong
+     */
+    static DispatcherGateway retrieveDispatcherGateway(
+            RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
+        final LeaderConnectionInfo leaderConnectionInfo =
+                LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+                        haServices.getDispatcherLeaderRetriever(), Duration.ofSeconds(10L));
 
-			haServices.closeAndCleanupAllData();
-		}
-	}
+        return rpcService
+                .connect(
+                        leaderConnectionInfo.getAddress(),
+                        DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
+                        DispatcherGateway.class)
+                .get();
+    }
 
-	/**
-	 * Helper method to wait until the {@link Dispatcher} has set its fencing token.
-	 *
-	 * @param rpcService to use to connect to the dispatcher
-	 * @param haServices high availability services to connect to the dispatcher
-	 * @return {@link DispatcherGateway}
-	 * @throws Exception if something goes wrong
-	 */
-	static DispatcherGateway retrieveDispatcherGateway(RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
-		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-			haServices.getDispatcherLeaderRetriever(),
-			Duration.ofSeconds(10L));
+    private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout)
+            throws ExecutionException, InterruptedException {
+        FutureUtils.retrySuccessfulWithDelay(
+                        () -> dispatcherGateway.requestClusterOverview(timeout),
+                        Time.milliseconds(50L),
+                        Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
+                        clusterOverview ->
+                                clusterOverview.getNumTaskManagersConnected() >= 1
+                                        && clusterOverview.getNumSlotsAvailable() == 0
+                                        && clusterOverview.getNumSlotsTotal() == 2,
+                        TestingUtils.defaultScheduledExecutor())
+                .get();
+    }
 
-		return rpcService.connect(
-			leaderConnectionInfo.getAddress(),
-			DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionId()),
-			DispatcherGateway.class).get();
-	}
+    private Collection<JobID> waitForRunningJobs(ClusterClient<?> clusterClient, Time timeout)
+            throws ExecutionException, InterruptedException {
+        return FutureUtils.retrySuccessfulWithDelay(
+                        CheckedSupplier.unchecked(clusterClient::listJobs),
+                        Time.milliseconds(50L),
+                        Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
+                        jobs -> !jobs.isEmpty(),
+                        TestingUtils.defaultScheduledExecutor())
+                .get().stream()
+                .map(JobStatusMessage::getJobId)
+                .collect(Collectors.toList());
+    }
 
-	private void waitUntilAllSlotsAreUsed(DispatcherGateway dispatcherGateway, Time timeout) throws ExecutionException, InterruptedException {
-		FutureUtils.retrySuccessfulWithDelay(
-			() -> dispatcherGateway.requestClusterOverview(timeout),
-			Time.milliseconds(50L),
-			Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
-			clusterOverview -> clusterOverview.getNumTaskManagersConnected() >= 1 &&
-				clusterOverview.getNumSlotsAvailable() == 0 &&
-				clusterOverview.getNumSlotsTotal() == 2,
-			TestingUtils.defaultScheduledExecutor())
-			.get();
-	}
+    private void printProcessLog(String processName, String log) {
+        if (log == null || log.length() == 0) {
+            return;
+        }
 
-	private Collection<JobID> waitForRunningJobs(ClusterClient<?> clusterClient, Time timeout) throws ExecutionException, InterruptedException {
-		return FutureUtils.retrySuccessfulWithDelay(
-				CheckedSupplier.unchecked(clusterClient::listJobs),
-				Time.milliseconds(50L),
-				Deadline.fromNow(Duration.ofMillis(timeout.toMilliseconds())),
-				jobs -> !jobs.isEmpty(),
-				TestingUtils.defaultScheduledExecutor())
-			.get()
-			.stream()
-			.map(JobStatusMessage::getJobId)
-			.collect(Collectors.toList());
-	}
-
-	private void printProcessLog(String processName, String log) {
-		if (log == null || log.length() == 0) {
-			return;
-		}
-
-		System.out.println("-----------------------------------------");
-		System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
-		System.out.println("-----------------------------------------");
-		System.out.println(log);
-		System.out.println("-----------------------------------------");
-		System.out.println("		END SPAWNED PROCESS LOG");
-		System.out.println("-----------------------------------------");
-	}
+        System.out.println("-----------------------------------------");
+        System.out.println(" BEGIN SPAWNED PROCESS LOG FOR " + processName);
+        System.out.println("-----------------------------------------");
+        System.out.println(log);
+        System.out.println("-----------------------------------------");
+        System.out.println("		END SPAWNED PROCESS LOG");
+        System.out.println("-----------------------------------------");
+    }
 }

@@ -20,7 +20,6 @@
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/common_docker.sh
 
-DOCKER_MODULE_DIR=${END_TO_END_DIR}/../flink-container/docker
 DOCKER_SCRIPTS=${END_TO_END_DIR}/test-scripts/container-scripts
 DOCKER_IMAGE_BUILD_RETRIES=3
 BUILD_BACKOFF_TIME=5
@@ -52,23 +51,19 @@ esac
 
 export FLINK_JOB_ARGUMENTS="${INPUT_ARGS} --output ${OUTPUT_PATH}/docker_wc_out"
 
-build_image() {
-    build_image_with_jar ${FLINK_DIR}/examples/batch/WordCount.jar ${FLINK_DOCKER_IMAGE_NAME}
-}
-
 # user inside the container must be able to create files, this is a workaround in-container permissions
 mkdir -p $OUTPUT_VOLUME
 chmod 777 $OUTPUT_VOLUME
 
-pushd "$DOCKER_MODULE_DIR"
-if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} build_image; then
+if ! retry_times $DOCKER_IMAGE_BUILD_RETRIES ${BUILD_BACKOFF_TIME} "build_image ${FLINK_DOCKER_IMAGE_NAME}"; then
     echo "Failed to build docker image. Aborting..."
     exit 1
 fi
-popd
 
-docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
-docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > ${FLINK_DIR}/log/jobmanager.log
-docker-compose -f ${DOCKER_MODULE_DIR}/docker-compose.yml -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > ${FLINK_DIR}/log/taskmanager.log
+export USER_LIB=${FLINK_DIR}/examples/batch
+docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml up --force-recreate --abort-on-container-exit --exit-code-from job-cluster &> /dev/null
+docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs job-cluster > ${FLINK_DIR}/log/jobmanager.log
+docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml logs taskmanager > ${FLINK_DIR}/log/taskmanager.log
+docker-compose -f ${DOCKER_SCRIPTS}/docker-compose.test.yml rm -f
 
 check_result_hash "WordCount" $OUTPUT_VOLUME/docker_wc_out "${RESULT_HASH}"

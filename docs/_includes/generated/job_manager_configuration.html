@@ -28,15 +28,69 @@
         </tr>
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
-            <td style="word-wrap: break-word;">region</td>
+            <td style="word-wrap: break-word;">"region"</td>
             <td>String</td>
             <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
         </tr>
         <tr>
-            <td><h5>jobmanager.heap.size</h5></td>
+            <td><h5>jobmanager.memory.enable-jvm-direct-memory-limit</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to enable the JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize). The limit will be set to the value of 'jobmanager.memory.off-heap.size' option. </td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.flink.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Total Flink Memory size for the JobManager. This includes all the memory that a JobManager consumes, except for JVM Metaspace and JVM Overhead. It consists of JVM Heap Memory and Off-heap Memory. See also 'jobmanager.memory.process.size' for total process memory size configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.heap.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>JVM Heap Memory size for JobManager. The minimum recommended JVM Heap size is 128.000mb (134217728 bytes).</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-metaspace.size</h5></td>
+            <td style="word-wrap: break-word;">256 mb</td>
+            <td>MemorySize</td>
+            <td>JVM Metaspace Size for the JobManager.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.fraction</h5></td>
+            <td style="word-wrap: break-word;">0.1</td>
+            <td>Float</td>
+            <td>Fraction of Total Process Memory to be reserved for JVM Overhead. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.max</h5></td>
             <td style="word-wrap: break-word;">1 gb</td>
             <td>MemorySize</td>
-            <td>JVM heap size for the JobManager.</td>
+            <td>Max JVM Overhead size for the JobManager. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.jvm-overhead.min</h5></td>
+            <td style="word-wrap: break-word;">192 mb</td>
+            <td>MemorySize</td>
+            <td>Min JVM Overhead size for the JobManager. This is off-heap memory reserved for JVM overhead, such as thread stack space, compile cache, etc. This includes native memory but not direct memory, and will not be counted when Flink calculates JVM max direct memory size parameter. The size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived size is less or greater than the configured min or max size, the min or max size will be used. The exact size of JVM Overhead can be explicitly specified by setting the min and max size to the same value.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.off-heap.size</h5></td>
+            <td style="word-wrap: break-word;">128 mb</td>
+            <td>MemorySize</td>
+            <td>Off-heap Memory size for JobManager. This option covers all off-heap memory usage including direct and native memory allocation. The JVM direct memory limit of the JobManager process (-XX:MaxDirectMemorySize) will be set to this value if the limit is enabled by 'jobmanager.memory.enable-jvm-direct-memory-limit'. </td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.memory.process.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>MemorySize</td>
+            <td>Total Process Memory size for the JobManager. This includes all the memory that a JobManager JVM process consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. In containerized setups, this should be set to the container memory. See also 'jobmanager.memory.flink.size' for Total Flink Memory size configuration.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.retrieve-taskmanager-hostname</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Flag indicating whether JobManager would retrieve canonical host name of TaskManager during registration. If the option is set to "false", TaskManager registration with JobManager could be faster, since no reverse DNS lookup is performed. However, local input split assignment (such as for HDFS files) may be impacted.</td>
         </tr>
         <tr>
             <td><h5>jobmanager.rpc.address</h5></td>

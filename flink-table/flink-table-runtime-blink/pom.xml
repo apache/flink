@@ -23,12 +23,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
-	<name>flink-table-runtime-blink</name>
+	<name>Flink : Table : Runtime Blink</name>
 	<description>
 		This module contains classes that are required by a task manager for
 		execution of table programs. The content of this module is work-in-progress.
@@ -84,7 +84,7 @@ under the License.
 			<groupId>org.apache.calcite.avatica</groupId>
 			<artifactId>avatica-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the version and dependency exclusions -->
-			<version>1.16.0</version>
+			<version>1.17.0</version>
 			<exclusions>
 				<!--
 
@@ -93,9 +93,9 @@ under the License.
 				We exclude all the dependencies of Avatica because currently we only use
 				TimeUnit, TimeUnitRange and SqlDateTimeUtils which only dependent JDK.
 
-				"mvn dependency:tree" as of Avatica 1.16:
+				"mvn dependency:tree" as of Avatica 1.17:
 
-				[INFO] +- org.apache.calcite.avatica:avatica-core:jar:1.16.0:compile
+				[INFO] +- org.apache.calcite.avatica:avatica-core:jar:1.17.0:compile
 
 				-->
 				<exclusion>
@@ -149,6 +149,14 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

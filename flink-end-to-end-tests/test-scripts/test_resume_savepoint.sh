@@ -43,82 +43,88 @@ fi
 
 source "$(dirname "$0")"/common.sh
 
+
 ORIGINAL_DOP=$1
 NEW_DOP=$2
 STATE_BACKEND_TYPE=${3:-file}
 STATE_BACKEND_FILE_ASYNC=${4:-true}
 STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE=${5:-rocks}
 
-if (( $ORIGINAL_DOP >= $NEW_DOP )); then
-  NUM_SLOTS=$ORIGINAL_DOP
-else
-  NUM_SLOTS=$NEW_DOP
-fi
 
-set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
+run_resume_savepoint_test() {
+  if (( $ORIGINAL_DOP >= $NEW_DOP )); then
+    NUM_SLOTS=$ORIGINAL_DOP
+  else
+    NUM_SLOTS=$NEW_DOP
+  fi
 
-if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'heap' ]; then
-  set_config_key "state.backend.rocksdb.timer-service.factory" "heap"
-fi
-set_config_key "metrics.fetcher.update-interval" "2000"
+  set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 
-setup_flink_slf4j_metric_reporter
+  if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'heap' ]; then
+    set_config_key "state.backend.rocksdb.timer-service.factory" "heap"
+  fi
+  set_config_key "metrics.fetcher.update-interval" "2000"
 
-start_cluster
+  setup_flink_slf4j_metric_reporter
 
-CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
+  start_cluster
 
-# run the DataStream allroundjob
-TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
-  --test.semantics exactly-once \
-  --environment.parallelism $ORIGINAL_DOP \
-  --state_backend $STATE_BACKEND_TYPE \
-  --state_backend.checkpoint_directory $CHECKPOINT_DIR \
-  --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
-  --sequence_generator_source.sleep_time 15 \
-  --sequence_generator_source.sleep_after_elements 1 \
-  | grep "Job has been submitted with JobID" | sed 's/.* //g')
+  CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
 
-wait_job_running $DATASTREAM_JOB
+  # run the DataStream allroundjob
+  TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-datastream-allround-test/target/DataStreamAllroundTestProgram.jar
+  DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -d -p $ORIGINAL_DOP $TEST_PROGRAM_JAR \
+    --test.semantics exactly-once \
+    --environment.parallelism $ORIGINAL_DOP \
+    --state_backend $STATE_BACKEND_TYPE \
+    --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+    --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+    --sequence_generator_source.sleep_time 30 \
+    --sequence_generator_source.sleep_after_elements 1 \
+    | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
+  wait_job_running $DATASTREAM_JOB
 
-# take a savepoint of the state machine job
-SAVEPOINT_PATH=$(stop_with_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
-  | grep "Savepoint completed. Path:" | sed 's/.* //g')
+  wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
 
-wait_job_terminal_state "${DATASTREAM_JOB}" "FINISHED"
+  # take a savepoint of the state machine job
+  SAVEPOINT_PATH=$(stop_with_savepoint $DATASTREAM_JOB $TEST_DATA_DIR \
+    | grep "Savepoint completed. Path:" | sed 's/.* //g')
 
-# isolate the path without the scheme ("file:") and do the necessary checks
-SAVEPOINT_DIR=${SAVEPOINT_PATH#"file:"}
+  wait_job_terminal_state "${DATASTREAM_JOB}" "FINISHED"
 
-if [ -z "$SAVEPOINT_DIR" ]; then
-  echo "Savepoint location was empty. This may mean that the stop-with-savepoint failed."
-  exit 1
-elif [ ! -d "$SAVEPOINT_DIR" ]; then
-  echo "Savepoint $SAVEPOINT_PATH does not exist."
-  exit 1
-fi
+  # isolate the path without the scheme ("file:") and do the necessary checks
+  SAVEPOINT_DIR=${SAVEPOINT_PATH#"file:"}
 
-# Since it is not possible to differentiate reporter output between the first and second execution,
-# we remember the number of metrics sampled in the first execution so that they can be ignored in the following monitorings
-OLD_NUM_METRICS=$(get_num_metric_samples)
+  if [ -z "$SAVEPOINT_DIR" ]; then
+    echo "Savepoint location was empty. This may mean that the stop-with-savepoint failed."
+    exit 1
+  elif [ ! -d "$SAVEPOINT_DIR" ]; then
+    echo "Savepoint $SAVEPOINT_PATH does not exist."
+    exit 1
+  fi
 
-# resume state machine job with savepoint
-DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $TEST_PROGRAM_JAR \
-  --test.semantics exactly-once \
-  --environment.parallelism $NEW_DOP \
-  --state_backend $STATE_BACKEND_TYPE \
-  --state_backend.checkpoint_directory $CHECKPOINT_DIR \
-  --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
-  --sequence_generator_source.sleep_time 15 \
-  --sequence_generator_source.sleep_after_elements 1 \
-  | grep "Job has been submitted with JobID" | sed 's/.* //g')
+  # Since it is not possible to differentiate reporter output between the first and second execution,
+  # we remember the number of metrics sampled in the first execution so that they can be ignored in the following monitorings
+  OLD_NUM_METRICS=$(get_num_metric_samples)
 
-wait_job_running $DATASTREAM_JOB
+  # resume state machine job with savepoint
+  DATASTREAM_JOB=$($FLINK_DIR/bin/flink run -s $SAVEPOINT_PATH -p $NEW_DOP -d $TEST_PROGRAM_JAR \
+    --test.semantics exactly-once \
+    --environment.parallelism $NEW_DOP \
+    --state_backend $STATE_BACKEND_TYPE \
+    --state_backend.checkpoint_directory $CHECKPOINT_DIR \
+    --state_backend.file.async $STATE_BACKEND_FILE_ASYNC \
+    --sequence_generator_source.sleep_time 15 \
+    --sequence_generator_source.sleep_after_elements 1 \
+    | grep "Job has been submitted with JobID" | sed 's/.* //g')
 
-wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
+  wait_job_running $DATASTREAM_JOB
 
-# if state is errorneous and the state machine job produces alerting state transitions,
-# output would be non-empty and the test will not pass
+  wait_oper_metric_num_in_records SemanticsCheckMapper.0 200
+
+  # if state is errorneous and the state machine job produces alerting state transitions,
+  # output would be non-empty and the test will not pass
+}
+
+run_test_with_timeout 900 run_resume_savepoint_test

@@ -24,8 +24,8 @@ import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TupleT
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.table.api.TableEnvironmentTest.{CClass, PojoClass}
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.{TableException, ValidationException, _}
 import org.apache.flink.table.runtime.types.CRowTypeInfo
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row

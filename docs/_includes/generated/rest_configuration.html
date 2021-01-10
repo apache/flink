@@ -12,7 +12,7 @@
             <td><h5>rest.address</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The address that should be used by clients to connect to the server.</td>
+            <td>The address that should be used by clients to connect to the server. Attention: This option is respected only if the high-availability configuration is NONE.</td>
         </tr>
         <tr>
             <td><h5>rest.await-leader-timeout</h5></td>
@@ -54,7 +54,7 @@
             <td><h5>rest.port</h5></td>
             <td style="word-wrap: break-word;">8081</td>
             <td>Integer</td>
-            <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port.</td>
+            <td>The port that the client connects to. If rest.bind-port has not been specified, then the REST server will bind to this port. Attention: This option is respected only if the high-availability configuration is NONE.</td>
         </tr>
         <tr>
             <td><h5>rest.retry.delay</h5></td>

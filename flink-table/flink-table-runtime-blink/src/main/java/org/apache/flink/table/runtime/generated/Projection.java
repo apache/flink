@@ -18,13 +18,10 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.data.RowData;
 
-/**
- * Interface for code generated projection, which will map a BaseRow to another one.
- */
-public interface Projection<IN extends BaseRow, OUT extends BaseRow> {
+/** Interface for code generated projection, which will map a RowData to another one. */
+public interface Projection<IN extends RowData, OUT extends RowData> {
 
-	OUT apply(IN row);
-
+    OUT apply(IN row);
 }

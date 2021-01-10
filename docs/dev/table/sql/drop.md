@@ -25,20 +25,43 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({{ site.baseurl }}/dev/table/catalogs.html).
+DROP statements are used to remove a registered table/view/function from current or specified [Catalog]({% link dev/table/catalogs.md %}).
 
 Flink SQL supports the following DROP statements for now:
 
 - DROP TABLE
 - DROP DATABASE
+- DROP VIEW
 - DROP FUNCTION
 
 ## Run a DROP statement
 
-DROP statements can be executed with the `sqlUpdate()` method of the `TableEnvironment`, or executed in [SQL CLI]({{ site.baseurl }}/dev/table/sqlClient.html). The `sqlUpdate()` method returns nothing for a successful DROP operation, otherwise will throw an exception.
+<div class="codetabs" data-hide-tabs="1" markdown="1">
 
-The following examples show how to run a DROP statement in `TableEnvironment` and in SQL CLI.
+<div data-lang="java/scala" markdown="1">
 
+DROP statements can be executed with the `executeSql()` method of the `TableEnvironment`. The `executeSql()` method returns 'OK' for a successful DROP operation, otherwise will throw an exception.
+
+The following examples show how to run a DROP statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="python" markdown="1">
+
+DROP statements can be executed with the `execute_sql()` method of the `TableEnvironment`. The `execute_sql()` method returns 'OK' for a successful DROP operation, otherwise will throw an exception.
+
+The following examples show how to run a DROP statement in `TableEnvironment`.
+
+</div>
+
+<div data-lang="SQL CLI" markdown="1">
+
+DROP statements can be in [SQL CLI]({% link dev/table/sqlClient.md %}).
+
+The following examples show how to run a DROP statement in SQL CLI.
+
+</div>
+</div>
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
@@ -46,16 +69,18 @@ EnvironmentSettings settings = EnvironmentSettings.newInstance()...
 TableEnvironment tableEnv = TableEnvironment.create(settings);
 
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
 
 // a string array: ["Orders"]
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 
 // drop "Orders" table from catalog
-tableEnv.sqlUpdate("DROP TABLE Orders");
+tableEnv.executeSql("DROP TABLE Orders");
 
 // an empty string array
-String[] tables = tableEnv.listTable();
+String[] tables = tableEnv.listTables();
+// or tableEnv.executeSql("SHOW TABLES").print();
 {% endhighlight %}
 </div>
 
@@ -65,32 +90,36 @@ val settings = EnvironmentSettings.newInstance()...
 val tableEnv = TableEnvironment.create(settings)
 
 // register a table named "Orders"
-tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // a string array: ["Orders"]
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 
 // drop "Orders" table from catalog
-tableEnv.sqlUpdate("DROP TABLE Orders")
+tableEnv.executeSql("DROP TABLE Orders")
 
 // an empty string array
-val tables = tableEnv.listTable()
+val tables = tableEnv.listTables()
+// or tableEnv.executeSql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
 <div data-lang="python" markdown="1">
 {% highlight python %}
-settings = EnvironmentSettings.newInstance()...
-table_env = TableEnvironment.create(settings)
+settings = EnvironmentSettings.new_instance()...
+table_env = StreamTableEnvironment.create(env, settings)
 
 # a string array: ["Orders"]
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 
 # drop "Orders" table from catalog
-tableEnv.sqlUpdate("DROP TABLE Orders")
+table_env.execute_sql("DROP TABLE Orders")
 
 # an empty string array
-tables = tableEnv.listTable()
+tables = table_env.list_tables()
+# or table_env.execute_sql("SHOW TABLES").print()
 {% endhighlight %}
 </div>
 
@@ -142,6 +171,25 @@ Dropping a non-empty database triggers an exception. Enabled by default.
 **CASCADE**
 
 Dropping a non-empty database also drops all associated tables and functions.
+
+## DROP VIEW
+
+{% highlight sql %}
+DROP [TEMPORARY] VIEW  [IF EXISTS] [catalog_name.][db_name.]view_name
+{% endhighlight %}
+
+Drop a view that has catalog and database namespaces. If the view to drop does not exist, an exception is thrown.
+
+**TEMPORARY**
+
+Drop temporary view that has catalog and database namespaces.
+
+**IF EXISTS**
+
+If the view does not exist, nothing happens.
+
+**MAINTAIN DEPENDENCIES**
+Flink does not maintain dependencies of view by CASCADE/RESTRICT keywords, the current way is producing postpone error message when user tries to use the view under the scenarios like the underlying table of view has been dropped.
 
 ## DROP FUNCTION
 

@@ -26,35 +26,33 @@ import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
-/**
- * Tests for the {@link CheckpointBarrier} type.
- */
+/** Tests for the {@link CheckpointBarrier} type. */
 public class CheckpointBarrierTest {
 
-	/**
-	 * Test serialization of the checkpoint barrier.
-	 * The checkpoint barrier does not support its own serialization, in order to be immutable.
-	 */
-	@Test
-	public void testSerialization() throws Exception {
-		long id = Integer.MAX_VALUE + 123123L;
-		long timestamp = Integer.MAX_VALUE + 1228L;
+    /**
+     * Test serialization of the checkpoint barrier. The checkpoint barrier does not support its own
+     * serialization, in order to be immutable.
+     */
+    @Test
+    public void testSerialization() throws Exception {
+        long id = Integer.MAX_VALUE + 123123L;
+        long timestamp = Integer.MAX_VALUE + 1228L;
 
-		CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
-		CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
+        CheckpointOptions options = CheckpointOptions.forCheckpointWithDefaultLocation();
+        CheckpointBarrier barrier = new CheckpointBarrier(id, timestamp, options);
 
-		try {
-			barrier.write(new DataOutputSerializer(1024));
-			fail("should throw an exception");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
+        try {
+            barrier.write(new DataOutputSerializer(1024));
+            fail("should throw an exception");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
 
-		try {
-			barrier.read(new DataInputDeserializer(new byte[32]));
-			fail("should throw an exception");
-		} catch (UnsupportedOperationException e) {
-			// expected
-		}
-	}
+        try {
+            barrier.read(new DataInputDeserializer(new byte[32]));
+            fail("should throw an exception");
+        } catch (UnsupportedOperationException e) {
+            // expected
+        }
+    }
 }

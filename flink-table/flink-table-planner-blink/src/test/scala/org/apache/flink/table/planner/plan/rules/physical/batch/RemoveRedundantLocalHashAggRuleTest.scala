@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
@@ -50,7 +50,7 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
         |WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
         |SELECT SUM(b) FROM r GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -67,7 +67,7 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
         | WHERE rk <= 10
         |) GROUP BY a
       """.stripMargin
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
   @Test
@@ -79,7 +79,7 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
     val sqlQuery = "SELECT d, MAX(e), MAX(e) FILTER (WHERE a < 10), COUNT(DISTINCT c),\n" +
       "COUNT(DISTINCT c) FILTER (WHERE a > 5), COUNT(DISTINCT b) FILTER (WHERE b > 3)\n" +
       "FROM z GROUP BY d"
-    util.verifyPlan(sqlQuery)
+    util.verifyRelPlan(sqlQuery)
   }
 
 }

@@ -23,27 +23,31 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.core.execution.PipelineExecutorFactory;
+import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 
 import javax.annotation.Nonnull;
 
-/**
- * An {@link PipelineExecutorFactory} for executing jobs on dedicated (per-job) clusters.
- */
+/** An {@link PipelineExecutorFactory} for executing jobs on dedicated (per-job) clusters. */
 @Internal
 public class YarnJobClusterExecutorFactory implements PipelineExecutorFactory {
 
-	@Override
-	public String getName() {
-		return YarnJobClusterExecutor.NAME;
-	}
+    @Override
+    public String getName() {
+        return YarnJobClusterExecutor.NAME;
+    }
 
-	@Override
-	public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
-		return YarnJobClusterExecutor.NAME.equalsIgnoreCase(configuration.get(DeploymentOptions.TARGET));
-	}
+    @Override
+    public boolean isCompatibleWith(@Nonnull final Configuration configuration) {
+        return YarnJobClusterExecutor.NAME.equalsIgnoreCase(
+                configuration.get(DeploymentOptions.TARGET));
+    }
 
-	@Override
-	public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
-		return new YarnJobClusterExecutor();
-	}
+    @Override
+    public PipelineExecutor getExecutor(@Nonnull final Configuration configuration) {
+        try {
+            return new YarnJobClusterExecutor();
+        } catch (NoClassDefFoundError e) {
+            throw new IllegalStateException(YarnDeploymentTarget.ERROR_MESSAGE);
+        }
+    }
 }

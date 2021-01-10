@@ -56,9 +56,10 @@ services:
       - "8081:8081"
       - ${JM_RPC_EX_PORT}:${JM_RPC_IN_PORT}
     volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
       - ${INPUT_VOLUME}:${INPUT_PATH}
       - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
-    command: job-cluster --job-classname ${FLINK_JOB} -Dparallelism.default=2 -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.bind-host=0.0.0.0 -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Djobmanager.rpc.bind-port=${JM_RPC_IN_PORT} ${FLINK_JOB_ARGUMENTS}
+    command: standalone-job --job-classname ${FLINK_JOB} -Dparallelism.default=2 -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.bind-host=0.0.0.0 -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Djobmanager.rpc.bind-port=${JM_RPC_IN_PORT} ${FLINK_JOB_ARGUMENTS}
     extra_hosts:
       - ${TM_1_EX_HOSTNAME}:${HOST_IP}
       - ${TM_2_EX_HOSTNAME}:${HOST_IP}
@@ -69,9 +70,10 @@ services:
       - ${TM_1_RPC_EX_PORT}:${TM_RPC_IN_PORT}
       - ${TM_1_DATA_EX_PORT}:${TM_DATA_IN_PORT}
     volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
       - ${INPUT_VOLUME}:${INPUT_PATH}
       - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
-    command: task-manager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_1_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_1_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_1_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
+    command: taskmanager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_1_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_1_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_1_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
     extra_hosts:
       - ${JM_EX_HOSTNAME}:${HOST_IP}
       - ${TM_2_EX_HOSTNAME}:${HOST_IP}
@@ -82,9 +84,10 @@ services:
       - ${TM_2_RPC_EX_PORT}:${TM_RPC_IN_PORT}
       - ${TM_2_DATA_EX_PORT}:${TM_DATA_IN_PORT}
     volumes:
+      - ${USER_LIB}:/opt/flink/usrlib
       - ${INPUT_VOLUME}:${INPUT_PATH}
       - ${OUTPUT_VOLUME}:${OUTPUT_PATH}
-    command: task-manager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_2_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_2_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_2_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
+    command: taskmanager -Djobmanager.rpc.address=${JM_EX_HOSTNAME} -Djobmanager.rpc.port=${JM_RPC_EX_PORT} -Dtaskmanager.host=${TM_2_EX_HOSTNAME} -Dtaskmanager.bind-host=0.0.0.0 -Dtaskmanager.rpc.port=${TM_2_RPC_EX_PORT} -Dtaskmanager.rpc.bind-port=${TM_RPC_IN_PORT} -Dtaskmanager.data.port=${TM_2_DATA_EX_PORT} -Dtaskmanager.data.bind-port=${TM_DATA_IN_PORT}
     extra_hosts:
       - ${JM_EX_HOSTNAME}:${HOST_IP}
       - ${TM_1_EX_HOSTNAME}:${HOST_IP}

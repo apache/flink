@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.util.TestLogger;
@@ -33,44 +32,38 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link SchedulerNGFactory}.
- */
+/** Tests for {@link SchedulerNGFactory}. */
 public class SchedulerNGFactoryFactoryTest extends TestLogger {
 
-	private static final NoRestartStrategy.NoRestartStrategyFactory TEST_RESTART_STRATEGY_FACTORY = new NoRestartStrategy.NoRestartStrategyFactory();
+    @Test
+    public void createDefaultSchedulerFactoryByDefault() {
+        final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(new Configuration());
+        assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
+    }
 
-	@Test
-	public void createLegacySchedulerFactoryByDefault() {
-		final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(new Configuration());
-		assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
-	}
+    @Test
+    public void createSchedulerNGFactoryIfConfigured() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(JobManagerOptions.SCHEDULER, "ng");
 
-	@Test
-	public void createSchedulerNGFactoryIfConfigured() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.SCHEDULER, "ng");
+        final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(configuration);
 
-		final SchedulerNGFactory schedulerNGFactory = createSchedulerNGFactory(configuration);
+        assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
+    }
 
-		assertThat(schedulerNGFactory, is(instanceOf(DefaultSchedulerFactory.class)));
-	}
+    @Test
+    public void throwsExceptionIfSchedulerNameIsInvalid() {
+        final Configuration configuration = new Configuration();
+        configuration.setString(JobManagerOptions.SCHEDULER, "invalid-scheduler-name");
 
-	@Test
-	public void throwsExceptionIfSchedulerNameIsInvalid() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(JobManagerOptions.SCHEDULER, "invalid-scheduler-name");
+        try {
+            createSchedulerNGFactory(configuration);
+        } catch (IllegalArgumentException e) {
+            assertThat(e.getMessage(), containsString("Illegal value [invalid-scheduler-name]"));
+        }
+    }
 
-		try {
-			createSchedulerNGFactory(configuration);
-		} catch (IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("Illegal value [invalid-scheduler-name]"));
-		}
-	}
-
-	private static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
-		return SchedulerNGFactoryFactory.createSchedulerNGFactory(
-			configuration,
-			TEST_RESTART_STRATEGY_FACTORY);
-	}
+    private static SchedulerNGFactory createSchedulerNGFactory(final Configuration configuration) {
+        return SchedulerNGFactoryFactory.createSchedulerNGFactory(configuration);
+    }
 }

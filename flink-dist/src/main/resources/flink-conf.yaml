@@ -37,9 +37,11 @@ jobmanager.rpc.address: localhost
 jobmanager.rpc.port: 6123
 
 
-# The heap size for the JobManager JVM
+# The total process memory size for the JobManager.
+#
+# Note this accounts for all memory usage within the JobManager process, including JVM metaspace and other overhead.
 
-jobmanager.heap.size: 1024m
+jobmanager.memory.process.size: 1600m
 
 
 # The total process memory size for the TaskManager.
@@ -119,7 +121,7 @@ parallelism.default: 1
 
 # Default target directory for savepoints, optional.
 #
-# state.savepoints.dir: hdfs://namenode-host:port/flink-checkpoints
+# state.savepoints.dir: hdfs://namenode-host:port/flink-savepoints
 
 # Flag to enable/disable incremental checkpoints for backends that
 # support incremental checkpoints (like the RocksDB state backend). 

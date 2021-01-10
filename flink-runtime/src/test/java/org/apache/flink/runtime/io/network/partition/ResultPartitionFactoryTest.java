@@ -33,85 +33,121 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link ResultPartitionFactory}.
- */
+/** Tests for the {@link ResultPartitionFactory}. */
 @SuppressWarnings("StaticVariableUsedBeforeInitialization")
 public class ResultPartitionFactoryTest extends TestLogger {
 
-	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
-	private static final int SEGMENT_SIZE = 64;
+    private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+    private static final int SEGMENT_SIZE = 64;
 
-	private static FileChannelManager fileChannelManager;
+    private static FileChannelManager fileChannelManager;
 
-	@BeforeClass
-	public static void setUp() {
-		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
-	}
+    @BeforeClass
+    public static void setUp() {
+        fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+    }
 
-	@AfterClass
-	public static void shutdown() throws Exception {
-		fileChannelManager.close();
-	}
+    @AfterClass
+    public static void shutdown() throws Exception {
+        fileChannelManager.close();
+    }
 
-	@Test
-	public void testBoundedBlockingSubpartitionsCreated() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
-		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
-	}
+    @Test
+    public void testBoundedBlockingSubpartitionsCreated() {
+        final BoundedBlockingResultPartition resultPartition =
+                (BoundedBlockingResultPartition)
+                        createResultPartition(ResultPartitionType.BLOCKING);
+        Arrays.stream(resultPartition.subpartitions)
+                .forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
+    }
 
-	@Test
-	public void testPipelinedSubpartitionsCreated() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
-		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
-	}
+    @Test
+    public void testPipelinedSubpartitionsCreated() {
+        final PipelinedResultPartition resultPartition =
+                (PipelinedResultPartition) createResultPartition(ResultPartitionType.PIPELINED);
+        Arrays.stream(resultPartition.subpartitions)
+                .forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
+    }
 
-	@Test
-	public void testConsumptionOnReleaseForced() {
-		final ResultPartition resultPartition = createResultPartition(true, ResultPartitionType.BLOCKING);
-		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
-	}
+    @Test
+    public void testSortMergePartitionCreated() {
+        ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING, 1);
+        assertTrue(resultPartition instanceof SortMergeResultPartition);
+    }
 
-	@Test
-	public void testConsumptionOnReleaseEnabledForNonBlocking() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
-		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
-	}
+    @Test
+    public void testReleaseOnConsumptionForPipelinedPartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.PIPELINED);
 
-	@Test
-	public void testConsumptionOnReleaseDisabled() {
-		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
-		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
-	}
+        resultPartition.onConsumedSubpartition(0);
 
-	private static ResultPartition createResultPartition(
-			boolean releasePartitionOnConsumption,
-			ResultPartitionType partitionType) {
-		ResultPartitionFactory factory = new ResultPartitionFactory(
-			new ResultPartitionManager(),
-			fileChannelManager,
-			new NetworkBufferPool(1, SEGMENT_SIZE, 1),
-			BoundedBlockingSubpartitionType.AUTO,
-			1,
-			1,
-			SEGMENT_SIZE,
-			releasePartitionOnConsumption,
-			false,
-			"LZ4");
+        assertTrue(resultPartition.isReleased());
+    }
 
-		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
-			PartitionDescriptorBuilder
-				.newBuilder()
-				.setPartitionType(partitionType)
-				.build(),
-			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
-			1,
-			true
-		);
+    @Test
+    public void testNoReleaseOnConsumptionForBoundedBlockingPartition() {
+        final ResultPartition resultPartition = createResultPartition(ResultPartitionType.BLOCKING);
 
-		return factory.create("test", 0, descriptor);
-	}
+        resultPartition.onConsumedSubpartition(0);
+
+        assertFalse(resultPartition.isReleased());
+    }
+
+    @Test
+    public void testNoReleaseOnConsumptionForSortMergePartition() {
+        final ResultPartition resultPartition =
+                createResultPartition(ResultPartitionType.BLOCKING, 1);
+
+        resultPartition.onConsumedSubpartition(0);
+
+        assertFalse(resultPartition.isReleased());
+    }
+
+    private static ResultPartition createResultPartition(ResultPartitionType partitionType) {
+        return createResultPartition(partitionType, Integer.MAX_VALUE);
+    }
+
+    private static ResultPartition createResultPartition(
+            ResultPartitionType partitionType, int sortShuffleMinParallelism) {
+        final ResultPartitionManager manager = new ResultPartitionManager();
+
+        final ResultPartitionFactory factory =
+                new ResultPartitionFactory(
+                        manager,
+                        fileChannelManager,
+                        new NetworkBufferPool(1, SEGMENT_SIZE),
+                        BoundedBlockingSubpartitionType.AUTO,
+                        1,
+                        1,
+                        SEGMENT_SIZE,
+                        false,
+                        "LZ4",
+                        Integer.MAX_VALUE,
+                        10,
+                        sortShuffleMinParallelism,
+                        false);
+
+        final ResultPartitionDeploymentDescriptor descriptor =
+                new ResultPartitionDeploymentDescriptor(
+                        PartitionDescriptorBuilder.newBuilder()
+                                .setPartitionType(partitionType)
+                                .build(),
+                        NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
+                        1,
+                        true);
+
+        // guard our test assumptions
+        assertEquals(1, descriptor.getNumberOfSubpartitions());
+
+        final ResultPartition partition = factory.create("test", 0, descriptor);
+        manager.registerResultPartition(partition);
+
+        return partition;
+    }
 }

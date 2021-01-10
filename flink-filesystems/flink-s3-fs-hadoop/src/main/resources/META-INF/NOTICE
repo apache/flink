@@ -1,13 +1,14 @@
 flink-s3-fs-hadoop
-Copyright 2014-2020 The Apache Software Foundation
+Copyright 2014-2021 The Apache Software Foundation
 
 This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
 
-- com.amazonaws:aws-java-sdk-core:1.11.271
-- com.amazonaws:aws-java-sdk-dynamodb:1.11.271
-- com.amazonaws:aws-java-sdk-kms:1.11.271
-- com.amazonaws:aws-java-sdk-s3:1.11.271
-- com.amazonaws:jmespath-java:1.11.271
+- com.amazonaws:aws-java-sdk-core:1.11.788
+- com.amazonaws:aws-java-sdk-dynamodb:1.11.788
+- com.amazonaws:aws-java-sdk-kms:1.11.788
+- com.amazonaws:aws-java-sdk-s3:1.11.788
+- com.amazonaws:aws-java-sdk-sts:1.11.788
+- com.amazonaws:jmespath-java:1.11.788
 - com.fasterxml.jackson.core:jackson-annotations:2.10.1
 - com.fasterxml.jackson.core:jackson-core:2.10.1
 - com.fasterxml.jackson.core:jackson-databind:2.10.1
@@ -15,9 +16,9 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.woodstox:woodstox-core:5.0.3
 - com.google.guava:guava:11.0.2
 - commons-beanutils:commons-beanutils:1.9.3
-- commons-codec:commons-codec:1.10
+- commons-codec:commons-codec:1.13
 - commons-collections:commons-collections:3.2.2
-- commons-io:commons-io:2.4
+- commons-io:commons-io:2.7
 - commons-lang:commons-lang:2.6
 - commons-logging:commons-logging:1.1.3
 - joda-time:joda-time:2.5
@@ -29,13 +30,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.hadoop:hadoop-common:3.1.0
 - org.apache.htrace:htrace-core4:4.1.0-incubating
 - org.apache.httpcomponents:httpcore:4.4.6
-- org.apache.httpcomponents:httpclient:4.5.3
+- org.apache.httpcomponents:httpclient:4.5.9
 - software.amazon.ion:ion-java:1.0.2
 
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.
 
-- javax.activation:javax.activation-api:1.2.0
 - javax.xml.bind:jaxb-api:2.3.1
 
 This project bundles the following dependencies under the Go License (https://golang.org/LICENSE).

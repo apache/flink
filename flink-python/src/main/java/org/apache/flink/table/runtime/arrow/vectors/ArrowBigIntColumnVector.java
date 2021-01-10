@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,33 +19,29 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.dataformat.vector.LongColumnVector;
+import org.apache.flink.table.data.vector.LongColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.BigIntVector;
 
-/**
- * Arrow column vector for BigInt.
- */
+/** Arrow column vector for BigInt. */
 @Internal
 public final class ArrowBigIntColumnVector implements LongColumnVector {
 
-	/**
-	 * Container which is used to store the sequence of bigint values of a column to read.
-	 */
-	private final BigIntVector bigIntVector;
+    /** Container which is used to store the sequence of bigint values of a column to read. */
+    private final BigIntVector bigIntVector;
 
-	public ArrowBigIntColumnVector(BigIntVector bigIntVector) {
-		this.bigIntVector = Preconditions.checkNotNull(bigIntVector);
-	}
+    public ArrowBigIntColumnVector(BigIntVector bigIntVector) {
+        this.bigIntVector = Preconditions.checkNotNull(bigIntVector);
+    }
 
-	@Override
-	public long getLong(int i) {
-		return bigIntVector.get(i);
-	}
+    @Override
+    public long getLong(int i) {
+        return bigIntVector.get(i);
+    }
 
-	@Override
-	public boolean isNullAt(int i) {
-		return bigIntVector.isNull(i);
-	}
+    @Override
+    public boolean isNullAt(int i) {
+        return bigIntVector.isNull(i);
+    }
 }

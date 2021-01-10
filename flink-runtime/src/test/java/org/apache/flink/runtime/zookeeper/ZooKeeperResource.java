@@ -29,49 +29,46 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 
-/**
- * {@link ExternalResource} which starts a {@link org.apache.zookeeper.server.ZooKeeperServer}.
- */
+/** {@link ExternalResource} which starts a {@link org.apache.zookeeper.server.ZooKeeperServer}. */
 public class ZooKeeperResource extends ExternalResource {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperResource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperResource.class);
 
-	@Nullable
-	private TestingServer zooKeeperServer;
+    @Nullable private TestingServer zooKeeperServer;
 
-	public String getConnectString() {
-		verifyIsRunning();
-		return zooKeeperServer.getConnectString();
-	}
+    public String getConnectString() {
+        verifyIsRunning();
+        return zooKeeperServer.getConnectString();
+    }
 
-	private void verifyIsRunning() {
-		Preconditions.checkState(zooKeeperServer != null);
-	}
+    private void verifyIsRunning() {
+        Preconditions.checkState(zooKeeperServer != null);
+    }
 
-	@Override
-	protected void before() throws Throwable {
-		terminateZooKeeperServer();
-		zooKeeperServer = new TestingServer(true);
-	}
+    @Override
+    protected void before() throws Throwable {
+        terminateZooKeeperServer();
+        zooKeeperServer = new TestingServer(true);
+    }
 
-	private void terminateZooKeeperServer() throws IOException {
-		if (zooKeeperServer != null) {
-			zooKeeperServer.stop();
-			zooKeeperServer = null;
-		}
-	}
+    private void terminateZooKeeperServer() throws IOException {
+        if (zooKeeperServer != null) {
+            zooKeeperServer.stop();
+            zooKeeperServer = null;
+        }
+    }
 
-	@Override
-	protected void after() {
-		try {
-			terminateZooKeeperServer();
-		} catch (IOException e) {
-			LOG.warn("Could not properly terminate the {}.", getClass().getSimpleName(), e);
-		}
-	}
+    @Override
+    protected void after() {
+        try {
+            terminateZooKeeperServer();
+        } catch (IOException e) {
+            LOG.warn("Could not properly terminate the {}.", getClass().getSimpleName(), e);
+        }
+    }
 
-	public void restart() throws Exception {
-		Preconditions.checkNotNull(zooKeeperServer);
-		zooKeeperServer.restart();
-	}
+    public void restart() throws Exception {
+        Preconditions.checkNotNull(zooKeeperServer);
+        zooKeeperServer.restart();
+    }
 }

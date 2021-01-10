@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.KeyedStateStore;
@@ -29,6 +30,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
@@ -60,448 +62,502 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
- * New base class for all stream operators, intended to eventually replace {@link AbstractStreamOperator}.
- * Currently intended to work smoothly just with {@link MultipleInputStreamOperator}.
+ * New base class for all stream operators, intended to eventually replace {@link
+ * AbstractStreamOperator}. Currently intended to work smoothly just with {@link
+ * MultipleInputStreamOperator}.
  *
- * <p>One note-able difference in comparison to {@link AbstractStreamOperator} is lack of
- * {@link AbstractStreamOperator#setup(StreamTask, StreamConfig, Output)} in favor of initialisation
- * in the constructor, and removed some tight coupling with classes like {@link StreamTask}.
+ * <p>One note-able difference in comparison to {@link AbstractStreamOperator} is lack of {@link
+ * AbstractStreamOperator#setup(StreamTask, StreamConfig, Output)} in favor of initialisation in the
+ * constructor, and removed some tight coupling with classes like {@link StreamTask}.
  *
  * <p>Methods are guaranteed not to be called concurrently.
  *
  * @param <OUT> The output type of the operator
  */
 @Experimental
-public abstract class AbstractStreamOperatorV2<OUT> implements StreamOperator<OUT>, CheckpointedStreamOperator {
-	/** The logger used by the operator class and its subclasses. */
-	protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperatorV2.class);
+public abstract class AbstractStreamOperatorV2<OUT>
+        implements StreamOperator<OUT>, CheckpointedStreamOperator {
+    /** The logger used by the operator class and its subclasses. */
+    protected static final Logger LOG = LoggerFactory.getLogger(AbstractStreamOperatorV2.class);
 
-	protected final StreamConfig config;
-	protected final Output<StreamRecord<OUT>> output;
-	private final StreamingRuntimeContext runtimeContext;
-	private final ExecutionConfig executionConfig;
-	private final ClassLoader userCodeClassLoader;
-	private final CloseableRegistry cancelables;
-	private final long[] inputWatermarks;
+    protected final StreamConfig config;
+    protected final Output<StreamRecord<OUT>> output;
+    private final StreamingRuntimeContext runtimeContext;
+    private final ExecutionConfig executionConfig;
+    private final ClassLoader userCodeClassLoader;
+    private final CloseableRegistry cancelables;
+    private final long[] inputWatermarks;
 
-	/** Metric group for the operator. */
-	protected final OperatorMetricGroup metrics;
-	protected final LatencyStats latencyStats;
-	protected final ProcessingTimeService processingTimeService;
+    /** Metric group for the operator. */
+    protected final OperatorMetricGroup metrics;
 
-	private StreamOperatorStateHandler stateHandler;
-	private InternalTimeServiceManager<?> timeServiceManager;
+    protected final LatencyStats latencyStats;
+    protected final ProcessingTimeService processingTimeService;
 
-	// We keep track of watermarks from both inputs, the combined input is the minimum
-	// Once the minimum advances we emit a new watermark for downstream operators
-	private long combinedWatermark = Long.MIN_VALUE;
+    private StreamOperatorStateHandler stateHandler;
+    private InternalTimeServiceManager<?> timeServiceManager;
 
-	public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
-		inputWatermarks = new long[numberOfInputs];
-		Arrays.fill(inputWatermarks, Long.MIN_VALUE);
-		final Environment environment = parameters.getContainingTask().getEnvironment();
-		config = parameters.getStreamConfig();
-		CountingOutput<OUT> countingOutput;
-		OperatorMetricGroup operatorMetricGroup;
-		try {
-			operatorMetricGroup = environment.getMetricGroup().getOrAddOperator(config.getOperatorID(), config.getOperatorName());
-			countingOutput = new CountingOutput(parameters.getOutput(), operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
-			if (config.isChainStart()) {
-				operatorMetricGroup.getIOMetricGroup().reuseInputMetricsForTask();
-			}
-			if (config.isChainEnd()) {
-				operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
-			}
-		} catch (Exception e) {
-			LOG.warn("An error occurred while instantiating task metrics.", e);
-			countingOutput = null;
-			operatorMetricGroup = null;
-		}
+    // We keep track of watermarks from both inputs, the combined input is the minimum
+    // Once the minimum advances we emit a new watermark for downstream operators
+    private long combinedWatermark = Long.MIN_VALUE;
 
-		if (countingOutput == null || operatorMetricGroup == null) {
-			metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
-			output = parameters.getOutput();
-		}
-		else {
-			metrics = operatorMetricGroup;
-			output = countingOutput;
-		}
+    public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
+        inputWatermarks = new long[numberOfInputs];
+        Arrays.fill(inputWatermarks, Long.MIN_VALUE);
+        final Environment environment = parameters.getContainingTask().getEnvironment();
+        config = parameters.getStreamConfig();
+        CountingOutput<OUT> countingOutput;
+        OperatorMetricGroup operatorMetricGroup;
+        try {
+            operatorMetricGroup =
+                    environment
+                            .getMetricGroup()
+                            .getOrAddOperator(config.getOperatorID(), config.getOperatorName());
+            countingOutput =
+                    new CountingOutput(
+                            parameters.getOutput(),
+                            operatorMetricGroup.getIOMetricGroup().getNumRecordsOutCounter());
+            if (config.isChainEnd()) {
+                operatorMetricGroup.getIOMetricGroup().reuseOutputMetricsForTask();
+            }
+        } catch (Exception e) {
+            LOG.warn("An error occurred while instantiating task metrics.", e);
+            countingOutput = null;
+            operatorMetricGroup = null;
+        }
 
-		latencyStats = createLatencyStats(
-			environment.getTaskManagerInfo().getConfiguration(),
-			parameters.getContainingTask().getIndexInSubtaskGroup());
+        if (countingOutput == null || operatorMetricGroup == null) {
+            metrics = UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup();
+            output = parameters.getOutput();
+        } else {
+            metrics = operatorMetricGroup;
+            output = countingOutput;
+        }
 
-		processingTimeService = Preconditions.checkNotNull(parameters.getProcessingTimeService());
-		executionConfig = parameters.getContainingTask().getExecutionConfig();
-		userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
-		cancelables = parameters.getContainingTask().getCancelables();
+        latencyStats =
+                createLatencyStats(
+                        environment.getTaskManagerInfo().getConfiguration(),
+                        parameters.getContainingTask().getIndexInSubtaskGroup());
 
-		runtimeContext = new StreamingRuntimeContext(
-			environment,
-			environment.getAccumulatorRegistry().getUserMap(),
-			operatorMetricGroup,
-			getOperatorID(),
-			processingTimeService,
-			null);
-	}
+        processingTimeService = Preconditions.checkNotNull(parameters.getProcessingTimeService());
+        executionConfig = parameters.getContainingTask().getExecutionConfig();
+        userCodeClassLoader = parameters.getContainingTask().getUserCodeClassLoader();
+        cancelables = parameters.getContainingTask().getCancelables();
 
-	private LatencyStats createLatencyStats(Configuration taskManagerConfig, int indexInSubtaskGroup) {
-		try {
-			int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
-			if (historySize <= 0) {
-				LOG.warn("{} has been set to a value equal or below 0: {}. Using default.", MetricOptions.LATENCY_HISTORY_SIZE, historySize);
-				historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
-			}
+        runtimeContext =
+                new StreamingRuntimeContext(
+                        environment,
+                        environment.getAccumulatorRegistry().getUserMap(),
+                        operatorMetricGroup,
+                        getOperatorID(),
+                        processingTimeService,
+                        null,
+                        environment.getExternalResourceInfoProvider());
+    }
 
-			final String configuredGranularity = taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
-			LatencyStats.Granularity granularity;
-			try {
-				granularity = LatencyStats.Granularity.valueOf(configuredGranularity.toUpperCase(Locale.ROOT));
-			} catch (IllegalArgumentException iae) {
-				granularity = LatencyStats.Granularity.OPERATOR;
-				LOG.warn(
-					"Configured value {} option for {} is invalid. Defaulting to {}.",
-					configuredGranularity,
-					MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
-					granularity);
-			}
-			TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
-			return new LatencyStats(jobMetricGroup.addGroup("latency"),
-				historySize,
-				indexInSubtaskGroup,
-				getOperatorID(),
-				granularity);
-		} catch (Exception e) {
-			LOG.warn("An error occurred while instantiating latency metrics.", e);
-			return new LatencyStats(
-				UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup().addGroup("latency"),
-				1,
-				0,
-				new OperatorID(),
-				LatencyStats.Granularity.SINGLE);
-		}
-	}
+    private LatencyStats createLatencyStats(
+            Configuration taskManagerConfig, int indexInSubtaskGroup) {
+        try {
+            int historySize = taskManagerConfig.getInteger(MetricOptions.LATENCY_HISTORY_SIZE);
+            if (historySize <= 0) {
+                LOG.warn(
+                        "{} has been set to a value equal or below 0: {}. Using default.",
+                        MetricOptions.LATENCY_HISTORY_SIZE,
+                        historySize);
+                historySize = MetricOptions.LATENCY_HISTORY_SIZE.defaultValue();
+            }
 
-	@Override
-	public MetricGroup getMetricGroup() {
-		return metrics;
-	}
+            final String configuredGranularity =
+                    taskManagerConfig.getString(MetricOptions.LATENCY_SOURCE_GRANULARITY);
+            LatencyStats.Granularity granularity;
+            try {
+                granularity =
+                        LatencyStats.Granularity.valueOf(
+                                configuredGranularity.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException iae) {
+                granularity = LatencyStats.Granularity.OPERATOR;
+                LOG.warn(
+                        "Configured value {} option for {} is invalid. Defaulting to {}.",
+                        configuredGranularity,
+                        MetricOptions.LATENCY_SOURCE_GRANULARITY.key(),
+                        granularity);
+            }
+            TaskManagerJobMetricGroup jobMetricGroup = this.metrics.parent().parent();
+            return new LatencyStats(
+                    jobMetricGroup.addGroup("latency"),
+                    historySize,
+                    indexInSubtaskGroup,
+                    getOperatorID(),
+                    granularity);
+        } catch (Exception e) {
+            LOG.warn("An error occurred while instantiating latency metrics.", e);
+            return new LatencyStats(
+                    UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup()
+                            .addGroup("latency"),
+                    1,
+                    0,
+                    new OperatorID(),
+                    LatencyStats.Granularity.SINGLE);
+        }
+    }
 
-	@Override
-	public final void initializeState(StreamTaskStateInitializer streamTaskStateManager) throws Exception {
-		final TypeSerializer<?> keySerializer = config.getStateKeySerializer(getUserCodeClassloader());
+    @Override
+    public MetricGroup getMetricGroup() {
+        return metrics;
+    }
 
-		final StreamOperatorStateContext context =
-			streamTaskStateManager.streamOperatorStateContext(
-				getOperatorID(),
-				getClass().getSimpleName(),
-				getProcessingTimeService(),
-				this,
-				keySerializer,
-				cancelables,
-				metrics);
+    @Override
+    public final void initializeState(StreamTaskStateInitializer streamTaskStateManager)
+            throws Exception {
+        final TypeSerializer<?> keySerializer =
+                config.getStateKeySerializer(getUserCodeClassloader());
 
-		stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), cancelables);
-		timeServiceManager = context.internalTimerServiceManager();
-		stateHandler.initializeOperatorState(this);
-	}
+        final StreamOperatorStateContext context =
+                streamTaskStateManager.streamOperatorStateContext(
+                        getOperatorID(),
+                        getClass().getSimpleName(),
+                        getProcessingTimeService(),
+                        this,
+                        keySerializer,
+                        cancelables,
+                        metrics,
+                        config.getManagedMemoryFractionOperatorUseCaseOfSlot(
+                                ManagedMemoryUseCase.STATE_BACKEND,
+                                runtimeContext.getTaskManagerRuntimeInfo().getConfiguration(),
+                                runtimeContext.getUserCodeClassLoader()),
+                        isUsingCustomRawKeyedState());
 
-	/**
-	 * This method is called immediately before any elements are processed, it should contain the
-	 * operator's initialization logic, e.g. state initialization.
-	 *
-	 * <p>The default implementation does nothing.
-	 *
-	 * @throws Exception An exception in this method causes the operator to fail.
-	 */
-	@Override
-	public void open() throws Exception {}
+        stateHandler = new StreamOperatorStateHandler(context, getExecutionConfig(), cancelables);
+        timeServiceManager = context.internalTimerServiceManager();
+        stateHandler.initializeOperatorState(this);
+    }
 
-	/**
-	 * This method is called after all records have been added to the operators via the methods
-	 * {@link OneInputStreamOperator#processElement(StreamRecord)}, or
-	 * {@link TwoInputStreamOperator#processElement1(StreamRecord)} and
-	 * {@link TwoInputStreamOperator#processElement2(StreamRecord)}.
-	 *
-	 * <p>The method is expected to flush all remaining buffered data. Exceptions during this flushing
-	 * of buffered should be propagated, in order to cause the operation to be recognized asa failed,
-	 * because the last data items are not processed properly.
-	 *
-	 * @throws Exception An exception in this method causes the operator to fail.
-	 */
-	@Override
-	public void close() throws Exception {}
+    /**
+     * Indicates whether or not implementations of this class is writing to the raw keyed state
+     * streams on snapshots, using {@link #snapshotState(StateSnapshotContext)}. If yes, subclasses
+     * should override this method to return {@code true}.
+     *
+     * <p>Subclasses need to explicitly indicate the use of raw keyed state because, internally, the
+     * {@link AbstractStreamOperator} may attempt to read from it as well to restore heap-based
+     * timers and ultimately fail with read errors. By setting this flag to {@code true}, this
+     * allows the {@link AbstractStreamOperator} to know that the data written in the raw keyed
+     * states were not written by the timer services, and skips the timer restore attempt.
+     *
+     * <p>Please refer to FLINK-19741 for further details.
+     *
+     * <p>TODO: this method can be removed once all timers are moved to be managed by state
+     * backends.
+     *
+     * @return flag indicating whether or not this operator is writing to raw keyed state via {@link
+     *     #snapshotState(StateSnapshotContext)}.
+     */
+    @Internal
+    protected boolean isUsingCustomRawKeyedState() {
+        return false;
+    }
 
-	/**
-	 * This method is called at the very end of the operator's life, both in the case of a successful
-	 * completion of the operation, and in the case of a failure and canceling.
-	 *
-	 * <p>This method is expected to make a thorough effort to release all resources
-	 * that the operator has acquired.
-	 */
-	@Override
-	public void dispose() throws Exception {
-		if (stateHandler != null) {
-			stateHandler.dispose();
-		}
-	}
+    /**
+     * This method is called immediately before any elements are processed, it should contain the
+     * operator's initialization logic, e.g. state initialization.
+     *
+     * <p>The default implementation does nothing.
+     *
+     * @throws Exception An exception in this method causes the operator to fail.
+     */
+    @Override
+    public void open() throws Exception {}
 
-	@Override
-	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-		// the default implementation does nothing and accepts the checkpoint
-		// this is purely for subclasses to override
-	}
+    /**
+     * This method is called after all records have been added to the operators via the methods
+     * {@link OneInputStreamOperator#processElement(StreamRecord)}, or {@link
+     * TwoInputStreamOperator#processElement1(StreamRecord)} and {@link
+     * TwoInputStreamOperator#processElement2(StreamRecord)}.
+     *
+     * <p>The method is expected to flush all remaining buffered data. Exceptions during this
+     * flushing of buffered should be propagated, in order to cause the operation to be recognized
+     * asa failed, because the last data items are not processed properly.
+     *
+     * @throws Exception An exception in this method causes the operator to fail.
+     */
+    @Override
+    public void close() throws Exception {}
 
-	@Override
-	public final OperatorSnapshotFutures snapshotState(long checkpointId, long timestamp, CheckpointOptions checkpointOptions,
-			CheckpointStreamFactory factory) throws Exception {
-		return stateHandler.snapshotState(
-			this,
-			Optional.ofNullable(timeServiceManager),
-			getOperatorName(),
-			checkpointId,
-			timestamp,
-			checkpointOptions,
-			factory);
-	}
+    /**
+     * This method is called at the very end of the operator's life, both in the case of a
+     * successful completion of the operation, and in the case of a failure and canceling.
+     *
+     * <p>This method is expected to make a thorough effort to release all resources that the
+     * operator has acquired.
+     */
+    @Override
+    public void dispose() throws Exception {
+        if (stateHandler != null) {
+            stateHandler.dispose();
+        }
+    }
 
-	/**
-	 * Stream operators with state, which want to participate in a snapshot need to override this hook method.
-	 *
-	 * @param context context that provides information and means required for taking a snapshot
-	 */
-	@Override
-	public void snapshotState(StateSnapshotContext context) throws Exception {
-	}
+    @Override
+    public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+        // the default implementation does nothing and accepts the checkpoint
+        // this is purely for subclasses to override
+    }
 
-	/**
-	 * Stream operators with state which can be restored need to override this hook method.
-	 *
-	 * @param context context that allows to register different states.
-	 */
-	@Override
-	public void initializeState(StateInitializationContext context) throws Exception {
-	}
+    @Override
+    public final OperatorSnapshotFutures snapshotState(
+            long checkpointId,
+            long timestamp,
+            CheckpointOptions checkpointOptions,
+            CheckpointStreamFactory factory)
+            throws Exception {
+        return stateHandler.snapshotState(
+                this,
+                Optional.ofNullable(timeServiceManager),
+                getOperatorName(),
+                checkpointId,
+                timestamp,
+                checkpointOptions,
+                factory,
+                isUsingCustomRawKeyedState());
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		stateHandler.notifyCheckpointComplete(checkpointId);
-	}
+    /**
+     * Stream operators with state, which want to participate in a snapshot need to override this
+     * hook method.
+     *
+     * @param context context that provides information and means required for taking a snapshot
+     */
+    @Override
+    public void snapshotState(StateSnapshotContext context) throws Exception {}
 
-	// ------------------------------------------------------------------------
-	//  Properties and Services
-	// ------------------------------------------------------------------------
+    /**
+     * Stream operators with state which can be restored need to override this hook method.
+     *
+     * @param context context that allows to register different states.
+     */
+    @Override
+    public void initializeState(StateInitializationContext context) throws Exception {}
 
-	/**
-	 * Gets the execution config defined on the execution environment of the job to which this
-	 * operator belongs.
-	 *
-	 * @return The job's execution config.
-	 */
-	public ExecutionConfig getExecutionConfig() {
-		return executionConfig;
-	}
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        stateHandler.notifyCheckpointComplete(checkpointId);
+    }
 
-	public StreamConfig getOperatorConfig() {
-		return config;
-	}
+    @Override
+    public void notifyCheckpointAborted(long checkpointId) throws Exception {
+        stateHandler.notifyCheckpointAborted(checkpointId);
+    }
 
-	public ClassLoader getUserCodeClassloader() {
-		return userCodeClassLoader;
-	}
+    // ------------------------------------------------------------------------
+    //  Properties and Services
+    // ------------------------------------------------------------------------
 
-	/**
-	 * Return the operator name. If the runtime context has been set, then the task name with
-	 * subtask index is returned. Otherwise, the simple class name is returned.
-	 *
-	 * @return If runtime context is set, then return task name with subtask index. Otherwise return
-	 * 			simple class name.
-	 */
-	protected String getOperatorName() {
-		if (runtimeContext != null) {
-			return runtimeContext.getTaskNameWithSubtasks();
-		} else {
-			return getClass().getSimpleName();
-		}
-	}
+    /**
+     * Gets the execution config defined on the execution environment of the job to which this
+     * operator belongs.
+     *
+     * @return The job's execution config.
+     */
+    public ExecutionConfig getExecutionConfig() {
+        return executionConfig;
+    }
 
-	/**
-	 * Returns a context that allows the operator to query information about the execution and also
-	 * to interact with systems such as broadcast variables and managed state. This also allows
-	 * to register timers.
-	 */
-	public StreamingRuntimeContext getRuntimeContext() {
-		return runtimeContext;
-	}
+    public StreamConfig getOperatorConfig() {
+        return config;
+    }
 
-	@SuppressWarnings("unchecked")
-	@VisibleForTesting
-	public <K> KeyedStateBackend<K> getKeyedStateBackend() {
-		return (KeyedStateBackend<K>) stateHandler.getKeyedStateBackend();
-	}
+    public ClassLoader getUserCodeClassloader() {
+        return userCodeClassLoader;
+    }
 
-	@VisibleForTesting
-	public OperatorStateBackend getOperatorStateBackend() {
-		return stateHandler.getOperatorStateBackend();
-	}
+    /**
+     * Return the operator name. If the runtime context has been set, then the task name with
+     * subtask index is returned. Otherwise, the simple class name is returned.
+     *
+     * @return If runtime context is set, then return task name with subtask index. Otherwise return
+     *     simple class name.
+     */
+    protected String getOperatorName() {
+        if (runtimeContext != null) {
+            return runtimeContext.getTaskNameWithSubtasks();
+        } else {
+            return getClass().getSimpleName();
+        }
+    }
 
-	/**
-	 * Returns the {@link ProcessingTimeService} responsible for getting the current
-	 * processing time and registering timers.
-	 */
-	@VisibleForTesting
-	public ProcessingTimeService getProcessingTimeService() {
-		return processingTimeService;
-	}
+    /**
+     * Returns a context that allows the operator to query information about the execution and also
+     * to interact with systems such as broadcast variables and managed state. This also allows to
+     * register timers.
+     */
+    public StreamingRuntimeContext getRuntimeContext() {
+        return runtimeContext;
+    }
 
-	/**
-	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 *
-	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
-	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
-	 */
-	protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		return getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
-	}
+    @SuppressWarnings("unchecked")
+    @VisibleForTesting
+    public <K> KeyedStateBackend<K> getKeyedStateBackend() {
+        return (KeyedStateBackend<K>) stateHandler.getKeyedStateBackend();
+    }
 
-	protected <N, S extends State, T> S getOrCreateKeyedState(
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, T> stateDescriptor) throws Exception {
-		return stateHandler.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
-	}
+    @VisibleForTesting
+    public OperatorStateBackend getOperatorStateBackend() {
+        return stateHandler.getOperatorStateBackend();
+    }
 
-	/**
-	 * Creates a partitioned state handle, using the state backend configured for this task.
-	 *
-	 * @throws IllegalStateException Thrown, if the key/value state was already initialized.
-	 * @throws Exception Thrown, if the state backend cannot create the key/value state.
-	 */
-	protected <S extends State, N> S getPartitionedState(
-		N namespace,
-		TypeSerializer<N> namespaceSerializer,
-		StateDescriptor<S, ?> stateDescriptor) throws Exception {
-		return stateHandler.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
-	}
+    /**
+     * Returns the {@link ProcessingTimeService} responsible for getting the current processing time
+     * and registering timers.
+     */
+    @VisibleForTesting
+    public ProcessingTimeService getProcessingTimeService() {
+        return processingTimeService;
+    }
 
-	protected <T> void internalSetKeyContextElement(StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
-		if (selector != null) {
-			Object key = selector.getKey(record.getValue());
-			setCurrentKey(key);
-		}
-	}
+    /**
+     * Creates a partitioned state handle, using the state backend configured for this task.
+     *
+     * @throws IllegalStateException Thrown, if the key/value state was already initialized.
+     * @throws Exception Thrown, if the state backend cannot create the key/value state.
+     */
+    protected <S extends State> S getPartitionedState(StateDescriptor<S, ?> stateDescriptor)
+            throws Exception {
+        return getPartitionedState(
+                VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, stateDescriptor);
+    }
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public void setCurrentKey(Object key) {
-		stateHandler.setCurrentKey(key);
-	}
+    protected <N, S extends State, T> S getOrCreateKeyedState(
+            TypeSerializer<N> namespaceSerializer, StateDescriptor<S, T> stateDescriptor)
+            throws Exception {
+        return stateHandler.getOrCreateKeyedState(namespaceSerializer, stateDescriptor);
+    }
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public Object getCurrentKey() {
-		return stateHandler.getCurrentKey();
-	}
+    /**
+     * Creates a partitioned state handle, using the state backend configured for this task.
+     *
+     * @throws IllegalStateException Thrown, if the key/value state was already initialized.
+     * @throws Exception Thrown, if the state backend cannot create the key/value state.
+     */
+    protected <S extends State, N> S getPartitionedState(
+            N namespace,
+            TypeSerializer<N> namespaceSerializer,
+            StateDescriptor<S, ?> stateDescriptor)
+            throws Exception {
+        return stateHandler.getPartitionedState(namespace, namespaceSerializer, stateDescriptor);
+    }
 
-	public Optional<KeyedStateStore> getKeyedStateStore() {
-		if (stateHandler == null) {
-			return Optional.empty();
-		}
-		return stateHandler.getKeyedStateStore();
-	}
+    protected <T> void internalSetKeyContextElement(
+            StreamRecord<T> record, KeySelector<T, ?> selector) throws Exception {
+        if (selector != null) {
+            Object key = selector.getKey(record.getValue());
+            setCurrentKey(key);
+        }
+    }
 
-	protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
-		// all operators are tracking latencies
-		this.latencyStats.reportLatency(marker);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void setCurrentKey(Object key) {
+        stateHandler.setCurrentKey(key);
+    }
 
-		// everything except sinks forwards latency markers
-		this.output.emitLatencyMarker(marker);
-	}
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public Object getCurrentKey() {
+        return stateHandler.getCurrentKey();
+    }
 
-	// ------------------------------------------------------------------------
-	//  Watermark handling
-	// ------------------------------------------------------------------------
+    public Optional<KeyedStateStore> getKeyedStateStore() {
+        if (stateHandler == null) {
+            return Optional.empty();
+        }
+        return stateHandler.getKeyedStateStore();
+    }
 
-	/**
-	 * Returns a {@link InternalTimerService} that can be used to query current processing time
-	 * and event time and to set timers. An operator can have several timer services, where
-	 * each has its own namespace serializer. Timer services are differentiated by the string
-	 * key that is given when requesting them, if you call this method with the same key
-	 * multiple times you will get the same timer service instance in subsequent requests.
-	 *
-	 * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
-	 * When a timer fires, this key will also be set as the currently active key.
-	 *
-	 * <p>Each timer has attached metadata, the namespace. Different timer services
-	 * can have a different namespace type. If you don't need namespace differentiation you
-	 * can use {@link VoidNamespaceSerializer} as the namespace serializer.
-	 *
-	 * @param name The name of the requested timer service. If no service exists under the given
-	 *             name a new one will be created and returned.
-	 * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
-	 * @param triggerable The {@link Triggerable} that should be invoked when timers fire
-	 *
-	 * @param <N> The type of the timer namespace.
-	 */
-	@VisibleForTesting
-	public <K, N> InternalTimerService<N> getInternalTimerService(
-			String name,
-			TypeSerializer<N> namespaceSerializer,
-			Triggerable<K, N> triggerable) {
-		if (timeServiceManager == null) {
-			throw new RuntimeException("The timer service has not been initialized.");
-		}
-		InternalTimeServiceManager<K> keyedTimeServiceHandler = (InternalTimeServiceManager<K>) timeServiceManager;
-		return keyedTimeServiceHandler.getInternalTimerService(
-			name,
-			namespaceSerializer,
-			triggerable,
-			stateHandler.getKeyedStateBackend());
-	}
+    protected void reportOrForwardLatencyMarker(LatencyMarker marker) {
+        // all operators are tracking latencies
+        this.latencyStats.reportLatency(marker);
 
-	public void processWatermark(Watermark mark) throws Exception {
-		if (timeServiceManager != null) {
-			timeServiceManager.advanceWatermark(mark);
-		}
-		output.emitWatermark(mark);
-	}
+        // everything except sinks forwards latency markers
+        this.output.emitLatencyMarker(marker);
+    }
 
-	protected void reportWatermark(Watermark mark, int inputId) throws Exception {
-		inputWatermarks[inputId - 1] = mark.getTimestamp();
-		long newMin = mark.getTimestamp();
-		for (long inputWatermark : inputWatermarks) {
-			newMin = Math.min(inputWatermark, newMin);
-		}
-		if (newMin > combinedWatermark) {
-			combinedWatermark = newMin;
-			processWatermark(new Watermark(combinedWatermark));
-		}
-	}
+    // ------------------------------------------------------------------------
+    //  Watermark handling
+    // ------------------------------------------------------------------------
 
-	@Override
-	public OperatorID getOperatorID() {
-		return config.getOperatorID();
-	}
+    /**
+     * Returns a {@link InternalTimerService} that can be used to query current processing time and
+     * event time and to set timers. An operator can have several timer services, where each has its
+     * own namespace serializer. Timer services are differentiated by the string key that is given
+     * when requesting them, if you call this method with the same key multiple times you will get
+     * the same timer service instance in subsequent requests.
+     *
+     * <p>Timers are always scoped to a key, the currently active key of a keyed stream operation.
+     * When a timer fires, this key will also be set as the currently active key.
+     *
+     * <p>Each timer has attached metadata, the namespace. Different timer services can have a
+     * different namespace type. If you don't need namespace differentiation you can use {@link
+     * VoidNamespaceSerializer} as the namespace serializer.
+     *
+     * @param name The name of the requested timer service. If no service exists under the given
+     *     name a new one will be created and returned.
+     * @param namespaceSerializer {@code TypeSerializer} for the timer namespace.
+     * @param triggerable The {@link Triggerable} that should be invoked when timers fire
+     * @param <N> The type of the timer namespace.
+     */
+    @VisibleForTesting
+    public <K, N> InternalTimerService<N> getInternalTimerService(
+            String name, TypeSerializer<N> namespaceSerializer, Triggerable<K, N> triggerable) {
+        if (timeServiceManager == null) {
+            throw new RuntimeException("The timer service has not been initialized.");
+        }
 
-	@VisibleForTesting
-	public int numProcessingTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numProcessingTimeTimers();
-	}
+        @SuppressWarnings("unchecked")
+        InternalTimeServiceManager<K> keyedTimeServiceHandler =
+                (InternalTimeServiceManager<K>) timeServiceManager;
+        KeyedStateBackend<K> keyedStateBackend = getKeyedStateBackend();
+        checkState(keyedStateBackend != null, "Timers can only be used on keyed operators.");
+        return keyedTimeServiceHandler.getInternalTimerService(
+                name, keyedStateBackend.getKeySerializer(), namespaceSerializer, triggerable);
+    }
 
-	@VisibleForTesting
-	public int numEventTimeTimers() {
-		return timeServiceManager == null ? 0 : timeServiceManager.numEventTimeTimers();
-	}
+    public void processWatermark(Watermark mark) throws Exception {
+        if (timeServiceManager != null) {
+            timeServiceManager.advanceWatermark(mark);
+        }
+        output.emitWatermark(mark);
+    }
 
-	@Override
-	public void setKeyContextElement1(StreamRecord<?> record) throws Exception {
-		throw new IllegalStateException("This method should never be called. Use Input class instead");
-	}
+    protected void reportWatermark(Watermark mark, int inputId) throws Exception {
+        inputWatermarks[inputId - 1] = mark.getTimestamp();
+        long newMin = mark.getTimestamp();
+        for (long inputWatermark : inputWatermarks) {
+            newMin = Math.min(inputWatermark, newMin);
+        }
+        if (newMin > combinedWatermark) {
+            combinedWatermark = newMin;
+            processWatermark(new Watermark(combinedWatermark));
+        }
+    }
 
-	@Override
-	public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
-		throw new IllegalStateException("This method should never be called. Use Input class instead");
-	}
+    @Override
+    public OperatorID getOperatorID() {
+        return config.getOperatorID();
+    }
 
-	protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
-		return Optional.ofNullable(timeServiceManager);
-	}
+    @Override
+    public void setKeyContextElement1(StreamRecord<?> record) throws Exception {
+        throw new IllegalStateException(
+                "This method should never be called. Use Input class instead");
+    }
+
+    @Override
+    public void setKeyContextElement2(StreamRecord<?> record) throws Exception {
+        throw new IllegalStateException(
+                "This method should never be called. Use Input class instead");
+    }
+
+    protected Optional<InternalTimeServiceManager<?>> getTimeServiceManager() {
+        return Optional.ofNullable(timeServiceManager);
+    }
 }

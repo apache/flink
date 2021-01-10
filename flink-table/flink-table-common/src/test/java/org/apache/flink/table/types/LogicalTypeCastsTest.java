@@ -47,158 +47,140 @@ import java.util.List;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
-/**
- * Tests for {@link LogicalTypeCasts}.
- */
+/** Tests for {@link LogicalTypeCasts}. */
 @RunWith(Parameterized.class)
 public class LogicalTypeCastsTest {
 
-	@Parameters(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")
-	public static List<Object[]> testData() {
-		return Arrays.asList(
-			new Object[][]{
-				{new SmallIntType(), new BigIntType(), true, true},
+    @Parameters(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")
+    public static List<Object[]> testData() {
+        return Arrays.asList(
+                new Object[][] {
+                    {new SmallIntType(), new BigIntType(), true, true},
 
-				// nullability does not match
-				{new SmallIntType(false), new SmallIntType(), true, true},
+                    // nullability does not match
+                    {new SmallIntType(false), new SmallIntType(), true, true},
+                    {new SmallIntType(), new SmallIntType(false), false, true},
+                    {
+                        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
+                        new SmallIntType(),
+                        true,
+                        true
+                    },
 
-				{new SmallIntType(), new SmallIntType(false), false, false},
+                    // not an interval with single field
+                    {
+                        new YearMonthIntervalType(
+                                YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
+                        new SmallIntType(),
+                        false,
+                        false
+                    },
+                    {new IntType(), new DecimalType(5, 5), true, true},
 
-				{
-					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR),
-					new SmallIntType(),
-					true,
-					true
-				},
+                    // loss of precision
+                    {new FloatType(), new IntType(), false, true},
+                    {new VarCharType(Integer.MAX_VALUE), new FloatType(), false, true},
+                    {new FloatType(), new VarCharType(Integer.MAX_VALUE), false, true},
+                    {new DecimalType(3, 2), new VarCharType(Integer.MAX_VALUE), false, true},
+                    {
+                        new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+                        new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+                        true,
+                        true
+                    },
+                    {
+                        new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
+                        new TypeInformationRawType<>(Types.GENERIC(Object.class)),
+                        false,
+                        false
+                    },
+                    {new NullType(), new IntType(), true, true},
+                    {
+                        new NullType(),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new IntType()))),
+                        true,
+                        true
+                    },
+                    {new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
+                    {
+                        new ArrayType(new IntType()),
+                        new ArrayType(new VarCharType(Integer.MAX_VALUE)),
+                        false,
+                        true
+                    },
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new IntType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new BigIntType()))),
+                        true,
+                        true
+                    },
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType(), "description"),
+                                        new RowField("f2", new IntType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new BigIntType()))),
+                        true,
+                        true
+                    },
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new IntType()))),
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new BooleanType()))),
+                        false,
+                        true
+                    },
+                    {
+                        new RowType(
+                                Arrays.asList(
+                                        new RowField("f1", new IntType()),
+                                        new RowField("f2", new IntType()))),
+                        new VarCharType(Integer.MAX_VALUE),
+                        false,
+                        false
+                    }
+                });
+    }
 
-				// not an interval with single field
-				{
-					new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
-					new SmallIntType(),
-					false,
-					false
-				},
+    @Parameter public LogicalType sourceType;
 
-				{new IntType(), new DecimalType(5, 5), true, true},
+    @Parameter(1)
+    public LogicalType targetType;
 
-				// loss of precision
-				{new FloatType(), new IntType(), false, true},
+    @Parameter(2)
+    public boolean supportsImplicit;
 
-				{new VarCharType(Integer.MAX_VALUE), new FloatType(), false, true},
+    @Parameter(3)
+    public boolean supportsExplicit;
 
-				{new FloatType(), new VarCharType(Integer.MAX_VALUE), false, true},
+    @Test
+    public void testImplicitCasting() {
+        assertThat(
+                LogicalTypeCasts.supportsImplicitCast(sourceType, targetType),
+                equalTo(supportsImplicit));
+    }
 
-				{new DecimalType(3, 2), new VarCharType(Integer.MAX_VALUE), false, true},
-
-				{
-					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
-					true,
-					true
-				},
-
-				{
-					new TypeInformationRawType<>(Types.GENERIC(LogicalTypesTest.class)),
-					new TypeInformationRawType<>(Types.GENERIC(Object.class)),
-					false,
-					false
-				},
-
-				{new NullType(), new IntType(), true, true},
-
-				{new ArrayType(new IntType()), new ArrayType(new BigIntType()), true, true},
-
-				{new ArrayType(new IntType()), new ArrayType(new VarCharType(Integer.MAX_VALUE)), false, true},
-
-				{
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new IntType())
-						)
-					),
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new BigIntType())
-						)
-					),
-					true,
-					true
-				},
-
-				{
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType(), "description"),
-							new RowField("f2", new IntType())
-						)
-					),
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new BigIntType())
-						)
-					),
-					true,
-					true
-				},
-
-				{
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new IntType())
-						)
-					),
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new BooleanType())
-						)
-					),
-					false,
-					false
-				},
-
-				{
-					new RowType(
-						Arrays.asList(
-							new RowField("f1", new IntType()),
-							new RowField("f2", new IntType())
-						)
-					),
-					new VarCharType(Integer.MAX_VALUE),
-					false,
-					false
-				}
-			}
-		);
-	}
-
-	@Parameter
-	public LogicalType sourceType;
-
-	@Parameter(1)
-	public LogicalType targetType;
-
-	@Parameter(2)
-	public boolean supportsImplicit;
-
-	@Parameter(3)
-	public boolean supportsExplicit;
-
-	@Test
-	public void testImplicitCasting() {
-		assertThat(
-			LogicalTypeCasts.supportsImplicitCast(sourceType, targetType),
-			equalTo(supportsImplicit));
-	}
-
-	@Test
-	public void testExplicitCasting() {
-		assertThat(
-			LogicalTypeCasts.supportsExplicitCast(sourceType, targetType),
-			equalTo(supportsExplicit));
-	}
+    @Test
+    public void testExplicitCasting() {
+        assertThat(
+                LogicalTypeCasts.supportsExplicitCast(sourceType, targetType),
+                equalTo(supportsExplicit));
+    }
 }

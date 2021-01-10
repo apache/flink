@@ -18,21 +18,34 @@
 
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
-import java.util.function.Consumer;
+import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 
-/**
- * Factory for {@link TestingSlotManager}.
- */
+import java.util.Collections;
+import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+/** Factory for {@link TestingSlotManager}. */
 public class TestingSlotManagerBuilder {
 
-	private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
+    private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
+    private Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier =
+            () -> Collections.emptyMap();
 
-	public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
-		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
-		return this;
-	}
+    public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(
+            Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+        this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
+        return this;
+    }
 
-	public TestingSlotManager createSlotManager() {
-		return new TestingSlotManager(setFailUnfulfillableRequestConsumer);
-	}
+    public TestingSlotManagerBuilder setGetRequiredResourcesSupplier(
+            Supplier<Map<WorkerResourceSpec, Integer>> getRequiredResourcesSupplier) {
+        this.getRequiredResourcesSupplier = getRequiredResourcesSupplier;
+        return this;
+    }
+
+    public TestingSlotManager createSlotManager() {
+        return new TestingSlotManager(
+                setFailUnfulfillableRequestConsumer, getRequiredResourcesSupplier);
+    }
 }

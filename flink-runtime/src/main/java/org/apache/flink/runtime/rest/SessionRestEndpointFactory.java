@@ -30,36 +30,37 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
 
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
 
-/**
- * {@link RestEndpointFactory} which creates a {@link DispatcherRestEndpoint}.
- */
+/** {@link RestEndpointFactory} which creates a {@link DispatcherRestEndpoint}. */
 public enum SessionRestEndpointFactory implements RestEndpointFactory<DispatcherGateway> {
-	INSTANCE;
+    INSTANCE;
 
-	@Override
-	public WebMonitorEndpoint<DispatcherGateway> createRestEndpoint(
-			Configuration configuration,
-			LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
-			LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-			TransientBlobService transientBlobService,
-			ExecutorService executor,
-			MetricFetcher metricFetcher,
-			LeaderElectionService leaderElectionService,
-			FatalErrorHandler fatalErrorHandler) throws Exception {
-		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(configuration);
+    @Override
+    public WebMonitorEndpoint<DispatcherGateway> createRestEndpoint(
+            Configuration configuration,
+            LeaderGatewayRetriever<DispatcherGateway> dispatcherGatewayRetriever,
+            LeaderGatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            TransientBlobService transientBlobService,
+            ScheduledExecutorService executor,
+            MetricFetcher metricFetcher,
+            LeaderElectionService leaderElectionService,
+            FatalErrorHandler fatalErrorHandler)
+            throws Exception {
+        final RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(configuration);
 
-		return new DispatcherRestEndpoint(
-			RestServerEndpointConfiguration.fromConfiguration(configuration),
-			dispatcherGatewayRetriever,
-			configuration,
-			restHandlerConfiguration,
-			resourceManagerGatewayRetriever,
-			transientBlobService,
-			executor,
-			metricFetcher,
-			leaderElectionService,
-			fatalErrorHandler);
-	}
+        return new DispatcherRestEndpoint(
+                RestServerEndpointConfiguration.fromConfiguration(configuration),
+                dispatcherGatewayRetriever,
+                configuration,
+                restHandlerConfiguration,
+                resourceManagerGatewayRetriever,
+                transientBlobService,
+                executor,
+                metricFetcher,
+                leaderElectionService,
+                RestEndpointFactory.createExecutionGraphCache(restHandlerConfiguration),
+                fatalErrorHandler);
+    }
 }

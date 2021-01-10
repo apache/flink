@@ -18,18 +18,17 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
-import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -38,6 +37,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import java.math.BigDecimal
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 @RunWith(classOf[Parameterized])
@@ -195,7 +195,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
     val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
-    tEnv.registerFunction("weightAvgFun", new WeightedAvg)
+    tEnv.createTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val sql =
       """
@@ -230,9 +230,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.registerTableSink("MySink", sink)
-    tEnv.insertInto("MySink", result)
-    tEnv.execute("test")
+    tEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal("MySink", sink)
+    result.executeInsert("MySink").await()
 
     val expected = Seq(
       "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1,1,1,1,1,1,1",
@@ -320,17 +319,46 @@ class WindowAggregateITCase(mode: StateBackendMode)
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
+  // used to verify compile works normally when constants exists in group window key (FLINK-17553)
+  @Test
+  def testWindowAggregateOnConstantValue(): Unit = {
+    val stream = failingDataSource(data)
+      .assignTimestampsAndWatermarks(
+        new TimestampAndWatermarkWithOffset[(
+          Long, Int, Double, Float, BigDecimal, String, String)](10L))
+    val table =
+      stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    tEnv.registerTable("T1", table)
+    val sql =
+      """
+        |SELECT TUMBLE_END(rowtime, INTERVAL '0.003' SECOND), COUNT(name)
+        |FROM T1
+        | GROUP BY 'a', TUMBLE(rowtime, INTERVAL '0.003' SECOND)
+      """.stripMargin
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+    val expected = Seq(
+      "1970-01-01T00:00:00.003,2",
+      "1970-01-01T00:00:00.006,2",
+      "1970-01-01T00:00:00.009,3",
+      "1970-01-01T00:00:00.018,1",
+      "1970-01-01T00:00:00.033,0")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
-    val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
-      TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
-    if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
+    val lateFireDelay: Duration = tableConfig.getConfiguration
+      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+      .orElse(null)
+    if (lateFireDelay != null && (lateFireDelay.toMillis != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
     }
     tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.setString(
-      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
+    tableConfig.getConfiguration.set(
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, Duration.ofMillis(intervalInMillis))
   }
 }

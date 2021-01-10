@@ -23,32 +23,30 @@ import org.apache.flink.util.FlinkException;
 
 import java.util.Optional;
 
-/**
- * Interface for a tracker of back pressure statistics for {@link ExecutionJobVertex}.
- */
+/** Interface for a tracker of back pressure statistics for {@link ExecutionJobVertex}. */
 public interface BackPressureStatsTracker {
 
-	/**
-	 * Returns back pressure statistics for an operator. Automatically triggers back pressure request
-	 * if statistics are not available or outdated.
-	 *
-	 * @param vertex Operator to get the stats for.
-	 * @return Back pressure statistics for an operator
-	 */
-	Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex);
+    /**
+     * Returns back pressure statistics for an operator. Automatically triggers back pressure
+     * request if statistics are not available or outdated.
+     *
+     * @param vertex Operator to get the stats for.
+     * @return Back pressure statistics for an operator
+     */
+    Optional<OperatorBackPressureStats> getOperatorBackPressureStats(ExecutionJobVertex vertex);
 
-	/**
-	 * Cleans up the operator stats cache if it contains timed out entries.
-	 *
-	 * <p>The Guava cache only evicts as maintenance during normal operations.
-	 * If this handler is inactive, it will never be cleaned.
-	 */
-	void cleanUpOperatorStatsCache();
+    /**
+     * Cleans up the operator stats cache if it contains timed out entries.
+     *
+     * <p>The Guava cache only evicts as maintenance during normal operations. If this handler is
+     * inactive, it will never be cleaned.
+     */
+    void cleanUpOperatorStatsCache();
 
-	/**
-	 * Shuts the BackPressureStatsTracker down.
-	 *
-	 * @throws FlinkException if the BackPressureStatsTracker could not be shut down
-	 */
-	void shutDown() throws FlinkException;
+    /**
+     * Shuts the BackPressureStatsTracker down.
+     *
+     * @throws FlinkException if the BackPressureStatsTracker could not be shut down
+     */
+    void shutDown() throws FlinkException;
 }

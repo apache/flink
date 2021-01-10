@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, TableException, Tumble}
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.planner.utils.CountAggFunction
+import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
 import org.junit._
@@ -32,6 +32,9 @@ import java.math.BigDecimal
 import scala.collection.JavaConverters._
 
 class GroupWindowITCase extends BatchTestBase {
+
+  @Rule
+  def usesLegacyRows: LegacyRowResource = LegacyRowResource.INSTANCE
 
   val data = List(
     (1L, 1, 1d, 1f, new BigDecimal("1"), "Hi"),

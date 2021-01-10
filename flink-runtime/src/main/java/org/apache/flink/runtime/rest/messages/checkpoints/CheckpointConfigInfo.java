@@ -36,170 +36,186 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 import java.util.Objects;
 
-/**
- * Response class of the {@link CheckpointConfigHandler}.
- */
+/** Response class of the {@link CheckpointConfigHandler}. */
 public class CheckpointConfigInfo implements ResponseBody {
 
-	public static final String FIELD_NAME_PROCESSING_MODE = "mode";
+    public static final String FIELD_NAME_PROCESSING_MODE = "mode";
 
-	public static final String FIELD_NAME_CHECKPOINT_INTERVAL = "interval";
+    public static final String FIELD_NAME_CHECKPOINT_INTERVAL = "interval";
 
-	public static final String FIELD_NAME_CHECKPOINT_TIMEOUT = "timeout";
+    public static final String FIELD_NAME_CHECKPOINT_TIMEOUT = "timeout";
 
-	public static final String FIELD_NAME_CHECKPOINT_MIN_PAUSE = "min_pause";
+    public static final String FIELD_NAME_CHECKPOINT_MIN_PAUSE = "min_pause";
 
-	public static final String FIELD_NAME_CHECKPOINT_MAX_CONCURRENT = "max_concurrent";
+    public static final String FIELD_NAME_CHECKPOINT_MAX_CONCURRENT = "max_concurrent";
 
-	public static final String FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG = "externalization";
+    public static final String FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG = "externalization";
 
-	public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
+    public static final String FIELD_NAME_STATE_BACKEND = "state_backend";
 
-	@JsonProperty(FIELD_NAME_PROCESSING_MODE)
-	private final ProcessingMode processingMode;
+    public static final String FIELD_NAME_UNALIGNED_CHECKPOINTS = "unaligned_checkpoints";
 
-	@JsonProperty(FIELD_NAME_CHECKPOINT_INTERVAL)
-	private final long checkpointInterval;
+    public static final String FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS =
+            "tolerable_failed_checkpoints";
 
-	@JsonProperty(FIELD_NAME_CHECKPOINT_TIMEOUT)
-	private final long checkpointTimeout;
+    @JsonProperty(FIELD_NAME_PROCESSING_MODE)
+    private final ProcessingMode processingMode;
 
-	@JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE)
-	private final long minPauseBetweenCheckpoints;
+    @JsonProperty(FIELD_NAME_CHECKPOINT_INTERVAL)
+    private final long checkpointInterval;
 
-	@JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT)
-	private final long maxConcurrentCheckpoints;
+    @JsonProperty(FIELD_NAME_CHECKPOINT_TIMEOUT)
+    private final long checkpointTimeout;
 
-	@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
-	private final ExternalizedCheckpointInfo externalizedCheckpointInfo;
+    @JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE)
+    private final long minPauseBetweenCheckpoints;
 
-	@JsonProperty(FIELD_NAME_STATE_BACKEND)
-	private final String stateBackend;
+    @JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT)
+    private final long maxConcurrentCheckpoints;
 
-	@JsonCreator
-	public CheckpointConfigInfo(
-			@JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
-			@JsonProperty(FIELD_NAME_CHECKPOINT_INTERVAL) long checkpointInterval,
-			@JsonProperty(FIELD_NAME_CHECKPOINT_TIMEOUT) long checkpointTimeout,
-			@JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE) long minPauseBetweenCheckpoints,
-			@JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT) int maxConcurrentCheckpoints,
-			@JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG) ExternalizedCheckpointInfo externalizedCheckpointInfo,
-			@JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend) {
-		this.processingMode = Preconditions.checkNotNull(processingMode);
-		this.checkpointInterval = checkpointInterval;
-		this.checkpointTimeout = checkpointTimeout;
-		this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
-		this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
-		this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
-		this.stateBackend = Preconditions.checkNotNull(stateBackend);
-	}
+    @JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
+    private final ExternalizedCheckpointInfo externalizedCheckpointInfo;
 
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		CheckpointConfigInfo that = (CheckpointConfigInfo) o;
-		return checkpointInterval == that.checkpointInterval &&
-			checkpointTimeout == that.checkpointTimeout &&
-			minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints &&
-			maxConcurrentCheckpoints == that.maxConcurrentCheckpoints &&
-			processingMode == that.processingMode &&
-			Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo) &&
-			Objects.equals(stateBackend, that.stateBackend);
-	}
+    @JsonProperty(FIELD_NAME_STATE_BACKEND)
+    private final String stateBackend;
 
-	@Override
-	public int hashCode() {
-		return Objects.hash(processingMode, checkpointInterval, checkpointTimeout, minPauseBetweenCheckpoints,
-			maxConcurrentCheckpoints, externalizedCheckpointInfo, stateBackend);
-	}
+    @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS)
+    private final boolean unalignedCheckpoints;
 
-	/**
-	 * Contains information about the externalized checkpoint configuration.
-	 */
-	public static final class ExternalizedCheckpointInfo {
+    @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS)
+    private final int tolerableFailedCheckpoints;
 
-		public static final String FIELD_NAME_ENABLED = "enabled";
+    @JsonCreator
+    public CheckpointConfigInfo(
+            @JsonProperty(FIELD_NAME_PROCESSING_MODE) ProcessingMode processingMode,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_INTERVAL) long checkpointInterval,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_TIMEOUT) long checkpointTimeout,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_MIN_PAUSE) long minPauseBetweenCheckpoints,
+            @JsonProperty(FIELD_NAME_CHECKPOINT_MAX_CONCURRENT) int maxConcurrentCheckpoints,
+            @JsonProperty(FIELD_NAME_EXTERNALIZED_CHECKPOINT_CONFIG)
+                    ExternalizedCheckpointInfo externalizedCheckpointInfo,
+            @JsonProperty(FIELD_NAME_STATE_BACKEND) String stateBackend,
+            @JsonProperty(FIELD_NAME_UNALIGNED_CHECKPOINTS) boolean unalignedCheckpoints,
+            @JsonProperty(FIELD_NAME_TOLERABLE_FAILED_CHECKPOINTS) int tolerableFailedCheckpoints) {
+        this.processingMode = Preconditions.checkNotNull(processingMode);
+        this.checkpointInterval = checkpointInterval;
+        this.checkpointTimeout = checkpointTimeout;
+        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
+        this.externalizedCheckpointInfo = Preconditions.checkNotNull(externalizedCheckpointInfo);
+        this.stateBackend = Preconditions.checkNotNull(stateBackend);
+        this.unalignedCheckpoints = unalignedCheckpoints;
+        this.tolerableFailedCheckpoints = tolerableFailedCheckpoints;
+    }
 
-		public static final String FIELD_NAME_DELETE_ON_CANCELLATION = "delete_on_cancellation";
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CheckpointConfigInfo that = (CheckpointConfigInfo) o;
+        return checkpointInterval == that.checkpointInterval
+                && checkpointTimeout == that.checkpointTimeout
+                && minPauseBetweenCheckpoints == that.minPauseBetweenCheckpoints
+                && maxConcurrentCheckpoints == that.maxConcurrentCheckpoints
+                && processingMode == that.processingMode
+                && Objects.equals(externalizedCheckpointInfo, that.externalizedCheckpointInfo)
+                && Objects.equals(stateBackend, that.stateBackend)
+                && unalignedCheckpoints == that.unalignedCheckpoints
+                && tolerableFailedCheckpoints == that.tolerableFailedCheckpoints;
+    }
 
-		@JsonProperty(FIELD_NAME_ENABLED)
-		private final boolean enabled;
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                processingMode,
+                checkpointInterval,
+                checkpointTimeout,
+                minPauseBetweenCheckpoints,
+                maxConcurrentCheckpoints,
+                externalizedCheckpointInfo,
+                stateBackend,
+                unalignedCheckpoints,
+                tolerableFailedCheckpoints);
+    }
 
-		@JsonProperty(FIELD_NAME_DELETE_ON_CANCELLATION)
-		private final boolean deleteOnCancellation;
+    /** Contains information about the externalized checkpoint configuration. */
+    public static final class ExternalizedCheckpointInfo {
 
-		@JsonCreator
-		public ExternalizedCheckpointInfo(
-				@JsonProperty(FIELD_NAME_ENABLED) boolean enabled,
-				@JsonProperty(FIELD_NAME_DELETE_ON_CANCELLATION) boolean deleteOnCancellation) {
-			this.enabled = enabled;
-			this.deleteOnCancellation = deleteOnCancellation;
-		}
+        public static final String FIELD_NAME_ENABLED = "enabled";
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ExternalizedCheckpointInfo that = (ExternalizedCheckpointInfo) o;
-			return enabled == that.enabled &&
-				deleteOnCancellation == that.deleteOnCancellation;
-		}
+        public static final String FIELD_NAME_DELETE_ON_CANCELLATION = "delete_on_cancellation";
 
-		@Override
-		public int hashCode() {
-			return Objects.hash(enabled, deleteOnCancellation);
-		}
-	}
+        @JsonProperty(FIELD_NAME_ENABLED)
+        private final boolean enabled;
 
-	/**
-	 * Processing mode.
-	 */
-	@JsonSerialize(using = ProcessingModeSerializer.class)
-	@JsonDeserialize(using = ProcessingModeDeserializer.class)
-	public enum ProcessingMode {
-		AT_LEAST_ONCE,
-		EXACTLY_ONCE
-	}
+        @JsonProperty(FIELD_NAME_DELETE_ON_CANCELLATION)
+        private final boolean deleteOnCancellation;
 
-	/**
-	 * JSON deserializer for {@link ProcessingMode}.
-	 */
-	public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
+        @JsonCreator
+        public ExternalizedCheckpointInfo(
+                @JsonProperty(FIELD_NAME_ENABLED) boolean enabled,
+                @JsonProperty(FIELD_NAME_DELETE_ON_CANCELLATION) boolean deleteOnCancellation) {
+            this.enabled = enabled;
+            this.deleteOnCancellation = deleteOnCancellation;
+        }
 
-		public ProcessingModeSerializer() {
-			super(ProcessingMode.class);
-		}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            ExternalizedCheckpointInfo that = (ExternalizedCheckpointInfo) o;
+            return enabled == that.enabled && deleteOnCancellation == that.deleteOnCancellation;
+        }
 
-		@Override
-		public void serialize(ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
-			throws IOException {
-			generator.writeString(mode.name().toLowerCase());
-		}
-	}
+        @Override
+        public int hashCode() {
+            return Objects.hash(enabled, deleteOnCancellation);
+        }
+    }
 
-	/**
-	 * Processing mode deserializer.
-	 */
-	public static class ProcessingModeDeserializer extends StdDeserializer<ProcessingMode> {
+    /** Processing mode. */
+    @JsonSerialize(using = ProcessingModeSerializer.class)
+    @JsonDeserialize(using = ProcessingModeDeserializer.class)
+    public enum ProcessingMode {
+        AT_LEAST_ONCE,
+        EXACTLY_ONCE
+    }
 
-		public ProcessingModeDeserializer() {
-			super(ProcessingMode.class);
-		}
+    /** JSON deserializer for {@link ProcessingMode}. */
+    public static class ProcessingModeSerializer extends StdSerializer<ProcessingMode> {
 
-		@Override
-		public ProcessingMode deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
-			throws IOException {
-			return ProcessingMode.valueOf(jsonParser.getValueAsString().toUpperCase());
-		}
-	}
+        public ProcessingModeSerializer() {
+            super(ProcessingMode.class);
+        }
 
+        @Override
+        public void serialize(
+                ProcessingMode mode, JsonGenerator generator, SerializerProvider serializerProvider)
+                throws IOException {
+            generator.writeString(mode.name().toLowerCase());
+        }
+    }
+
+    /** Processing mode deserializer. */
+    public static class ProcessingModeDeserializer extends StdDeserializer<ProcessingMode> {
+
+        public ProcessingModeDeserializer() {
+            super(ProcessingMode.class);
+        }
+
+        @Override
+        public ProcessingMode deserialize(
+                JsonParser jsonParser, DeserializationContext deserializationContext)
+                throws IOException {
+            return ProcessingMode.valueOf(jsonParser.getValueAsString().toUpperCase());
+        }
+    }
 }

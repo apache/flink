@@ -62,362 +62,374 @@ import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/**
- * Tests that verify the migration from previous Flink version snapshots.
- */
+/** Tests that verify the migration from previous Flink version snapshots. */
 @RunWith(Parameterized.class)
 public class ContinuousFileProcessingMigrationTest {
 
-	private static final int LINES_PER_FILE = 10;
-
-	private static final long INTERVAL = 100;
-
-	@Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
-	public static Collection<Tuple2<MigrationVersion, Long>> parameters () {
-		return Arrays.asList(
-			Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
-			Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
-			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
-			Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
-			Tuple2.of(MigrationVersion.v1_7, 1544024599000L),
-			Tuple2.of(MigrationVersion.v1_8, 1555215710000L),
-			Tuple2.of(MigrationVersion.v1_9, 1567499868000L));
-	}
-
-	/**
-	 * TODO change this to the corresponding savepoint version to be written (e.g. {@link MigrationVersion#v1_3} for 1.3)
-	 * TODO and remove all @Ignore annotations on write*Snapshot() methods to generate savepoints
-	 * TODO Note: You should generate the savepoint based on the release branch instead of the master.
-	 */
-	private final MigrationVersion flinkGenerateSavepointVersion = null;
+    private static final int LINES_PER_FILE = 10;
+
+    private static final long INTERVAL = 100;
+
+    @Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
+    public static Collection<Tuple2<MigrationVersion, Long>> parameters() {
+        return Arrays.asList(
+                Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
+                Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
+                Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
+                Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
+                Tuple2.of(MigrationVersion.v1_7, 1544024599000L),
+                Tuple2.of(MigrationVersion.v1_8, 1555215710000L),
+                Tuple2.of(MigrationVersion.v1_9, 1567499868000L),
+                Tuple2.of(MigrationVersion.v1_10, 1594559333000L),
+                Tuple2.of(MigrationVersion.v1_11, 1594561663000L));
+    }
+
+    /**
+     * TODO change this to the corresponding savepoint version to be written (e.g. {@link
+     * MigrationVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
+     * methods to generate savepoints TODO Note: You should generate the savepoint based on the
+     * release branch instead of the master.
+     */
+    private final MigrationVersion flinkGenerateSavepointVersion = null;
+
+    private final MigrationVersion testMigrateVersion;
+    private final Long expectedModTime;
+
+    public ContinuousFileProcessingMigrationTest(
+            Tuple2<MigrationVersion, Long> migrationVersionAndModTime) {
+        this.testMigrateVersion = migrationVersionAndModTime.f0;
+        this.expectedModTime = migrationVersionAndModTime.f1;
+    }
+
+    @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @BeforeClass
+    public static void verifyOS() {
+        Assume.assumeTrue(
+                "HDFS cluster cannot be start on Windows without extensions.",
+                !OperatingSystem.isWindows());
+    }
+
+    /** Manually run this to write binary snapshot data. Remove @Ignore to run. */
+    @Ignore
+    @Test
+    public void writeReaderSnapshot() throws Exception {
+
+        File testFolder = tempFolder.newFolder();
+
+        TimestampedFileInputSplit split1 =
+                new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
+
+        TimestampedFileInputSplit split2 =
+                new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null);
+
+        TimestampedFileInputSplit split3 =
+                new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null);
+
+        TimestampedFileInputSplit split4 =
+                new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
+
+        // this always blocks to ensure that the reader doesn't to any actual processing so that
+        // we keep the state for the four splits
+        final OneShotLatch blockingLatch = new OneShotLatch();
+        BlockingFileInputFormat format =
+                new BlockingFileInputFormat(blockingLatch, new Path(testFolder.getAbsolutePath()));
+
+        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
+                createHarness(format);
+        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
+        testHarness.open();
+        // create some state in the reader
+        testHarness.processElement(new StreamRecord<>(split1));
+        testHarness.processElement(new StreamRecord<>(split2));
+        testHarness.processElement(new StreamRecord<>(split3));
+        testHarness.processElement(new StreamRecord<>(split4));
+        // take a snapshot of the operator's state. This will be used
+        // to initialize another reader and compare the results of the
+        // two operators.
+
+        final OperatorSubtaskState snapshot;
+        synchronized (testHarness.getCheckpointLock()) {
+            snapshot = testHarness.snapshot(0L, 0L);
+        }
+
+        OperatorSnapshotUtil.writeStateHandle(
+                snapshot,
+                "src/test/resources/reader-migration-test-flink"
+                        + flinkGenerateSavepointVersion
+                        + "-snapshot");
+    }
+
+    @Test
+    public void testReaderRestore() throws Exception {
+        File testFolder = tempFolder.newFolder();
+
+        final OneShotLatch latch = new OneShotLatch();
+
+        BlockingFileInputFormat format =
+                new BlockingFileInputFormat(latch, new Path(testFolder.getAbsolutePath()));
+        TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
 
-	private final MigrationVersion testMigrateVersion;
-	private final Long expectedModTime;
+        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness =
+                createHarness(format);
+        testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
 
-	public ContinuousFileProcessingMigrationTest(Tuple2<MigrationVersion, Long> migrationVersionAndModTime) {
-		this.testMigrateVersion = migrationVersionAndModTime.f0;
-		this.expectedModTime = migrationVersionAndModTime.f1;
-	}
+        testHarness.setup();
+
+        testHarness.initializeState(
+                OperatorSnapshotUtil.getResourceFilename(
+                        "reader-migration-test-flink" + testMigrateVersion + "-snapshot"));
+
+        testHarness.open();
+
+        latch.trigger();
+
+        // ... and wait for the operators to close gracefully
+
+        synchronized (testHarness.getCheckpointLock()) {
+            testHarness.close();
+        }
+
+        TimestampedFileInputSplit split1 =
+                new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
+
+        TimestampedFileInputSplit split2 =
+                new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null);
 
-	@ClassRule
-	public static TemporaryFolder tempFolder = new TemporaryFolder();
-
-	@BeforeClass
-	public static void verifyOS() {
-		Assume.assumeTrue("HDFS cluster cannot be start on Windows without extensions.", !OperatingSystem.isWindows());
-	}
-
-	/**
-	 * Manually run this to write binary snapshot data. Remove @Ignore to run.
-	 */
-	@Ignore
-	@Test
-	public void writeReaderSnapshot() throws Exception {
-
-		File testFolder = tempFolder.newFolder();
-
-		TimestampedFileInputSplit split1 =
-				new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
-
-		TimestampedFileInputSplit split2 =
-				new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null);
-
-		TimestampedFileInputSplit split3 =
-				new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null);
+        TimestampedFileInputSplit split3 =
+                new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null);
 
-		TimestampedFileInputSplit split4 =
-				new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
+        TimestampedFileInputSplit split4 =
+                new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
 
-		// this always blocks to ensure that the reader doesn't to any actual processing so that
-		// we keep the state for the four splits
-		final OneShotLatch blockingLatch = new OneShotLatch();
-		BlockingFileInputFormat format = new BlockingFileInputFormat(blockingLatch, new Path(testFolder.getAbsolutePath()));
+        // compare if the results contain what they should contain and also if
+        // they are the same, as they should.
 
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness = createHarness(format);
-		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
-		testHarness.open();
-		// create some state in the reader
-		testHarness.processElement(new StreamRecord<>(split1));
-		testHarness.processElement(new StreamRecord<>(split2));
-		testHarness.processElement(new StreamRecord<>(split3));
-		testHarness.processElement(new StreamRecord<>(split4));
-		// take a snapshot of the operator's state. This will be used
-		// to initialize another reader and compare the results of the
-		// two operators.
+        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
+        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
+        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
+        Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
+    }
 
-		final OperatorSubtaskState snapshot;
-		synchronized (testHarness.getCheckpointLock()) {
-			snapshot = testHarness.snapshot(0L, 0L);
-		}
+    /** Manually run this to write binary snapshot data. Remove @Ignore to run. */
+    @Ignore
+    @Test
+    public void writeMonitoringSourceSnapshot() throws Exception {
 
-		OperatorSnapshotUtil.writeStateHandle(snapshot, "src/test/resources/reader-migration-test-flink" + flinkGenerateSavepointVersion + "-snapshot");
-	}
+        File testFolder = tempFolder.newFolder();
 
-	@Test
-	public void testReaderRestore() throws Exception {
-		File testFolder = tempFolder.newFolder();
-
-		final OneShotLatch latch = new OneShotLatch();
-
-		BlockingFileInputFormat format = new BlockingFileInputFormat(latch, new Path(testFolder.getAbsolutePath()));
-		TypeInformation<FileInputSplit> typeInfo = TypeExtractor.getInputFormatTypes(format);
-
-		OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> testHarness = createHarness(format);
-		testHarness.setTimeCharacteristic(TimeCharacteristic.EventTime);
-
-		testHarness.setup();
-
-		testHarness.initializeState(
-			OperatorSnapshotUtil.getResourceFilename(
-				"reader-migration-test-flink" + testMigrateVersion + "-snapshot"));
+        long fileModTime = Long.MIN_VALUE;
+        for (int i = 0; i < 1; i++) {
+            Tuple2<File, String> file =
+                    createFileAndFillWithData(testFolder, "file", i, "This is test line.");
+            fileModTime = file.f0.lastModified();
+        }
 
-		testHarness.open();
+        TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
-		latch.trigger();
+        final ContinuousFileMonitoringFunction<String> monitoringFunction =
+                new ContinuousFileMonitoringFunction<>(
+                        format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
-		// ... and wait for the operators to close gracefully
+        StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
+                new StreamSource<>(monitoringFunction);
 
-		synchronized (testHarness.getCheckpointLock()) {
-			testHarness.close();
-		}
+        final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
+                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
 
-		TimestampedFileInputSplit split1 =
-				new TimestampedFileInputSplit(0, 3, new Path("test/test1"), 0, 100, null);
+        testHarness.open();
 
-		TimestampedFileInputSplit split2 =
-				new TimestampedFileInputSplit(10, 2, new Path("test/test2"), 101, 200, null);
+        final Throwable[] error = new Throwable[1];
 
-		TimestampedFileInputSplit split3 =
-				new TimestampedFileInputSplit(10, 1, new Path("test/test2"), 0, 100, null);
+        final OneShotLatch latch = new OneShotLatch();
 
-		TimestampedFileInputSplit split4 =
-				new TimestampedFileInputSplit(11, 0, new Path("test/test3"), 0, 100, null);
+        // run the source asynchronously
+        Thread runner =
+                new Thread() {
+                    @Override
+                    public void run() {
+                        try {
+                            monitoringFunction.run(
+                                    new DummySourceContext() {
+                                        @Override
+                                        public void collect(TimestampedFileInputSplit element) {
+                                            latch.trigger();
+                                        }
 
-		// compare if the results contain what they should contain and also if
-		// they are the same, as they should.
+                                        @Override
+                                        public void markAsTemporarilyIdle() {}
+                                    });
+                        } catch (Throwable t) {
+                            t.printStackTrace();
+                            error[0] = t;
+                        }
+                    }
+                };
+        runner.start();
 
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split1)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split2)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split3)));
-		Assert.assertTrue(testHarness.getOutput().contains(new StreamRecord<>(split4)));
-	}
+        if (!latch.isTriggered()) {
+            latch.await();
+        }
 
-	/**
-	 * Manually run this to write binary snapshot data. Remove @Ignore to run.
-	 */
-	@Ignore
-	@Test
-	public void writeMonitoringSourceSnapshot() throws Exception {
+        final OperatorSubtaskState snapshot;
+        synchronized (testHarness.getCheckpointLock()) {
+            snapshot = testHarness.snapshot(0L, 0L);
+        }
 
-		File testFolder = tempFolder.newFolder();
+        OperatorSnapshotUtil.writeStateHandle(
+                snapshot,
+                "src/test/resources/monitoring-function-migration-test-"
+                        + fileModTime
+                        + "-flink"
+                        + flinkGenerateSavepointVersion
+                        + "-snapshot");
 
-		long fileModTime = Long.MIN_VALUE;
-		for (int i = 0; i < 1; i++) {
-			Tuple2<File, String> file = createFileAndFillWithData(testFolder, "file", i, "This is test line.");
-			fileModTime = file.f0.lastModified();
-		}
+        monitoringFunction.cancel();
+        runner.join();
 
-		TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
+        testHarness.close();
+    }
 
-		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
+    @Test
+    public void testMonitoringSourceRestore() throws Exception {
 
-		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
-			new StreamSource<>(monitoringFunction);
+        File testFolder = tempFolder.newFolder();
 
-		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-				new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
+        TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
 
-		testHarness.open();
+        final ContinuousFileMonitoringFunction<String> monitoringFunction =
+                new ContinuousFileMonitoringFunction<>(
+                        format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
 
-		final Throwable[] error = new Throwable[1];
+        StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
+                new StreamSource<>(monitoringFunction);
+
+        final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
+                new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
 
-		final OneShotLatch latch = new OneShotLatch();
+        testHarness.setup();
 
-		// run the source asynchronously
-		Thread runner = new Thread() {
-			@Override
-			public void run() {
-				try {
-					monitoringFunction.run(new DummySourceContext() {
-						@Override
-						public void collect(TimestampedFileInputSplit element) {
-							latch.trigger();
-						}
+        testHarness.initializeState(
+                OperatorSnapshotUtil.getResourceFilename(
+                        "monitoring-function-migration-test-"
+                                + expectedModTime
+                                + "-flink"
+                                + testMigrateVersion
+                                + "-snapshot"));
 
-						@Override
-						public void markAsTemporarilyIdle() {
+        testHarness.open();
 
-						}
-					});
-				}
-				catch (Throwable t) {
-					t.printStackTrace();
-					error[0] = t;
-				}
-			}
-		};
-		runner.start();
-
-		if (!latch.isTriggered()) {
-			latch.await();
-		}
-
-		final OperatorSubtaskState snapshot;
-		synchronized (testHarness.getCheckpointLock()) {
-			snapshot = testHarness.snapshot(0L, 0L);
-		}
-
-		OperatorSnapshotUtil.writeStateHandle(
-				snapshot,
-				"src/test/resources/monitoring-function-migration-test-" + fileModTime + "-flink" + flinkGenerateSavepointVersion + "-snapshot");
-
-		monitoringFunction.cancel();
-		runner.join();
-
-		testHarness.close();
-	}
-
-	@Test
-	public void testMonitoringSourceRestore() throws Exception {
-
-		File testFolder = tempFolder.newFolder();
-
-		TextInputFormat format = new TextInputFormat(new Path(testFolder.getAbsolutePath()));
-
-		final ContinuousFileMonitoringFunction<String> monitoringFunction =
-			new ContinuousFileMonitoringFunction<>(format, FileProcessingMode.PROCESS_CONTINUOUSLY, 1, INTERVAL);
-
-		StreamSource<TimestampedFileInputSplit, ContinuousFileMonitoringFunction<String>> src =
-			new StreamSource<>(monitoringFunction);
-
-		final AbstractStreamOperatorTestHarness<TimestampedFileInputSplit> testHarness =
-			new AbstractStreamOperatorTestHarness<>(src, 1, 1, 0);
-
-		testHarness.setup();
-
-		testHarness.initializeState(
-			OperatorSnapshotUtil.getResourceFilename(
-				"monitoring-function-migration-test-" + expectedModTime + "-flink" + testMigrateVersion + "-snapshot"));
-
-		testHarness.open();
-
-		Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
-
-	}
-
-	private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {
-
-		private static final long serialVersionUID = -6727603565381560267L;
-
-		private final OneShotLatch latch;
-
-		private FileInputSplit split;
-
-		private boolean reachedEnd;
-
-		BlockingFileInputFormat(OneShotLatch latch, Path filePath) {
-			super(filePath);
-			this.latch = latch;
-			this.reachedEnd = false;
-		}
-
-		@Override
-		public void open(FileInputSplit fileSplit) throws IOException {
-			this.split = fileSplit;
-			this.reachedEnd = false;
-		}
-
-		@Override
-		public boolean reachedEnd() throws IOException {
-			if (!latch.isTriggered()) {
-				try {
-					latch.await();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
-			return reachedEnd;
-		}
-
-		@Override
-		public FileInputSplit nextRecord(FileInputSplit reuse) throws IOException {
-			this.reachedEnd = true;
-			return split;
-		}
-
-		@Override
-		public void close() {
-
-		}
-	}
-
-	private abstract static class DummySourceContext
-		implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
-
-		private final Object lock = new Object();
-
-		@Override
-		public void collectWithTimestamp(TimestampedFileInputSplit element, long timestamp) {
-		}
-
-		@Override
-		public void emitWatermark(Watermark mark) {
-		}
-
-		@Override
-		public Object getCheckpointLock() {
-			return lock;
-		}
-
-		@Override
-		public void close() {
-		}
-	}
-
-	/**
-	 * Create a file with pre-determined String format of the form:
-	 * {@code fileIdx +": "+ sampleLine +" "+ lineNo}.
-	 * */
-	private Tuple2<File, String> createFileAndFillWithData(
-		File base, String fileName, int fileIdx, String sampleLine) throws IOException {
-
-		File file = new File(base, fileName + fileIdx);
-		Assert.assertFalse(file.exists());
-
-		File tmp = new File(base, "." + fileName + fileIdx);
-		FileOutputStream stream = new FileOutputStream(tmp);
-		StringBuilder str = new StringBuilder();
-		for (int i = 0; i < LINES_PER_FILE; i++) {
-			String line = fileIdx + ": " + sampleLine + " " + i + "\n";
-			str.append(line);
-			stream.write(line.getBytes());
-		}
-		stream.close();
-
-		FileUtils.moveFile(tmp, file);
-
-		Assert.assertTrue("No result file present", file.exists());
-		return new Tuple2<>(file, str.toString());
-	}
-
-	private FileInputSplit createSplitFromTimestampedSplit(TimestampedFileInputSplit split) {
-		checkNotNull(split);
-
-		return new FileInputSplit(
-			split.getSplitNumber(),
-			split.getPath(),
-			split.getStart(),
-			split.getLength(),
-			split.getHostnames()
-		);
-	}
-
-	private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit> createHarness(BlockingFileInputFormat format) throws Exception {
-		ExecutionConfig config = new ExecutionConfig();
-		return new OneInputStreamOperatorTestHarness<>(
-			new ContinuousFileReaderOperatorFactory<>(format, TypeExtractor.getInputFormatTypes(format), config),
-			TypeExtractor.getForClass(TimestampedFileInputSplit.class).createSerializer(config));
-	}
-
+        Assert.assertEquals((long) expectedModTime, monitoringFunction.getGlobalModificationTime());
+    }
+
+    private static class BlockingFileInputFormat extends FileInputFormat<FileInputSplit> {
+
+        private static final long serialVersionUID = -6727603565381560267L;
+
+        private final OneShotLatch latch;
+
+        private FileInputSplit split;
+
+        private boolean reachedEnd;
+
+        BlockingFileInputFormat(OneShotLatch latch, Path filePath) {
+            super(filePath);
+            this.latch = latch;
+            this.reachedEnd = false;
+        }
+
+        @Override
+        public void open(FileInputSplit fileSplit) throws IOException {
+            this.split = fileSplit;
+            this.reachedEnd = false;
+        }
+
+        @Override
+        public boolean reachedEnd() throws IOException {
+            if (!latch.isTriggered()) {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            return reachedEnd;
+        }
+
+        @Override
+        public FileInputSplit nextRecord(FileInputSplit reuse) throws IOException {
+            this.reachedEnd = true;
+            return split;
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    private abstract static class DummySourceContext
+            implements SourceFunction.SourceContext<TimestampedFileInputSplit> {
+
+        private final Object lock = new Object();
+
+        @Override
+        public void collectWithTimestamp(TimestampedFileInputSplit element, long timestamp) {}
+
+        @Override
+        public void emitWatermark(Watermark mark) {}
+
+        @Override
+        public Object getCheckpointLock() {
+            return lock;
+        }
+
+        @Override
+        public void close() {}
+    }
+
+    /**
+     * Create a file with pre-determined String format of the form: {@code fileIdx +": "+ sampleLine
+     * +" "+ lineNo}.
+     */
+    private Tuple2<File, String> createFileAndFillWithData(
+            File base, String fileName, int fileIdx, String sampleLine) throws IOException {
+
+        File file = new File(base, fileName + fileIdx);
+        Assert.assertFalse(file.exists());
+
+        File tmp = new File(base, "." + fileName + fileIdx);
+        FileOutputStream stream = new FileOutputStream(tmp);
+        StringBuilder str = new StringBuilder();
+        for (int i = 0; i < LINES_PER_FILE; i++) {
+            String line = fileIdx + ": " + sampleLine + " " + i + "\n";
+            str.append(line);
+            stream.write(line.getBytes());
+        }
+        stream.close();
+
+        FileUtils.moveFile(tmp, file);
+
+        Assert.assertTrue("No result file present", file.exists());
+        return new Tuple2<>(file, str.toString());
+    }
+
+    private FileInputSplit createSplitFromTimestampedSplit(TimestampedFileInputSplit split) {
+        checkNotNull(split);
+
+        return new FileInputSplit(
+                split.getSplitNumber(),
+                split.getPath(),
+                split.getStart(),
+                split.getLength(),
+                split.getHostnames());
+    }
+
+    private OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, FileInputSplit>
+            createHarness(BlockingFileInputFormat format) throws Exception {
+        ExecutionConfig config = new ExecutionConfig();
+        return new OneInputStreamOperatorTestHarness<>(
+                new ContinuousFileReaderOperatorFactory(
+                        format, TypeExtractor.getInputFormatTypes(format), config),
+                TypeExtractor.getForClass(TimestampedFileInputSplit.class)
+                        .createSerializer(config));
+    }
 }

@@ -45,42 +45,41 @@ import static org.apache.flink.table.types.inference.TypeInferenceUtil.inferOutp
 @Internal
 public final class TypeInferenceReturnInference implements SqlReturnTypeInference {
 
-	private final DataTypeFactory dataTypeFactory;
+    private final DataTypeFactory dataTypeFactory;
 
-	private final FunctionDefinition definition;
+    private final FunctionDefinition definition;
 
-	private final TypeInference typeInference;
+    private final TypeInference typeInference;
 
-	public TypeInferenceReturnInference(
-			DataTypeFactory dataTypeFactory,
-			FunctionDefinition definition,
-			TypeInference typeInference) {
-		this.dataTypeFactory = dataTypeFactory;
-		this.definition = definition;
-		this.typeInference = typeInference;
-	}
+    public TypeInferenceReturnInference(
+            DataTypeFactory dataTypeFactory,
+            FunctionDefinition definition,
+            TypeInference typeInference) {
+        this.dataTypeFactory = dataTypeFactory;
+        this.definition = definition;
+        this.typeInference = typeInference;
+    }
 
-	@Override
-	public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-		final CallContext callContext = new OperatorBindingCallContext(
-			dataTypeFactory,
-			definition,
-			opBinding);
-		try {
-			return inferReturnTypeOrError(unwrapTypeFactory(opBinding), callContext);
-		}
-		catch (ValidationException e) {
-			throw createInvalidCallException(callContext, e);
-		} catch (Throwable t) {
-			throw createUnexpectedException(callContext, t);
-		}
-	}
+    @Override
+    public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
+        final CallContext callContext =
+                new OperatorBindingCallContext(dataTypeFactory, definition, opBinding, null);
+        try {
+            return inferReturnTypeOrError(unwrapTypeFactory(opBinding), callContext);
+        } catch (ValidationException e) {
+            throw createInvalidCallException(callContext, e);
+        } catch (Throwable t) {
+            throw createUnexpectedException(callContext, t);
+        }
+    }
 
-	// --------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------
 
-	private RelDataType inferReturnTypeOrError(FlinkTypeFactory typeFactory, CallContext callContext) {
-		final LogicalType inferredType = inferOutputType(callContext, typeInference.getOutputTypeStrategy())
-			.getLogicalType();
-		return typeFactory.createFieldTypeFromLogicalType(inferredType);
-	}
+    private RelDataType inferReturnTypeOrError(
+            FlinkTypeFactory typeFactory, CallContext callContext) {
+        final LogicalType inferredType =
+                inferOutputType(callContext, typeInference.getOutputTypeStrategy())
+                        .getLogicalType();
+        return typeFactory.createFieldTypeFromLogicalType(inferredType);
+    }
 }

@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -48,7 +48,8 @@ abstract class CommonPhysicalJoin(
     rightRel: RelNode,
     condition: RexNode,
     joinType: JoinRelType)
-  extends Join(cluster, traitSet, leftRel, rightRel, condition, Set.empty[CorrelationId], joinType)
+  extends Join(cluster, traitSet, Collections.emptyList(), leftRel, rightRel, condition,
+    Set.empty[CorrelationId], joinType)
   with FlinkPhysicalRel {
 
   if (containsPythonCall(condition)) {

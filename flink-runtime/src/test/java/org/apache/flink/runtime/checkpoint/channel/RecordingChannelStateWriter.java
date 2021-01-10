@@ -19,70 +19,76 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.util.CloseableIterator;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.LinkedListMultimap;
 import org.apache.flink.shaded.guava18.com.google.common.collect.ListMultimap;
 
 import java.util.Arrays;
 
-/**
- * A simple {@link ChannelStateWriter} used to write unit tests.
- */
+import static org.apache.flink.util.ExceptionUtils.rethrow;
+
+/** A simple {@link ChannelStateWriter} used to write unit tests. */
 public class RecordingChannelStateWriter extends MockChannelStateWriter {
-	private long lastStartedCheckpointId = -1;
-	private long lastFinishedCheckpointId = -1;
-	private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
-	private ListMultimap<ResultSubpartitionInfo, Buffer> adedOutput = LinkedListMultimap.create();
+    private long lastStartedCheckpointId = -1;
+    private long lastFinishedCheckpointId = -1;
+    private ListMultimap<InputChannelInfo, Buffer> addedInput = LinkedListMultimap.create();
+    private ListMultimap<ResultSubpartitionInfo, Buffer> adedOutput = LinkedListMultimap.create();
 
-	public RecordingChannelStateWriter() {
-		super(false);
-	}
+    public RecordingChannelStateWriter() {
+        super(false);
+    }
 
-	public void reset() {
-		lastStartedCheckpointId = -1;
-		lastFinishedCheckpointId = -1;
-		addedInput.values().forEach(Buffer::recycleBuffer);
-		addedInput.clear();
-		adedOutput.values().forEach(Buffer::recycleBuffer);
-		adedOutput.clear();
-	}
+    public void reset() {
+        lastStartedCheckpointId = -1;
+        lastFinishedCheckpointId = -1;
+        addedInput.values().forEach(Buffer::recycleBuffer);
+        addedInput.clear();
+        adedOutput.values().forEach(Buffer::recycleBuffer);
+        adedOutput.clear();
+    }
 
-	@Override
-	public void start(long checkpointId, CheckpointOptions checkpointOptions) {
-		super.start(checkpointId, checkpointOptions);
-		lastStartedCheckpointId = checkpointId;
-	}
+    @Override
+    public void start(long checkpointId, CheckpointOptions checkpointOptions) {
+        super.start(checkpointId, checkpointOptions);
+        lastStartedCheckpointId = checkpointId;
+    }
 
-	@Override
-	public void addInputData(long checkpointId, InputChannelInfo info, int startSeqNum, Buffer... data) {
-		checkCheckpointId(checkpointId);
-		addedInput.putAll(info, Arrays.asList(data));
-	}
+    @Override
+    public void addInputData(
+            long checkpointId,
+            InputChannelInfo info,
+            int startSeqNum,
+            CloseableIterator<Buffer> iterator) {
+        checkCheckpointId(checkpointId);
+        iterator.forEachRemaining(b -> addedInput.put(info, b));
+        try {
+            iterator.close();
+        } catch (Exception e) {
+            rethrow(e);
+        }
+    }
 
-	@Override
-	public void addOutputData(long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
-		checkCheckpointId(checkpointId);
-		adedOutput.putAll(info, Arrays.asList(data));
-	}
+    @Override
+    public void addOutputData(
+            long checkpointId, ResultSubpartitionInfo info, int startSeqNum, Buffer... data) {
+        checkCheckpointId(checkpointId);
+        adedOutput.putAll(info, Arrays.asList(data));
+    }
 
-	public long getLastStartedCheckpointId() {
-		return lastStartedCheckpointId;
-	}
+    public long getLastStartedCheckpointId() {
+        return lastStartedCheckpointId;
+    }
 
-	public long getLastFinishedCheckpointId() {
-		return lastFinishedCheckpointId;
-	}
+    public long getLastFinishedCheckpointId() {
+        return lastFinishedCheckpointId;
+    }
 
-	@Override
-	public void notifyCheckpointComplete(long checkpointId) throws Exception {
-		lastFinishedCheckpointId = checkpointId;
-	}
+    public ListMultimap<InputChannelInfo, Buffer> getAddedInput() {
+        return addedInput;
+    }
 
-	public ListMultimap<InputChannelInfo, Buffer> getAddedInput() {
-		return addedInput;
-	}
-
-	public ListMultimap<ResultSubpartitionInfo, Buffer> getAddedOutput() {
-		return adedOutput;
-	}
+    public ListMultimap<ResultSubpartitionInfo, Buffer> getAddedOutput() {
+        return adedOutput;
+    }
 }

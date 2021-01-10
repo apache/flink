@@ -47,69 +47,88 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-/**
- * Handler which serves the checkpoint configuration.
- */
-public class CheckpointConfigHandler extends AbstractExecutionGraphHandler<CheckpointConfigInfo, JobMessageParameters> implements JsonArchivist {
+/** Handler which serves the checkpoint configuration. */
+public class CheckpointConfigHandler
+        extends AbstractExecutionGraphHandler<CheckpointConfigInfo, JobMessageParameters>
+        implements JsonArchivist {
 
-	public CheckpointConfigHandler(
-			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
-			Time timeout,
-			Map<String, String> responseHeaders,
-			MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters> messageHeaders,
-			ExecutionGraphCache executionGraphCache,
-			Executor executor) {
-		super(
-			leaderRetriever,
-			timeout,
-			responseHeaders,
-			messageHeaders,
-			executionGraphCache,
-			executor);
-	}
+    public CheckpointConfigHandler(
+            GatewayRetriever<? extends RestfulGateway> leaderRetriever,
+            Time timeout,
+            Map<String, String> responseHeaders,
+            MessageHeaders<EmptyRequestBody, CheckpointConfigInfo, JobMessageParameters>
+                    messageHeaders,
+            ExecutionGraphCache executionGraphCache,
+            Executor executor) {
+        super(
+                leaderRetriever,
+                timeout,
+                responseHeaders,
+                messageHeaders,
+                executionGraphCache,
+                executor);
+    }
 
-	@Override
-	protected CheckpointConfigInfo handleRequest(HandlerRequest<EmptyRequestBody, JobMessageParameters> request, AccessExecutionGraph executionGraph) throws RestHandlerException {
-		return createCheckpointConfigInfo(executionGraph);
-	}
+    @Override
+    protected CheckpointConfigInfo handleRequest(
+            HandlerRequest<EmptyRequestBody, JobMessageParameters> request,
+            AccessExecutionGraph executionGraph)
+            throws RestHandlerException {
+        return createCheckpointConfigInfo(executionGraph);
+    }
 
-	@Override
-	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
-		ResponseBody response;
-		try {
-			response = createCheckpointConfigInfo(graph);
-		} catch (RestHandlerException rhe) {
-			response = new ErrorResponseBody(rhe.getMessage());
-		}
-		String path = CheckpointConfigHeaders.getInstance().getTargetRestEndpointURL()
-			.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
-		return Collections.singletonList(new ArchivedJson(path, response));
-	}
+    @Override
+    public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph)
+            throws IOException {
+        ResponseBody response;
+        try {
+            response = createCheckpointConfigInfo(graph);
+        } catch (RestHandlerException rhe) {
+            response = new ErrorResponseBody(rhe.getMessage());
+        }
+        String path =
+                CheckpointConfigHeaders.getInstance()
+                        .getTargetRestEndpointURL()
+                        .replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString());
+        return Collections.singletonList(new ArchivedJson(path, response));
+    }
 
-	private static CheckpointConfigInfo createCheckpointConfigInfo(AccessExecutionGraph executionGraph) throws RestHandlerException {
-		final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration = executionGraph.getCheckpointCoordinatorConfiguration();
+    private static CheckpointConfigInfo createCheckpointConfigInfo(
+            AccessExecutionGraph executionGraph) throws RestHandlerException {
+        final CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                executionGraph.getCheckpointCoordinatorConfiguration();
 
-		if (checkpointCoordinatorConfiguration == null) {
-			throw new RestHandlerException(
-				"Checkpointing is not enabled for this job (" + executionGraph.getJobID() + ").",
-				HttpResponseStatus.NOT_FOUND);
-		} else {
-			CheckpointRetentionPolicy retentionPolicy = checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy();
+        if (checkpointCoordinatorConfiguration == null) {
+            throw new RestHandlerException(
+                    "Checkpointing is not enabled for this job ("
+                            + executionGraph.getJobID()
+                            + ").",
+                    HttpResponseStatus.NOT_FOUND,
+                    RestHandlerException.LoggingBehavior.IGNORE);
+        } else {
+            CheckpointRetentionPolicy retentionPolicy =
+                    checkpointCoordinatorConfiguration.getCheckpointRetentionPolicy();
 
-			CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo = new CheckpointConfigInfo.ExternalizedCheckpointInfo(
-					retentionPolicy != CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-					retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
+            CheckpointConfigInfo.ExternalizedCheckpointInfo externalizedCheckpointInfo =
+                    new CheckpointConfigInfo.ExternalizedCheckpointInfo(
+                            retentionPolicy
+                                    != CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+                            retentionPolicy != CheckpointRetentionPolicy.RETAIN_ON_CANCELLATION);
 
-			String stateBackendName = executionGraph.getStateBackendName().orElse(null);
+            String stateBackendName = executionGraph.getStateBackendName().orElse(null);
 
-			return new CheckpointConfigInfo(
-				checkpointCoordinatorConfiguration.isExactlyOnce() ? CheckpointConfigInfo.ProcessingMode.EXACTLY_ONCE : CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
-				checkpointCoordinatorConfiguration.getCheckpointInterval(),
-				checkpointCoordinatorConfiguration.getCheckpointTimeout(),
-				checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
-				checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
-				externalizedCheckpointInfo,
-				stateBackendName);
-		}
-	}
+            return new CheckpointConfigInfo(
+                    checkpointCoordinatorConfiguration.isExactlyOnce()
+                            ? CheckpointConfigInfo.ProcessingMode.EXACTLY_ONCE
+                            : CheckpointConfigInfo.ProcessingMode.AT_LEAST_ONCE,
+                    checkpointCoordinatorConfiguration.getCheckpointInterval(),
+                    checkpointCoordinatorConfiguration.getCheckpointTimeout(),
+                    checkpointCoordinatorConfiguration.getMinPauseBetweenCheckpoints(),
+                    checkpointCoordinatorConfiguration.getMaxConcurrentCheckpoints(),
+                    externalizedCheckpointInfo,
+                    stateBackendName,
+                    checkpointCoordinatorConfiguration.isUnalignedCheckpointsEnabled(),
+                    checkpointCoordinatorConfiguration.getTolerableCheckpointFailureNumber());
+        }
+    }
 }

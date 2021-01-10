@@ -27,8 +27,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{ site.baseurl }}/dev/projectsetup/java_api_quickstart.html)
-and the [Scala API]({{ site.baseurl }}/dev/projectsetup/scala_api_quickstart.html)
+refer to the [Java API]({% link dev/project-configuration.md %})
+and the [Scala API]({% link dev/project-configuration.md %})
 quickstart guides.
 
 **NOTE:** Whenever something is not working in your IDE, try with the Maven
@@ -43,6 +43,14 @@ e.g.
 {% highlight bash %}
 git clone https://github.com/apache/flink.git
 {% endhighlight %}
+
+## Ignoring Refactoring Commits
+
+We keep a list of big refactoring commits in `.git-blame-ignore-revs`. When looking at change annotations using `git blame` it's helpful to ignore these. You can configure git and your IDE to do so using:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
 
 ## IntelliJ IDEA
 
@@ -82,6 +90,24 @@ to enable support for Scala projects and files:
    for the IDE to work but without installing the libraries.
 8. Build the Project (Build -> Make Project)
 
+### Code Formatting
+
+We use the [Spotless
+plugin](https://github.com/diffplug/spotless/tree/main/plugin-maven) together
+with [google-java-format](https://github.com/google/google-java-format) to
+format our Java code. You can configure your IDE to automatically apply
+formatting on saving with these steps:
+
+1. Download the [google-java-format
+   plugin v1.7.0.5](https://plugins.jetbrains.com/plugin/8527-google-java-format/versions/stable/83169)
+2. Install the plugin from disk (Plugins -> little gear icon -> "Install plugin from disk" -> Navigate to downloaded zip file)
+3. In the plugin settings, enable the plugin and change the code style to "AOSP" (4-space indents)
+4. Remember to never update this plugin to a later version!
+5. Install the [Save Actions
+   plugin](https://plugins.jetbrains.com/plugin/7642-save-actions)
+6. Enable the plugin, along with "Optimize imports" and "Reformat file"
+7. In the "Save Actions" settings page, setup a "File Path Inclusion" for `.*\.java`. Otherwise you will get unintended reformatting in other files you edit.
+
 ### Checkstyle For Java
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
@@ -117,11 +143,38 @@ Nevertheless please make sure that code you add/modify in these modules still co
 
 Enable scalastyle in Intellij by selecting Settings -> Editor -> Inspections, then searching for "Scala style inspections". Also Place `"tools/maven/scalastyle-config.xml"` in the `"<root>/.idea"` or `"<root>/project"` directory.
 
+### Copyright Profile
+
+Each file needs to include the Apache license as a header. This can be automated in IntelliJ by adding a Copyright profile:
+1. Open settings
+2. Go to Editor -> Copyright -> Copyright Profiles
+3. Add a new profile naming it `Apache`
+4. Add the following text as the license text:
+
+   ```
+   Licensed to the Apache Software Foundation (ASF) under one
+   or more contributor license agreements.  See the NOTICE file
+   distributed with this work for additional information
+   regarding copyright ownership.  The ASF licenses this file
+   to you under the Apache License, Version 2.0 (the
+   "License"); you may not use this file except in compliance
+   with the License.  You may obtain a copy of the License at
+   
+       http://www.apache.org/licenses/LICENSE-2.0
+   
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and 
+   limitations under the License.
+   ```
+5. Apply the changes
+
 ### FAQ
 
 This section lists issues that developers have run into in the past when working with IntelliJ:
 
-- Compilation fails with `invalid flag: --add-expots=java.base/sun.net.util=ALL-UNNAMED`
+- Compilation fails with `invalid flag: --add-exports=java.base/sun.net.util=ALL-UNNAMED`
 
 This means that IntelliJ activated the `java11` profile despite an older JDK being used.
 Open the Maven tool window (View -> Tool Windows -> Maven), uncheck the `java11` profile and reimport the project.

@@ -32,7 +32,7 @@ any type of more elaborate operation.
 In order to make state fault tolerant, Flink needs to **checkpoint** the state. Checkpoints allow Flink to recover state and positions
 in the streams to give the application the same semantics as a failure-free execution.
 
-The [documentation on streaming fault tolerance]({{ site.baseurl }}/internals/stream_checkpointing.html) describes in detail the technique behind Flink's streaming fault tolerance mechanism.
+The [documentation on streaming fault tolerance]({% link learn-flink/fault_tolerance.md %}) describes in detail the technique behind Flink's streaming fault tolerance mechanism.
 
 
 ## Prerequisites
@@ -72,11 +72,13 @@ Other parameters for checkpointing include:
 
     This option cannot be used when a minimum time between checkpoints is defined.
 
-  - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({{ site.baseurl }}/ops/state/checkpoints.html#externalized-checkpoints).
+  - *externalized checkpoints*: You can configure periodic checkpoints to be persisted externally. Externalized checkpoints write their meta data out to persistent storage and are *not* automatically cleaned up when the job fails. This way, you will have a checkpoint around to resume from if your job fails. There are more details in the [deployment notes on externalized checkpoints]({% link ops/state/checkpoints.md %}#externalized-checkpoints).
 
   - *fail/continue task on checkpoint errors*: This determines if a task will be failed if an error occurs in the execution of the task's checkpoint procedure. This is the default behaviour. Alternatively, when this is disabled, the task will simply decline the checkpoint to the checkpoint coordinator and continue running.
 
   - *prefer checkpoint for recovery*: This determines if a job will fallback to latest checkpoint even when there are more recent savepoints available to potentially reduce recovery time.
+
+  - *unaligned checkpoints*: You can enable [unaligned checkpoints]({% link ops/state/checkpoints.md %}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. Only works for exactly-once checkpoints and with number of concurrent checkpoints of 1.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -103,8 +105,8 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 // enable externalized checkpoints which are retained after job cancellation
 env.getCheckpointConfig().enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
-// allow job recovery fallback to checkpoint when there is a more recent savepoint
-env.getCheckpointConfig().setPreferCheckpointForRecovery(true);
+// enables the experimental unaligned checkpoints
+env.getCheckpointConfig().enableUnalignedCheckpoints();
 {% endhighlight %}
 </div>
 <div data-lang="scala" markdown="1">
@@ -130,6 +132,9 @@ env.getCheckpointConfig.setFailTasksOnCheckpointingErrors(false)
 
 // allow only one checkpoint to be in progress at the same time
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
+
+// enables the experimental unaligned checkpoints
+env.getCheckpointConfig.enableUnalignedCheckpoints()
 {% endhighlight %}
 </div>
 <div data-lang="python" markdown="1">
@@ -158,13 +163,16 @@ env.get_checkpoint_config().enable_externalized_checkpoints(ExternalizedCheckpoi
 
 # allow job recovery fallback to checkpoint when there is a more recent savepoint
 env.get_checkpoint_config().set_prefer_checkpoint_for_recovery(True)
+
+// enables the experimental unaligned checkpoints
+env.get_checkpoint_config().enable_unaligned_checkpoints()
 {% endhighlight %}
 </div>
 </div>
 
 ### Related Config Options
 
-Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({{ site.baseurl }}/ops/config.html) for a full guide):
+Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see [configuration]({% link deployment/config.md %}) for a full guide):
 
 {% include generated/checkpointing_configuration.html %}
 
@@ -173,7 +181,7 @@ Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see 
 
 ## Selecting a State Backend
 
-Flink's [checkpointing mechanism]({{ site.baseurl }}/internals/stream_checkpointing.html) stores consistent snapshots
+Flink's [checkpointing mechanism]({% link learn-flink/fault_tolerance.md %}) stores consistent snapshots
 of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
 Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
 **State Backend**. 
@@ -181,7 +189,7 @@ Where the checkpoints are stored (e.g., JobManager memory, file system, database
 By default, state is kept in memory in the TaskManagers and checkpoints are stored in memory in the JobManager. For proper persistence of large state,
 Flink supports various approaches for storing and checkpointing state in other state backends. The choice of state backend can be configured via `StreamExecutionEnvironment.setStateBackend(…)`.
 
-See [state backends]({{ site.baseurl }}/ops/state/state_backends.html) for more details on the available state backends and options for job-wide and cluster-wide configuration.
+See [state backends]({% link ops/state/state_backends.md %}) for more details on the available state backends and options for job-wide and cluster-wide configuration.
 
 
 ## State Checkpoints in Iterative Jobs
@@ -196,7 +204,7 @@ Please note that records in flight in the loop edges (and the state changes asso
 ## Restart Strategies
 
 Flink supports different restart strategies which control how the jobs are restarted in case of a failure. For more 
-information, see [Restart Strategies]({{ site.baseurl }}/dev/restart_strategies.html).
+information, see [Restart Strategies]({% link dev/task_failure_recovery.md %}).
 
 {% top %}
 

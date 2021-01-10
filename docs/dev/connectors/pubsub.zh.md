@@ -37,7 +37,7 @@ under the License.
 <b>注意</b>：此连接器最近才加到 Flink 里，还未接受广泛测试。
 </p>
 
-注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考[这里]({{ site.baseurl }}/zh/dev/projectsetup/dependencies.html)
+注意连接器目前还不是二进制发行版的一部分，添加依赖、打包配置以及集群运行信息请参考[这里]({% link dev/project-configuration.zh.md %})
 
 ## Consuming or Producing PubSubMessages
 
@@ -126,7 +126,7 @@ SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
                                                 .withProjectName("my-fake-project")
                                                 .withSubscriptionName("subscription")
                                                 .withHostAndPortForEmulator(hostAndPort)
-                                                .build()
+                                                .build();
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.addSource(pubsubSource)

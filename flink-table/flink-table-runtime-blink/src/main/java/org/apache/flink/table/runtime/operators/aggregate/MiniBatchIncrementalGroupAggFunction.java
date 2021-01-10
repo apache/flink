@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.runtime.operators.aggregate;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.context.ExecutionContext;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
@@ -33,117 +34,120 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.flink.table.runtime.util.StateTtlConfigUtil.createTtlConfig;
+
 /**
  * Aggregate Function used for the incremental groupby (without window) aggregate in miniBatch mode.
  */
-public class MiniBatchIncrementalGroupAggFunction extends MapBundleFunction<BaseRow, BaseRow, BaseRow, BaseRow> {
+public class MiniBatchIncrementalGroupAggFunction
+        extends MapBundleFunction<RowData, RowData, RowData, RowData> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * The code generated partial function used to handle aggregates.
-	 */
-	private final GeneratedAggsHandleFunction genPartialAggsHandler;
+    /** The code generated partial function used to handle aggregates. */
+    private final GeneratedAggsHandleFunction genPartialAggsHandler;
 
-	/**
-	 * The code generated final function used to handle aggregates.
-	 */
-	private final GeneratedAggsHandleFunction genFinalAggsHandler;
+    /** The code generated final function used to handle aggregates. */
+    private final GeneratedAggsHandleFunction genFinalAggsHandler;
 
-	/**
-	 * The key selector to extract final key.
-	 */
-	private final KeySelector<BaseRow, BaseRow> finalKeySelector;
+    /** The key selector to extract final key. */
+    private final KeySelector<RowData, RowData> finalKeySelector;
 
-	/**
-	 * Reused output row.
-	 */
-	private transient JoinedRow resultRow = new JoinedRow();
+    /** State idle retention time which unit is MILLISECONDS. */
+    private final long stateRetentionTime;
 
-	// local aggregate function to handle local combined accumulator rows
-	private transient AggsHandleFunction partialAgg = null;
+    /** Reused output row. */
+    private transient JoinedRowData resultRow = new JoinedRowData();
 
-	// global aggregate function to handle global accumulator rows
-	private transient AggsHandleFunction finalAgg = null;
+    // local aggregate function to handle local combined accumulator rows
+    private transient AggsHandleFunction partialAgg = null;
 
-	public MiniBatchIncrementalGroupAggFunction(
-			GeneratedAggsHandleFunction genPartialAggsHandler,
-			GeneratedAggsHandleFunction genFinalAggsHandler,
-			KeySelector<BaseRow, BaseRow> finalKeySelector) {
-		this.genPartialAggsHandler = genPartialAggsHandler;
-		this.genFinalAggsHandler = genFinalAggsHandler;
-		this.finalKeySelector = finalKeySelector;
-	}
+    // global aggregate function to handle global accumulator rows
+    private transient AggsHandleFunction finalAgg = null;
 
-	@Override
-	public void open(ExecutionContext ctx) throws Exception {
-		super.open(ctx);
-		ClassLoader classLoader = ctx.getRuntimeContext().getUserCodeClassLoader();
-		partialAgg = genPartialAggsHandler.newInstance(classLoader);
-		partialAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+    public MiniBatchIncrementalGroupAggFunction(
+            GeneratedAggsHandleFunction genPartialAggsHandler,
+            GeneratedAggsHandleFunction genFinalAggsHandler,
+            KeySelector<RowData, RowData> finalKeySelector,
+            long stateRetentionTime) {
+        this.genPartialAggsHandler = genPartialAggsHandler;
+        this.genFinalAggsHandler = genFinalAggsHandler;
+        this.finalKeySelector = finalKeySelector;
+        this.stateRetentionTime = stateRetentionTime;
+    }
 
-		finalAgg = genFinalAggsHandler.newInstance(classLoader);
-		finalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
+    @Override
+    public void open(ExecutionContext ctx) throws Exception {
+        super.open(ctx);
+        ClassLoader classLoader = ctx.getRuntimeContext().getUserCodeClassLoader();
+        StateTtlConfig ttlConfig = createTtlConfig(stateRetentionTime);
+        partialAgg = genPartialAggsHandler.newInstance(classLoader);
+        partialAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext()));
 
-		resultRow = new JoinedRow();
-	}
+        finalAgg = genFinalAggsHandler.newInstance(classLoader);
+        finalAgg.open(new PerKeyStateDataViewStore(ctx.getRuntimeContext(), ttlConfig));
 
-	@Override
-	public BaseRow addInput(@Nullable BaseRow previousAcc, BaseRow input) throws Exception {
-		BaseRow currentAcc;
-		if (previousAcc == null) {
-			currentAcc = partialAgg.createAccumulators();
-		} else {
-			currentAcc = previousAcc;
-		}
+        resultRow = new JoinedRowData();
+    }
 
-		partialAgg.setAccumulators(currentAcc);
-		partialAgg.merge(input);
-		return partialAgg.getAccumulators();
-	}
+    @Override
+    public RowData addInput(@Nullable RowData previousAcc, RowData input) throws Exception {
+        RowData currentAcc;
+        if (previousAcc == null) {
+            currentAcc = partialAgg.createAccumulators();
+        } else {
+            currentAcc = previousAcc;
+        }
 
-	@Override
-	public void finishBundle(Map<BaseRow, BaseRow> buffer, Collector<BaseRow> out) throws Exception {
-		// pre-aggregate for final aggregate result
+        partialAgg.setAccumulators(currentAcc);
+        partialAgg.merge(input);
+        return partialAgg.getAccumulators();
+    }
 
-		// buffer schema: [finalKey, [partialKey, partialAcc]]
-		Map<BaseRow, Map<BaseRow, BaseRow>> finalAggBuffer = new HashMap<>();
-		for (Map.Entry<BaseRow, BaseRow> entry : buffer.entrySet()) {
-			BaseRow partialKey = entry.getKey();
-			BaseRow finalKey = finalKeySelector.getKey(partialKey);
-			BaseRow partialAcc = entry.getValue();
-			// use compute to avoid additional put
-			Map<BaseRow, BaseRow> accMap = finalAggBuffer.computeIfAbsent(finalKey, r -> new HashMap<>());
-			accMap.put(partialKey, partialAcc);
-		}
+    @Override
+    public void finishBundle(Map<RowData, RowData> buffer, Collector<RowData> out)
+            throws Exception {
+        // pre-aggregate for final aggregate result
 
-		for (Map.Entry<BaseRow, Map<BaseRow, BaseRow>> entry : finalAggBuffer.entrySet()) {
-			BaseRow finalKey = entry.getKey();
-			Map<BaseRow, BaseRow> accMap = entry.getValue();
-			// set accumulators to initial value
-			finalAgg.resetAccumulators();
-			for (Map.Entry<BaseRow, BaseRow> accEntry : accMap.entrySet()) {
-				BaseRow partialKey = accEntry.getKey();
-				BaseRow partialAcc = accEntry.getValue();
-				// set current key to make dataview know current key
-				ctx.setCurrentKey(partialKey);
-				finalAgg.merge(partialAcc);
-			}
-			BaseRow finalAcc = finalAgg.getAccumulators();
-			resultRow.replace(finalKey, finalAcc);
-			out.collect(resultRow);
-		}
-		// for gc friendly
-		finalAggBuffer.clear();
-	}
+        // buffer schema: [finalKey, [partialKey, partialAcc]]
+        Map<RowData, Map<RowData, RowData>> finalAggBuffer = new HashMap<>();
+        for (Map.Entry<RowData, RowData> entry : buffer.entrySet()) {
+            RowData partialKey = entry.getKey();
+            RowData finalKey = finalKeySelector.getKey(partialKey);
+            RowData partialAcc = entry.getValue();
+            // use compute to avoid additional put
+            Map<RowData, RowData> accMap =
+                    finalAggBuffer.computeIfAbsent(finalKey, r -> new HashMap<>());
+            accMap.put(partialKey, partialAcc);
+        }
 
-	@Override
-	public void close() throws Exception {
-		if (partialAgg != null) {
-			partialAgg.close();
-		}
-		if (finalAgg != null) {
-			finalAgg.close();
-		}
-	}
+        for (Map.Entry<RowData, Map<RowData, RowData>> entry : finalAggBuffer.entrySet()) {
+            RowData finalKey = entry.getKey();
+            Map<RowData, RowData> accMap = entry.getValue();
+            // set accumulators to initial value
+            finalAgg.resetAccumulators();
+            for (Map.Entry<RowData, RowData> accEntry : accMap.entrySet()) {
+                RowData partialKey = accEntry.getKey();
+                RowData partialAcc = accEntry.getValue();
+                // set current key to make dataview know current key
+                ctx.setCurrentKey(partialKey);
+                finalAgg.merge(partialAcc);
+            }
+            RowData finalAcc = finalAgg.getAccumulators();
+            resultRow.replace(finalKey, finalAcc);
+            out.collect(resultRow);
+        }
+        // for gc friendly
+        finalAggBuffer.clear();
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (partialAgg != null) {
+            partialAgg.close();
+        }
+        if (finalAgg != null) {
+            finalAgg.close();
+        }
+    }
 }

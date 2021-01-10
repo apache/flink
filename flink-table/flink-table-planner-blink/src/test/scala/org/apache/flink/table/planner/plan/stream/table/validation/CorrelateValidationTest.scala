@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
@@ -58,7 +57,7 @@ class CorrelateValidationTest extends TableTestBase {
     //============ throw exception when table function is not registered =========
     // Java Table API call
     expectExceptionThrown(
-      t.joinLateral("nonexist(a)"), "Undefined function: nonexist")
+      t.joinLateral(call("nonexist", $"a")), "Undefined function: nonexist")
     // SQL API call
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(nonexist(a))"),
@@ -79,7 +78,7 @@ class CorrelateValidationTest extends TableTestBase {
     // Java Table API call
     util.addFunction("func2", new TableFunc2)
     expectExceptionThrown(
-      t.joinLateral("func2(c, c)"),
+      t.joinLateral(call("func2", $"c", $"c")),
       "Given parameters of function 'func2' do not match any signature")
     // SQL API call
     expectExceptionThrown(
@@ -102,7 +101,7 @@ class CorrelateValidationTest extends TableTestBase {
     val result = table.leftOuterJoinLateral(function('c) as 's, 'c === 's)
       .select('c, 's).where('a > 10)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test(expected = classOf[ValidationException])
@@ -130,7 +129,7 @@ class CorrelateValidationTest extends TableTestBase {
     util.addFunction("weightedAvg", new WeightedAvg)
     util.addTableSource[(Int)](
       "MyTable", 'int)
-      .flatMap("weightedAvg(int, int)") // do not support AggregateFunction as input
+      .flatMap(call("weightedAvg", $"int", $"int")) // do not support AggregateFunction as input
   }
 
   @Test(expected = classOf[ValidationException])

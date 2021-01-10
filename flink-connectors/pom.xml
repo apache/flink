@@ -26,38 +26,37 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 
 	<artifactId>flink-connectors</artifactId>
-	<name>flink-connectors</name>
+	<name>Flink : Connectors : </name>
 	<packaging>pom</packaging>
 
 	<modules>
-		<module>flink-jdbc</module>
 		<module>flink-hadoop-compatibility</module>
-		<module>flink-hbase</module>
 		<module>flink-hcatalog</module>
-		<module>flink-connector-kafka-base</module>
-		<module>flink-connector-kafka-0.10</module>
-		<module>flink-connector-kafka-0.11</module>
 		<module>flink-connector-elasticsearch-base</module>
 		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
 		<module>flink-connector-elasticsearch7</module>
+		<module>flink-connector-hbase-base</module>
+		<module>flink-connector-hbase-1.4</module>
+		<module>flink-connector-hbase-2.2</module>
 		<module>flink-connector-hive</module>
+		<module>flink-connector-jdbc</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
 		<module>flink-connector-nifi</module>
 		<module>flink-connector-cassandra</module>
-		<module>flink-connector-filesystem</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-kinesis</module>
-		<module>flink-sql-connector-elasticsearch7</module>
 		<module>flink-connector-base</module>
+		<module>flink-file-sink-common</module>
+		<module>flink-connector-files</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -96,13 +95,14 @@ under the License.
 			<modules>
 				<module>flink-sql-connector-elasticsearch6</module>
 				<module>flink-sql-connector-elasticsearch7</module>
-				<module>flink-sql-connector-kafka-0.10</module>
-				<module>flink-sql-connector-kafka-0.11</module>
-				<module>flink-sql-connector-kafka</module>
+				<module>flink-sql-connector-hbase-1.4</module>
+				<module>flink-sql-connector-hbase-2.2</module>
 				<module>flink-sql-connector-hive-1.2.2</module>
 				<module>flink-sql-connector-hive-2.2.0</module>
 				<module>flink-sql-connector-hive-2.3.6</module>
 				<module>flink-sql-connector-hive-3.1.2</module>
+				<module>flink-sql-connector-kafka</module>
+				<module>flink-sql-connector-kinesis</module>
 			</modules>
 		</profile>
 	</profiles>

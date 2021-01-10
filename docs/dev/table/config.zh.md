@@ -22,29 +22,22 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-By default, the Table & SQL API is preconfigured for producing accurate results with acceptable
-performance.
+Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可接受的性能。
 
-Depending on the requirements of a table program, it might be necessary to adjust
-certain parameters for optimization. For example, unbounded streaming programs may need to ensure
-that the required state size is capped (see [streaming concepts](./streaming/query_configuration.html)).
+根据 Table 程序的需求，可能需要调整特定的参数用于优化。例如，无界流程序可能需要保证所需的状态是有限的(请参阅 [流式概念](./streaming/query_configuration.html)).
 
 * This will be replaced by the TOC
 {:toc}
 
-### Overview
+### 概览
 
-In every table environment, the `TableConfig` offers options for configuring the current session.
+在每个 TableEnvironment 中，`TableConfig` 提供用于当前会话的配置项。
 
-For common or important configuration options, the `TableConfig` provides getters and setters methods
-with detailed inline documentation.
+对于常见或者重要的配置项，`TableConfig` 提供带有详细注释的 `getters` 和 `setters` 方法。
 
-For more advanced configuration, users can directly access the underlying key-value map. The following
-sections list all available options that can be used to adjust Flink Table & SQL API programs.
+对于更加高级的配置，用户可以直接访问底层的 key-value 配置项。以下章节列举了所有可用于调整 Flink Table 和 SQL API 程序的配置项。
 
-<span class="label label-danger">Attention</span> Because options are read at different point in time
-when performing operations, it is recommended to set configuration options early after instantiating a
-table environment.
+<span class="label label-danger">注意</span> 因为配置项会在执行操作的不同时间点被读取，所以推荐在实例化 TableEnvironment 后尽早地设置配置项。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -90,17 +83,22 @@ configuration.set_string("table.exec.mini-batch.size", "5000");
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> Currently, key-value options are only supported
-for the Blink planner.
+<span class="label label-danger">注意</span> 目前，key-value 配置项仅被 Blink planner 支持。
 
-### Execution Options
+### 执行配置
 
-The following options can be used to tune the performance of the query execution.
+以下选项可用于优化查询执行的性能。
 
 {% include generated/execution_config_configuration.html %}
 
-### Optimizer Options
+### 优化器配置
 
-The following options can be used to adjust the behavior of the query optimizer to get a better execution plan.
+以下配置可以用于调整查询优化器的行为以获得更好的执行计划。
 
 {% include generated/optimizer_config_configuration.html %}
+
+### Planner 配置
+
+以下配置可以用于调整 planner 的行为。
+
+{% include generated/table_config_configuration.html %}

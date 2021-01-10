@@ -60,174 +60,187 @@ import static org.mockito.Mockito.when;
 
 public class CancelPartitionRequestTest {
 
-	/**
-	 * Verifies that requests for non-existing (failed/cancelled) input channels are properly
-	 * cancelled. The receiver receives data, but there is no input channel to receive the data.
-	 * This should cancel the request.
-	 */
-	@Test
-	public void testCancelPartitionRequest() throws Exception {
+    /**
+     * Verifies that requests for non-existing (failed/cancelled) input channels are properly
+     * cancelled. The receiver receives data, but there is no input channel to receive the data.
+     * This should cancel the request.
+     */
+    @Test
+    public void testCancelPartitionRequest() throws Exception {
 
-		NettyServerAndClient serverAndClient = null;
+        NettyServerAndClient serverAndClient = null;
 
-		try {
-			TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
+        try {
+            TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
-			ResultPartitionManager partitions = mock(ResultPartitionManager.class);
+            ResultPartitionManager partitions = mock(ResultPartitionManager.class);
 
-			ResultPartitionID pid = new ResultPartitionID();
+            ResultPartitionID pid = new ResultPartitionID();
 
-			CountDownLatch sync = new CountDownLatch(1);
+            CountDownLatch sync = new CountDownLatch(1);
 
-			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+            final ResultSubpartitionView view =
+                    spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
-			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferAvailabilityListener.class)))
-				.thenAnswer(new Answer<ResultSubpartitionView>() {
-					@Override
-					public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
-						BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-						listener.notifyDataAvailable();
-						return view;
-					}
-				});
+            // Return infinite subpartition
+            when(partitions.createSubpartitionView(
+                            eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+                    .thenAnswer(
+                            new Answer<ResultSubpartitionView>() {
+                                @Override
+                                public ResultSubpartitionView answer(
+                                        InvocationOnMock invocationOnMock) throws Throwable {
+                                    BufferAvailabilityListener listener =
+                                            (BufferAvailabilityListener)
+                                                    invocationOnMock.getArguments()[2];
+                                    listener.notifyDataAvailable();
+                                    return view;
+                                }
+                            });
 
-			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
+            NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
-			serverAndClient = initServerAndClient(protocol);
+            serverAndClient = initServerAndClient(protocol);
 
-			Channel ch = connect(serverAndClient);
+            Channel ch = connect(serverAndClient);
 
-			// Request for non-existing input channel => results in cancel request
-			ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE)).await();
+            // Request for non-existing input channel => results in cancel request
+            ch.writeAndFlush(new PartitionRequest(pid, 0, new InputChannelID(), Integer.MAX_VALUE))
+                    .await();
 
-			// Wait for the notification
-			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
-				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
-						" ms to be notified about cancelled partition.");
-			}
+            // Wait for the notification
+            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+                fail(
+                        "Timed out after waiting for "
+                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + " ms to be notified about cancelled partition.");
+            }
 
-			verify(view, times(1)).releaseAllResources();
-		}
-		finally {
-			shutdown(serverAndClient);
-		}
-	}
+            verify(view, times(1)).releaseAllResources();
+        } finally {
+            shutdown(serverAndClient);
+        }
+    }
 
-	@Test
-	public void testDuplicateCancel() throws Exception {
+    @Test
+    public void testDuplicateCancel() throws Exception {
 
-		NettyServerAndClient serverAndClient = null;
+        NettyServerAndClient serverAndClient = null;
 
-		try {
-			final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
+        try {
+            final TestPooledBufferProvider outboundBuffers = new TestPooledBufferProvider(16);
 
-			ResultPartitionManager partitions = mock(ResultPartitionManager.class);
+            ResultPartitionManager partitions = mock(ResultPartitionManager.class);
 
-			ResultPartitionID pid = new ResultPartitionID();
+            ResultPartitionID pid = new ResultPartitionID();
 
-			final CountDownLatch sync = new CountDownLatch(1);
+            final CountDownLatch sync = new CountDownLatch(1);
 
-			final ResultSubpartitionView view = spy(new InfiniteSubpartitionView(outboundBuffers, sync));
+            final ResultSubpartitionView view =
+                    spy(new InfiniteSubpartitionView(outboundBuffers, sync));
 
-			// Return infinite subpartition
-			when(partitions.createSubpartitionView(eq(pid), eq(0), any(BufferAvailabilityListener.class)))
-					.thenAnswer(new Answer<ResultSubpartitionView>() {
-						@Override
-						public ResultSubpartitionView answer(InvocationOnMock invocationOnMock) throws Throwable {
-							BufferAvailabilityListener listener = (BufferAvailabilityListener) invocationOnMock.getArguments()[2];
-							listener.notifyDataAvailable();
-							return view;
-						}
-					});
+            // Return infinite subpartition
+            when(partitions.createSubpartitionView(
+                            eq(pid), eq(0), any(BufferAvailabilityListener.class)))
+                    .thenAnswer(
+                            new Answer<ResultSubpartitionView>() {
+                                @Override
+                                public ResultSubpartitionView answer(
+                                        InvocationOnMock invocationOnMock) throws Throwable {
+                                    BufferAvailabilityListener listener =
+                                            (BufferAvailabilityListener)
+                                                    invocationOnMock.getArguments()[2];
+                                    listener.notifyDataAvailable();
+                                    return view;
+                                }
+                            });
 
-			NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
+            NettyProtocol protocol = new NettyProtocol(partitions, mock(TaskEventDispatcher.class));
 
-			serverAndClient = initServerAndClient(protocol);
+            serverAndClient = initServerAndClient(protocol);
 
-			Channel ch = connect(serverAndClient);
+            Channel ch = connect(serverAndClient);
 
-			// Request for non-existing input channel => results in cancel request
-			InputChannelID inputChannelId = new InputChannelID();
+            // Request for non-existing input channel => results in cancel request
+            InputChannelID inputChannelId = new InputChannelID();
 
-			ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE)).await();
+            ch.writeAndFlush(new PartitionRequest(pid, 0, inputChannelId, Integer.MAX_VALUE))
+                    .await();
 
-			// Wait for the notification
-			if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
-				fail("Timed out after waiting for " + TestingUtils.TESTING_DURATION().toMillis() +
-						" ms to be notified about cancelled partition.");
-			}
+            // Wait for the notification
+            if (!sync.await(TestingUtils.TESTING_DURATION().toMillis(), TimeUnit.MILLISECONDS)) {
+                fail(
+                        "Timed out after waiting for "
+                                + TestingUtils.TESTING_DURATION().toMillis()
+                                + " ms to be notified about cancelled partition.");
+            }
 
-			ch.writeAndFlush(new CancelPartitionRequest(inputChannelId)).await();
+            ch.writeAndFlush(new CancelPartitionRequest(inputChannelId)).await();
 
-			ch.close();
+            ch.close();
 
-			NettyTestUtil.awaitClose(ch);
+            NettyTestUtil.awaitClose(ch);
 
-			verify(view, times(1)).releaseAllResources();
-		}
-		finally {
-			shutdown(serverAndClient);
-		}
-	}
+            verify(view, times(1)).releaseAllResources();
+        } finally {
+            shutdown(serverAndClient);
+        }
+    }
 
-	// ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------------------------------------------------------
 
-	static class InfiniteSubpartitionView implements ResultSubpartitionView {
+    static class InfiniteSubpartitionView implements ResultSubpartitionView {
 
-		private final BufferProvider bufferProvider;
+        private final BufferProvider bufferProvider;
 
-		private final CountDownLatch sync;
+        private final CountDownLatch sync;
 
-		public InfiniteSubpartitionView(BufferProvider bufferProvider, CountDownLatch sync) {
-			this.bufferProvider = checkNotNull(bufferProvider);
-			this.sync = checkNotNull(sync);
-		}
+        public InfiniteSubpartitionView(BufferProvider bufferProvider, CountDownLatch sync) {
+            this.bufferProvider = checkNotNull(bufferProvider);
+            this.sync = checkNotNull(sync);
+        }
 
-		@Nullable
-		@Override
-		public BufferAndBacklog getNextBuffer() throws IOException {
-			Buffer buffer = bufferProvider.requestBuffer();
-			if (buffer != null) {
-				buffer.setSize(buffer.getMaxCapacity()); // fake some data
-				return new BufferAndBacklog(buffer, true, 0, false);
-			} else {
-				return null;
-			}
-		}
+        @Nullable
+        @Override
+        public BufferAndBacklog getNextBuffer() throws IOException {
+            Buffer buffer = bufferProvider.requestBuffer();
+            if (buffer != null) {
+                buffer.setSize(buffer.getMaxCapacity()); // fake some data
+                return new BufferAndBacklog(buffer, 0, Buffer.DataType.DATA_BUFFER, 0);
+            } else {
+                return null;
+            }
+        }
 
-		@Override
-		public void notifyDataAvailable() {
-		}
+        @Override
+        public void notifyDataAvailable() {}
 
-		@Override
-		public void releaseAllResources() throws IOException {
-			sync.countDown();
-		}
+        @Override
+        public void releaseAllResources() throws IOException {
+            sync.countDown();
+        }
 
-		@Override
-		public boolean isReleased() {
-			return false;
-		}
+        @Override
+        public boolean isReleased() {
+            return false;
+        }
 
-		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
-		}
+        @Override
+        public void resumeConsumption() {}
 
-		@Override
-		public boolean isAvailable() {
-			return true;
-		}
+        @Override
+        public boolean isAvailable(int numCreditsAvailable) {
+            return true;
+        }
 
-		@Override
-		public int unsynchronizedGetNumberOfQueuedBuffers() {
-			return 0;
-		}
+        @Override
+        public int unsynchronizedGetNumberOfQueuedBuffers() {
+            return 0;
+        }
 
-		@Override
-		public Throwable getFailureCause() {
-			return null;
-		}
-	}
+        @Override
+        public Throwable getFailureCause() {
+            return null;
+        }
+    }
 }

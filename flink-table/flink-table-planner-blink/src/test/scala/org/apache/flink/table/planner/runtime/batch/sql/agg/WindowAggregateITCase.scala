@@ -18,26 +18,17 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
-import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
-import org.apache.flink.core.io.InputSplit
-
-import scala.collection.JavaConversions._
-import org.apache.flink.table.api.{TableSchema, _}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.planner.utils.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
-import org.apache.flink.table.sources.InputFormatTableSource
-import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 class WindowAggregateITCase extends BatchTestBase {
 
@@ -402,120 +393,6 @@ class WindowAggregateITCase extends BatchTestBase {
         row(localDateTime("2016-03-27 09:00:00.6"), localDateTime("2016-03-27 09:00:00.8"), 2),
         row(localDateTime("2016-03-27 09:00:00.64"), localDateTime("2016-03-27 09:00:00.84"), 1),
         row(localDateTime("2016-03-27 09:00:00.68"), localDateTime("2016-03-27 09:00:00.88"), 1))
-    )
-  }
-
-  @Ignore // TODO support table stats
-  @Test
-  def testSlidingWindow2(): Unit = {
-    // for 1 phase agg
-    val tableSchema = new TableSchema(
-      Array("a", "b", "c", "ts"),
-      Array(
-        Types.INT,
-        Types.LONG,
-        Types.STRING,
-        Types.LOCAL_DATE_TIME))
-    //    val colStats = Map[String, ColumnStats](
-    //      "ts" -> new ColumnStats(9000000L, 1L, 8D, 8, null, null),
-    //      "a" -> new ColumnStats(10000000L, 1L, 8D, 8, 5, -5),
-    //      "b" -> new ColumnStats(8000000L, 0L, 4D, 32, 6.1D, 0D),
-    //      "c" -> new ColumnStats(9000000L, 0L, 1024D, 32, 6.1D, 0D))
-    val table = new InputFormatTableSource[Row] {
-      override def getReturnType: TypeInformation[Row] = type3WithTimestamp
-
-      //      override def getTableStats: TableStats = new TableStats(10000000L, colStats)
-
-      override def getInputFormat: InputFormat[Row, _ <: InputSplit] = {
-        new CollectionInputFormat[Row](data3WithTimestamp,
-          type3WithTimestamp.createSerializer(env.getConfig))
-      }
-
-      override def getTableSchema: TableSchema = tableSchema
-    }
-    tEnv.registerTableSource("Table3WithTimestamp1", table)
-
-    // keyed; 1-phase; pre-accumulate with paned optimization
-    checkResult(
-      "SELECT c, countFun(a), " +
-          "HOP_START(ts, INTERVAL '4' SECOND, INTERVAL '8' SECOND), " +
-          "HOP_END(ts, INTERVAL '4' SECOND, INTERVAL '8' SECOND)" +
-          "FROM Table3WithTimestamp1 GROUP BY c, HOP(ts, INTERVAL '4' SECOND, INTERVAL '8' SECOND)",
-      Seq(
-        row("Comment#1", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Comment#1", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Comment#10", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#10", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#11", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#11", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#12", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#12", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#13", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#13", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#14", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#14", 1, "1970-01-01 00:00:20.0", "1970-01-01 00:00:28.0"),
-        row("Comment#15", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#15", 1, "1970-01-01 00:00:20.0", "1970-01-01 00:00:28.0"),
-        row("Comment#2", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Comment#2", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#3", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Comment#3", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#4", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Comment#4", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#5", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Comment#5", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#6", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#6", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#7", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#7", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#8", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#8", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Comment#9", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#9", 1, "1970-01-01 00:00:12.0", "1970-01-01 00:00:20.0"),
-        row("Hello world, how are you?", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hello world, how are you?", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Hello world", 1, "1969-12-31 23:59:56.0", "1970-01-01 00:00:04.0"),
-        row("Hello world", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hello", 1, "1969-12-31 23:59:56.0", "1970-01-01 00:00:04.0"),
-        row("Hello", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hi", 1, "1969-12-31 23:59:56.0", "1970-01-01 00:00:04.0"),
-        row("Hi", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("I am fine.", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("I am fine.", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0"),
-        row("Luke Skywalker", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Luke Skywalker", 1, "1970-01-01 00:00:04.0", "1970-01-01 00:00:12.0")
-      )
-    )
-
-    // keyed; 1-phase; pre-accumulate with windowSize = slideSize
-    checkResult(
-      "SELECT c, count(a), " +
-          "HOP_START(ts, INTERVAL '8' SECOND, INTERVAL '8' SECOND), " +
-          "HOP_END(ts, INTERVAL '8' SECOND, INTERVAL '8' SECOND)" +
-          "FROM Table3WithTimestamp1 GROUP BY c, HOP(ts, INTERVAL '8' SECOND, INTERVAL '8' SECOND)",
-      Seq(
-        row("Comment#1", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Comment#10", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#11", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#12", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#13", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#14", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#15", 1, "1970-01-01 00:00:16.0", "1970-01-01 00:00:24.0"),
-        row("Comment#2", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#3", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#4", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#5", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#6", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#7", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#8", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Comment#9", 1, "1970-01-01 00:00:08.0", "1970-01-01 00:00:16.0"),
-        row("Hello world, how are you?", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hello world", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hello", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Hi", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("I am fine.", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0"),
-        row("Luke Skywalker", 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:08.0")
-      )
     )
   }
 

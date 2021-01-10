@@ -26,89 +26,92 @@ import java.io.Serializable;
 
 /**
  * The watermark tracker is responsible for aggregating watermarks across distributed operators.
- * <p/>It can be used for sub tasks of a single Flink source as well as multiple heterogeneous
+ *
+ * <p>It can be used for sub tasks of a single Flink source as well as multiple heterogeneous
  * sources or other operators.
- * <p/>The class essentially functions like a distributed hash table that enclosing operators can
- * use to adopt their processing / IO rates.
+ *
+ * <p>The class essentially functions like a distributed hash table that enclosing operators can use
+ * to adopt their processing / IO rates.
  */
 @PublicEvolving
 public abstract class WatermarkTracker implements Closeable, Serializable {
 
-	public static final long DEFAULT_UPDATE_TIMEOUT_MILLIS = 60_000;
+    public static final long DEFAULT_UPDATE_TIMEOUT_MILLIS = 60_000;
 
-	/**
-	 * Subtasks that have not provided a watermark update within the configured interval will be
-	 * considered idle and excluded from target watermark calculation.
-	 */
-	private long updateTimeoutMillis = DEFAULT_UPDATE_TIMEOUT_MILLIS;
+    /**
+     * Subtasks that have not provided a watermark update within the configured interval will be
+     * considered idle and excluded from target watermark calculation.
+     */
+    private long updateTimeoutMillis = DEFAULT_UPDATE_TIMEOUT_MILLIS;
 
-	/**
-	 * Unique id for the subtask.
-	 * Using string (instead of subtask index) so synchronization can spawn across multiple sources.
-	 */
-	private String subtaskId;
+    /**
+     * Unique id for the subtask. Using string (instead of subtask index) so synchronization can
+     * spawn across multiple sources.
+     */
+    private String subtaskId;
 
-	/** Watermark state. */
-	protected static class WatermarkState {
-		protected long watermark = Long.MIN_VALUE;
-		protected long lastUpdated;
+    /** Watermark state. */
+    protected static class WatermarkState {
+        protected long watermark = Long.MIN_VALUE;
+        protected long lastUpdated;
 
-		public long getWatermark() {
-			return watermark;
-		}
+        public long getWatermark() {
+            return watermark;
+        }
 
-		@Override
-		public String toString() {
-			return "WatermarkState{watermark=" + watermark + ", lastUpdated=" + lastUpdated + '}';
-		}
-	}
+        @Override
+        public String toString() {
+            return "WatermarkState{watermark=" + watermark + ", lastUpdated=" + lastUpdated + '}';
+        }
+    }
 
-	protected String getSubtaskId() {
-		return this.subtaskId;
-	}
+    protected String getSubtaskId() {
+        return this.subtaskId;
+    }
 
-	protected long getUpdateTimeoutMillis() {
-		return this.updateTimeoutMillis;
-	}
+    protected long getUpdateTimeoutMillis() {
+        return this.updateTimeoutMillis;
+    }
 
-	public abstract long getUpdateTimeoutCount();
+    public abstract long getUpdateTimeoutCount();
 
-	/**
-	 * Subtasks that have not provided a watermark update within the configured interval will be
-	 * considered idle and excluded from target watermark calculation.
-	 *
-	 * @param updateTimeoutMillis
-	 */
-	public void setUpdateTimeoutMillis(long updateTimeoutMillis) {
-		this.updateTimeoutMillis = updateTimeoutMillis;
-	}
+    /**
+     * Subtasks that have not provided a watermark update within the configured interval will be
+     * considered idle and excluded from target watermark calculation.
+     *
+     * @param updateTimeoutMillis
+     */
+    public void setUpdateTimeoutMillis(long updateTimeoutMillis) {
+        this.updateTimeoutMillis = updateTimeoutMillis;
+    }
 
-	/**
-	 * Set the current watermark of the owning subtask and return the global low watermark based on
-	 * the current state snapshot. Periodically called by the enclosing consumer instance, which is
-	 * responsible for any timer management etc.
-	 *
-	 * @param localWatermark
-	 * @return
-	 */
-	public abstract long updateWatermark(final long localWatermark);
+    /**
+     * Set the current watermark of the owning subtask and return the global low watermark based on
+     * the current state snapshot. Periodically called by the enclosing consumer instance, which is
+     * responsible for any timer management etc.
+     *
+     * @param localWatermark
+     * @return
+     */
+    public abstract long updateWatermark(final long localWatermark);
 
-	protected long getCurrentTime() {
-		return System.currentTimeMillis();
-	}
+    protected long getCurrentTime() {
+        return System.currentTimeMillis();
+    }
 
-	public void open(RuntimeContext context) {
-		if (context instanceof StreamingRuntimeContext) {
-			this.subtaskId = ((StreamingRuntimeContext) context).getOperatorUniqueID()
-				+ "-" + context.getIndexOfThisSubtask();
-		} else {
-			this.subtaskId = context.getTaskNameWithSubtasks();
-		}
-	}
+    public void open(RuntimeContext context) {
+        if (context instanceof StreamingRuntimeContext) {
+            this.subtaskId =
+                    ((StreamingRuntimeContext) context).getOperatorUniqueID()
+                            + "-"
+                            + context.getIndexOfThisSubtask();
+        } else {
+            this.subtaskId = context.getTaskNameWithSubtasks();
+        }
+    }
 
-	@Override
-	public void close() {
-		// no work to do here
-	}
-
+    @Override
+    public void close() {
+        // no work to do here
+    }
 }

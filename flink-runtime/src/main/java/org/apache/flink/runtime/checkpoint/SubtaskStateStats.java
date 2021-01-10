@@ -25,134 +25,142 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Statistics for a single subtask that is part of a checkpoint.
  *
- * <p>Collects data that is spread over different close places:
- * {@link CheckpointMetaData},
- * {@link SubtaskState}, and
- * {@link PendingCheckpoint}.
+ * <p>Collects data that is spread over different close places: {@link CheckpointMetaData}, {@link
+ * SubtaskState}, and {@link PendingCheckpoint}.
  *
  * <p>This is the smallest immutable unit of the stats.
  */
 public class SubtaskStateStats implements Serializable {
 
-	private static final long serialVersionUID = 8928594531621862214L;
+    private static final long serialVersionUID = 8928594531621862214L;
 
-	private final int subtaskIndex;
+    private final int subtaskIndex;
 
-	/**
-	 * Timestamp when the ack from this sub task was received at the
-	 * coordinator.
-	 */
-	private final long ackTimestamp;
+    /** Timestamp when the ack from this sub task was received at the coordinator. */
+    private final long ackTimestamp;
 
-	/** Size of the checkpointed state at this subtask. */
-	private final long stateSize;
+    /** Size of the checkpointed state at this subtask. */
+    private final long stateSize;
 
-	/** Checkpoint duration at the operator (sync part) in milliseconds. */
-	private final long syncCheckpointDuration;
+    /** Checkpoint duration at the operator (sync part) in milliseconds. */
+    private final long syncCheckpointDuration;
 
-	/** Checkpoint duration at the operator (async part) in milliseconds. */
-	private final long asyncCheckpointDuration;
+    /** Checkpoint duration at the operator (async part) in milliseconds. */
+    private final long asyncCheckpointDuration;
 
-	/** Number of buffered bytes during alignment. */
-	private final long alignmentBuffered;
+    private final long processedData;
 
-	/** Alignment duration in milliseconds. */
-	private final long alignmentDuration;
+    private final long persistedData;
 
-	/** Checkpoint start delay in milliseconds. */
-	private final long checkpointStartDelay;
+    /** Alignment duration in milliseconds. */
+    private final long alignmentDuration;
 
-	SubtaskStateStats(
-			int subtaskIndex,
-			long ackTimestamp,
-			long stateSize,
-			long syncCheckpointDuration,
-			long asyncCheckpointDuration,
-			long alignmentBuffered,
-			long alignmentDuration,
-			long checkpointStartDelay) {
+    /** Checkpoint start delay in milliseconds. */
+    private final long checkpointStartDelay;
 
-		checkArgument(subtaskIndex >= 0, "Negative subtask index");
-		this.subtaskIndex = subtaskIndex;
-		checkArgument(stateSize >= 0, "Negative state size");
-		this.stateSize = stateSize;
-		this.ackTimestamp = ackTimestamp;
-		this.syncCheckpointDuration = syncCheckpointDuration;
-		this.asyncCheckpointDuration = asyncCheckpointDuration;
-		this.alignmentBuffered = alignmentBuffered;
-		this.alignmentDuration = alignmentDuration;
-		this.checkpointStartDelay = checkpointStartDelay;
-	}
+    /** Is the checkpoint completed as an unaligned checkpoint. */
+    private final boolean unalignedCheckpoint;
 
-	public int getSubtaskIndex() {
-		return subtaskIndex;
-	}
+    SubtaskStateStats(
+            int subtaskIndex,
+            long ackTimestamp,
+            long stateSize,
+            long syncCheckpointDuration,
+            long asyncCheckpointDuration,
+            long processedData,
+            long persistedData,
+            long alignmentDuration,
+            long checkpointStartDelay,
+            boolean unalignedCheckpoint) {
 
-	/**
-	 * Returns the size of the checkpointed state at this subtask.
-	 *
-	 * @return Checkpoint state size of the sub task.
-	 */
-	public long getStateSize() {
-		return stateSize;
-	}
+        checkArgument(subtaskIndex >= 0, "Negative subtask index");
+        this.subtaskIndex = subtaskIndex;
+        checkArgument(stateSize >= 0, "Negative state size");
+        this.stateSize = stateSize;
+        this.ackTimestamp = ackTimestamp;
+        this.syncCheckpointDuration = syncCheckpointDuration;
+        this.asyncCheckpointDuration = asyncCheckpointDuration;
+        this.processedData = processedData;
+        this.persistedData = persistedData;
+        this.alignmentDuration = alignmentDuration;
+        this.checkpointStartDelay = checkpointStartDelay;
+        this.unalignedCheckpoint = unalignedCheckpoint;
+    }
 
-	/**
-	 * Returns the timestamp when the acknowledgement of this subtask was
-	 * received at the coordinator.
-	 *
-	 * @return ACK timestamp at the coordinator.
-	 */
-	public long getAckTimestamp() {
-		return ackTimestamp;
-	}
+    public int getSubtaskIndex() {
+        return subtaskIndex;
+    }
 
-	/**
-	 * Computes the duration since the given trigger timestamp.
-	 *
-	 * <p>If the trigger timestamp is greater than the ACK timestamp, this
-	 * returns <code>0</code>.
-	 *
-	 * @param triggerTimestamp Trigger timestamp of the checkpoint.
-	 * @return Duration since the given trigger timestamp.
-	 */
-	public long getEndToEndDuration(long triggerTimestamp) {
-		return Math.max(0, ackTimestamp - triggerTimestamp);
-	}
+    /**
+     * Returns the size of the checkpointed state at this subtask.
+     *
+     * @return Checkpoint state size of the sub task.
+     */
+    public long getStateSize() {
+        return stateSize;
+    }
 
-	/**
-	 * @return Duration of the synchronous part of the checkpoint or <code>-1</code> if the runtime
-	 * did not report this.
-	 */
-	public long getSyncCheckpointDuration() {
-		return syncCheckpointDuration;
-	}
+    /**
+     * Returns the timestamp when the acknowledgement of this subtask was received at the
+     * coordinator.
+     *
+     * @return ACK timestamp at the coordinator.
+     */
+    public long getAckTimestamp() {
+        return ackTimestamp;
+    }
 
-	/**
-	 * @return Duration of the asynchronous part of the checkpoint or <code>-1</code> if the runtime
-	 * did not report this.
-	 */
-	public long getAsyncCheckpointDuration() {
-		return asyncCheckpointDuration;
-	}
+    /**
+     * Computes the duration since the given trigger timestamp.
+     *
+     * <p>If the trigger timestamp is greater than the ACK timestamp, this returns <code>0</code>.
+     *
+     * @param triggerTimestamp Trigger timestamp of the checkpoint.
+     * @return Duration since the given trigger timestamp.
+     */
+    public long getEndToEndDuration(long triggerTimestamp) {
+        return Math.max(0, ackTimestamp - triggerTimestamp);
+    }
 
-	/**
-	 * @return Number of bytes buffered during stream alignment (for exactly-once only) or
-	 * <code>-1</code> if the runtime did not report this.
-	 */
-	public long getAlignmentBuffered() {
-		return alignmentBuffered;
-	}
+    /**
+     * @return Duration of the synchronous part of the checkpoint or <code>-1</code> if the runtime
+     *     did not report this.
+     */
+    public long getSyncCheckpointDuration() {
+        return syncCheckpointDuration;
+    }
 
-	/**
-	 * @return Duration of the stream alignment (for exactly-once only) or <code>-1</code> if the
-	 * runtime did not report this.
-	 */
-	public long getAlignmentDuration() {
-		return alignmentDuration;
-	}
+    /**
+     * @return Duration of the asynchronous part of the checkpoint or <code>-1</code> if the runtime
+     *     did not report this.
+     */
+    public long getAsyncCheckpointDuration() {
+        return asyncCheckpointDuration;
+    }
 
-	public long getCheckpointStartDelay() {
-		return checkpointStartDelay;
-	}
+    /** @return the total number of processed bytes during the checkpoint. */
+    public long getProcessedData() {
+        return processedData;
+    }
+
+    /** @return the total number of persisted bytes during the checkpoint. */
+    public long getPersistedData() {
+        return persistedData;
+    }
+
+    /**
+     * @return Duration of the stream alignment (for exactly-once only) or <code>-1</code> if the
+     *     runtime did not report this.
+     */
+    public long getAlignmentDuration() {
+        return alignmentDuration;
+    }
+
+    public long getCheckpointStartDelay() {
+        return checkpointStartDelay;
+    }
+
+    public boolean getUnalignedCheckpoint() {
+        return unalignedCheckpoint;
+    }
 }

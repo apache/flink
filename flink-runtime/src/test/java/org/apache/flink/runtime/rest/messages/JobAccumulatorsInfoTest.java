@@ -22,31 +22,27 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Tests that the {@link JobAccumulatorsInfo} can be marshalled and unmarshalled.
- */
+/** Tests that the {@link JobAccumulatorsInfo} can be marshalled and unmarshalled. */
 public class JobAccumulatorsInfoTest extends RestResponseMarshallingTestBase<JobAccumulatorsInfo> {
-	@Override
-	protected Class<JobAccumulatorsInfo> getTestResponseClass() {
-		return JobAccumulatorsInfo.class;
-	}
+    @Override
+    protected Class<JobAccumulatorsInfo> getTestResponseClass() {
+        return JobAccumulatorsInfo.class;
+    }
 
-	@Override
-	protected JobAccumulatorsInfo getTestResponseInstance() throws Exception {
-		List<JobAccumulatorsInfo.UserTaskAccumulator> userAccumulatorList = new ArrayList<>(3);
-		userAccumulatorList.add(new JobAccumulatorsInfo.UserTaskAccumulator(
-			"uta1.name",
-			"uta1.type",
-			"uta1.value"));
-		userAccumulatorList.add(new JobAccumulatorsInfo.UserTaskAccumulator(
-			"uta2.name",
-			"uta2.type",
-			"uta2.value"));
-		userAccumulatorList.add(new JobAccumulatorsInfo.UserTaskAccumulator(
-			"uta3.name",
-			"uta3.type",
-			"uta3.value"));
+    @Override
+    protected JobAccumulatorsInfo getTestResponseInstance() throws Exception {
+        List<JobAccumulatorsInfo.UserTaskAccumulator> userAccumulatorList = new ArrayList<>(3);
+        userAccumulatorList.add(
+                new JobAccumulatorsInfo.UserTaskAccumulator(
+                        "uta1.name", "uta1.type", "uta1.value"));
+        userAccumulatorList.add(
+                new JobAccumulatorsInfo.UserTaskAccumulator(
+                        "uta2.name", "uta2.type", "uta2.value"));
+        userAccumulatorList.add(
+                new JobAccumulatorsInfo.UserTaskAccumulator(
+                        "uta3.name", "uta3.type", "uta3.value"));
 
-		return new JobAccumulatorsInfo(Collections.emptyList(), userAccumulatorList, Collections.emptyMap());
-	}
+        return new JobAccumulatorsInfo(
+                Collections.emptyList(), userAccumulatorList, Collections.emptyMap());
+    }
 }

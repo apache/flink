@@ -28,7 +28,6 @@ import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.ManualTicker;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -58,314 +57,347 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-/**
- * Tests for the {@link FileArchivedExecutionGraphStore}.
- */
+/** Tests for the {@link FileArchivedExecutionGraphStore}. */
 public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 
-	private static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS = Arrays.stream(JobStatus.values())
-		.filter(JobStatus::isGloballyTerminalState)
-		.collect(Collectors.toList());
+    private static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS =
+            Arrays.stream(JobStatus.values())
+                    .filter(JobStatus::isGloballyTerminalState)
+                    .collect(Collectors.toList());
+
+    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    /**
+     * Tests that we can put {@link ArchivedExecutionGraph} into the {@link
+     * FileArchivedExecutionGraphStore} and that the graph is persisted.
+     */
+    @Test
+    public void testPut() throws IOException {
+        final ArchivedExecutionGraph dummyExecutionGraph =
+                new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
+        final File rootDir = temporaryFolder.newFolder();
+
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                createDefaultExecutionGraphStore(rootDir)) {
+
+            final File storageDirectory = executionGraphStore.getStorageDir();
+
+            // check that the storage directory is empty
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+
+            executionGraphStore.put(dummyExecutionGraph);
+
+            // check that we have persisted the given execution graph
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+
+            assertThat(
+                    executionGraphStore.get(dummyExecutionGraph.getJobID()),
+                    new PartialArchivedExecutionGraphMatcher(dummyExecutionGraph));
+        }
+    }
+
+    /** Tests that null is returned if we request an unknown JobID. */
+    @Test
+    public void testUnknownGet() throws IOException {
+        final File rootDir = temporaryFolder.newFolder();
 
-	@ClassRule
-	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-	/**
-	 * Tests that we can put {@link ArchivedExecutionGraph} into the
-	 * {@link FileArchivedExecutionGraphStore} and that the graph is persisted.
-	 */
-	@Test
-	public void testPut() throws IOException {
-		final ArchivedExecutionGraph dummyExecutionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
-		final File rootDir = temporaryFolder.newFolder();
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                createDefaultExecutionGraphStore(rootDir)) {
+            assertThat(executionGraphStore.get(new JobID()), Matchers.nullValue());
+        }
+    }
+
+    /** Tests that we obtain the correct jobs overview. */
+    @Test
+    public void testStoredJobsOverview() throws IOException {
+        final int numberExecutionGraphs = 10;
+        final Collection<ArchivedExecutionGraph> executionGraphs =
+                generateTerminalExecutionGraphs(numberExecutionGraphs);
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = createDefaultExecutionGraphStore(rootDir)) {
+        final List<JobStatus> jobStatuses =
+                executionGraphs.stream()
+                        .map(ArchivedExecutionGraph::getState)
+                        .collect(Collectors.toList());
 
-			final File storageDirectory = executionGraphStore.getStorageDir();
+        final JobsOverview expectedJobsOverview = JobsOverview.create(jobStatuses);
 
-			// check that the storage directory is empty
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+        final File rootDir = temporaryFolder.newFolder();
 
-			executionGraphStore.put(dummyExecutionGraph);
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                createDefaultExecutionGraphStore(rootDir)) {
+            for (ArchivedExecutionGraph executionGraph : executionGraphs) {
+                executionGraphStore.put(executionGraph);
+            }
 
-			// check that we have persisted the given execution graph
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+            assertThat(
+                    executionGraphStore.getStoredJobsOverview(),
+                    Matchers.equalTo(expectedJobsOverview));
+        }
+    }
 
-			assertThat(executionGraphStore.get(dummyExecutionGraph.getJobID()), new PartialArchivedExecutionGraphMatcher(dummyExecutionGraph));
-		}
-	}
+    /** Tests that we obtain the correct collection of available job details. */
+    @Test
+    public void testAvailableJobDetails() throws IOException {
+        final int numberExecutionGraphs = 10;
+        final Collection<ArchivedExecutionGraph> executionGraphs =
+                generateTerminalExecutionGraphs(numberExecutionGraphs);
 
-	/**
-	 * Tests that null is returned if we request an unknown JobID.
-	 */
-	@Test
-	public void testUnknownGet() throws IOException {
-		final File rootDir = temporaryFolder.newFolder();
+        final Collection<JobDetails> jobDetails = generateJobDetails(executionGraphs);
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = createDefaultExecutionGraphStore(rootDir)) {
-			assertThat(executionGraphStore.get(new JobID()), Matchers.nullValue());
-		}
-	}
+        final File rootDir = temporaryFolder.newFolder();
 
-	/**
-	 * Tests that we obtain the correct jobs overview.
-	 */
-	@Test
-	public void testStoredJobsOverview() throws IOException {
-		final int numberExecutionGraphs = 10;
-		final Collection<ArchivedExecutionGraph> executionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                createDefaultExecutionGraphStore(rootDir)) {
+            for (ArchivedExecutionGraph executionGraph : executionGraphs) {
+                executionGraphStore.put(executionGraph);
+            }
 
-		final List<JobStatus> jobStatuses = executionGraphs.stream().map(ArchivedExecutionGraph::getState).collect(Collectors.toList());
+            assertThat(
+                    executionGraphStore.getAvailableJobDetails(),
+                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+        }
+    }
 
-		final JobsOverview expectedJobsOverview = JobsOverview.create(jobStatuses);
+    /** Tests that an expired execution graph is removed from the execution graph store. */
+    @Test
+    public void testExecutionGraphExpiration() throws Exception {
+        final File rootDir = temporaryFolder.newFolder();
 
-		final File rootDir = temporaryFolder.newFolder();
+        final Time expirationTime = Time.milliseconds(1L);
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = createDefaultExecutionGraphStore(rootDir)) {
-			for (ArchivedExecutionGraph executionGraph : executionGraphs) {
-				executionGraphStore.put(executionGraph);
-			}
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
 
-			assertThat(executionGraphStore.getStoredJobsOverview(), Matchers.equalTo(expectedJobsOverview));
-		}
-	}
+        final ManualTicker manualTicker = new ManualTicker();
 
-	/**
-	 * Tests that we obtain the correct collection of available job details.
-	 */
-	@Test
-	public void testAvailableJobDetails() throws IOException {
-		final int numberExecutionGraphs = 10;
-		final Collection<ArchivedExecutionGraph> executionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                new FileArchivedExecutionGraphStore(
+                        rootDir,
+                        expirationTime,
+                        Integer.MAX_VALUE,
+                        10000L,
+                        scheduledExecutor,
+                        manualTicker)) {
 
-		final Collection<JobDetails> jobDetails = generateJobDetails(executionGraphs);
+            final ArchivedExecutionGraph executionGraph =
+                    new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
 
-		final File rootDir = temporaryFolder.newFolder();
+            executionGraphStore.put(executionGraph);
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = createDefaultExecutionGraphStore(rootDir)) {
-			for (ArchivedExecutionGraph executionGraph : executionGraphs) {
-				executionGraphStore.put(executionGraph);
-			}
+            // there should one execution graph
+            assertThat(executionGraphStore.size(), Matchers.equalTo(1));
 
-			assertThat(executionGraphStore.getAvailableJobDetails(), Matchers.containsInAnyOrder(jobDetails.toArray()));
-		}
-	}
+            manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-	/**
-	 * Tests that an expired execution graph is removed from the execution graph store.
-	 */
-	@Test
-	public void testExecutionGraphExpiration() throws Exception {
-		final File rootDir = temporaryFolder.newFolder();
+            // this should trigger the cleanup after expiration
+            scheduledExecutor.triggerScheduledTasks();
 
-		final Time expirationTime = Time.milliseconds(1L);
+            assertThat(executionGraphStore.size(), Matchers.equalTo(0));
 
-		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+            assertThat(executionGraphStore.get(executionGraph.getJobID()), Matchers.nullValue());
 
-		final ManualTicker manualTicker = new ManualTicker();
+            final File storageDirectory = executionGraphStore.getStorageDir();
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
-			rootDir,
-			expirationTime,
-			Integer.MAX_VALUE,
-			10000L,
-			scheduledExecutor,
-			manualTicker)) {
+            // check that the persisted file has been deleted
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+        }
+    }
 
-			final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
+    /** Tests that all persisted files are cleaned up after closing the store. */
+    @Test
+    public void testCloseCleansUp() throws IOException {
+        final File rootDir = temporaryFolder.newFolder();
 
-			executionGraphStore.put(executionGraph);
+        assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
 
-			// there should one execution graph
-			assertThat(executionGraphStore.size(), Matchers.equalTo(1));
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                createDefaultExecutionGraphStore(rootDir)) {
 
-			manualTicker.advanceTime(expirationTime.toMilliseconds(), TimeUnit.MILLISECONDS);
+            assertThat(rootDir.listFiles().length, Matchers.equalTo(1));
 
-			// this should trigger the cleanup after expiration
-			scheduledExecutor.triggerScheduledTasks();
+            final File storageDirectory = executionGraphStore.getStorageDir();
 
-			assertThat(executionGraphStore.size(), Matchers.equalTo(0));
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
 
-			assertThat(executionGraphStore.get(executionGraph.getJobID()), Matchers.nullValue());
+            executionGraphStore.put(
+                    new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build());
 
-			final File storageDirectory = executionGraphStore.getStorageDir();
+            assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
+        }
 
-			// check that the persisted file has been deleted
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
-		}
-	}
+        assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
+    }
 
-	/**
-	 * Tests that all persisted files are cleaned up after closing the store.
-	 */
-	@Test
-	public void testCloseCleansUp() throws IOException {
-		final File rootDir = temporaryFolder.newFolder();
+    /** Tests that evicted {@link ArchivedExecutionGraph} are loaded from disk again. */
+    @Test
+    public void testCacheLoading() throws IOException {
+        final File rootDir = temporaryFolder.newFolder();
 
-		assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                new FileArchivedExecutionGraphStore(
+                        rootDir,
+                        Time.hours(1L),
+                        Integer.MAX_VALUE,
+                        100L << 10,
+                        TestingUtils.defaultScheduledExecutor(),
+                        Ticker.systemTicker())) {
 
-		try (final FileArchivedExecutionGraphStore executionGraphStore = createDefaultExecutionGraphStore(rootDir)) {
+            final LoadingCache<JobID, ArchivedExecutionGraph> executionGraphCache =
+                    executionGraphStore.getArchivedExecutionGraphCache();
 
-			assertThat(rootDir.listFiles().length, Matchers.equalTo(1));
+            Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(64);
+
+            boolean continueInserting = true;
 
-			final File storageDirectory = executionGraphStore.getStorageDir();
+            // insert execution graphs until the first one got evicted
+            while (continueInserting) {
+                // has roughly a size of 1.4 KB
+                final ArchivedExecutionGraph executionGraph =
+                        new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
 
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(0));
+                executionGraphStore.put(executionGraph);
 
-			executionGraphStore.put(new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build());
+                executionGraphs.add(executionGraph);
 
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(1));
-		}
-
-		assertThat(rootDir.listFiles().length, Matchers.equalTo(0));
-	}
-
-	/**
-	 * Tests that evicted {@link ArchivedExecutionGraph} are loaded from disk again.
-	 */
-	@Test
-	public void testCacheLoading() throws IOException {
-		final File rootDir = temporaryFolder.newFolder();
-
-		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
-			rootDir,
-			Time.hours(1L),
-			Integer.MAX_VALUE,
-			100L << 10,
-			TestingUtils.defaultScheduledExecutor(),
-			Ticker.systemTicker())) {
-
-			final LoadingCache<JobID, ArchivedExecutionGraph> executionGraphCache = executionGraphStore.getArchivedExecutionGraphCache();
-
-			Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(64);
-
-			boolean continueInserting = true;
-
-			// insert execution graphs until the first one got evicted
-			while (continueInserting) {
-				// has roughly a size of 1.4 KB
-				final ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder().setState(JobStatus.FINISHED).build();
-
-				executionGraphStore.put(executionGraph);
-
-				executionGraphs.add(executionGraph);
-
-				continueInserting = executionGraphCache.size() == executionGraphs.size();
-			}
-
-			final File storageDirectory = executionGraphStore.getStorageDir();
-
-			assertThat(storageDirectory.listFiles().length, Matchers.equalTo(executionGraphs.size()));
-
-			for (ArchivedExecutionGraph executionGraph : executionGraphs) {
-				assertThat(executionGraphStore.get(executionGraph.getJobID()), matchesPartiallyWith(executionGraph));
-			}
-		}
-	}
-
-	/**
-	 * Tests that the size of {@link FileArchivedExecutionGraphStore} is no more than the configured max capacity
-	 * and the old execution graphs will be purged if the total added number exceeds the max capacity.
-	 */
-	@Test
-	public void testMaximumCapacity() throws IOException {
-		final File rootDir = temporaryFolder.newFolder();
-
-		final int maxCapacity = 10;
-		final int numberExecutionGraphs = 10;
-
-		final Collection<ArchivedExecutionGraph> oldExecutionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
-		final Collection<ArchivedExecutionGraph> newExecutionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
-
-		final Collection<JobDetails> jobDetails = generateJobDetails(newExecutionGraphs);
-
-		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
-			rootDir,
-			Time.hours(1L),
-			maxCapacity,
-			10000L,
-			TestingUtils.defaultScheduledExecutor(),
-			Ticker.systemTicker())) {
-
-			for (ArchivedExecutionGraph executionGraph : oldExecutionGraphs) {
-				executionGraphStore.put(executionGraph);
-				// no more than the configured maximum capacity
-				assertTrue(executionGraphStore.size() <= maxCapacity);
-			}
-
-			for (ArchivedExecutionGraph executionGraph : newExecutionGraphs) {
-				executionGraphStore.put(executionGraph);
-				// equals to the configured maximum capacity
-				assertEquals(maxCapacity, executionGraphStore.size());
-			}
-
-			// the older execution graphs are purged
-			assertThat(executionGraphStore.getAvailableJobDetails(), Matchers.containsInAnyOrder(jobDetails.toArray()));
-		}
-	}
-
-	private Collection<ArchivedExecutionGraph> generateTerminalExecutionGraphs(int number) {
-		final Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(number);
-
-		for (int i = 0; i < number; i++) {
-			final JobStatus state = GLOBALLY_TERMINAL_JOB_STATUS.get(ThreadLocalRandom.current().nextInt(GLOBALLY_TERMINAL_JOB_STATUS.size()));
-			executionGraphs.add(
-				new ArchivedExecutionGraphBuilder()
-					.setState(state)
-					.build());
-		}
-
-		return executionGraphs;
-	}
-
-	private FileArchivedExecutionGraphStore createDefaultExecutionGraphStore(File storageDirectory) throws IOException {
-		return new FileArchivedExecutionGraphStore(
-			storageDirectory,
-			Time.hours(1L),
-			Integer.MAX_VALUE,
-			10000L,
-			TestingUtils.defaultScheduledExecutor(),
-			Ticker.systemTicker());
-	}
-
-	private static final class PartialArchivedExecutionGraphMatcher extends BaseMatcher<ArchivedExecutionGraph> {
-
-		private final ArchivedExecutionGraph archivedExecutionGraph;
-
-		private PartialArchivedExecutionGraphMatcher(ArchivedExecutionGraph expectedArchivedExecutionGraph) {
-			this.archivedExecutionGraph = Preconditions.checkNotNull(expectedArchivedExecutionGraph);
-		}
-
-		@Override
-		public boolean matches(Object o) {
-			if (archivedExecutionGraph == o) {
-				return true;
-			}
-			if (o == null || archivedExecutionGraph.getClass() != o.getClass()) {
-				return false;
-			}
-			ArchivedExecutionGraph that = (ArchivedExecutionGraph) o;
-			return archivedExecutionGraph.isStoppable() == that.isStoppable() &&
-				Objects.equals(archivedExecutionGraph.getJobID(), that.getJobID()) &&
-				Objects.equals(archivedExecutionGraph.getJobName(), that.getJobName()) &&
-				archivedExecutionGraph.getState() == that.getState() &&
-				Objects.equals(archivedExecutionGraph.getJsonPlan(), that.getJsonPlan()) &&
-				Objects.equals(archivedExecutionGraph.getAccumulatorsSerialized(), that.getAccumulatorsSerialized()) &&
-				Objects.equals(archivedExecutionGraph.getCheckpointCoordinatorConfiguration(), that.getCheckpointCoordinatorConfiguration()) &&
-				archivedExecutionGraph.getAllVertices().size() == that.getAllVertices().size();
-		}
-
-		@Override
-		public void describeTo(Description description) {
-			description.appendText("Matches against " + ArchivedExecutionGraph.class.getSimpleName() + '.');
-		}
-	}
-
-	private static Matcher<ArchivedExecutionGraph> matchesPartiallyWith(ArchivedExecutionGraph executionGraph) {
-		return new PartialArchivedExecutionGraphMatcher(executionGraph);
-	}
-
-	private static Collection<JobDetails> generateJobDetails(Collection<ArchivedExecutionGraph> executionGraphs) {
-		return executionGraphs.stream().map(WebMonitorUtils::createDetailsForJob).collect(Collectors.toList());
-	}
+                continueInserting = executionGraphCache.size() == executionGraphs.size();
+            }
+
+            final File storageDirectory = executionGraphStore.getStorageDir();
+
+            assertThat(
+                    storageDirectory.listFiles().length, Matchers.equalTo(executionGraphs.size()));
+
+            for (ArchivedExecutionGraph executionGraph : executionGraphs) {
+                assertThat(
+                        executionGraphStore.get(executionGraph.getJobID()),
+                        matchesPartiallyWith(executionGraph));
+            }
+        }
+    }
+
+    /**
+     * Tests that the size of {@link FileArchivedExecutionGraphStore} is no more than the configured
+     * max capacity and the old execution graphs will be purged if the total added number exceeds
+     * the max capacity.
+     */
+    @Test
+    public void testMaximumCapacity() throws IOException {
+        final File rootDir = temporaryFolder.newFolder();
+
+        final int maxCapacity = 10;
+        final int numberExecutionGraphs = 10;
+
+        final Collection<ArchivedExecutionGraph> oldExecutionGraphs =
+                generateTerminalExecutionGraphs(numberExecutionGraphs);
+        final Collection<ArchivedExecutionGraph> newExecutionGraphs =
+                generateTerminalExecutionGraphs(numberExecutionGraphs);
+
+        final Collection<JobDetails> jobDetails = generateJobDetails(newExecutionGraphs);
+
+        try (final FileArchivedExecutionGraphStore executionGraphStore =
+                new FileArchivedExecutionGraphStore(
+                        rootDir,
+                        Time.hours(1L),
+                        maxCapacity,
+                        10000L,
+                        TestingUtils.defaultScheduledExecutor(),
+                        Ticker.systemTicker())) {
+
+            for (ArchivedExecutionGraph executionGraph : oldExecutionGraphs) {
+                executionGraphStore.put(executionGraph);
+                // no more than the configured maximum capacity
+                assertTrue(executionGraphStore.size() <= maxCapacity);
+            }
+
+            for (ArchivedExecutionGraph executionGraph : newExecutionGraphs) {
+                executionGraphStore.put(executionGraph);
+                // equals to the configured maximum capacity
+                assertEquals(maxCapacity, executionGraphStore.size());
+            }
+
+            // the older execution graphs are purged
+            assertThat(
+                    executionGraphStore.getAvailableJobDetails(),
+                    Matchers.containsInAnyOrder(jobDetails.toArray()));
+        }
+    }
+
+    private Collection<ArchivedExecutionGraph> generateTerminalExecutionGraphs(int number) {
+        final Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(number);
+
+        for (int i = 0; i < number; i++) {
+            final JobStatus state =
+                    GLOBALLY_TERMINAL_JOB_STATUS.get(
+                            ThreadLocalRandom.current()
+                                    .nextInt(GLOBALLY_TERMINAL_JOB_STATUS.size()));
+            executionGraphs.add(new ArchivedExecutionGraphBuilder().setState(state).build());
+        }
+
+        return executionGraphs;
+    }
+
+    private FileArchivedExecutionGraphStore createDefaultExecutionGraphStore(File storageDirectory)
+            throws IOException {
+        return new FileArchivedExecutionGraphStore(
+                storageDirectory,
+                Time.hours(1L),
+                Integer.MAX_VALUE,
+                10000L,
+                TestingUtils.defaultScheduledExecutor(),
+                Ticker.systemTicker());
+    }
+
+    private static final class PartialArchivedExecutionGraphMatcher
+            extends BaseMatcher<ArchivedExecutionGraph> {
+
+        private final ArchivedExecutionGraph archivedExecutionGraph;
+
+        private PartialArchivedExecutionGraphMatcher(
+                ArchivedExecutionGraph expectedArchivedExecutionGraph) {
+            this.archivedExecutionGraph =
+                    Preconditions.checkNotNull(expectedArchivedExecutionGraph);
+        }
+
+        @Override
+        public boolean matches(Object o) {
+            if (archivedExecutionGraph == o) {
+                return true;
+            }
+            if (o == null || archivedExecutionGraph.getClass() != o.getClass()) {
+                return false;
+            }
+            ArchivedExecutionGraph that = (ArchivedExecutionGraph) o;
+            return archivedExecutionGraph.isStoppable() == that.isStoppable()
+                    && Objects.equals(archivedExecutionGraph.getJobID(), that.getJobID())
+                    && Objects.equals(archivedExecutionGraph.getJobName(), that.getJobName())
+                    && archivedExecutionGraph.getState() == that.getState()
+                    && Objects.equals(archivedExecutionGraph.getJsonPlan(), that.getJsonPlan())
+                    && Objects.equals(
+                            archivedExecutionGraph.getAccumulatorsSerialized(),
+                            that.getAccumulatorsSerialized())
+                    && Objects.equals(
+                            archivedExecutionGraph.getCheckpointCoordinatorConfiguration(),
+                            that.getCheckpointCoordinatorConfiguration())
+                    && archivedExecutionGraph.getAllVertices().size()
+                            == that.getAllVertices().size();
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.appendText(
+                    "Matches against " + ArchivedExecutionGraph.class.getSimpleName() + '.');
+        }
+    }
+
+    private static Matcher<ArchivedExecutionGraph> matchesPartiallyWith(
+            ArchivedExecutionGraph executionGraph) {
+        return new PartialArchivedExecutionGraphMatcher(executionGraph);
+    }
+
+    private static Collection<JobDetails> generateJobDetails(
+            Collection<ArchivedExecutionGraph> executionGraphs) {
+        return executionGraphs.stream()
+                .map(JobDetails::createDetailsForJob)
+                .collect(Collectors.toList());
+    }
 }

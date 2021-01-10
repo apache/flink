@@ -84,6 +84,21 @@ under the License.
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- Built-in formats -->
+		<file>
+			<source>../flink-formats/flink-csv/target/flink-csv-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-csv-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
+		<file>
+			<source>../flink-formats/flink-json/target/flink-json-${project.version}.jar</source>
+			<outputDirectory>lib/</outputDirectory>
+			<destName>flink-json-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- copy the config file -->
 		<file>
 			<source>src/main/resources/flink-conf.yaml</source>
@@ -113,18 +128,14 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
-		<!-- flink scala shell-->
-		<fileSet>
-			<directory>../flink-scala-shell/start-script/</directory>
-			<outputDirectory>bin</outputDirectory>
-			<fileMode>755</fileMode>
-		</fileSet>
-
 		<!-- copy python scripts -->
 		<fileSet>
 			<directory>../flink-python/bin/</directory>
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
+			<excludes>
+				<exclude>pyflink-udf-runner.*</exclude>
+			</excludes>
 		</fileSet>
 
 		<!-- copy SQL client -->
@@ -232,6 +243,7 @@ under the License.
 			<excludes>
 				<exclude>flink-examples-streaming*.jar</exclude>
 				<exclude>original-*.jar</exclude>
+				<exclude>MatrixVectorMul.jar</exclude>
 			</excludes>
 		</fileSet>
 

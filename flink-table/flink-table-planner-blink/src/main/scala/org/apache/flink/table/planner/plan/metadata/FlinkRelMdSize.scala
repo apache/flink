@@ -187,11 +187,13 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     sizesBuilder.build
   }
 
-  def averageColumnSizes(rel: BatchExecGroupAggregateBase, mq: RelMetadataQuery): JList[JDouble] = {
+  def averageColumnSizes(
+      rel: BatchPhysicalGroupAggregateBase,
+      mq: RelMetadataQuery): JList[JDouble] = {
     // note: the logical to estimate column sizes of AggregateBatchExecBase is different from
     // Calcite Aggregate because AggregateBatchExecBase's rowTypes is not composed by
     // grouping columns + aggFunctionCall results
-    val mapInputToOutput = (rel.getGrouping ++ rel.getAuxGrouping).zipWithIndex.toMap
+    val mapInputToOutput = (rel.grouping ++ rel.auxGrouping).zipWithIndex.toMap
     getColumnSizesFromInputOrType(rel, mq, mapInputToOutput)
   }
 
@@ -200,7 +202,7 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
   }
 
   def averageColumnSizes(
-      rel: BatchExecWindowAggregateBase,
+      rel: BatchPhysicalWindowAggregateBase,
       mq: RelMetadataQuery): JList[JDouble] = {
     averageColumnSizesOfWindowAgg(rel, mq)
   }
@@ -211,20 +213,20 @@ class FlinkRelMdSize private extends MetadataHandler[BuiltInMetadata.Size] {
     val mapInputToOutput: Map[Int, Int] = windowAgg match {
       case agg: WindowAggregate =>
         AggregateUtil.checkAndGetFullGroupSet(agg).zipWithIndex.toMap
-      case agg: BatchExecLocalHashWindowAggregate =>
+      case agg: BatchPhysicalLocalHashWindowAggregate =>
         // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
-        agg.getGrouping.zipWithIndex.toMap ++
-          agg.getAuxGrouping.zipWithIndex.map {
-            case (k, v) => k -> (agg.getGrouping.length + 1 + v)
+        agg.grouping.zipWithIndex.toMap ++
+          agg.auxGrouping.zipWithIndex.map {
+            case (k, v) => k -> (agg.grouping.length + 1 + v)
           }.toMap
-      case agg: BatchExecLocalSortWindowAggregate =>
+      case agg: BatchPhysicalLocalSortWindowAggregate =>
         // local win-agg output type: grouping + assignTs + auxGrouping + aggCalls
-        agg.getGrouping.zipWithIndex.toMap ++
-          agg.getAuxGrouping.zipWithIndex.map {
-            case (k, v) => k -> (agg.getGrouping.length + 1 + v)
+        agg.grouping.zipWithIndex.toMap ++
+          agg.auxGrouping.zipWithIndex.map {
+            case (k, v) => k -> (agg.grouping.length + 1 + v)
           }.toMap
-      case agg: BatchExecWindowAggregateBase =>
-        (agg.getGrouping ++ agg.getAuxGrouping).zipWithIndex.toMap
+      case agg: BatchPhysicalWindowAggregateBase =>
+        (agg.grouping ++ agg.auxGrouping).zipWithIndex.toMap
       case _ => throw new IllegalArgumentException(s"Unknown node type ${windowAgg.getRelTypeName}")
     }
     getColumnSizesFromInputOrType(windowAgg, mq, mapInputToOutput)
@@ -390,7 +392,7 @@ object FlinkRelMdSize {
     BuiltInMethod.AVERAGE_ROW_SIZE.method)
 
   def averageTypeValueSize(t: RelDataType): JDouble = t.getSqlTypeName match {
-    case SqlTypeName.ROW =>
+    case SqlTypeName.ROW | SqlTypeName.STRUCTURED =>
       estimateRowSize(t)
     case SqlTypeName.ARRAY =>
       // 16 is an arbitrary estimate

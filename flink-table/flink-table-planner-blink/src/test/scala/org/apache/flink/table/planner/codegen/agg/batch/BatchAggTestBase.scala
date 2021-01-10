@@ -18,19 +18,20 @@
 
 package org.apache.flink.table.planner.codegen.agg.batch
 
+import org.apache.flink.core.memory.ManagedMemoryUseCase
 import org.apache.flink.runtime.execution.Environment
 import org.apache.flink.runtime.jobgraph.OperatorID
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness}
-import org.apache.flink.table.dataformat.{BaseRow, BinaryString, GenericRow}
+import org.apache.flink.table.data.{GenericRowData, RowData, StringData}
 import org.apache.flink.table.planner.codegen.agg.AggTestBase
-import org.apache.flink.table.planner.utils.BaseRowTestUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
+import org.apache.flink.table.runtime.util.RowDataTestUtil
+import org.apache.flink.table.types.logical._
 import org.apache.flink.util.function.FunctionWithException
-
 import org.junit.Assert
+
 import java.util
 
 import scala.collection.JavaConverters._
@@ -52,9 +53,9 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
       "agg2Output",
       "agg3Output"))
 
-  def row(args: Any*): GenericRow = {
-    GenericRow.of(args.map {
-      case str: String => BinaryString.fromString(str)
+  def row(args: Any*): GenericRowData = {
+    GenericRowData.of(args.map {
+      case str: String => StringData.fromString(str)
       case l: Long => Long.box(l)
       case d: Double => Double.box(d)
       case o: AnyRef => o
@@ -62,25 +63,25 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
   }
 
   def testOperator(
-      args: (CodeGenOperatorFactory[BaseRow], RowType, RowType),
-      input: Array[BaseRow], expectedOutput: Array[GenericRow]): Unit = {
-    val testHarness = new OneInputStreamTaskTestHarness[BaseRow, BaseRow](
-      new FunctionWithException[Environment, OneInputStreamTask[BaseRow, BaseRow], Exception] {
+      args: (CodeGenOperatorFactory[RowData], RowType, RowType),
+      input: Array[RowData], expectedOutput: Array[GenericRowData]): Unit = {
+    val testHarness = new OneInputStreamTaskTestHarness[RowData, RowData](
+      new FunctionWithException[Environment, OneInputStreamTask[RowData, RowData], Exception] {
         override def apply(t: Environment) = new OneInputStreamTask(t)
-      }, 1, 1, BaseRowTypeInfo.of(args._2), BaseRowTypeInfo.of(args._3))
+      }, 1, 1, InternalTypeInfo.of(args._2), InternalTypeInfo.of(args._3))
     testHarness.memorySize = 32 * 100 * 1024
 
     testHarness.setupOutputForSingletonOperatorChain()
     val streamConfig = testHarness.getStreamConfig
     streamConfig.setStreamOperatorFactory(args._1)
     streamConfig.setOperatorID(new OperatorID)
-    streamConfig.setManagedMemoryFraction(0.99)
+    streamConfig.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.OPERATOR, .99)
 
     testHarness.invoke()
     testHarness.waitForTaskRunning()
 
     for (row <- input) {
-      testHarness.processElement(new StreamRecord[BaseRow](row, 0L))
+      testHarness.processElement(new StreamRecord[RowData](row, 0L))
     }
 
     testHarness.waitForInputProcessing()
@@ -88,11 +89,11 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
     testHarness.endInput()
     testHarness.waitForTaskCompletion()
 
-    val outputs = new util.ArrayList[GenericRow]()
+    val outputs = new util.ArrayList[GenericRowData]()
     val outQueue = testHarness.getOutput
     while (!outQueue.isEmpty) {
-      outputs.add(BaseRowTestUtil.toGenericRowDeeply(
-        outQueue.poll().asInstanceOf[StreamRecord[BaseRow]].getValue, args._3.getChildren))
+      outputs.add(RowDataTestUtil.toGenericRowDeeply(
+        outQueue.poll().asInstanceOf[StreamRecord[RowData]].getValue, args._3.getChildren))
     }
     Assert.assertArrayEquals(expectedOutput.toArray[AnyRef], outputs.asScala.toArray[AnyRef])
   }

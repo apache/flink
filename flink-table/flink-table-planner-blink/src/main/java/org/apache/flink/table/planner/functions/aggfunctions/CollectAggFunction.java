@@ -18,136 +18,133 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
-import org.apache.flink.api.java.typeutils.PojoField;
-import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.dataview.MapViewTypeInfo;
-import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.util.WrappingRuntimeException;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.MapData;
+import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Aggregate function for COLLECT.
- * @param <T> type of collect element.
- */
-public class CollectAggFunction<T>
-	extends AggregateFunction<Map<T, Integer>, CollectAggFunction.CollectAccumulator<T>> {
+import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataType;
 
-	private static final long serialVersionUID = -5860934997657147836L;
+/** Built-in COLLECT aggregate function. */
+@Internal
+public final class CollectAggFunction<T>
+        extends BuiltInAggregateFunction<MapData, CollectAggFunction.CollectAccumulator<T>> {
 
-	private final TypeInformation<T> elementType;
+    private static final long serialVersionUID = -5860934997657147836L;
 
-	public CollectAggFunction(TypeInformation<T> elementType) {
-		this.elementType = elementType;
-	}
+    private transient DataType elementDataType;
 
-	/** The initial accumulator for Collect aggregate function. */
-	public static class CollectAccumulator<T> {
-		public MapView<T, Integer> map = null;
+    public CollectAggFunction(LogicalType elementType) {
+        this.elementDataType = toInternalDataType(elementType);
+    }
 
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			CollectAccumulator<?> that = (CollectAccumulator<?>) o;
-			return Objects.equals(map, that.map);
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Planning
+    // --------------------------------------------------------------------------------------------
 
-	public CollectAccumulator<T> createAccumulator() {
-		CollectAccumulator<T> acc = new CollectAccumulator<>();
-		acc.map = new MapView<>(elementType, Types.INT);
-		return acc;
-	}
+    @Override
+    public List<DataType> getArgumentDataTypes() {
+        return Collections.singletonList(elementDataType);
+    }
 
-	public void resetAccumulator(CollectAccumulator<T> accumulator) {
-		accumulator.map.clear();
-	}
+    @Override
+    public DataType getAccumulatorDataType() {
+        return DataTypes.STRUCTURED(
+                CollectAccumulator.class,
+                DataTypes.FIELD(
+                        "map",
+                        MapView.newMapViewDataType(elementDataType.notNull(), DataTypes.INT())));
+    }
 
-	public void accumulate(CollectAccumulator<T> accumulator, T value) throws Exception {
-		if (value != null) {
-			Integer count = accumulator.map.get(value);
-			if (count != null) {
-				accumulator.map.put(value, count + 1);
-			} else {
-				accumulator.map.put(value, 1);
-			}
-		}
-	}
+    @Override
+    public DataType getOutputDataType() {
+        return DataTypes.MULTISET(elementDataType).bridgedTo(MapData.class);
+    }
 
-	public void retract(CollectAccumulator<T> accumulator, T value) throws Exception {
-		if (value != null) {
-			Integer count = accumulator.map.get(value);
-			if (count != null) {
-				if (count == 1) {
-					accumulator.map.remove(value);
-				} else {
-					accumulator.map.put(value, count - 1);
-				}
-			} else {
-				accumulator.map.put(value, -1);
-			}
-		}
-	}
+    // --------------------------------------------------------------------------------------------
+    // Runtime
+    // --------------------------------------------------------------------------------------------
 
-	public void merge(CollectAccumulator<T> accumulator, Iterable<CollectAccumulator<T>> others) throws Exception {
-		for (CollectAccumulator<T> other : others) {
-			for (Map.Entry<T, Integer> entry : other.map.entries()) {
-				T key = entry.getKey();
-				Integer newCount = entry.getValue();
-				Integer oldCount = accumulator.map.get(key);
-				if (oldCount == null) {
-					accumulator.map.put(key, newCount);
-				} else {
-					accumulator.map.put(key, oldCount + newCount);
-				}
-			}
-		}
-	}
+    /** Accumulator for COLLECT. */
+    public static class CollectAccumulator<T> {
+        public MapView<T, Integer> map;
 
-	@Override
-	public Map<T, Integer> getValue(CollectAccumulator<T> accumulator) {
-		Map<T, Integer> result = new HashMap<>();
-		try {
-			for (Map.Entry<T, Integer> entry : accumulator.map.entries()) {
-				result.put(entry.getKey(), entry.getValue());
-			}
-			return result;
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            CollectAccumulator<?> that = (CollectAccumulator<?>) o;
+            return Objects.equals(map, that.map);
+        }
+    }
 
-	@Override
-	public TypeInformation<Map<T, Integer>> getResultType() {
-		return new MapTypeInfo<>(elementType, Types.INT);
-	}
+    public CollectAccumulator<T> createAccumulator() {
+        final CollectAccumulator<T> acc = new CollectAccumulator<>();
+        acc.map = new MapView<>();
+        return acc;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TypeInformation<CollectAccumulator<T>> getAccumulatorType() {
-		try {
-			Class<CollectAccumulator<T>> clazz = (Class<CollectAccumulator<T>>) (Class) CollectAccumulator.class;
-			List<PojoField> pojoFields = new ArrayList<>();
-			pojoFields.add(new PojoField(
-				clazz.getDeclaredField("map"),
-				new MapViewTypeInfo<>(elementType, BasicTypeInfo.INT_TYPE_INFO)));
-			return new PojoTypeInfo<>(clazz, pojoFields);
-		} catch (NoSuchFieldException e) {
-			throw new WrappingRuntimeException(e);
-		}
-	}
+    public void resetAccumulator(CollectAccumulator<T> accumulator) {
+        accumulator.map.clear();
+    }
+
+    public void accumulate(CollectAccumulator<T> accumulator, T value) throws Exception {
+        if (value != null) {
+            Integer count = accumulator.map.get(value);
+            if (count != null) {
+                accumulator.map.put(value, count + 1);
+            } else {
+                accumulator.map.put(value, 1);
+            }
+        }
+    }
+
+    public void retract(CollectAccumulator<T> accumulator, T value) throws Exception {
+        if (value != null) {
+            Integer count = accumulator.map.get(value);
+            if (count != null) {
+                if (count == 1) {
+                    accumulator.map.remove(value);
+                } else {
+                    accumulator.map.put(value, count - 1);
+                }
+            } else {
+                accumulator.map.put(value, -1);
+            }
+        }
+    }
+
+    public void merge(CollectAccumulator<T> accumulator, Iterable<CollectAccumulator<T>> others)
+            throws Exception {
+        for (CollectAccumulator<T> other : others) {
+            for (Map.Entry<T, Integer> entry : other.map.entries()) {
+                T key = entry.getKey();
+                Integer newCount = entry.getValue();
+                Integer oldCount = accumulator.map.get(key);
+                if (oldCount == null) {
+                    accumulator.map.put(key, newCount);
+                } else {
+                    accumulator.map.put(key, oldCount + newCount);
+                }
+            }
+        }
+    }
+
+    @Override
+    public MapData getValue(CollectAccumulator<T> accumulator) {
+        return new GenericMapData(accumulator.map.getMap());
+    }
 }

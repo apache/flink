@@ -21,50 +21,42 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTestBase;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.functions.hive.HiveGenericUDF;
-import org.apache.flink.table.functions.hive.HiveSimpleUDF;
 
 import org.junit.Assume;
 import org.junit.Test;
 
-/**
- * Base class for testing HiveCatalog.
- */
+/** Base class for testing HiveCatalog. */
 public abstract class HiveCatalogMetadataTestBase extends CatalogTestBase {
 
-	// ------ table and column stats ------
+    // ------ table and column stats ------
 
-	@Override
-	@Test
-	public void testAlterTableStats() throws Exception {
-		String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
-		Assume.assumeTrue(hiveVersion.compareTo("1.2.1") >= 0);
-		super.testAlterTableStats();
-	}
+    @Override
+    @Test
+    public void testAlterTableStats() throws Exception {
+        String hiveVersion = ((HiveCatalog) catalog).getHiveVersion();
+        Assume.assumeTrue(hiveVersion.compareTo("1.2.1") >= 0);
+        super.testAlterTableStats();
+    }
 
-	// ------ functions ------
+    // ------ functions ------
 
-	@Test
-	public void testCreateFunctionCaseInsensitive() throws Exception {
-		catalog.createDatabase(db1, createDb(), false);
+    @Test
+    public void testCreateFunctionCaseInsensitive() throws Exception {
+        catalog.createDatabase(db1, createDb(), false);
 
-		String functionName = "myUdf";
-		ObjectPath functionPath = new ObjectPath(db1, functionName);
-		catalog.createFunction(functionPath, createFunction(), false);
-		// make sure we can get the function
-		catalog.getFunction(functionPath);
+        String functionName = "myUdf";
+        ObjectPath functionPath = new ObjectPath(db1, functionName);
+        catalog.createFunction(functionPath, createFunction(), false);
+        // make sure we can get the function
+        catalog.getFunction(functionPath);
 
-		catalog.dropFunction(functionPath, false);
-	}
+        catalog.dropFunction(functionPath, false);
+    }
 
-	@Override
-	protected CatalogFunction createFunction() {
-		return new CatalogFunctionImpl(HiveSimpleUDF.class.getCanonicalName());
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new CatalogFunctionImpl(HiveGenericUDF.class.getCanonicalName());
-	}
+    @Override
+    protected CatalogFunction createPythonFunction() {
+        return new CatalogFunctionImpl("test.func1", FunctionLanguage.PYTHON);
+    }
 }

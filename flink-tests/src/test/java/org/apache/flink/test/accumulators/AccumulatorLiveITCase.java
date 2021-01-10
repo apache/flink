@@ -26,7 +26,6 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
@@ -44,14 +43,12 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,193 +59,185 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Tests the availability of accumulator results during runtime.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
+
+/** Tests the availability of accumulator results during runtime. */
 public class AccumulatorLiveITCase extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AccumulatorLiveITCase.class);
 
-	// name of user accumulator
-	private static final String ACCUMULATOR_NAME = "test";
+    // name of user accumulator
+    private static final String ACCUMULATOR_NAME = "test";
 
-	private static final long HEARTBEAT_INTERVAL = 50L;
+    private static final long HEARTBEAT_INTERVAL = 50L;
 
-	// number of heartbeat intervals to check
-	private static final int NUM_ITERATIONS = 5;
+    // number of heartbeat intervals to check
+    private static final int NUM_ITERATIONS = 5;
 
-	private static final List<Integer> inputData = new ArrayList<>(NUM_ITERATIONS);
+    private static final List<Integer> inputData = new ArrayList<>(NUM_ITERATIONS);
 
-	static {
-		// generate test data
-		for (int i = 0; i < NUM_ITERATIONS; i++) {
-			inputData.add(i);
-		}
-	}
+    static {
+        // generate test data
+        for (int i = 0; i < NUM_ITERATIONS; i++) {
+            inputData.add(i);
+        }
+    }
 
-	@ClassRule
-	public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE = new MiniClusterWithClientResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(1)
-			.build());
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-	private static Configuration getConfiguration() {
-		Configuration config = new Configuration();
-		config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
-		config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
+    private static Configuration getConfiguration() {
+        Configuration config = new Configuration();
+        config.setString(AkkaOptions.ASK_TIMEOUT, TestingUtils.DEFAULT_AKKA_ASK_TIMEOUT());
+        config.setLong(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL);
 
-		return config;
-	}
+        return config;
+    }
 
-	@Before
-	public void resetLatches() throws InterruptedException {
-		NotifyingMapper.reset();
-	}
+    @Before
+    public void resetLatches() throws InterruptedException {
+        NotifyingMapper.reset();
+    }
 
-	@Test
-	public void testBatch() throws Exception {
-		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+    @Test
+    public void testBatch() throws Exception {
+        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataSet<Integer> input = env.fromCollection(inputData);
-		input
-				.flatMap(new NotifyingMapper())
-				.output(new DummyOutputFormat());
+        DataSet<Integer> input = env.fromCollection(inputData);
+        input.flatMap(new NotifyingMapper()).output(new DummyOutputFormat());
 
-		// Extract job graph and set job id for the task to notify of accumulator changes.
-		JobGraph jobGraph = getJobGraph(env.createProgramPlan());
+        // Extract job graph and set job id for the task to notify of accumulator changes.
+        JobGraph jobGraph = getJobGraph(env.createProgramPlan());
 
-		submitJobAndVerifyResults(jobGraph);
-	}
+        submitJobAndVerifyResults(jobGraph);
+    }
 
-	@Test
-	public void testStreaming() throws Exception {
+    @Test
+    public void testStreaming() throws Exception {
 
-		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(1);
 
-		DataStream<Integer> input = env.fromCollection(inputData);
-		input
-				.flatMap(new NotifyingMapper())
-				.writeUsingOutputFormat(new DummyOutputFormat()).disableChaining();
+        DataStream<Integer> input = env.fromCollection(inputData);
+        input.flatMap(new NotifyingMapper())
+                .writeUsingOutputFormat(new DummyOutputFormat())
+                .disableChaining();
 
-		JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-		submitJobAndVerifyResults(jobGraph);
-	}
+        submitJobAndVerifyResults(jobGraph);
+    }
 
-	private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
-		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
+    private static void submitJobAndVerifyResults(JobGraph jobGraph) throws Exception {
+        Deadline deadline = Deadline.now().plus(Duration.ofSeconds(30));
 
-		final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
+        final ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
 
-		final CheckedThread submissionThread = new CheckedThread() {
-			@Override
-			public void go() throws Exception {
-				ClientUtils.submitJobAndWaitForResult(client, jobGraph, AccumulatorLiveITCase.class.getClassLoader());
-			}
-		};
+        final CheckedThread submissionThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
+                    }
+                };
 
-		submissionThread.start();
+        submissionThread.start();
 
-		try {
-			NotifyingMapper.notifyLatch.await();
+        try {
+            NotifyingMapper.notifyLatch.await();
 
-			FutureUtils.retrySuccessfulWithDelay(
-				() -> {
-					try {
-						return CompletableFuture.completedFuture(client.getAccumulators(jobGraph.getJobID()).get());
-					} catch (Exception e) {
-						return FutureUtils.completedExceptionally(e);
-					}
-				},
-				Time.milliseconds(20),
-				deadline,
-				accumulators -> accumulators.size() == 1
-					&& accumulators.containsKey(ACCUMULATOR_NAME)
-					&& (int) accumulators.get(ACCUMULATOR_NAME) == NUM_ITERATIONS,
-				TestingUtils.defaultScheduledExecutor()
-			).get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
+            FutureUtils.retrySuccessfulWithDelay(
+                            () -> {
+                                try {
+                                    return CompletableFuture.completedFuture(
+                                            client.getAccumulators(jobGraph.getJobID()).get());
+                                } catch (Exception e) {
+                                    return FutureUtils.completedExceptionally(e);
+                                }
+                            },
+                            Time.milliseconds(20),
+                            deadline,
+                            accumulators ->
+                                    accumulators.size() == 1
+                                            && accumulators.containsKey(ACCUMULATOR_NAME)
+                                            && (int) accumulators.get(ACCUMULATOR_NAME)
+                                                    == NUM_ITERATIONS,
+                            TestingUtils.defaultScheduledExecutor())
+                    .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
 
-			NotifyingMapper.shutdownLatch.trigger();
-		} finally {
-			NotifyingMapper.shutdownLatch.trigger();
+            NotifyingMapper.shutdownLatch.trigger();
+        } finally {
+            NotifyingMapper.shutdownLatch.trigger();
 
-			// wait for the job to have terminated
-			submissionThread.sync();
-		}
-	}
+            // wait for the job to have terminated
+            submissionThread.sync();
+        }
+    }
 
-	/**
-	 * UDF that notifies when it changes the accumulator values.
-	 */
-	private static class NotifyingMapper extends RichFlatMapFunction<Integer, Integer> {
-		private static final long serialVersionUID = 1L;
+    /** UDF that notifies when it changes the accumulator values. */
+    private static class NotifyingMapper extends RichFlatMapFunction<Integer, Integer> {
+        private static final long serialVersionUID = 1L;
 
-		private static final OneShotLatch notifyLatch = new OneShotLatch();
-		private static final OneShotLatch shutdownLatch = new OneShotLatch();
+        private static final OneShotLatch notifyLatch = new OneShotLatch();
+        private static final OneShotLatch shutdownLatch = new OneShotLatch();
 
-		private final IntCounter counter = new IntCounter();
+        private final IntCounter counter = new IntCounter();
 
-		@Override
-		public void open(Configuration parameters) throws Exception {
-			getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
-		}
+        @Override
+        public void open(Configuration parameters) throws Exception {
+            getRuntimeContext().addAccumulator(ACCUMULATOR_NAME, counter);
+        }
 
-		@Override
-		public void flatMap(Integer value, Collector<Integer> out) throws Exception {
-			counter.add(1);
-			out.collect(value);
-			LOG.debug("Emitting value {}.", value);
-			if (counter.getLocalValuePrimitive() == 5) {
-				notifyLatch.trigger();
-			}
-		}
+        @Override
+        public void flatMap(Integer value, Collector<Integer> out) throws Exception {
+            counter.add(1);
+            out.collect(value);
+            LOG.debug("Emitting value {}.", value);
+            if (counter.getLocalValuePrimitive() == 5) {
+                notifyLatch.trigger();
+            }
+        }
 
-		@Override
-		public void close() throws Exception {
-			shutdownLatch.await();
-		}
+        @Override
+        public void close() throws Exception {
+            shutdownLatch.await();
+        }
 
-		private static void reset() throws InterruptedException {
-			notifyLatch.reset();
-			shutdownLatch.reset();
-		}
-	}
+        private static void reset() throws InterruptedException {
+            notifyLatch.reset();
+            shutdownLatch.reset();
+        }
+    }
 
-	/**
-	 * Outputs format which waits for the previous mapper.
-	 */
-	private static class DummyOutputFormat implements OutputFormat<Integer> {
-		private static final long serialVersionUID = 1L;
+    /** Outputs format which waits for the previous mapper. */
+    private static class DummyOutputFormat implements OutputFormat<Integer> {
+        private static final long serialVersionUID = 1L;
 
-		@Override
-		public void configure(Configuration parameters) {
-		}
+        @Override
+        public void configure(Configuration parameters) {}
 
-		@Override
-		public void open(int taskNumber, int numTasks) throws IOException {
-		}
+        @Override
+        public void open(int taskNumber, int numTasks) throws IOException {}
 
-		@Override
-		public void writeRecord(Integer record) throws IOException {
-		}
+        @Override
+        public void writeRecord(Integer record) throws IOException {}
 
-		@Override
-		public void close() throws IOException {
-		}
-	}
+        @Override
+        public void close() throws IOException {}
+    }
 
-	/**
-	 * Helpers to generate the JobGraph.
-	 */
-	private static JobGraph getJobGraph(Plan plan) {
-		Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
-		JobGraphGenerator jgg = new JobGraphGenerator();
-		OptimizedPlan op = pc.compile(plan);
-		return jgg.compileJobGraph(op);
-	}
+    /** Helpers to generate the JobGraph. */
+    private static JobGraph getJobGraph(Plan plan) {
+        Optimizer pc = new Optimizer(new DataStatistics(), new Configuration());
+        JobGraphGenerator jgg = new JobGraphGenerator();
+        OptimizedPlan op = pc.compile(plan);
+        return jgg.compileJobGraph(op);
+    }
 }

@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-runtime_${scala.binary.version}</artifactId>
-	<name>flink-runtime</name>
+	<name>Flink : Runtime</name>
 
 	<packaging>jar</packaging>
 
@@ -68,8 +68,20 @@ under the License.
 		<!-- optional dependency on Hadoop, so that Hadoop classes are not always pulled in -->
 
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
 			<optional>true</optional>
 		</dependency>
 
@@ -141,6 +153,14 @@ under the License.
 					<artifactId>scala-library</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<!-- Transitive dependency of akka-remote that we explicitly define to pin
+		 	its version (our Hadoop dependency has overridden the netty version in the past) -->
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty</artifactId>
+			<version>3.10.6.Final</version>
 		</dependency>
 
 		<!-- Transitive dependency of akka-remote that we explicitly define to keep it
@@ -243,7 +263,7 @@ under the License.
 		<dependency>
 			<groupId>org.lz4</groupId>
 			<artifactId>lz4-java</artifactId>
-			<version>1.5.0</version>
+			<version>1.6.0</version>
 		</dependency>
 
 		<!-- test dependencies -->
@@ -316,6 +336,18 @@ under the License.
 	</dependencyManagement>
 
 	<build>
+
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources-filtered</directory>
+				<filtering>true</filtering>
+			</resource>
+		</resources>
+
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -454,25 +486,27 @@ under the License.
 				</configuration>
 			</plugin>
 			<plugin>
-				<!-- Description: https://github.com/ktoso/maven-git-commit-id-plugin
+				<!-- Description: https://github.com/git-commit-id/git-commit-id-maven-plugin
 					Used to show the git ref when starting the jobManager. -->
 				<groupId>pl.project13.maven</groupId>
 				<artifactId>git-commit-id-plugin</artifactId>
 				<executions>
 					<execution>
+						<id>get-the-git-infos</id>
+						<phase>validate</phase>
 						<goals>
 							<goal>revision</goal>
-						 </goals>
+						</goals>
 					</execution>
 				</executions>
 				<configuration>
 					<dotGitDirectory>${project.basedir}/../.git</dotGitDirectory>
-					<generateGitPropertiesFile>true</generateGitPropertiesFile>
 					<skipPoms>false</skipPoms>
 					<failOnNoGitDirectory>false</failOnNoGitDirectory>
-					<generateGitPropertiesFilename>src/main/resources/.version.properties</generateGitPropertiesFilename>
+					<failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
 					<gitDescribe>
-						<!-- don't generate the describe property -->
+						<!-- Don't generate the describe property -->
+						<!-- It is useless due to the way Flink does branches and tags -->
 						<skip>true</skip>
 					</gitDescribe>
 				</configuration>
@@ -513,22 +547,17 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
-									<!-- add akka, akka's netty, akka uncommon math -->
+									<!-- add akka, akka's netty -->
 									<!-- we can do this only because our own netty dependency is
 										already externally shaded (flink-shaded-netty) -->
 									<include>com.typesafe.akka:akka-remote_*</include>
 									<include>io.netty:netty</include>
-									<include>org.uncommons.maths:uncommons-maths</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
 								<relocation>
 									<pattern>org.jboss.netty</pattern>
 									<shadedPattern>org.apache.flink.shaded.akka.org.jboss.netty</shadedPattern>
-								</relocation>
-								<relocation>
-									<pattern>org.uncommons.math</pattern>
-									<shadedPattern>org.apache.flink.shaded.akka.org.uncommons.math</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
@@ -547,7 +576,6 @@ under the License.
 									<artifact>*</artifact>
 									<excludes>
 										<exclude>META-INF/maven/io.netty/**</exclude>
-										<exclude>META-INF/maven/org.uncommons.maths/**</exclude>
 									</excludes>
 								</filter>
 							</filters>

@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.TestData._
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import java.util
 
@@ -226,7 +226,6 @@ class SemiJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
     )
   }
 
-  @Ignore // TODO not support same source until set lazy_from_source
   @Test
   def testInWithAggregate2(): Unit = {
     checkResult(

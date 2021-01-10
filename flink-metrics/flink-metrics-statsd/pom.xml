@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-metrics</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-metrics-statsd</artifactId>
-	<name>flink-metrics-statsd</name>
+	<name>Flink : Metrics : StatsD</name>
 
 	<dependencies>
 		<dependency>

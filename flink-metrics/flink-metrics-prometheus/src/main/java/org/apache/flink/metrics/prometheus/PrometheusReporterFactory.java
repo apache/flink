@@ -17,17 +17,18 @@
 
 package org.apache.flink.metrics.prometheus;
 
+import org.apache.flink.metrics.reporter.InterceptInstantiationViaReflection;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 
 import java.util.Properties;
 
-/**
- * {@link MetricReporterFactory} for {@link PrometheusReporter}.
- */
+/** {@link MetricReporterFactory} for {@link PrometheusReporter}. */
+@InterceptInstantiationViaReflection(
+        reporterClassName = "org.apache.flink.metrics.prometheus.PrometheusReporter")
 public class PrometheusReporterFactory implements MetricReporterFactory {
 
-	@Override
-	public PrometheusReporter createMetricReporter(Properties properties) {
-		return new PrometheusReporter();
-	}
+    @Override
+    public PrometheusReporter createMetricReporter(Properties properties) {
+        return new PrometheusReporter();
+    }
 }

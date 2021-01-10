@@ -27,12 +27,10 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,100 +45,97 @@ import static org.apache.flink.configuration.MetricOptions.REPORTERS_LIST;
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
 import static org.junit.Assert.assertEquals;
 
-/**
- * Integration tests for proper initialization of the system resource metrics.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Integration tests for proper initialization of the system resource metrics. */
 public class SystemResourcesMetricsITCase extends TestLogger {
 
-	@ClassRule
-	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
-		new MiniClusterResourceConfiguration.Builder()
-			.setConfiguration(getConfiguration())
-			.setNumberTaskManagers(1)
-			.setNumberSlotsPerTaskManager(1)
-			.build());
+    @ClassRule
+    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(getConfiguration())
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-	private static Configuration getConfiguration() {
-		Configuration configuration = new Configuration();
-		configuration.setBoolean(SYSTEM_RESOURCE_METRICS, true);
-		configuration.setString(REPORTERS_LIST, "test_reporter");
-		configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
-		configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
-		configuration.setString("metrics.reporter.test_reporter.class", TestReporter.class.getName());
-		return configuration;
-	}
+    private static Configuration getConfiguration() {
+        Configuration configuration = new Configuration();
+        configuration.setBoolean(SYSTEM_RESOURCE_METRICS, true);
+        configuration.setString(REPORTERS_LIST, "test_reporter");
+        configuration.setString(MetricOptions.SCOPE_NAMING_JM, "jobmanager");
+        configuration.setString(MetricOptions.SCOPE_NAMING_TM, "taskmanager");
+        configuration.setString(
+                "metrics.reporter.test_reporter.class", TestReporter.class.getName());
+        return configuration;
+    }
 
-	@Test
-	public void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
-		assertEquals(1, TestReporter.OPENED_REPORTERS.size());
-		TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
+    @Test
+    public void startTaskManagerAndCheckForRegisteredSystemMetrics() throws Exception {
+        assertEquals(1, TestReporter.OPENED_REPORTERS.size());
+        TestReporter reporter = TestReporter.OPENED_REPORTERS.iterator().next();
 
-		reporter.patternsExhaustedFuture.get(10, TimeUnit.SECONDS);
-	}
+        reporter.patternsExhaustedFuture.get(10, TimeUnit.SECONDS);
+    }
 
-	private static List<String> getExpectedPatterns() {
-		String[] expectedGauges = {
-			"System.CPU.Idle",
-			"System.CPU.Sys",
-			"System.CPU.User",
-			"System.CPU.IOWait",
-			"System.CPU.Irq",
-			"System.CPU.SoftIrq",
-			"System.CPU.Nice",
-			"System.Memory.Available",
-			"System.Memory.Total",
-			"System.Swap.Used",
-			"System.Swap.Total",
-			"System.Network.*ReceiveRate",
-			"System.Network.*SendRate"
-		};
+    private static List<String> getExpectedPatterns() {
+        String[] expectedGauges = {
+            "System.CPU.Idle",
+            "System.CPU.Sys",
+            "System.CPU.User",
+            "System.CPU.IOWait",
+            "System.CPU.Irq",
+            "System.CPU.SoftIrq",
+            "System.CPU.Nice",
+            "System.Memory.Available",
+            "System.Memory.Total",
+            "System.Swap.Used",
+            "System.Swap.Total",
+            "System.Network.*ReceiveRate",
+            "System.Network.*SendRate"
+        };
 
-		String[] expectedHosts = {
-			"taskmanager.",
-			"jobmanager."
-		};
+        String[] expectedHosts = {"taskmanager.", "jobmanager."};
 
-		List<String> patterns = new ArrayList<>();
-		for (String expectedHost : expectedHosts) {
-			for (String expectedGauge : expectedGauges) {
-				patterns.add(expectedHost + expectedGauge);
-			}
-		}
-		return patterns;
-	}
+        List<String> patterns = new ArrayList<>();
+        for (String expectedHost : expectedHosts) {
+            for (String expectedGauge : expectedGauges) {
+                patterns.add(expectedHost + expectedGauge);
+            }
+        }
+        return patterns;
+    }
 
-	/**
-	 * Test metric reporter that exposes registered metrics.
-	 */
-	public static final class TestReporter implements MetricReporter {
-		public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
-		private final Map<String, CompletableFuture<Void>> patternFutures = getExpectedPatterns().stream()
-			.collect(Collectors.toMap(pattern -> pattern, pattern -> new CompletableFuture<>()));
-		private final CompletableFuture<Void> patternsExhaustedFuture = FutureUtils.waitForAll(patternFutures.values());
+    /** Test metric reporter that exposes registered metrics. */
+    public static final class TestReporter implements MetricReporter {
+        public static final Set<TestReporter> OPENED_REPORTERS = ConcurrentHashMap.newKeySet();
+        private final Map<String, CompletableFuture<Void>> patternFutures =
+                getExpectedPatterns().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        pattern -> pattern, pattern -> new CompletableFuture<>()));
+        private final CompletableFuture<Void> patternsExhaustedFuture =
+                FutureUtils.waitForAll(patternFutures.values());
 
-		@Override
-		public void open(MetricConfig config) {
-			OPENED_REPORTERS.add(this);
-		}
+        @Override
+        public void open(MetricConfig config) {
+            OPENED_REPORTERS.add(this);
+        }
 
-		@Override
-		public void close() {
-			OPENED_REPORTERS.remove(this);
-		}
+        @Override
+        public void close() {
+            OPENED_REPORTERS.remove(this);
+        }
 
-		@Override
-		public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-			final String metricIdentifier = group.getMetricIdentifier(metricName, name -> name);
-			for (final String expectedPattern : patternFutures.keySet()) {
-				if (metricIdentifier.matches(expectedPattern)) {
-					patternFutures.get(expectedPattern).complete(null);
-				}
-			}
-		}
+        @Override
+        public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
+            final String metricIdentifier = group.getMetricIdentifier(metricName, name -> name);
+            for (final String expectedPattern : patternFutures.keySet()) {
+                if (metricIdentifier.matches(expectedPattern)) {
+                    patternFutures.get(expectedPattern).complete(null);
+                }
+            }
+        }
 
-		@Override
-		public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-		}
-	}
+        @Override
+        public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {}
+    }
 }

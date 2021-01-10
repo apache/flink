@@ -23,13 +23,27 @@ under the License.
 		"http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
 
 <suppressions>
+		<!-- Star import is used for all the expressions -->
+		<suppress files="BaseExpressions.java" checks="AvoidStarImport"/>
+
+		<!-- These use star import for all the generated Tuple classes -->
+		<suppress files="CsvReader.java" checks="AvoidStarImport"/>
+
+		<suppress files="NoticeFileChecker.java" checks="Regexp"/>
+		<suppress files="NoticeFileChecker.java" checks="IllegalImport"/>
+
+		<suppress files="JoinOperator.java" checks="FileLength"/>
+		<suppress files="WindowOperatorTest.java" checks="FileLength"/>
+		<suppress files="WindowOperatorContractTest.java" checks="FileLength"/>
+		<suppress files="NFAITCase.java" checks="FileLength"/>
+
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]avro[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<suppress files="org[\\/]apache[\\/]flink[\\/]formats[\\/]parquet[\\/]generated[\\/].*.java" checks="[a-zA-Z0-9]*"/>
 		<!-- Sometimes we have to temporarily fix very long, different formatted Calcite files. -->
 		<suppress files="org[\\/]apache[\\/]calcite.*" checks="[a-zA-Z0-9]*"/>
 
 		<!-- Temporarily fix TM Metaspace memory leak caused by Apache Beam sdk harness. -->
-		<suppress files="org[\\/]apache[\\/]beam[\\/]vendor[\\/]grpc[\\/]v1p21p0[\\/]io[\\/]netty[\\/]buffer.*.java" checks="[a-zA-Z0-9]*"/>
+		<suppress files="org[\\/]apache[\\/]beam.*.java" checks="[a-zA-Z0-9]*"/>
 
 	    <!-- Have to use guava directly -->
 	    <suppress
@@ -43,7 +57,11 @@ under the License.
 		<suppress
 			files="FlinkKinesisProducer.java|FlinkKinesisProducerTest.java"
 			checks="IllegalImport"/>
-		<!-- Classes copied from Hadoop -->
+		<!-- Kinesis EFO consumer required to handle Netty ReadTimeoutException -->
+		<suppress 
+			files="FanOutRecordPublisherTest.java|FanOutShardSubscriber.java|FanOutShardSubscriberTest.java" 
+			checks="IllegalImport"/>
+	 	<!-- Classes copied from Hadoop -->
 		<suppress
 			files="org[\\/]apache[\\/]hadoop[\\/]conf[\\/]Configuration.java"
 			checks=".*"/>

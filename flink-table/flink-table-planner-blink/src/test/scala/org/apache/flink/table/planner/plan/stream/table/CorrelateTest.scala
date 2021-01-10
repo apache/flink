@@ -18,11 +18,12 @@
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.Func13
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
-import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, MockPythonTableFunction, TableFunc0, TableFunc1, TableFunc2, TableTestBase}
-import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}
+import org.apache.flink.table.planner.utils._
+
+import org.apache.calcite.rel.rules.CoreRules
 import org.apache.calcite.tools.RuleSets
 import org.junit.Test
 
@@ -37,7 +38,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", function)
 
     val result1 = table.joinLateral(function('c) as 's).select('c, 's)
-    util.verifyPlan(result1)
+    util.verifyExecPlan(result1)
   }
 
   @Test
@@ -49,7 +50,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", function)
     // test overloading
     val result2 = table.joinLateral(function('c, "$") as 's).select('c, 's)
-    util.verifyPlan(result2)
+    util.verifyExecPlan(result2)
   }
 
   @Test
@@ -60,7 +61,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", function)
 
     val result = table.leftOuterJoinLateral(function('c) as 's, true).select('c, 's)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -74,7 +75,7 @@ class CorrelateTest extends TableTestBase {
     val result = table.joinLateral(
       function(scalarFunc('c)) as ('name, 'len)).select('c, 'name, 'len)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -85,7 +86,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("hierarchy", function)
 
     val result = table.joinLateral(function('c) as ('name, 'adult, 'len))
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -96,7 +97,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("pojo", function)
 
     val result = table.joinLateral(function('c))
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -110,7 +111,7 @@ class CorrelateTest extends TableTestBase {
       .joinLateral(function('c) as ('name, 'len))
       .select('c, 'name, 'len)
       .filter('len > 2)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -121,7 +122,7 @@ class CorrelateTest extends TableTestBase {
     util.addFunction("func1", function)
 
     val result = table.joinLateral(function('c.substring(2)) as 's)
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -138,7 +139,7 @@ class CorrelateTest extends TableTestBase {
       .where('e > 20)
       .select('c, 'd)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -148,9 +149,9 @@ class CorrelateTest extends TableTestBase {
     programs.getFlinkRuleSetProgram(FlinkStreamProgram.LOGICAL)
       .get.remove(
       RuleSets.ofList(
-        CalcMergeRule.INSTANCE,
-        FilterCalcMergeRule.INSTANCE,
-        ProjectCalcMergeRule.INSTANCE))
+        CoreRules.CALC_MERGE,
+        CoreRules.FILTER_CALC_MERGE,
+        CoreRules.PROJECT_CALC_MERGE))
     // removing
     util.replaceStreamProgram(programs)
 
@@ -164,7 +165,7 @@ class CorrelateTest extends TableTestBase {
       .where('e > 20)
       .select('c, 'd)
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 
   @Test
@@ -175,7 +176,7 @@ class CorrelateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'f1, 'f2, 'f3)
     val resultTable = sourceTable
       .flatMap(func2('f3))
-    util.verifyPlan(resultTable)
+    util.verifyExecPlan(resultTable)
   }
 
   @Test
@@ -185,6 +186,6 @@ class CorrelateTest extends TableTestBase {
     val func = new MockPythonTableFunction
     val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
 
-    util.verifyPlan(result)
+    util.verifyExecPlan(result)
   }
 }

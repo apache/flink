@@ -22,13 +22,14 @@ under the License.
 	<parent>
 		<artifactId>flink-end-to-end-tests</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>flink-metrics-reporter-prometheus-test</artifactId>
+	<name>Flink : E2E Tests : Metrics reporter prometheus</name>
 
 	<dependencies>
 		<dependency>

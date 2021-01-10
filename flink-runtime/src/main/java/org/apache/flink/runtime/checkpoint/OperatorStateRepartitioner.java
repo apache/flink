@@ -23,22 +23,21 @@ import org.apache.flink.annotation.Internal;
 import java.util.List;
 
 /**
- * Interface that allows to implement different strategies for repartitioning of operator state as parallelism changes.
+ * Interface that allows to implement different strategies for repartitioning of operator state as
+ * parallelism changes.
  */
 @Internal
 public interface OperatorStateRepartitioner<T> {
 
-	/**
-	 * @param previousParallelSubtaskStates List with one entry of state handles per parallel subtask of an operator, as they
-	 *                                      have been checkpointed.
-	 * @param oldParallelism               	The parallelism before we start redistribution.
-	 * @param newParallelism                The parallelism that we consider for the state redistribution. Determines the size of the
-	 *                                      returned list.
-	 * @return List with one entry per parallel subtask. Each subtask receives now one collection of states that build
-	 * of the new total state for this subtask.
-	 */
-	List<List<T>> repartitionState(
-			List<List<T>> previousParallelSubtaskStates,
-			int oldParallelism,
-			int newParallelism);
+    /**
+     * @param previousParallelSubtaskStates List with one entry of state handles per parallel
+     *     subtask of an operator, as they have been checkpointed.
+     * @param oldParallelism The parallelism before we start redistribution.
+     * @param newParallelism The parallelism that we consider for the state redistribution.
+     *     Determines the size of the returned list.
+     * @return List with one entry per parallel subtask. Each subtask receives now one collection of
+     *     states that build of the new total state for this subtask.
+     */
+    List<List<T>> repartitionState(
+            List<List<T>> previousParallelSubtaskStates, int oldParallelism, int newParallelism);
 }

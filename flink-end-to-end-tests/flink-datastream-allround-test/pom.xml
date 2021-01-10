@@ -25,12 +25,12 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-end-to-end-tests</artifactId>
-		<version>1.11-SNAPSHOT</version>
+		<version>1.13-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
 	<artifactId>flink-datastream-allround-test</artifactId>
-	<name>flink-datastream-allround-test</name>
+	<name>Flink : E2E Tests : Datastream allround</name>
 	<packaging>jar</packaging>
 
 	<dependencies>
@@ -93,8 +93,8 @@ under the License.
 							<goal>schema</goal>
 						</goals>
 						<configuration>
-							<sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
-							<outputDirectory>${project.basedir}/src/main/java/</outputDirectory>
+							<sourceDirectory>${project.basedir}/src/main/resources/avro/</sourceDirectory>
+							<outputDirectory>${project.basedir}/target/generated-sources/</outputDirectory>
 							<fieldVisibility>PRIVATE</fieldVisibility>
 							<includes>
 								<include>**/*.avsc</include>

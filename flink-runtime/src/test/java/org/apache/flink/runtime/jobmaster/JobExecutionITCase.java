@@ -25,75 +25,73 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.testutils.junit.category.AlsoRunWithLegacyScheduler;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-/**
- * Integration tests for job scheduling.
- */
-@Category(AlsoRunWithLegacyScheduler.class)
+/** Integration tests for job scheduling. */
 public class JobExecutionITCase extends TestLogger {
 
-	/**
-	 * Tests that tasks with a co-location constraint are scheduled in the same
-	 * slots. In fact it also tests that consumers are scheduled wrt their input
-	 * location if the co-location constraint is deactivated.
-	 */
-	@Test
-	public void testCoLocationConstraintJobExecution() throws Exception {
-		final int numSlotsPerTaskExecutor = 1;
-		final int numTaskExecutors = 3;
-		final int parallelism = numTaskExecutors * numSlotsPerTaskExecutor;
-		final JobGraph jobGraph = createJobGraph(parallelism);
+    /**
+     * Tests that tasks with a co-location constraint are scheduled in the same slots. In fact it
+     * also tests that consumers are scheduled wrt their input location if the co-location
+     * constraint is deactivated.
+     */
+    @Test
+    public void testCoLocationConstraintJobExecution() throws Exception {
+        final int numSlotsPerTaskExecutor = 1;
+        final int numTaskExecutors = 3;
+        final int parallelism = numTaskExecutors * numSlotsPerTaskExecutor;
+        final JobGraph jobGraph = createJobGraph(parallelism);
 
-		final TestingMiniClusterConfiguration miniClusterConfiguration = new TestingMiniClusterConfiguration.Builder()
-			.setNumSlotsPerTaskManager(numSlotsPerTaskExecutor)
-			.setNumTaskManagers(numTaskExecutors)
-			.setLocalCommunication(true)
-			.build();
+        final TestingMiniClusterConfiguration miniClusterConfiguration =
+                new TestingMiniClusterConfiguration.Builder()
+                        .setNumSlotsPerTaskManager(numSlotsPerTaskExecutor)
+                        .setNumTaskManagers(numTaskExecutors)
+                        .setLocalCommunication(true)
+                        .build();
 
-		try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
-			miniCluster.start();
+        try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
+            miniCluster.start();
 
-			miniCluster.submitJob(jobGraph).get();
+            miniCluster.submitJob(jobGraph).get();
 
-			final CompletableFuture<JobResult> jobResultFuture = miniCluster.requestJobResult(jobGraph.getJobID());
+            final CompletableFuture<JobResult> jobResultFuture =
+                    miniCluster.requestJobResult(jobGraph.getJobID());
 
-			assertThat(jobResultFuture.get().isSuccess(), is(true));
-		}
-	}
+            assertThat(jobResultFuture.get().isSuccess(), is(true));
+        }
+    }
 
-	private JobGraph createJobGraph(int parallelism) {
-		final JobVertex sender = new JobVertex("Sender");
-		sender.setParallelism(parallelism);
-		sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
+    private JobGraph createJobGraph(int parallelism) {
+        final JobVertex sender = new JobVertex("Sender");
+        sender.setParallelism(parallelism);
+        sender.setInvokableClass(TestingAbstractInvokables.Sender.class);
 
-		final JobVertex receiver = new JobVertex("Receiver");
-		receiver.setParallelism(parallelism);
-		receiver.setInvokableClass(TestingAbstractInvokables.Receiver.class);
+        final JobVertex receiver = new JobVertex("Receiver");
+        receiver.setParallelism(parallelism);
+        receiver.setInvokableClass(TestingAbstractInvokables.Receiver.class);
 
-		// In order to make testCoLocationConstraintJobExecution fail, one needs to
-		// remove the co-location constraint and the slot sharing groups, because then
-		// the receivers will have to wait for the senders to finish and the slot
-		// assignment order to the receivers is non-deterministic (depending on the
-		// order in which the senders finish).
-		final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-		receiver.setSlotSharingGroup(slotSharingGroup);
-		sender.setSlotSharingGroup(slotSharingGroup);
-		receiver.setStrictlyCoLocatedWith(sender);
+        // In order to make testCoLocationConstraintJobExecution fail, one needs to
+        // remove the co-location constraint and the slot sharing groups, because then
+        // the receivers will have to wait for the senders to finish and the slot
+        // assignment order to the receivers is non-deterministic (depending on the
+        // order in which the senders finish).
+        final SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+        receiver.setSlotSharingGroup(slotSharingGroup);
+        sender.setSlotSharingGroup(slotSharingGroup);
+        receiver.setStrictlyCoLocatedWith(sender);
 
-		receiver.connectNewDataSetAsInput(sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
+        receiver.connectNewDataSetAsInput(
+                sender, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
 
-		final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
+        final JobGraph jobGraph = new JobGraph(getClass().getSimpleName(), sender, receiver);
 
-		return jobGraph;
-	}
+        return jobGraph;
+    }
 }

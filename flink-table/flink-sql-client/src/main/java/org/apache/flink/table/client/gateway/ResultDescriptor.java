@@ -20,43 +20,41 @@ package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.api.TableSchema;
 
-/**
- * Describes a result to be expected from a table program.
- */
+/** Describes a result to be expected from a table program. */
 public class ResultDescriptor {
 
-	private final String resultId;
+    private final String resultId;
 
-	private final TableSchema resultSchema;
+    private final TableSchema resultSchema;
 
-	private final boolean isMaterialized;
+    private final boolean isMaterialized;
 
-	private final boolean isTableauMode;
+    private final boolean isTableauMode;
 
-	public ResultDescriptor(
-			String resultId,
-			TableSchema resultSchema,
-			boolean isMaterialized,
-			boolean isTableauMode) {
-		this.resultId = resultId;
-		this.resultSchema = resultSchema;
-		this.isMaterialized = isMaterialized;
-		this.isTableauMode = isTableauMode;
-	}
+    public ResultDescriptor(
+            String resultId,
+            TableSchema resultSchema,
+            boolean isMaterialized,
+            boolean isTableauMode) {
+        this.resultId = resultId;
+        this.resultSchema = resultSchema;
+        this.isMaterialized = isMaterialized;
+        this.isTableauMode = isTableauMode;
+    }
 
-	public String getResultId() {
-		return resultId;
-	}
+    public String getResultId() {
+        return resultId;
+    }
 
-	public TableSchema getResultSchema() {
-		return resultSchema;
-	}
+    public TableSchema getResultSchema() {
+        return resultSchema;
+    }
 
-	public boolean isMaterialized() {
-		return isMaterialized;
-	}
+    public boolean isMaterialized() {
+        return isMaterialized;
+    }
 
-	public boolean isTableauMode() {
-		return isTableauMode;
-	}
+    public boolean isTableauMode() {
+        return isTableauMode;
+    }
 }

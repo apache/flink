@@ -29,7 +29,7 @@ FROM MyTable1
     GROUP BY TUMBLE(ts, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
@@ -37,14 +37,14 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS EXPR$0, CAST(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1)))) AS EXPR$1, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
-         +- Calc(select=[ts, b, *(b, b) AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+         +- Calc(select=[ts, b, (b * b) AS $f2])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -61,7 +61,7 @@ FROM MyTable1
     GROUP BY TUMBLE(ts, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
@@ -69,13 +69,13 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS EXPR$0, CAST(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1)))) AS EXPR$1, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM($f2) AS $f0, SUM(b) AS $f1, COUNT(b) AS $f2])
    +- Exchange(distribution=[single])
-      +- Calc(select=[ts, b, *(b, b) AS $f2])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+      +- Calc(select=[ts, b, (b * b) AS $f2])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -92,7 +92,7 @@ FROM MyTable1
     GROUP BY TUMBLE(ts, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBLE_START($0)], EXPR$5=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[VAR_POP($1)], EXPR$1=[VAR_SAMP($1)], EXPR$2=[STDDEV_POP($1)], EXPR$3=[STDDEV_SAMP($1)])
@@ -100,14 +100,14 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4], EXPR$4=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(/(-($f0, /(*($f1, $f1), $f2)), $f2)) AS EXPR$0, CAST(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1)))) AS EXPR$1, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
+Calc(select=[CAST((($f0 - (($f1 * $f1) / $f2)) / $f2)) AS EXPR$0, CAST((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1)))) AS EXPR$1, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER((($f0 - (($f1 * $f1) / $f2)) / CASE(($f2 = 1), null:BIGINT, ($f2 - 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, w$start AS EXPR$4, w$end AS EXPR$5])
 +- HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS $f0, Final_SUM(sum$1) AS $f1, Final_COUNT(count$2) AS $f2])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f2) AS sum$0, Partial_SUM(b) AS sum$1, Partial_COUNT(b) AS count$2])
-         +- Calc(select=[ts, b, *(b, b) AS $f2])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+         +- Calc(select=[ts, b, (b * b) AS $f2])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -123,23 +123,23 @@ FROM MyTable2
      QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
-      +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count1$0) AS EXPR$0, Final_SUM(sum$1) AS $f1])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
          +- Calc(select=[ts, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -155,22 +155,22 @@ FROM MyTable2
      QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
-      +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[COUNT(*) AS EXPR$0, SUM(a) AS $f1])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -186,23 +186,23 @@ FROM MyTable2
      QUARTER(HOP_START(ts, INTERVAL '15' MINUTE, INTERVAL '1' MINUTE)) = 1
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)])
 +- LogicalFilter(condition=[AND(>($2, 0), =(EXTRACT(FLAG(QUARTER), HOP_START($0)), 1))])
    +- LogicalAggregate(group=[{0}], EXPR$0=[COUNT()], agg#1=[SUM($1)])
-      +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 60000:INTERVAL MINUTE)], a=[$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))])
+Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(FLAG(QUARTER), w$start) = 1:BIGINT))])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_COUNT(count1$0) AS EXPR$0, Final_SUM(sum$1) AS $f1])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 60000, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_COUNT(*) AS count1$0, Partial_SUM(a) AS sum$1])
          +- Calc(select=[ts, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -210,22 +210,22 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[AND(>($f1, 0), =(EXTRACT(FLAG(QU
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -239,22 +239,22 @@ FROM MyTable
     GROUP BY HOP(b, INTERVAL '3' SECOND, INTERVAL '3' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject($f0=[HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
+   +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(a) AS sum$0])
          +- Calc(select=[b, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -268,21 +268,21 @@ FROM MyTable
     GROUP BY HOP(b, INTERVAL '3' SECOND, INTERVAL '3' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject($f0=[HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
+   +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[SUM(a) AS EXPR$0])
    +- Exchange(distribution=[single])
       +- Calc(select=[b, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -296,22 +296,22 @@ FROM MyTable
     GROUP BY HOP(b, INTERVAL '3' SECOND, INTERVAL '3' SECOND)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[HOP_START($0)], EXPR$2=[HOP_END($0)])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject($f0=[HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
+   +- LogicalProject($f0=[$HOP($1, 3000:INTERVAL SECOND, 3000:INTERVAL SECOND)], a=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
 +- HashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS EXPR$0])
    +- Exchange(distribution=[single])
       +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, b, 3000, 3000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM(a) AS sum$0])
          +- Calc(select=[b, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -319,7 +319,7 @@ Calc(select=[EXPR$0, w$start AS EXPR$1, w$end AS EXPR$2])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
@@ -327,13 +327,13 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Partial_AVG(c) AS (sum$0, count$1), Partial_SUM(a) AS sum$2])
       +- Calc(select=[b, c, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -341,7 +341,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
@@ -349,12 +349,12 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[AVG(c) AS EXPR$0, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- Calc(select=[b, c, a])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -362,7 +362,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[AVG(c) A
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), SUM(a) FROM MyTable GROUP BY TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[AVG($1)], EXPR$1=[SUM($2)])
@@ -370,13 +370,13 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Partial_AVG(c) AS (sum$0, count$1), Partial_SUM(a) AS sum$2])
       +- Calc(select=[b, c, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -384,21 +384,21 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[SUM(a) AS sumA, COUNT(b) AS cntB])
 +- Sort(orderBy=[ts ASC])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -406,21 +406,21 @@ SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -428,7 +428,7 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
@@ -436,13 +436,13 @@ LogicalProject(sumA=[$1], cntB=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -450,7 +450,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
@@ -458,12 +458,12 @@ LogicalProject(sumA=[$1], cntB=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[SUM(a) AS sumA, COUNT(b) AS cntB])
 +- Exchange(distribution=[single])
    +- Calc(select=[ts, a, b])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -471,7 +471,7 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[SUM(
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '2' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
@@ -479,13 +479,13 @@ LogicalProject(sumA=[$1], cntB=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -493,21 +493,21 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, ts, 7200000)], select=[Fina
     <Resource name="sql">
       <![CDATA[SELECT   c,   HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_ROWTIME(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   SUM(a) AS sumA,   AVG(b) AS avgB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
-   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, avgB])
 +- HashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Final_SUM(sum$0) AS sumA, Final_AVG(sum$1, count$2) AS avgB])
    +- Exchange(distribution=[hash[c, d]])
       +- LocalHashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Partial_SUM(a) AS sum$0, Partial_AVG(b) AS (sum$1, count$2)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -515,21 +515,21 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(sumA=[$1], cntB=[$2])
 +- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
 +- Exchange(distribution=[single])
    +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
       +- Calc(select=[ts, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -537,21 +537,21 @@ HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], selec
     <Resource name="sql">
       <![CDATA[SELECT   c,   HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_ROWTIME(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   SUM(a) AS sumA,   AVG(b) AS avgB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
-   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, avgB])
 +- SortWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, SUM(a) AS sumA, AVG(b) AS avgB])
    +- Sort(orderBy=[c ASC, d ASC, ts ASC])
       +- Exchange(distribution=[hash[c, d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -559,21 +559,21 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
     <Resource name="sql">
       <![CDATA[SELECT   c,   HOP_END(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_START(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   HOP_ROWTIME(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR),   SUM(a) AS sumA,   AVG(b) AS avgB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '1' HOUR, INTERVAL '3' HOUR), d, c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], EXPR$1=[HOP_END($0)], EXPR$2=[HOP_START($0)], EXPR$3=[HOP_ROWTIME($0)], sumA=[$3], avgB=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], sumA=[SUM($3)], avgB=[AVG($4)])
-   +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
+   +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 10800000:INTERVAL HOUR)], d=[$3], c=[$2], a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, avgB])
 +- HashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Final_SUM(sum$0) AS sumA, Final_AVG(sum$1, count$2) AS avgB])
    +- Exchange(distribution=[hash[c, d]])
       +- LocalHashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Partial_SUM(a) AS sum$0, Partial_AVG(b) AS (sum$1, count$2)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -590,7 +590,7 @@ FROM MyTable2
     GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
@@ -598,14 +598,14 @@ LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, minB])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Final_SUM(sum$0) AS sumA, Final_MIN(min$1) AS minB])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Partial_SUM(a) AS sum$0, Partial_MIN(b) AS min$1])
          +- Calc(select=[ts, c, a, b])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -622,7 +622,7 @@ FROM MyTable2
     GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
@@ -630,13 +630,13 @@ LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, minB])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, SUM(a) AS sumA, MIN(b) AS minB])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[ts, c, a, b])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -653,7 +653,7 @@ FROM MyTable2
     GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBLE_ROWTIME($0)], c=[$1], sumA=[$2], minB=[$3])
 +- LogicalAggregate(group=[{0, 1}], sumA=[SUM($2)], minB=[MIN($3)])
@@ -661,14 +661,14 @@ LogicalProject(EXPR$0=[TUMBLE_START($0)], EXPR$1=[TUMBLE_END($0)], EXPR$2=[TUMBL
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$start AS EXPR$0, w$end AS EXPR$1, w$rowtime AS EXPR$2, c, sumA, minB])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Final_SUM(sum$0) AS sumA, Final_MIN(min$1) AS minB])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c, Partial_SUM(a) AS sum$0, Partial_MIN(b) AS min$1])
          +- Calc(select=[ts, c, a, b])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -689,7 +689,7 @@ FROM (
 GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
@@ -697,14 +697,14 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(CASE(=($f1, 0), null:INTEGER, s)) AS s, CAST(CAST(/(CASE(=($f1, 0), null:INTEGER, s), $f1))) AS a, w$start AS wStart])
-+- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_$SUM0(sum$0) AS s, Final_COUNT(count1$1) AS $f1])
+Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
++- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS s, Final_AVG(sum$1, count$2) AS a])
    +- Exchange(distribution=[single])
-      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_$SUM0($f1) AS sum$0, Partial_COUNT(*) AS count1$1])
-         +- Calc(select=[b, CASE(=(a, 1), 1, 99) AS $f1])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f1) AS sum$0, Partial_AVG($f1) AS (sum$1, count$2)])
+         +- Calc(select=[b, CASE((a = 1), 1, 99) AS $f1])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -725,7 +725,7 @@ FROM (
 GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
@@ -733,13 +733,13 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(CASE(=($f1, 0), null:INTEGER, s)) AS s, CAST(CAST(/(CASE(=($f1, 0), null:INTEGER, s), $f1))) AS a, w$start AS wStart])
-+- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[$SUM0($f1) AS s, COUNT(*) AS $f1])
+Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
++- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[SUM($f1) AS s, AVG($f1) AS a])
    +- Exchange(distribution=[single])
-      +- Calc(select=[b, CASE(=(a, 1), 1, 99) AS $f1])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- Calc(select=[b, CASE((a = 1), 1, 99) AS $f1])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -760,7 +760,7 @@ FROM (
 GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
       ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
 +- LogicalAggregate(group=[{0}], s=[SUM($1)], a=[AVG($1)])
@@ -768,14 +768,14 @@ LogicalProject(s=[$1], a=[$2], wStart=[TUMBLE_START($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(CASE(=($f1, 0), null:INTEGER, s)) AS s, CAST(CAST(/(CASE(=($f1, 0), null:INTEGER, s), $f1))) AS a, w$start AS wStart])
-+- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_$SUM0(sum$0) AS s, Final_COUNT(count1$1) AS $f1])
+Calc(select=[CAST(s) AS s, CAST(a) AS a, w$start AS wStart])
++- HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Final_SUM(sum$0) AS s, Final_AVG(sum$1, count$2) AS a])
    +- Exchange(distribution=[single])
-      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_$SUM0($f1) AS sum$0, Partial_COUNT(*) AS count1$1])
-         +- Calc(select=[b, CASE(=(a, 1), 1, 99) AS $f1])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w$, b, 900000)], properties=[w$start, w$end, w$rowtime], select=[Partial_SUM($f1) AS sum$0, Partial_AVG($f1) AS (sum$1, count$2)])
+         +- Calc(select=[b, CASE((a = 1), 1, 99) AS $f1])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -783,22 +783,22 @@ Calc(select=[CAST(CASE(=($f1, 0), null:INTEGER, s)) AS s, CAST(CAST(/(CASE(=($f1
     <Resource name="sql">
       <![CDATA[SELECT count(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Partial_COUNT(c) AS count$0])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -806,22 +806,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT count(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, COUNT(c) AS EXPR$0])
    +- Sort(orderBy=[b ASC, ts ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -829,22 +829,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT count(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[b, Partial_COUNT(c) AS count$0])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -852,15 +852,15 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
@@ -869,7 +869,7 @@ Calc(select=[EXPR$0])
          +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
             +- Sort(orderBy=[a ASC, ts ASC])
                +- Calc(select=[a, ts, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -877,22 +877,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, MAX(c) AS EXPR$0])
    +- Sort(orderBy=[a ASC, ts ASC])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -900,15 +900,15 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
@@ -917,7 +917,7 @@ Calc(select=[EXPR$0])
          +- LocalSortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_MAX(c) AS max$0])
             +- Sort(orderBy=[a ASC, ts ASC])
                +- Calc(select=[a, ts, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -925,22 +925,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '0.111' SECOND(1,3), INTERVAL '1' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
    +- Sort(orderBy=[b ASC, ts ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -948,22 +948,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '0.111' SECOND(1,3), INTERVAL '1' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
    +- Sort(orderBy=[b ASC, ts ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -971,22 +971,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY b, HOP(ts, INTERVAL '0.111' SECOND(1,3), INTERVAL '1' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
-   +- LogicalProject(b=[$2], $f1=[HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
+   +- LogicalProject(b=[$2], $f1=[$HOP($0, 111:INTERVAL SECOND(1, 3), 1000:INTERVAL SECOND)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w$, ts, 1000, 111)], select=[b, MAX(c) AS EXPR$0])
    +- Sort(orderBy=[b ASC, ts ASC])
       +- Exchange(distribution=[hash[b]])
          +- Calc(select=[b, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -994,21 +994,21 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT countFun(c) FROM MyTable  GROUP BY a, d, HOP(b, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, countFun(c) AS EXPR$0])
    +- Sort(orderBy=[a ASC, d ASC, b ASC])
       +- Exchange(distribution=[hash[a, d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1016,21 +1016,21 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT countFun(c) FROM MyTable  GROUP BY a, d, HOP(b, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, countFun(c) AS EXPR$0])
    +- Sort(orderBy=[a ASC, d ASC, b ASC])
       +- Exchange(distribution=[hash[a, d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1038,15 +1038,15 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT countFun(c) FROM MyTable  GROUP BY a, d, HOP(b, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[countFun($3)])
-   +- LogicalProject(a=[$0], d=[$3], $f2=[HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
+   +- LogicalProject(a=[$0], d=[$3], $f2=[$HOP($1, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Final_countFun(EXPR$0) AS EXPR$0])
@@ -1054,7 +1054,7 @@ Calc(select=[EXPR$0])
       +- Exchange(distribution=[hash[a, d]])
          +- LocalSortWindowAggregate(groupBy=[a, d], window=[SlidingGroupWindow('w$, b, 3600000, 3000)], select=[a, d, Partial_countFun(c) AS EXPR$0])
             +- Sort(orderBy=[a ASC, d ASC, b ASC])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1062,22 +1062,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, COUNT(c) AS EXPR$0])
    +- Sort(orderBy=[a ASC, ts ASC])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1085,22 +1085,22 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1108,7 +1108,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
@@ -1116,14 +1116,14 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1131,7 +1131,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
@@ -1139,13 +1139,13 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, COUNT(c) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, ts, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1153,7 +1153,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
@@ -1161,14 +1161,14 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
    +- Exchange(distribution=[hash[a]])
       +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_COUNT(c) AS count$0])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1176,7 +1176,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), COUNT(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
@@ -1184,13 +1184,13 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_COUNT(count$2) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
       +- LocalHashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_COUNT(a) AS count$2])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1198,7 +1198,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), COUNT(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
@@ -1206,12 +1206,12 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, COUNT(a) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1219,7 +1219,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), COUNT(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[COUNT($0)])
@@ -1227,13 +1227,13 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- HashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_COUNT(count$2) AS EXPR$1])
    +- Exchange(distribution=[hash[a, d]])
       +- LocalHashWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_COUNT(a) AS count$2])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1241,7 +1241,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
@@ -1249,7 +1249,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
@@ -1258,7 +1258,7 @@ Calc(select=[EXPR$0])
          +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
             +- Sort(orderBy=[a ASC, ts ASC])
                +- Calc(select=[a, ts, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1266,7 +1266,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
@@ -1274,14 +1274,14 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, MAX(c) AS EXPR$0])
    +- Sort(orderBy=[a ASC, ts ASC])
       +- Exchange(distribution=[hash[a]])
          +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1289,7 +1289,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT MAX(c) FROM MyTable1 GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$2])
 +- LogicalAggregate(group=[{0, 1}], EXPR$0=[MAX($2)])
@@ -1297,7 +1297,7 @@ LogicalProject(EXPR$0=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0])
 +- SortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Final_MAX(max$0) AS EXPR$0])
@@ -1306,7 +1306,7 @@ Calc(select=[EXPR$0])
          +- LocalSortWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 3000)], select=[a, Partial_MAX(c) AS max$0])
             +- Sort(orderBy=[a ASC, ts ASC])
                +- Calc(select=[a, ts, c])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
+                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(ts, a, b, c)]]], fields=[ts, a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1314,7 +1314,7 @@ Calc(select=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), countFun(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
@@ -1322,13 +1322,13 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, countFun(a) AS EXPR$1])
    +- Sort(orderBy=[a ASC, d ASC, b ASC])
       +- Exchange(distribution=[hash[a, d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1336,7 +1336,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), countFun(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
@@ -1344,13 +1344,13 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, AVG(c) AS EXPR$0, countFun(a) AS EXPR$1])
    +- Sort(orderBy=[a ASC, d ASC, b ASC])
       +- Exchange(distribution=[hash[a, d]])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1358,7 +1358,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT AVG(c), countFun(a) FROM MyTable GROUP BY a, d, TUMBLE(b, INTERVAL '3' SECOND)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
 +- LogicalAggregate(group=[{0, 1, 2}], EXPR$0=[AVG($3)], EXPR$1=[countFun($0)])
@@ -1366,7 +1366,7 @@ LogicalProject(EXPR$0=[$3], EXPR$1=[$4])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1])
 +- SortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Final_AVG(sum$0, count$1) AS EXPR$0, Final_countFun(EXPR$1) AS EXPR$1])
@@ -1374,7 +1374,7 @@ Calc(select=[EXPR$0, EXPR$1])
       +- Exchange(distribution=[hash[a, d]])
          +- LocalSortWindowAggregate(groupBy=[a, d], window=[TumblingGroupWindow('w$, b, 3000)], select=[a, d, Partial_AVG(c) AS (sum$0, count$1), Partial_countFun(a) AS EXPR$1])
             +- Sort(orderBy=[a ASC, d ASC, b ASC])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -1382,7 +1382,7 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="sql">
       <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
@@ -1390,7 +1390,7 @@ LogicalProject(wAvg=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final_weightedAvg(wAvg) AS wAvg])
 +- Sort(orderBy=[assignedWindow$ ASC])
@@ -1398,7 +1398,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
       +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
          +- Sort(orderBy=[ts ASC])
             +- Calc(select=[ts, b, a])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1406,7 +1406,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
     <Resource name="sql">
       <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
@@ -1414,13 +1414,13 @@ LogicalProject(wAvg=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weightedAvg(b, a) AS wAvg])
 +- Sort(orderBy=[ts ASC])
    +- Exchange(distribution=[single])
       +- Calc(select=[ts, b, a])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1428,7 +1428,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[weigh
     <Resource name="sql">
       <![CDATA[SELECT weightedAvg(b, a) AS wAvg FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(wAvg=[$1])
 +- LogicalAggregate(group=[{0}], wAvg=[weightedAvg($1, $2)])
@@ -1436,7 +1436,7 @@ LogicalProject(wAvg=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final_weightedAvg(wAvg) AS wAvg])
 +- Sort(orderBy=[assignedWindow$ ASC])
@@ -1444,7 +1444,7 @@ SortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Final
       +- LocalSortWindowAggregate(window=[TumblingGroupWindow('w$, ts, 240000)], select=[Partial_weightedAvg(b, a) AS wAvg])
          +- Sort(orderBy=[ts ASC])
             +- Calc(select=[ts, b, a])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1468,28 +1468,28 @@ UNION ALL
 (SELECT * FROM window_2h)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(EXPR$0=[1])
 :  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:     +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 +- LogicalProject(EXPR$0=[1])
    +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+      +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[EXPR$0])
 :- Calc(select=[1 AS EXPR$0])
 :  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
 :     +- Exchange(distribution=[single])
 :        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:           +- Calc(select=[ts], reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:           +- Calc(select=[ts])(reuse_id=[1])
+:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Exchange(distribution=[single])
@@ -1502,7 +1502,7 @@ Union(all=[true], union=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
@@ -1510,14 +1510,14 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS EXPR$0])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
          +- Calc(select=[ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1541,27 +1541,27 @@ UNION ALL
 (SELECT * FROM window_2h)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(EXPR$0=[1])
 :  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:     +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 +- LogicalProject(EXPR$0=[1])
    +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+      +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[EXPR$0])
 :- Calc(select=[1 AS EXPR$0])
 :  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:     +- Exchange(distribution=[single], reuse_id=[1])
+:     +- Exchange(distribution=[single])(reuse_id=[1])
 :        +- Calc(select=[ts])
-:           +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:           +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Sort(orderBy=[ts ASC])
@@ -1573,7 +1573,7 @@ Union(all=[true], union=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
@@ -1581,13 +1581,13 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS EXPR$0])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[ts, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+         +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1611,28 +1611,28 @@ UNION ALL
 (SELECT * FROM window_2h)
 ]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(EXPR$0=[1])
 :  +- LogicalAggregate(group=[{0}])
-:     +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
+:     +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 3600000:INTERVAL HOUR)])
 :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 +- LogicalProject(EXPR$0=[1])
    +- LogicalAggregate(group=[{0}])
-      +- LogicalProject($f0=[HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
+      +- LogicalProject($f0=[$HOP($4, 3600000:INTERVAL HOUR, 7200000:INTERVAL HOUR)])
          +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Union(all=[true], union=[EXPR$0])
 :- Calc(select=[1 AS EXPR$0])
 :  +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
 :     +- Exchange(distribution=[single])
 :        +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 3600000, 3600000)], select=[])
-:           +- Calc(select=[ts], reuse_id=[1])
-:              +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+:           +- Calc(select=[ts])(reuse_id=[1])
+:              +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 +- Calc(select=[1 AS EXPR$0])
    +- HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Exchange(distribution=[single])
@@ -1645,7 +1645,7 @@ Union(all=[true], union=[EXPR$0])
     <Resource name="sql">
       <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
     </Resource>
-    <Resource name="planBefore">
+    <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[TUMBLE_END($0)])
 +- LogicalAggregate(group=[{0, 1}])
@@ -1653,14 +1653,14 @@ LogicalProject(EXPR$0=[TUMBLE_END($0)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]])
 ]]>
     </Resource>
-    <Resource name="planAfter">
+    <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w$end AS EXPR$0])
 +- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
    +- Exchange(distribution=[hash[c]])
       +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
          +- Calc(select=[ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, d, ts)]]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>

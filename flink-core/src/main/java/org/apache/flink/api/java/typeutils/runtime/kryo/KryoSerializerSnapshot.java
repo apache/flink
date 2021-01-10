@@ -39,128 +39,150 @@ import static org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializerSna
 import static org.apache.flink.util.LinkedOptionalMap.mergeRightIntoLeft;
 import static org.apache.flink.util.LinkedOptionalMap.optionalMapOf;
 
-/**
- * {@link TypeSerializerSnapshot} for {@link KryoSerializer}.
- */
+/** {@link TypeSerializerSnapshot} for {@link KryoSerializer}. */
 public class KryoSerializerSnapshot<T> implements TypeSerializerSnapshot<T> {
 
-	private static final Logger LOG = LoggerFactory.getLogger(KryoSerializerSnapshot.class);
+    private static final Logger LOG = LoggerFactory.getLogger(KryoSerializerSnapshot.class);
 
-	private static final int VERSION = 2;
+    private static final int VERSION = 2;
 
-	private KryoSerializerSnapshotData<T> snapshotData;
+    private KryoSerializerSnapshotData<T> snapshotData;
 
-	@SuppressWarnings("unused")
-	public KryoSerializerSnapshot() {
-	}
+    @SuppressWarnings("unused")
+    public KryoSerializerSnapshot() {}
 
-	KryoSerializerSnapshot(Class<T> typeClass,
-			LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
-			LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
-			LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
+    KryoSerializerSnapshot(
+            Class<T> typeClass,
+            LinkedHashMap<Class<?>, SerializableSerializer<?>> defaultKryoSerializers,
+            LinkedHashMap<Class<?>, Class<? extends Serializer<?>>> defaultKryoSerializerClasses,
+            LinkedHashMap<String, KryoRegistration> kryoRegistrations) {
 
-		this.snapshotData = createFrom(typeClass, defaultKryoSerializers, defaultKryoSerializerClasses, kryoRegistrations);
-	}
+        this.snapshotData =
+                createFrom(
+                        typeClass,
+                        defaultKryoSerializers,
+                        defaultKryoSerializerClasses,
+                        kryoRegistrations);
+    }
 
-	@Override
-	public int getCurrentVersion() {
-		return VERSION;
-	}
+    @Override
+    public int getCurrentVersion() {
+        return VERSION;
+    }
 
-	@Override
-	public void writeSnapshot(DataOutputView out) throws IOException {
-		snapshotData.writeSnapshotData(out);
-	}
+    @Override
+    public void writeSnapshot(DataOutputView out) throws IOException {
+        snapshotData.writeSnapshotData(out);
+    }
 
-	@Override
-	public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
-		this.snapshotData = createFrom(in, userCodeClassLoader);
-	}
+    @Override
+    public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader)
+            throws IOException {
+        this.snapshotData = createFrom(in, userCodeClassLoader);
+    }
 
-	@Override
-	public TypeSerializer<T> restoreSerializer() {
-		return new KryoSerializer<>(
-			snapshotData.getTypeClass(),
-			snapshotData.getDefaultKryoSerializers().unwrapOptionals(),
-			snapshotData.getDefaultKryoSerializerClasses().unwrapOptionals(),
-			snapshotData.getKryoRegistrations().unwrapOptionals());
-	}
+    @Override
+    public TypeSerializer<T> restoreSerializer() {
+        return new KryoSerializer<>(
+                snapshotData.getTypeClass(),
+                snapshotData.getDefaultKryoSerializers().unwrapOptionals(),
+                snapshotData.getDefaultKryoSerializerClasses().unwrapOptionals(),
+                snapshotData.getKryoRegistrations().unwrapOptionals());
+    }
 
-	@Override
-	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
-		if (!(newSerializer instanceof KryoSerializer)) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-		KryoSerializer<T> kryoSerializer = (KryoSerializer<T>) newSerializer;
-		if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
-		return resolveSchemaCompatibility(kryoSerializer);
-	}
+    @Override
+    public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            TypeSerializer<T> newSerializer) {
+        if (!(newSerializer instanceof KryoSerializer)) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+        KryoSerializer<T> kryoSerializer = (KryoSerializer<T>) newSerializer;
+        if (kryoSerializer.getType() != snapshotData.getTypeClass()) {
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
+        return resolveSchemaCompatibility(kryoSerializer);
+    }
 
-	private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(KryoSerializer<T> newSerializer) {
-		// merge the default serializers
-		final MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers = mergeRightIntoLeft(
-			snapshotData.getDefaultKryoSerializers(),
-			optionalMapOf(newSerializer.getDefaultKryoSerializers(), Class::getName));
+    private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            KryoSerializer<T> newSerializer) {
+        // merge the default serializers
+        final MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers =
+                mergeRightIntoLeft(
+                        snapshotData.getDefaultKryoSerializers(),
+                        optionalMapOf(newSerializer.getDefaultKryoSerializers(), Class::getName));
 
-		if (reconfiguredDefaultKryoSerializers.hasMissingKeys()) {
-			logMissingKeys(reconfiguredDefaultKryoSerializers);
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
+        if (reconfiguredDefaultKryoSerializers.hasMissingKeys()) {
+            logMissingKeys(reconfiguredDefaultKryoSerializers);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
 
-		// merge default serializer classes
-		final MergeResult<Class<?>, Class<? extends Serializer<?>>> reconfiguredDefaultKryoSerializerClasses = mergeRightIntoLeft(
-			snapshotData.getDefaultKryoSerializerClasses(),
-			optionalMapOf(newSerializer.getDefaultKryoSerializerClasses(), Class::getName));
+        // merge default serializer classes
+        final MergeResult<Class<?>, Class<? extends Serializer<?>>>
+                reconfiguredDefaultKryoSerializerClasses =
+                        mergeRightIntoLeft(
+                                snapshotData.getDefaultKryoSerializerClasses(),
+                                optionalMapOf(
+                                        newSerializer.getDefaultKryoSerializerClasses(),
+                                        Class::getName));
 
-		if (reconfiguredDefaultKryoSerializerClasses.hasMissingKeys()) {
-			logMissingKeys(reconfiguredDefaultKryoSerializerClasses);
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
+        if (reconfiguredDefaultKryoSerializerClasses.hasMissingKeys()) {
+            logMissingKeys(reconfiguredDefaultKryoSerializerClasses);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
 
-		// merge registration
-		final MergeResult<String, KryoRegistration> reconfiguredRegistrations = mergeRightIntoLeft(
-			snapshotData.getKryoRegistrations(),
-			optionalMapOf(newSerializer.getKryoRegistrations(), Function.identity()));
+        // merge registration
+        final MergeResult<String, KryoRegistration> reconfiguredRegistrations =
+                mergeRightIntoLeft(
+                        snapshotData.getKryoRegistrations(),
+                        optionalMapOf(newSerializer.getKryoRegistrations(), Function.identity()));
 
-		if (reconfiguredRegistrations.hasMissingKeys()) {
-			logMissingKeys(reconfiguredRegistrations);
-			return TypeSerializerSchemaCompatibility.incompatible();
-		}
+        if (reconfiguredRegistrations.hasMissingKeys()) {
+            logMissingKeys(reconfiguredRegistrations);
+            return TypeSerializerSchemaCompatibility.incompatible();
+        }
 
-		// there are no missing keys, now we have to decide whether we are compatible as-is or we require reconfiguration.
-		return resolveSchemaCompatibility(
-			reconfiguredDefaultKryoSerializers,
-			reconfiguredDefaultKryoSerializerClasses,
-			reconfiguredRegistrations);
-	}
+        // there are no missing keys, now we have to decide whether we are compatible as-is or we
+        // require reconfiguration.
+        return resolveSchemaCompatibility(
+                reconfiguredDefaultKryoSerializers,
+                reconfiguredDefaultKryoSerializerClasses,
+                reconfiguredRegistrations);
+    }
 
-	private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
-		MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers,
-		MergeResult<Class<?>, Class<? extends Serializer<?>>> reconfiguredDefaultKryoSerializerClasses,
-		MergeResult<String, KryoRegistration> reconfiguredRegistrations) {
+    private TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(
+            MergeResult<Class<?>, SerializableSerializer<?>> reconfiguredDefaultKryoSerializers,
+            MergeResult<Class<?>, Class<? extends Serializer<?>>>
+                    reconfiguredDefaultKryoSerializerClasses,
+            MergeResult<String, KryoRegistration> reconfiguredRegistrations) {
 
-		if (reconfiguredDefaultKryoSerializers.isOrderedSubset() &&
-			reconfiguredDefaultKryoSerializerClasses.isOrderedSubset() &&
-			reconfiguredRegistrations.isOrderedSubset()) {
+        if (reconfiguredDefaultKryoSerializers.isOrderedSubset()
+                && reconfiguredDefaultKryoSerializerClasses.isOrderedSubset()
+                && reconfiguredRegistrations.isOrderedSubset()) {
 
-			return TypeSerializerSchemaCompatibility.compatibleAsIs();
-		}
+            return TypeSerializerSchemaCompatibility.compatibleAsIs();
+        }
 
-		// reconfigure a new KryoSerializer
-		KryoSerializer<T> reconfiguredSerializer = new KryoSerializer<>(
-			snapshotData.getTypeClass(),
-			reconfiguredDefaultKryoSerializers.getMerged(),
-			reconfiguredDefaultKryoSerializerClasses.getMerged(),
-			reconfiguredRegistrations.getMerged());
+        // reconfigure a new KryoSerializer
+        KryoSerializer<T> reconfiguredSerializer =
+                new KryoSerializer<>(
+                        snapshotData.getTypeClass(),
+                        reconfiguredDefaultKryoSerializers.getMerged(),
+                        reconfiguredDefaultKryoSerializerClasses.getMerged(),
+                        reconfiguredRegistrations.getMerged());
 
-		return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(reconfiguredSerializer);
-	}
+        return TypeSerializerSchemaCompatibility.compatibleWithReconfiguredSerializer(
+                reconfiguredSerializer);
+    }
 
-	private void logMissingKeys(MergeResult<?, ?> mergeResult) {
-		mergeResult.missingKeys().forEach(key -> LOG.warn("The Kryo registration for a previously registered class {} does not have a " +
-			"proper serializer, because its previous serializer cannot be loaded or is no " +
-			"longer valid but a new serializer is not available", key));
-	}
+    private void logMissingKeys(MergeResult<?, ?> mergeResult) {
+        mergeResult
+                .missingKeys()
+                .forEach(
+                        key ->
+                                LOG.warn(
+                                        "The Kryo registration for a previously registered class {} does not have a "
+                                                + "proper serializer, because its previous serializer cannot be loaded or is no "
+                                                + "longer valid but a new serializer is not available",
+                                        key));
+    }
 }

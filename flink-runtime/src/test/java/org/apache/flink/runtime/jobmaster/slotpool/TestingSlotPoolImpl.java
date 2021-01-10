@@ -22,59 +22,122 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.util.clock.Clock;
-import org.apache.flink.runtime.util.clock.SystemClock;
+import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
-/**
- * Testing extension of the {@link SlotPoolImpl} which adds additional methods
- * for testing.
- */
+/** Testing extension of the {@link SlotPoolImpl} which adds additional methods for testing. */
 public class TestingSlotPoolImpl extends SlotPoolImpl {
 
-	private ResourceProfile lastRequestedSlotResourceProfile;
+    private ResourceProfile lastRequestedSlotResourceProfile;
 
-	public TestingSlotPoolImpl(JobID jobId) {
-		this(
-			jobId,
-			SystemClock.getInstance(),
-			AkkaUtils.getDefaultTimeout(),
-			AkkaUtils.getDefaultTimeout(),
-			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-	}
+    private volatile Consumer<SlotRequestId> releaseSlotConsumer;
 
-	public TestingSlotPoolImpl(
-			JobID jobId,
-			Clock clock,
-			Time rpcTimeout,
-			Time idleSlotTimeout,
-			Time batchSlotTimeout) {
-		super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
-	}
+    private volatile Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer;
 
-	void triggerCheckIdleSlot() {
-		runAsync(this::checkIdleSlot);
-	}
+    public TestingSlotPoolImpl(JobID jobId) {
+        this(
+                jobId,
+                SystemClock.getInstance(),
+                AkkaUtils.getDefaultTimeout(),
+                AkkaUtils.getDefaultTimeout(),
+                Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
+    }
 
-	void triggerCheckBatchSlotTimeout() {
-		runAsync(this::checkBatchSlotTimeout);
-	}
+    public TestingSlotPoolImpl(
+            JobID jobId,
+            Clock clock,
+            Time rpcTimeout,
+            Time idleSlotTimeout,
+            Time batchSlotTimeout) {
 
-	@Override
-	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-			final SlotRequestId slotRequestId,
-			final ResourceProfile resourceProfile,
-			final Time timeout) {
+        super(jobId, clock, rpcTimeout, idleSlotTimeout, batchSlotTimeout);
+        releaseSlotConsumer = null;
+        timeoutPendingSlotRequestConsumer = null;
+    }
 
-		this.lastRequestedSlotResourceProfile = resourceProfile;
+    void triggerCheckIdleSlot() {
+        runAsync(this::checkIdleSlot);
+    }
 
-		return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
-	}
+    void triggerCheckBatchSlotTimeout() {
+        runAsync(this::checkBatchSlotTimeout);
+    }
 
-	public ResourceProfile getLastRequestedSlotResourceProfile() {
-		return lastRequestedSlotResourceProfile;
-	}
+    boolean isBatchSlotRequestTimeoutCheckEnabled() {
+        return batchSlotRequestTimeoutCheckEnabled;
+    }
+
+    @Override
+    public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
+            final SlotRequestId slotRequestId,
+            final ResourceProfile resourceProfile,
+            @Nullable final Time timeout) {
+
+        this.lastRequestedSlotResourceProfile = resourceProfile;
+
+        return super.requestNewAllocatedSlot(slotRequestId, resourceProfile, timeout);
+    }
+
+    public ResourceProfile getLastRequestedSlotResourceProfile() {
+        return lastRequestedSlotResourceProfile;
+    }
+
+    public void setReleaseSlotConsumer(Consumer<SlotRequestId> releaseSlotConsumer) {
+        this.releaseSlotConsumer = Preconditions.checkNotNull(releaseSlotConsumer);
+    }
+
+    public void setTimeoutPendingSlotRequestConsumer(
+            Consumer<SlotRequestId> timeoutPendingSlotRequestConsumer) {
+        this.timeoutPendingSlotRequestConsumer =
+                Preconditions.checkNotNull(timeoutPendingSlotRequestConsumer);
+    }
+
+    @Override
+    public void releaseSlot(SlotRequestId slotRequestId, @Nullable Throwable cause) {
+
+        final Consumer<SlotRequestId> currentReleaseSlotConsumer = releaseSlotConsumer;
+
+        super.releaseSlot(slotRequestId, cause);
+
+        if (currentReleaseSlotConsumer != null) {
+            currentReleaseSlotConsumer.accept(slotRequestId);
+        }
+    }
+
+    @Override
+    protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
+        final Consumer<SlotRequestId> currentTimeoutPendingSlotRequestConsumer =
+                timeoutPendingSlotRequestConsumer;
+
+        super.timeoutPendingSlotRequest(slotRequestId);
+
+        if (currentTimeoutPendingSlotRequestConsumer != null) {
+            currentTimeoutPendingSlotRequestConsumer.accept(slotRequestId);
+        }
+    }
+
+    boolean containsAllocatedSlot(AllocationID allocationId) {
+        return getAllocatedSlots().contains(allocationId);
+    }
+
+    boolean containsAvailableSlot(AllocationID allocationId) {
+        return getAvailableSlots().contains(allocationId);
+    }
+
+    int getNumberOfPendingRequests() {
+        return getPendingRequests().size();
+    }
+
+    int getNumberOfWaitingForResourceRequests() {
+        return getWaitingForResourceManager().size();
+    }
 }
