@@ -453,10 +453,16 @@ public class SecurityOptions {
                     .intType()
                     .defaultValue(-1)
                     .withDescription(
-                            "The size of the cache used for storing SSL session objects. "
-                                    + "According to https://github.com/netty/netty/issues/832, you should always set "
-                                    + "this to an appropriate number to not run into a bug with stalling IO threads "
-                                    + "during garbage collection. (-1 = use system default).")
+                            Description.builder()
+                                    .text(
+                                            "The size of the cache used for storing SSL session objects. "
+                                                    + "According to %s, you should always set "
+                                                    + "this to an appropriate number to not run into a bug with stalling IO threads "
+                                                    + "during garbage collection. (-1 = use system default).",
+                                            link(
+                                                    "https://github.com/netty/netty/issues/832",
+                                                    "here"))
+                                    .build())
                     .withDeprecatedKeys("security.ssl.session-cache-size");
 
     /** SSL session timeout. */
