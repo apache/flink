@@ -66,7 +66,7 @@ high-availability.storageDir: hdfs:///flink/recovery
 
 ## High availability data clean up
 
-To keep HA data while restarting the Flink cluster, simply delete the deployment (via `kubectl delete deploy <cluster-id>`). 
+To keep HA data while restarting the Flink cluster, simply delete the deployment (via `kubectl delete deployment <cluster-id>`). 
 All the Flink cluster related resources will be deleted (e.g. JobManager Deployment, TaskManager pods, services, Flink conf ConfigMap). 
 HA related ConfigMaps will be retained because they do not set the owner reference. 
 When restarting the cluster, all previously running jobs will be recovered and restarted from the latest successful checkpoint.
