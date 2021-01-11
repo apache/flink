@@ -112,9 +112,6 @@ public final class StructuredRelDataType extends ObjectSqlType {
                                 .map(field -> field.getType().getFullTypeString())
                                 .collect(Collectors.joining(", ")));
                 sb.append(")");
-                if (!structuredType.isNullable()) {
-                    sb.append(" NOT NULL");
-                }
             }
         } else {
             sb.append(structuredType.asSummaryString());
