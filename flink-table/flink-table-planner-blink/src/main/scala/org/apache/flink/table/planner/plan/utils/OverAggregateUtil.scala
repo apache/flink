@@ -120,13 +120,6 @@ object OverAggregateUtil {
   /**
    * Calculate the bound value and cast to long value.
    */
-  def getLongBoundary(logicWindow: Window, windowBound: RexWindowBound): Long = {
-    getBoundary(logicWindow, windowBound).asInstanceOf[Long].longValue()
-  }
-
-  /**
-   * Calculate the bound value and cast to long value.
-   */
   def getLongBoundary(overSpec: OverSpec, windowBound: RexWindowBound): Long = {
     getBoundary(overSpec, windowBound).asInstanceOf[Long].longValue()
   }
@@ -215,8 +208,14 @@ object OverAggregateUtil {
       true
     } else {
       // rows over window
-      val offsetLower = getBoundary(logicalWindow, windowGroup.lowerBound).asInstanceOf[Long]
-      val offsetUpper = getBoundary(logicalWindow, windowGroup.upperBound).asInstanceOf[Long]
+      val offsetLower = getBoundary(
+        windowGroup.lowerBound,
+        logicalWindow.constants.toList,
+        calcOriginalInputFields(logicalWindow)).asInstanceOf[Long]
+      val offsetUpper = getBoundary(
+        windowGroup.upperBound,
+        logicalWindow.constants.toList,
+        calcOriginalInputFields(logicalWindow)).asInstanceOf[Long]
       if (offsetLower == 0L && offsetUpper == 0L &&
         windowGroup.orderKeys.getFieldCollations.isEmpty) {
         false

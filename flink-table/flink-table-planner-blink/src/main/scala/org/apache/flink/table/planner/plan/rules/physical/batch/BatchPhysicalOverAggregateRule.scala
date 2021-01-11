@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecPythonOverAggregate, BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOverAggregate, BatchPhysicalOverAggregateBase, BatchPhysicalPythonOverAggregate}
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
 
@@ -133,7 +133,7 @@ class BatchPhysicalOverAggregateRule
           groupBuffer.clone(),
           logicWindow)
       } else {
-        new BatchExecPythonOverAggregate(
+        new BatchPhysicalPythonOverAggregate(
           logicWindow.getCluster,
           providedTraitSet,
           newInput,
