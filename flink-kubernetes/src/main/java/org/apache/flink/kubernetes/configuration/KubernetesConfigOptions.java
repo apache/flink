@@ -204,7 +204,7 @@ public class KubernetesConfigOptions {
                                             link("https://hub.docker.com/_/flink?tab=tags", "here"),
                                             link(
                                                     "https://hub.docker.com/r/apache/flink",
-                                                    "DockerHub"))
+                                                    "apache/flink DockerHub repository"))
                                     .build());
 
     /** The following config options need to be set according to the image. */
