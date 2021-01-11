@@ -21,7 +21,7 @@ package org.apache.flink.runtime.scheduler;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupImpl;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingExecutionVertex;
 import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
@@ -76,9 +76,9 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         topology.connect(ev11, ev22);
         topology.connect(ev12, ev21);
 
-        final CoLocationGroupDesc coLocationGroup =
+        final CoLocationGroup coLocationGroup =
                 new TestingCoLocationGroup(JOB_VERTEX_ID_1, JOB_VERTEX_ID_2);
-        final Set<CoLocationGroupDesc> coLocationGroups = Collections.singleton(coLocationGroup);
+        final Set<CoLocationGroup> coLocationGroups = Collections.singleton(coLocationGroup);
 
         final SlotSharingStrategy strategy =
                 new LocalInputPreferredSlotSharingStrategy(
@@ -174,7 +174,7 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
                 containsInAnyOrder(ev22.getId()));
     }
 
-    private class TestingCoLocationGroup extends CoLocationGroup {
+    private class TestingCoLocationGroup extends CoLocationGroupImpl {
 
         private final List<JobVertexID> vertexIDs;
 

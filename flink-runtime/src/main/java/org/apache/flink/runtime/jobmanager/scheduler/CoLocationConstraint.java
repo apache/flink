@@ -27,18 +27,18 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@code CoLocationConstraintDesc} stores the ID of {@link CoLocationGroupDesc} and a ID
- * referring to the actual subtask (i.e. {@link ExecutionVertex}). In co-location groups, the
- * different subtasks of different {@link JobVertex} instances need to be executed on the same slot.
- * This is realized by creating a special shared slot that holds these tasks.
+ * A {@code CoLocationConstraint} stores the ID of {@link CoLocationGroup} and a ID referring to the
+ * actual subtask (i.e. {@link ExecutionVertex}). In co-location groups, the different subtasks of
+ * different {@link JobVertex} instances need to be executed on the same slot. This is realized by
+ * creating a special shared slot that holds these tasks.
  */
-public class CoLocationConstraintDesc {
+public class CoLocationConstraint {
 
     private final AbstractID coLocationGroupId;
 
     private final int constraintIndex;
 
-    CoLocationConstraintDesc(final AbstractID coLocationGroupId, final int constraintIndex) {
+    CoLocationConstraint(final AbstractID coLocationGroupId, final int constraintIndex) {
         this.coLocationGroupId = checkNotNull(coLocationGroupId);
         this.constraintIndex = constraintIndex;
     }
@@ -48,7 +48,7 @@ public class CoLocationConstraintDesc {
         if (obj == this) {
             return true;
         } else if (obj != null && obj.getClass() == getClass()) {
-            CoLocationConstraintDesc that = (CoLocationConstraintDesc) obj;
+            CoLocationConstraint that = (CoLocationConstraint) obj;
             return Objects.equals(that.coLocationGroupId, this.coLocationGroupId)
                     && that.constraintIndex == this.constraintIndex;
         } else {

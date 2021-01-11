@@ -21,62 +21,39 @@ package org.apache.flink.runtime.jobmanager.scheduler;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableList;
-
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
-/** A {@link CoLocationGroupDesc} implementation. */
-public class CoLocationGroup implements CoLocationGroupDesc, java.io.Serializable {
+/**
+ * {@code CoLocationGroup} refers to a list of {@link JobVertex} instances, where the <i>i-th</i>
+ * subtask of one vertex has to be executed on the same {@code TaskManager} as the <i>i-th</i>
+ * subtask of all other {@code JobVertex} instances in the same group.
+ *
+ * <p>The co-location group is used to make sure that the i-th subtasks for iteration head and
+ * iteration tail are scheduled on the same TaskManager.
+ */
+public interface CoLocationGroup {
 
-    private static final long serialVersionUID = -2605819490401895297L;
+    /**
+     * Returns the unique identifier describing this co-location constraint as a group.
+     *
+     * @return The group's identifier.
+     */
+    AbstractID getId();
 
-    private final AbstractID id = new AbstractID();
+    /**
+     * Returns the IDs of the {@link JobVertex} instances participating in this group.
+     *
+     * @return The group's members represented by their {@link JobVertexID}s.
+     */
+    List<JobVertexID> getVertexIDs();
 
-    private final List<JobVertex> vertices = new ArrayList<>();
-
-    // --------------------------------------------------------------------------------------------
-
-    public CoLocationGroup(JobVertex... vertices) {
-        Collections.addAll(this.vertices, vertices);
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    public void addVertex(JobVertex vertex) {
-        Preconditions.checkNotNull(vertex);
-        this.vertices.add(vertex);
-    }
-
-    @Override
-    public List<JobVertexID> getVertexIDs() {
-        return vertices.stream().map(JobVertex::getID).collect(ImmutableList.toImmutableList());
-    }
-
-    @Override
-    public CoLocationConstraintDesc getLocationConstraint(int subTaskIndex) {
-        return new CoLocationConstraintDesc(id, subTaskIndex);
-    }
-
-    public void mergeInto(CoLocationGroup other) {
-        Preconditions.checkNotNull(other);
-
-        for (JobVertex v : this.vertices) {
-            v.updateCoLocationGroup(other);
-        }
-
-        // move vertex membership
-        other.vertices.addAll(this.vertices);
-        this.vertices.clear();
-    }
-
-    // --------------------------------------------------------------------------------------------
-
-    @Override
-    public AbstractID getId() {
-        return id;
-    }
+    /**
+     * Returns the {@link CoLocationConstraint} for a specific {@code subTaskIndex}.
+     *
+     * @param subTaskIndex The index of the subtasks for which a {@code CoLocationConstraint} shall
+     *     be returned.
+     * @return The corresponding {@code CoLocationConstraint} instance.
+     */
+    CoLocationConstraint getLocationConstraint(final int subTaskIndex);
 }

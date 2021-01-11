@@ -24,8 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraintDesc;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ResultPartitionState;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -262,11 +262,11 @@ public class DefaultExecutionTopology implements SchedulingTopology {
             List<DefaultSchedulingPipelinedRegion> pipelinedRegions,
             ExecutionGraph executionGraph) {
 
-        final Map<CoLocationConstraintDesc, DefaultSchedulingPipelinedRegion> constraintToRegion =
+        final Map<CoLocationConstraint, DefaultSchedulingPipelinedRegion> constraintToRegion =
                 new HashMap<>();
         for (DefaultSchedulingPipelinedRegion region : pipelinedRegions) {
             for (DefaultExecutionVertex vertex : region.getVertices()) {
-                final CoLocationConstraintDesc constraint =
+                final CoLocationConstraint constraint =
                         getCoLocationConstraint(vertex.getId(), executionGraph);
                 if (constraint != null) {
                     final DefaultSchedulingPipelinedRegion regionOfConstraint =
@@ -280,10 +280,10 @@ public class DefaultExecutionTopology implements SchedulingTopology {
         }
     }
 
-    private static CoLocationConstraintDesc getCoLocationConstraint(
+    private static CoLocationConstraint getCoLocationConstraint(
             ExecutionVertexID executionVertexId, ExecutionGraph executionGraph) {
 
-        CoLocationGroupDesc coLocationGroup =
+        CoLocationGroup coLocationGroup =
                 Objects.requireNonNull(
                                 executionGraph.getJobVertex(executionVertexId.getJobVertexId()))
                         .getCoLocationGroup();

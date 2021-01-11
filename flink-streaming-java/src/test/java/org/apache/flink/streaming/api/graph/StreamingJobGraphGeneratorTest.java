@@ -50,7 +50,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
-import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroupDesc;
+import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.util.TaskConfig;
@@ -807,8 +807,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         SlotSharingGroup slotSharingGroup = jobGraph.getVerticesAsArray()[0].getSlotSharingGroup();
         assertNotNull(slotSharingGroup);
 
-        CoLocationGroupDesc iterationSourceCoLocationGroup = null;
-        CoLocationGroupDesc iterationSinkCoLocationGroup = null;
+        CoLocationGroup iterationSourceCoLocationGroup = null;
+        CoLocationGroup iterationSinkCoLocationGroup = null;
 
         for (JobVertex jobVertex : jobGraph.getVertices()) {
             // all vertices have same slot sharing group by default
