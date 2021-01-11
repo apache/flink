@@ -19,12 +19,19 @@
 package org.apache.flink.runtime.concurrent;
 
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link FixedRetryStrategy}. */
 public class FixedRetryStrategyTest extends TestLogger {
@@ -41,8 +48,12 @@ public class FixedRetryStrategyTest extends TestLogger {
     }
 
     /** Tests that getting a next RetryStrategy below zero remaining retries fails. */
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRetryFailure() throws Throwable {
-        new FixedRetryStrategy(0, Duration.ofMillis(5L)).getNextRetryStrategy();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    new FixedRetryStrategy(0, Duration.ofMillis(5L)).getNextRetryStrategy();
+                });
     }
 }

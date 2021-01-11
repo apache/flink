@@ -109,9 +109,10 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
     util.verifyExecPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testWindowAggWithGroupSets(): Unit = {
-    // TODO supports group sets
+        assertThrows[AssertionError] {
+                // TODO supports group sets
     // currently, the optimized plan is not collect, and an exception will be thrown in code-gen
     val sql =
     """
@@ -121,7 +122,8 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
       |    GROUP BY rollup(TUMBLE(ts, INTERVAL '15' MINUTE), b)
     """.stripMargin
     util.verifyRelPlanNotExpected(sql, "TUMBLE(ts")
-  }
+        }
+    }
 
   @Test
   def testNoGroupingTumblingWindow(): Unit = {

@@ -27,7 +27,7 @@ import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,11 +38,11 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 
-import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link RowCsvInputFormat}. */
 public class RowCsvInputFormatTest {
@@ -791,11 +791,11 @@ public class RowCsvInputFormatTest {
         inputFormat.open(splits[0]);
 
         Row result = inputFormat.nextRecord(new Row(1));
-        assertNotNull("Expecting to not return null", result);
+        assertNotNull(result, "Expecting to not return null");
         assertEquals(FIRST_PART, result.getField(0));
 
         result = inputFormat.nextRecord(result);
-        assertNotNull("Expecting to not return null", result);
+        assertNotNull(result, "Expecting to not return null");
         assertEquals(SECOND_PART, result.getField(0));
     }
 }

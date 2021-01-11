@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.cost
 
 import org.apache.calcite.plan.RelOptCostImpl
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 class FlinkCostTest {
 
@@ -85,10 +85,12 @@ class FlinkCostTest {
     assertTrue(cost4.isLe(cost1))
   }
 
-  @Test(expected = classOf[ClassCastException])
+  @Test
   def testIsLe_WithDiffCost(): Unit = {
-    FlinkCost.Tiny.isLe(RelOptCostImpl.FACTORY.makeTinyCost())
-  }
+        assertThrows[ClassCastException] {
+                FlinkCost.Tiny.isLe(RelOptCostImpl.FACTORY.makeTinyCost())
+        }
+    }
 
   @Test
   def testIsLt(): Unit = {
@@ -108,10 +110,12 @@ class FlinkCostTest {
     assertTrue(cost4.isLt(cost1))
   }
 
-  @Test(expected = classOf[ClassCastException])
+  @Test
   def testIsLt_WithDiffCost(): Unit = {
-    FlinkCost.Tiny.isLt(RelOptCostImpl.FACTORY.makeTinyCost())
-  }
+        assertThrows[ClassCastException] {
+                FlinkCost.Tiny.isLt(RelOptCostImpl.FACTORY.makeTinyCost())
+        }
+    }
 
   @Test
   def testPlus(): Unit = {
@@ -130,10 +134,12 @@ class FlinkCostTest {
     assertTrue(expectedCost2.equals(cost1.plus(cost3)))
   }
 
-  @Test(expected = classOf[ClassCastException])
+  @Test
   def testPlus_WithDiffCost(): Unit = {
-    FlinkCost.Tiny.plus(RelOptCostImpl.FACTORY.makeTinyCost())
-  }
+        assertThrows[ClassCastException] {
+                FlinkCost.Tiny.plus(RelOptCostImpl.FACTORY.makeTinyCost())
+        }
+    }
 
   @Test
   def testMinus(): Unit = {
@@ -153,10 +159,12 @@ class FlinkCostTest {
     assertTrue(expectedCost3.equals(cost2.minus(cost1)))
   }
 
-  @Test(expected = classOf[ClassCastException])
+  @Test
   def testMinus_WithDiffCost(): Unit = {
-    FlinkCost.Tiny.minus(RelOptCostImpl.FACTORY.makeTinyCost())
-  }
+        assertThrows[ClassCastException] {
+                FlinkCost.Tiny.minus(RelOptCostImpl.FACTORY.makeTinyCost())
+        }
+    }
 
   @Test
   def testMultiplyBy(): Unit = {

@@ -20,8 +20,6 @@ package org.apache.flink.streaming.kinesis.test;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
-
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,10 +91,10 @@ public class KinesisExampleTest {
         }
 
         LOG.info("results: {}", results);
-        Assert.assertEquals(
-                "Results received from '" + outputStream + "': " + results,
+        Assertions.assertEquals(
                 messages.length,
-                results.size());
+                results.size(),
+                "Results received from '" + outputStream + "': " + results);
 
         String[] expectedResults = {
             "elephant,5,45218",
@@ -108,7 +106,7 @@ public class KinesisExampleTest {
         };
 
         for (String expectedResult : expectedResults) {
-            Assert.assertTrue(expectedResult, results.contains(expectedResult));
+            Assertions.assertTrue(expectedResult, results.contains(expectedResult));
         }
 
         // TODO: main thread needs to create job or CLI fails with:

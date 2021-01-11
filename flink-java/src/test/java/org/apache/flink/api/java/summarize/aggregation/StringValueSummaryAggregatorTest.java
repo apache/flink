@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.StringColumnSummary;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 /** Tests for {@link ValueSummaryAggregator.StringValueSummaryAggregator}. */
 public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTest {
@@ -50,20 +50,20 @@ public class StringValueSummaryAggregatorTest extends StringSummaryAggregatorTes
             @Override
             protected void compareResults(
                     StringColumnSummary result1, StringColumnSummary result2) {
-                Assert.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
-                Assert.assertEquals(result1.getMaxLength(), result2.getMaxLength());
-                Assert.assertEquals(result1.getMinLength(), result2.getMinLength());
+                Assertions.assertEquals(result1.getEmptyCount(), result2.getEmptyCount());
+                Assertions.assertEquals(result1.getMaxLength(), result2.getMaxLength());
+                Assertions.assertEquals(result1.getMinLength(), result2.getMinLength());
                 if (result1.getMeanLength() == null) {
-                    Assert.assertEquals(result1.getMeanLength(), result2.getMeanLength());
+                    Assertions.assertEquals(result1.getMeanLength(), result2.getMeanLength());
                 } else {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             result1.getMeanLength().doubleValue(),
                             result2.getMeanLength().doubleValue(),
                             1e-5d);
                 }
 
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
+                Assertions.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assertions.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
             }
         }.summarize(stringValues);
     }

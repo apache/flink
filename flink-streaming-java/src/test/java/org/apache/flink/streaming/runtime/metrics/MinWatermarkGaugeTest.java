@@ -18,8 +18,15 @@
 
 package org.apache.flink.streaming.runtime.metrics;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link MinWatermarkGauge}. */
 public class MinWatermarkGaugeTest {
@@ -30,15 +37,15 @@ public class MinWatermarkGaugeTest {
         WatermarkGauge metric2 = new WatermarkGauge();
         MinWatermarkGauge metric = new MinWatermarkGauge(metric1, metric2);
 
-        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        Assertions.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
         metric1.setCurrentWatermark(1);
-        Assert.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
+        Assertions.assertEquals(Long.MIN_VALUE, metric.getValue().longValue());
 
         metric2.setCurrentWatermark(2);
-        Assert.assertEquals(1L, metric.getValue().longValue());
+        Assertions.assertEquals(1L, metric.getValue().longValue());
 
         metric1.setCurrentWatermark(3);
-        Assert.assertEquals(2L, metric.getValue().longValue());
+        Assertions.assertEquals(2L, metric.getValue().longValue());
     }
 }

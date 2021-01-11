@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSink
 import org.apache.flink.table.planner.utils.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.{Before, Test}
 
 import java.lang.{Boolean => JBoolean}

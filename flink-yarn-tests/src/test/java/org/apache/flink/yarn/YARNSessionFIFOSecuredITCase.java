@@ -34,11 +34,15 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,9 +103,9 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
             // This is needed to ensure that SecurityUtils are run within a ugi.doAs section
             // Since we already logged in here in @BeforeClass, even a no-op security context will
             // still work.
-            Assert.assertTrue(
-                    "HadoopSecurityContext must be installed",
-                    SecurityUtils.getInstalledContext() instanceof HadoopSecurityContext);
+            Assertions.assertTrue(
+                    SecurityUtils.getInstalledContext() instanceof HadoopSecurityContext,
+                    "HadoopSecurityContext must be installed");
             SecurityUtils.getInstalledContext()
                     .runSecured(
                             new Callable<Object>() {
@@ -127,7 +131,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         SecureTestEnvironment.cleanup();
     }
 
-    @Test(timeout = 60000) // timeout after a minute.
+    @Test
+    @Timeout(60) // timeout after a minute.
     public void testDetachedModeSecureWithPreInstallKeytab() throws Exception {
         runTest(
                 () -> {
@@ -155,7 +160,8 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
                 });
     }
 
-    @Test(timeout = 60000) // timeout after a minute.
+    @Test
+    @Timeout(60) // timeout after a minute.
     @Override
     public void testDetachedMode() throws Exception {
         runTest(
@@ -183,7 +189,7 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         final boolean taskManagerRunsWithKerberos =
                 verifyStringsInNamedLogFiles(mustHave, "taskmanager.log");
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "The JobManager and the TaskManager should both run with Kerberos.",
                 jobManagerRunsWithKerberos && taskManagerRunsWithKerberos,
                 Matchers.is(true));
@@ -197,11 +203,11 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
         final boolean taskmanagerWithAmRmToken =
                 verifyTokenKindInContainerCredentials(amRMTokens, taskmanagerContainerId);
 
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "The JobManager should have AMRMToken.",
                 jobmanagerWithAmRmToken,
                 Matchers.is(true));
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "The TaskManager should not have AMRMToken.",
                 taskmanagerWithAmRmToken,
                 Matchers.is(false));

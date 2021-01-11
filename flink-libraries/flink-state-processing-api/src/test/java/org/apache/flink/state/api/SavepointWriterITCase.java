@@ -51,9 +51,9 @@ import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SerializedThrowable;
 
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -171,7 +171,7 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 t -> {
                     throw new AssertionError("Unexpected exception during bootstrapping", t);
                 });
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        Assertions.assertEquals(3, "Unexpected output");
     }
 
     private void modifySavepoint(StateBackend backend, String savepointPath, String modifyPath)
@@ -219,8 +219,8 @@ public class SavepointWriterITCase extends AbstractTestBase {
                         .get()
                         .getSerializedThrowable();
 
-        Assert.assertFalse(serializedThrowable.isPresent());
-        Assert.assertEquals("Unexpected output", 3, results.get().size());
+        Assertions.assertFalse(serializedThrowable.isPresent());
+        Assertions.assertEquals(3, "Unexpected output");
     }
 
     /** A simple pojo. */
@@ -379,14 +379,14 @@ public class SavepointWriterITCase extends AbstractTestBase {
                 expected.add(3);
 
                 for (Integer number : state.get()) {
-                    Assert.assertTrue("Duplicate state", expected.contains(number));
+                    Assertions.assertTrue(expected.contains(number), "Duplicate state");
                     expected.remove(number);
                 }
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
+                        expected.isEmpty(),
                         "Failed to bootstrap all state elements: "
-                                + Arrays.toString(expected.toArray()),
-                        expected.isEmpty());
+                                + Arrays.toString(expected.toArray()));
             }
         }
 
@@ -413,11 +413,11 @@ public class SavepointWriterITCase extends AbstractTestBase {
         @Override
         public void processElement(CurrencyRate value, ReadOnlyContext ctx, Collector<Void> out)
                 throws Exception {
-            Assert.assertEquals(
-                    "Incorrect currency rate",
+            Assertions.assertEquals(
                     value.rate,
                     ctx.getBroadcastState(descriptor).get(value.currency),
-                    0.0001);
+                    0.0001,
+                    "Incorrect currency rate");
         }
 
         @Override

@@ -35,7 +35,9 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -48,11 +50,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointRequestDeciderTest.regularCheckpoint;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for basic {@link CompletedCheckpointStore} contract and ZooKeeper state handling. */
 public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpointStoreTest {
@@ -214,8 +216,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
                         + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID());
         Stat stat = client.checkExists().forPath(checkpointPath);
 
-        assertNotNull("The checkpoint node should exist.", stat);
-        assertEquals("The checkpoint node should not be locked.", 0, stat.getNumChildren());
+        assertNotNull(stat, "The checkpoint node should exist.");
+        assertEquals(0, stat.getNumChildren(), "The checkpoint node should not be locked.");
 
         // Recover again
         sharedStateRegistry.close();
@@ -301,8 +303,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
         // lets wait a little bit to see that no discard operation will be executed
         assertFalse(
-                "The checkpoint should not have been discarded.",
-                recoveredTestCheckpoint.awaitDiscard(waitingTimeout));
+                recoveredTestCheckpoint.awaitDiscard(waitingTimeout),
+                "The checkpoint should not have been discarded.");
 
         // check that we have not discarded the first completed checkpoint
         assertFalse(recoveredTestCheckpoint.isDiscarded());

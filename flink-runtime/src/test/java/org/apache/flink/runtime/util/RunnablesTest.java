@@ -19,16 +19,17 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class RunnablesTest {
@@ -53,9 +54,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertTrue(
-                "Expected handler to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS),                "Expected handler to be called.");
     }
 
     @Test
@@ -73,9 +72,7 @@ public class RunnablesTest {
                 () -> {
                     throw new RuntimeException("foo");
                 });
-        Assert.assertFalse(
-                "Expected handler not to be called.",
-                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
+        Assertions.assertFalse(                handlerCalled.await(TIMEOUT_MS, TimeUnit.MILLISECONDS),                "Expected handler not to be called.");
     }
 
     // ------------------------------------------------------------------------
@@ -120,11 +117,11 @@ public class RunnablesTest {
                             handlerCalled.countDown();
                         });
         scheduledExecutorService.execute(guardedRunnable);
-        Assert.assertTrue(handlerCalled.await(100, TimeUnit.MILLISECONDS));
-        Assert.assertNotNull(thread.get());
-        Assert.assertNotNull(throwable.get());
-        Assert.assertEquals("ueh-test-0", thread.get().getName());
-        Assert.assertEquals(expected.getClass(), throwable.get().getClass());
-        Assert.assertEquals("foo", throwable.get().getMessage());
+        Assertions.assertTrue(handlerCalled.await(100, TimeUnit.MILLISECONDS));
+        Assertions.assertNotNull(thread.get());
+        Assertions.assertNotNull(throwable.get());
+        Assertions.assertEquals("ueh-test-0", thread.get().getName());
+        Assertions.assertEquals(expected.getClass(), throwable.get().getClass());
+        Assertions.assertEquals("foo", throwable.get().getMessage());
     }
 }

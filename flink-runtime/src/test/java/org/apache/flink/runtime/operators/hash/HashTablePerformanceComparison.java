@@ -33,12 +33,17 @@ import org.apache.flink.runtime.operators.testutils.types.IntPairPairComparator;
 import org.apache.flink.runtime.operators.testutils.types.IntPairSerializer;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class HashTablePerformanceComparison {
 
@@ -127,7 +132,7 @@ public class HashTablePerformanceComparison {
             end = System.currentTimeMillis();
             System.out.println("Overall time: " + (end - first) + " ms");
 
-            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+            assertEquals(NUM_MEM_PAGES, "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -218,7 +223,7 @@ public class HashTablePerformanceComparison {
             end = System.currentTimeMillis();
             System.out.println("Overall time: " + (end - first) + " ms");
 
-            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreedMemory().size());
+            assertEquals(NUM_MEM_PAGES, "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -297,7 +302,7 @@ public class HashTablePerformanceComparison {
             end = System.currentTimeMillis();
             System.out.println("Overall time: " + (end - first) + " ms");
 
-            assertEquals("Memory lost", NUM_MEM_PAGES, table.getFreeMemory().size());
+            assertEquals(NUM_MEM_PAGES, "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());

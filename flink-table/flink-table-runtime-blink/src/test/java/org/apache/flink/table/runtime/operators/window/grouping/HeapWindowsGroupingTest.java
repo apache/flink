@@ -23,7 +23,15 @@ import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.util.RowIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,7 +41,7 @@ import java.util.List;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link HeapWindowsGrouping}. */
 public class HeapWindowsGroupingTest {
@@ -317,11 +325,15 @@ public class HeapWindowsGroupingTest {
         verify(5000, ts, 19L, 3L, expected, expectedWindows);
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testOOM() throws IOException {
-        Long[] ts = new Long[] {33L, 33L, 33L, 33L, 33L, 33L};
-        // sliding(4, 2)
-        verify(5, ts, 4L, 2L, new ArrayList<>(), new ArrayList<>());
+        assertThrows(
+                IOException.class,
+                () -> {
+                    Long[] ts = new Long[] {33L, 33L, 33L, 33L, 33L, 33L};
+                    // sliding(4, 2)
+                    verify(5, ts, 4L, 2L, new ArrayList<>(), new ArrayList<>());
+                });
     }
 
     @Test
@@ -345,25 +357,31 @@ public class HeapWindowsGroupingTest {
         assertEquals(expected, actual);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testInvalidWindowTrigger() throws IOException {
-        Long[] ts = new Long[] {8L};
-        RowIterator<BinaryRowData> iterator = new HeapWindowsGroupingTest.TestInputIterator(ts);
-        HeapWindowsGrouping grouping = new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
-        grouping.addInputToBuffer(iterator.getRow());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    Long[] ts = new Long[] {8L};
+                    RowIterator<BinaryRowData> iterator =
+                            new HeapWindowsGroupingTest.TestInputIterator(ts);
+                    HeapWindowsGrouping grouping =
+                            new HeapWindowsGrouping(5000, 0L, 8L, 4L, 0, false);
+                    grouping.addInputToBuffer(iterator.getRow());
 
-        System.out.println("valid window trigger");
-        RowIterator<BinaryRowData> iter = grouping.buildTriggerWindowElementsIterator();
-        TimeWindow window = grouping.getTriggerWindow();
-        List<Long> buffer = new ArrayList<>();
-        while (iter.advanceNext()) {
-            buffer.add(iter.getRow().getLong(0));
-        }
-        assertEquals(TimeWindow.of(0, 8L), window);
-        assertEquals(Collections.emptyList(), buffer);
+                    System.out.println("valid window trigger");
+                    RowIterator<BinaryRowData> iter = grouping.buildTriggerWindowElementsIterator();
+                    TimeWindow window = grouping.getTriggerWindow();
+                    List<Long> buffer = new ArrayList<>();
+                    while (iter.advanceNext()) {
+                        buffer.add(iter.getRow().getLong(0));
+                    }
+                    assertEquals(TimeWindow.of(0, 8L), window);
+                    assertEquals(Collections.emptyList(), buffer);
 
-        System.out.println("try invalid window trigger");
-        grouping.buildTriggerWindowElementsIterator();
+                    System.out.println("try invalid window trigger");
+                    grouping.buildTriggerWindowElementsIterator();
+                });
     }
 
     private void verify(

@@ -22,7 +22,7 @@ import java.util
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 
@@ -31,20 +31,26 @@ import scala.collection.JavaConverters._
   */
 class OldCsvTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.fields.0.data-type", "WHATEVER")
-  }
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(descriptors().get(0), "format.fields.0.data-type", "WHATEVER")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidField(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.fields.10.name", "WHATEVER")
-  }
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(descriptors().get(0), "format.fields.10.name", "WHATEVER")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidQuoteCharacter(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
-  }
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(descriptors().get(0), "format.quote-character", "qq")
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
 

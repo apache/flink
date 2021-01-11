@@ -86,8 +86,8 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
     util.tableEnv.executeSql(sinkDDL)
 
     util.tableEnv.explainSql(query)
-    Assert.assertTrue(factory.hasInvokedSource)
-    Assert.assertTrue(factory.hasInvokedSink)
+    Assertions.assertTrue(factory.hasInvokedSource)
+    Assertions.assertTrue(factory.hasInvokedSink)
   }
 }
 

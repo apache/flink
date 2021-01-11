@@ -26,8 +26,8 @@ import org.apache.flink.table.planner.plan.common.ViewsExpandingTest.PrimitiveSc
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase, TableTestUtil, TableTestUtilBase}
 
 import org.hamcrest.CoreMatchers.is
-import org.junit.Assert.assertThat
-import org.junit.Test
+import org.hamcrest.MatcherAssert.assertThat
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters

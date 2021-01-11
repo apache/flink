@@ -39,7 +39,6 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -48,7 +47,10 @@ import org.apache.hadoop.yarn.api.records.ContainerReport;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -59,9 +61,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.closeTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Test cases which ensure that the Yarn containers are started with the correct settings. */
 public class YarnConfigurationITCase extends YarnTestBase {
@@ -71,7 +73,8 @@ public class YarnConfigurationITCase extends YarnTestBase {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /** Tests that the Flink components are started with the correct memory settings. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testFlinkContainerMemory() throws Exception {
         runTest(
                 () -> {

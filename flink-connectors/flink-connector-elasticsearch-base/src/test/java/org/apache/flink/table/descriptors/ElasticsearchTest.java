@@ -21,7 +21,15 @@ package org.apache.flink.table.descriptors;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,40 +41,52 @@ import static org.apache.flink.table.descriptors.ElasticsearchValidator.CONNECTO
 /** Tests for the {@link Elasticsearch} descriptor. */
 public class ElasticsearchTest extends DescriptorTestBase {
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingIndex() {
-        removePropertyAndVerify(descriptors().get(0), "connector.index");
+        assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), "connector.index");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidFailureHandler() {
-        addPropertyAndVerify(descriptors().get(0), "connector.failure-handler", "invalid handler");
+        assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(0), "connector.failure-handler", "invalid handler");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidMemorySize() {
-        addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
+        assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(descriptors().get(1), "connector.bulk-flush.max-size", "12 bytes");
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidProtocolInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "localhost:90");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidHostNameInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "http://:90");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidHostPortInHosts() {
-        final DescriptorProperties descriptorProperties = new DescriptorProperties();
+        assertThrows(ValidationException.class, () -> {
+                    final DescriptorProperties descriptorProperties = new DescriptorProperties();
         descriptorProperties.putString(CONNECTOR_HOSTS, "http://localhost");
         ElasticsearchValidator.validateAndParseHostsString(descriptorProperties);
+        });
     }
 
     @Override

@@ -31,7 +31,7 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.PubsubMessage;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,8 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.connectors.gcp.pubsub.SimpleStringSchemaWithStopMarkerDetection.STOP_MARKER;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test of the PubSub SOURCE with the Google PubSub emulator. */
 public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
@@ -146,9 +145,9 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
         List<String> output = new ArrayList<>();
         DataStreamUtils.collect(fromPubSub).forEachRemaining(output::add);
 
-        assertEquals("Wrong number of elements", input.size(), output.size());
+        assertEquals(input.size(), output.size(), "Wrong number of elements");
         for (String test : input) {
-            assertTrue("Missing " + test, output.contains(test));
+            assertTrue(output.contains(test), "Missing " + test);
         }
     }
 }

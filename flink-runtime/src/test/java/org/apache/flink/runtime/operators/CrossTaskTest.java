@@ -27,8 +27,10 @@ import org.apache.flink.runtime.operators.testutils.TaskCancelThread;
 import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -70,10 +72,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, this.output.getNumberOfRecords(), "Wrong result size.");
     }
 
     @Test
@@ -100,10 +102,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, this.output.getNumberOfRecords(), "Wrong result size.");
     }
 
     @Test
@@ -127,12 +129,12 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 
         try {
             testDriver(testTask, MockFailingCrossStub.class);
-            Assert.fail("Exception not forwarded.");
+            Assertions.fail("Exception not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
     }
 
@@ -157,12 +159,12 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 
         try {
             testDriver(testTask, MockFailingCrossStub.class);
-            Assert.fail("Exception not forwarded.");
+            Assertions.fail("Exception not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
     }
 
@@ -190,10 +192,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -220,10 +222,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -246,12 +248,12 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 
         try {
             testDriver(testTask, MockFailingCrossStub.class);
-            Assert.fail("Exception not forwarded.");
+            Assertions.fail("Exception not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
     }
 
@@ -275,12 +277,12 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
 
         try {
             testDriver(testTask, MockFailingCrossStub.class);
-            Assert.fail("Exception not forwarded.");
+            Assertions.fail("Exception not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
     }
 
@@ -308,10 +310,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -338,10 +340,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -368,10 +370,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -398,10 +400,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             testDriver(testTask, MockCrossStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test failed due to an exception.");
+            Assertions.fail("Test failed due to an exception.");
         }
 
-        Assert.assertEquals("Wrong result size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result size.");
     }
 
     @Test
@@ -442,10 +444,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
+        Assertions.assertTrue(success.get(), "Exception was thrown despite proper canceling.");
     }
 
     @Test
@@ -486,10 +488,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
+        Assertions.assertTrue(success.get(), "Exception was thrown despite proper canceling.");
     }
 
     @Test
@@ -530,10 +532,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
+        Assertions.assertTrue(success.get(), "Exception was thrown despite proper canceling.");
     }
 
     @Test
@@ -574,10 +576,10 @@ public class CrossTaskTest extends DriverTestBase<CrossFunction<Record, Record, 
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue("Exception was thrown despite proper canceling.", success.get());
+        Assertions.assertTrue(success.get(), "Exception was thrown despite proper canceling.");
     }
 
     public static final class MockCrossStub implements CrossFunction<Record, Record, Record> {

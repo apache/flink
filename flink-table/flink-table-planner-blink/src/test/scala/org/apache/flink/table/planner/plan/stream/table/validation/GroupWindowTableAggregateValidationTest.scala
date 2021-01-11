@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
 
 import java.time.Duration
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class GroupWindowTableAggregateValidationTest extends TableTestBase {
 

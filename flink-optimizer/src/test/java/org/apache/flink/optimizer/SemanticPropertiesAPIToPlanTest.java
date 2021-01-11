@@ -42,8 +42,8 @@ import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("serial")
 public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
@@ -79,19 +79,19 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                                 GlobalProperties gprops = visitable.getGlobalProperties();
                                 LocalProperties lprops = visitable.getLocalProperties();
 
-                                Assert.assertTrue(
-                                        "Reduce should just forward the input if it is already partitioned",
-                                        input.getShipStrategy() == ShipStrategyType.FORWARD);
-                                Assert.assertTrue(
-                                        "Wrong GlobalProperties on Reducer",
-                                        gprops.isPartitionedOnFields(new FieldSet(1)));
-                                Assert.assertTrue(
-                                        "Wrong GlobalProperties on Reducer",
+                                Assertions.assertTrue(
+                                        input.getShipStrategy() == ShipStrategyType.FORWARD,
+                                        "Reduce should just forward the input if it is already partitioned");
+                                Assertions.assertTrue(
+                                        gprops.isPartitionedOnFields(new FieldSet(1)),
+                                        "Wrong GlobalProperties on Reducer");
+                                Assertions.assertTrue(
                                         gprops.getPartitioning()
-                                                == PartitioningProperty.HASH_PARTITIONED);
-                                Assert.assertTrue(
-                                        "Wrong LocalProperties on Reducer",
-                                        lprops.getGroupedFields().contains(1));
+                                                == PartitioningProperty.HASH_PARTITIONED,
+                                        "Wrong GlobalProperties on Reducer");
+                                Assertions.assertTrue(
+                                        lprops.getGroupedFields().contains(1),
+                                        "Wrong LocalProperties on Reducer");
                             }
                         }
                         if (visitable instanceof SingleInputPlanNode
@@ -100,19 +100,19 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                                 GlobalProperties gprops = visitable.getGlobalProperties();
                                 LocalProperties lprops = visitable.getLocalProperties();
 
-                                Assert.assertTrue(
-                                        "Map should just forward the input if it is already partitioned",
-                                        input.getShipStrategy() == ShipStrategyType.FORWARD);
-                                Assert.assertTrue(
-                                        "Wrong GlobalProperties on Mapper",
-                                        gprops.isPartitionedOnFields(new FieldSet(1)));
-                                Assert.assertTrue(
-                                        "Wrong GlobalProperties on Mapper",
+                                Assertions.assertTrue(
+                                        input.getShipStrategy() == ShipStrategyType.FORWARD,
+                                        "Map should just forward the input if it is already partitioned");
+                                Assertions.assertTrue(
+                                        gprops.isPartitionedOnFields(new FieldSet(1)),
+                                        "Wrong GlobalProperties on Mapper");
+                                Assertions.assertTrue(
                                         gprops.getPartitioning()
-                                                == PartitioningProperty.HASH_PARTITIONED);
-                                Assert.assertTrue(
-                                        "Wrong LocalProperties on Mapper",
-                                        lprops.getGroupedFields().contains(1));
+                                                == PartitioningProperty.HASH_PARTITIONED,
+                                        "Wrong GlobalProperties on Mapper");
+                                Assertions.assertTrue(
+                                        lprops.getGroupedFields().contains(1),
+                                        "Wrong LocalProperties on Mapper");
                             }
                             return false;
                         }
@@ -162,12 +162,12 @@ public class SemanticPropertiesAPIToPlanTest extends CompilerTestBase {
                             final Channel inConn1 = node.getInput1();
                             final Channel inConn2 = node.getInput2();
 
-                            Assert.assertTrue(
-                                    "Join should just forward the input if it is already partitioned",
-                                    inConn1.getShipStrategy() == ShipStrategyType.FORWARD);
-                            Assert.assertTrue(
-                                    "Join should just forward the input if it is already partitioned",
-                                    inConn2.getShipStrategy() == ShipStrategyType.FORWARD);
+                            Assertions.assertTrue(
+                                    inConn1.getShipStrategy() == ShipStrategyType.FORWARD,
+                                    "Join should just forward the input if it is already partitioned");
+                            Assertions.assertTrue(
+                                    inConn2.getShipStrategy() == ShipStrategyType.FORWARD,
+                                    "Join should just forward the input if it is already partitioned");
                             return false;
                         }
                         return true;

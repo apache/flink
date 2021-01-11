@@ -22,7 +22,7 @@ import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.functions.sink.filesystem.BulkWriterTest.TestBulkWriterFactory
 import org.apache.flink.streaming.api.functions.sink.filesystem.{OutputFileConfig, StreamingFileSink}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
  * Tests for the [[org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink]]

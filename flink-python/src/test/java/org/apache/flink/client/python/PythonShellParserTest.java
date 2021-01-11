@@ -18,8 +18,15 @@
 
 package org.apache.flink.client.python;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -30,7 +37,7 @@ public class PythonShellParserTest {
         String[] args = {"local"};
         List<String> commandOptions = PythonShellParser.parseLocal(args);
         String[] expectedCommandOptions = {"local"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        Assertions.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
     }
 
     @Test
@@ -38,7 +45,7 @@ public class PythonShellParserTest {
         String[] args = {"remote", "localhost", "8081"};
         List<String> commandOptions = PythonShellParser.parseRemote(args);
         String[] expectedCommandOptions = {"remote", "-m", "localhost:8081"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        Assertions.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
     }
 
     @Test
@@ -46,7 +53,7 @@ public class PythonShellParserTest {
         String[] args = {"yarn"};
         List<String> commandOptions = PythonShellParser.parseYarn(args);
         String[] expectedCommandOptions = {"yarn", "-m", "yarn-cluster"};
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        Assertions.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
     }
 
     @Test
@@ -56,6 +63,6 @@ public class PythonShellParserTest {
         String[] expectedCommandOptions = {
             "yarn", "-m", "yarn-cluster", "-yjm", "1024m", "-ytm", "4096m"
         };
-        Assert.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
+        Assertions.assertArrayEquals(expectedCommandOptions, commandOptions.toArray());
     }
 }

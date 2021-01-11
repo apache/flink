@@ -320,7 +320,7 @@ class CorrelateITCase extends BatchTestBase {
       .select('c)
       .joinLateral(varArgsFunc0())
     val results0 = executeQuery(result0)
-    Assert.assertTrue(results0.isEmpty)
+    Assertions.assertTrue(results0.isEmpty)
   }
 
   @Test

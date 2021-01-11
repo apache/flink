@@ -19,11 +19,7 @@
 package org.apache.flink.test.operators;
 
 import org.apache.flink.api.common.InvalidProgramException;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.MapPartitionFunction;
-import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -37,20 +33,17 @@ import org.apache.flink.test.operators.util.CollectionDataSets;
 import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Integration tests for {@link MapPartitionFunction}. */
 @RunWith(Parameterized.class)
@@ -480,40 +473,46 @@ public class PartitionITCase extends MultipleProgramsTestBase {
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRangePartitionInIteration() throws Exception {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
 
-        // does not apply for collection execution
-        if (super.mode == TestExecutionMode.COLLECTION) {
-            throw new InvalidProgramException("Does not apply for collection execution");
-        }
+                    // does not apply for collection execution
+                    if (super.mode == TestExecutionMode.COLLECTION) {
+                        throw new InvalidProgramException(
+                                "Does not apply for collection execution");
+                    }
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSource<Long> source = env.generateSequence(0, 10000);
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSource<Long> source = env.generateSequence(0, 10000);
 
-        DataSet<Tuple2<Long, String>> tuples =
-                source.map(
-                        new MapFunction<Long, Tuple2<Long, String>>() {
-                            @Override
-                            public Tuple2<Long, String> map(Long v) throws Exception {
-                                return new Tuple2<>(v, Long.toString(v));
-                            }
-                        });
+                    DataSet<Tuple2<Long, String>> tuples =
+                            source.map(
+                                    new MapFunction<Long, Tuple2<Long, String>>() {
+                                        @Override
+                                        public Tuple2<Long, String> map(Long v) throws Exception {
+                                            return new Tuple2<>(v, Long.toString(v));
+                                        }
+                                    });
 
-        DeltaIteration<Tuple2<Long, String>, Tuple2<Long, String>> it =
-                tuples.iterateDelta(tuples, 10, 0);
-        DataSet<Tuple2<Long, String>> body =
-                it.getWorkset()
-                        .partitionByRange(
-                                1) // Verify that range partition is not allowed in iteration
-                        .join(it.getSolutionSet())
-                        .where(0)
-                        .equalTo(0)
-                        .projectFirst(0)
-                        .projectSecond(1);
-        DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
+                    DeltaIteration<Tuple2<Long, String>, Tuple2<Long, String>> it =
+                            tuples.iterateDelta(tuples, 10, 0);
+                    DataSet<Tuple2<Long, String>> body =
+                            it.getWorkset()
+                                    .partitionByRange(
+                                            1) // Verify that range partition is not allowed in
+                                    // iteration
+                                    .join(it.getSolutionSet())
+                                    .where(0)
+                                    .equalTo(0)
+                                    .projectFirst(0)
+                                    .projectSecond(1);
+                    DataSet<Tuple2<Long, String>> result = it.closeWith(body, body);
 
-        result.collect(); // should fail
+                    result.collect(); // should fail
+                });
     }
 
     @Test
@@ -544,21 +543,17 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
         Tuple2<Long, Long> previousMax = null;
         for (Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> tuple2 : collected) {
-            assertTrue(
-                    "Min element in each partition should be smaller than max.",
-                    tuple2Comparator.compare(tuple2.f0, tuple2.f1) <= 0);
+            assertTrue(                    tuple2Comparator.compare(tuple2.f0, tuple2.f1) <= 0,                    "Min element in each partition should be smaller than max.");
             if (previousMax == null) {
                 previousMax = tuple2.f1;
             } else {
-                assertTrue(
-                        "Partitions overlap. Previous max should be smaller than current min.",
-                        tuple2Comparator.compare(previousMax, tuple2.f0) < 0);
+                assertTrue(                        tuple2Comparator.compare(previousMax, tuple2.f0) < 0,                        "Partitions overlap. Previous max should be smaller than current min.");
                 if (previousMax.f0.equals(tuple2.f0.f0)) {
                     // check that ordering on the second key is correct
                     assertEquals(
-                            "Ordering on the second field should be continous.",
                             previousMax.f1 - 1,
-                            tuple2.f0.f1.longValue());
+                            tuple2.f0.f1.longValue(),
+                            "Ordering on the second field should be continous.");
                 }
                 previousMax = tuple2.f1;
             }
@@ -607,20 +602,16 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
         Tuple2<Long, Long> previousMax = null;
         for (Tuple2<Tuple2<Long, Long>, Tuple2<Long, Long>> tuple2 : collected) {
-            assertTrue(
-                    "Min element in each partition should be smaller than max.",
-                    tuple2Comparator.compare(tuple2.f0, tuple2.f1) <= 0);
+            assertTrue(                    tuple2Comparator.compare(tuple2.f0, tuple2.f1) <= 0,                    "Min element in each partition should be smaller than max.");
             if (previousMax == null) {
                 previousMax = tuple2.f1;
             } else {
-                assertTrue(
-                        "Partitions overlap. Previous max should be smaller than current min.",
-                        tuple2Comparator.compare(previousMax, tuple2.f0) < 0);
+                assertTrue(                        tuple2Comparator.compare(previousMax, tuple2.f0) < 0,                        "Partitions overlap. Previous max should be smaller than current min.");
                 if (previousMax.f0.equals(tuple2.f0.f0)) {
                     assertEquals(
-                            "Ordering on the second field should be continous.",
                             previousMax.f1 + 1,
-                            tuple2.f0.f1.longValue());
+                            tuple2.f0.f1.longValue(),
+                            "Ordering on the second field should be continous.");
                 }
                 previousMax = tuple2.f1;
             }
@@ -671,20 +662,16 @@ public class PartitionITCase extends MultipleProgramsTestBase {
 
         ComparablePojo previousMax = null;
         for (Tuple2<ComparablePojo, ComparablePojo> element : collected) {
-            assertTrue(
-                    "Min element in each partition should be smaller than max.",
-                    element.f0.compareTo(element.f1) <= 0);
+            assertTrue(                    element.f0.compareTo(element.f1) <= 0,                    "Min element in each partition should be smaller than max.");
             if (previousMax == null) {
                 previousMax = element.f1;
             } else {
-                assertTrue(
-                        "Partitions overlap. Previous max should be smaller than current min.",
-                        previousMax.compareTo(element.f0) < 0);
+                assertTrue(                        previousMax.compareTo(element.f0) < 0,                        "Partitions overlap. Previous max should be smaller than current min.");
                 if (previousMax.first.equals(element.f0.first)) {
                     assertEquals(
-                            "Ordering on the second field should be continous.",
                             previousMax.second - 1,
-                            element.f0.second.longValue());
+                            element.f0.second.longValue(),
+                            "Ordering on the second field should be continous.");
                 }
                 previousMax = element.f1;
             }

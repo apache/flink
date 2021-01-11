@@ -110,7 +110,10 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
@@ -142,6 +145,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.DEFAULT_RESOURCE_PROFILE;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createDefaultTimerService;
 import static org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils.createTotalResourceProfile;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -152,12 +156,11 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link TaskExecutor}. */
 public class TaskExecutorTest extends TestLogger {
@@ -400,8 +403,8 @@ public class TaskExecutorTest extends TestLogger {
             assertThat(resourceID, equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
             assertTrue(
-                    "The TaskExecutor should try to reconnect to the JM",
-                    registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
+                    registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS),
+                    "The TaskExecutor should try to reconnect to the JM");
         } finally {
             RpcUtils.terminateRpcEndpoint(taskManager, timeout);
         }
@@ -482,8 +485,8 @@ public class TaskExecutorTest extends TestLogger {
                     equalTo(unresolvedTaskManagerLocation.getResourceID()));
 
             assertTrue(
-                    "The TaskExecutor should try to reconnect to the RM",
-                    registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS));
+                    registrationAttempts.await(timeout.toMilliseconds(), TimeUnit.SECONDS),
+                    "The TaskExecutor should try to reconnect to the RM");
         } finally {
             RpcUtils.terminateRpcEndpoint(taskManager, timeout);
         }
@@ -1801,7 +1804,8 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testLogNotFoundHandling() throws Throwable {
         final int dataPort = NetUtils.getAvailablePort();
         Configuration config = new Configuration();
@@ -1825,7 +1829,8 @@ public class TaskExecutorTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testTerminationOnFatalError() throws Throwable {
         try (TaskSubmissionTestEnvironment env = new Builder(jobId).build()) {
             String testExceptionMsg = "Test exception of fatal error.";

@@ -30,7 +30,7 @@ import org.apache.flink.runtime.operators.testutils.types.IntList;
 import org.apache.flink.runtime.operators.testutils.types.IntPair;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.powermock.reflect.Whitebox;
 
 import java.lang.reflect.Field;
@@ -39,7 +39,12 @@ import java.util.BitSet;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class CompactingHashTableTest extends MutableHashTableTestBase {
 
@@ -294,14 +299,13 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
             table.close();
-            assertEquals(
-                    "Memory lost", NUM_MEM_PAGES + ADDITIONAL_MEM, table.getFreeMemory().size());
+            assertEquals(NUM_MEM_PAGES + ADDITIONAL_MEM, "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -342,8 +346,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -354,16 +358,16 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + ADDITIONAL_MEM + ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -404,8 +408,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -416,8 +420,8 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
@@ -428,16 +432,16 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
 
             for (int i = 0; i < NUM_PAIRS; i++) {
                 assertNotNull(
-                        pairs[i].getKey() + " " + pairs[i].getValue(),
-                        prober.getMatchFor(pairs[i], target));
+                        prober.getMatchFor(pairs[i], target),
+                        pairs[i].getKey() + " " + pairs[i].getValue());
                 assertEquals(pairs[i].getValue(), target.getValue());
             }
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + 4 * ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());
@@ -503,15 +507,15 @@ public class CompactingHashTableTest extends MutableHashTableTestBase {
             assertTrue(b);
 
             for (int i = 0; i < NUM_LISTS; i++) {
-                assertNotNull("" + i, prober.getMatchFor(overwriteLists[i], target));
+                assertNotNull(prober.getMatchFor(overwriteLists[i], target), "" + i);
                 assertArrayEquals(overwriteLists[i].getValue(), target.getValue());
             }
 
             table.close();
             assertEquals(
-                    "Memory lost",
                     NUM_MEM_PAGES + 3 * ADDITIONAL_MEM,
-                    table.getFreeMemory().size());
+                    table.getFreeMemory().size(),
+                    "Memory lost");
         } catch (Exception e) {
             e.printStackTrace();
             fail("Error: " + e.getMessage());

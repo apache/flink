@@ -32,9 +32,10 @@ import org.apache.flink.util.TimeUtils;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
 
@@ -43,16 +44,15 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.willNotComplete;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link TaskManagerRunner}. */
+@Timeout(30)
 public class TaskManagerRunnerTest extends TestLogger {
-
-    @Rule public final Timeout timeout = Timeout.seconds(30);
 
     private SystemExitTrackingSecurityManager systemExitTrackingSecurityManager;
     private TaskManagerRunner taskManagerRunner;

@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.time.{LocalDateTime => JLocalDateTime}
 

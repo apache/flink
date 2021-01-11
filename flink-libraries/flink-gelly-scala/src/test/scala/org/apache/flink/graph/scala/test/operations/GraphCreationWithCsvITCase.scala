@@ -27,7 +27,7 @@ import org.apache.flink.core.fs.{FileInputSplit, Path}
 import org.apache.flink.graph.scala._
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.types.NullValue
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 

@@ -24,11 +24,13 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** {@link OperatorSubtaskState} test. */
 public class OperatorSubtaskStateTest {
@@ -74,7 +76,7 @@ public class OperatorSubtaskStateTest {
         @Override
         public void discardState() {
             super.discardState();
-            assertFalse("state was discarded twice", discarded);
+            assertFalse(discarded, "state was discarded twice");
             discarded = true;
         }
     }

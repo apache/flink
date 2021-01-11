@@ -19,11 +19,12 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.streaming.api.operators.InputSelection.Builder;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link InputSelection}. */
 public class InputSelectionTest {
@@ -56,9 +57,13 @@ public class InputSelectionTest {
         assertFalse(InputSelection.SECOND.areAllInputsSelected());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInputSelectionNormalizationOverflow() {
-        new Builder().select(3).build(2);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new Builder().select(3).build(2);
+                });
     }
 
     @Test
@@ -131,9 +136,13 @@ public class InputSelectionTest {
                 InputSelection.NONE_AVAILABLE, new Builder().build().fairSelectNextIndex(-1, 5));
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUnsupportedFairSelectNextIndexOutOf2() {
-        InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    InputSelection.ALL.fairSelectNextIndexOutOf2(7, 0);
+                });
     }
 
     /** Tests for {@link Builder}. */
@@ -148,14 +157,22 @@ public class InputSelectionTest {
             assertEquals(0xffff_ffff_ffff_ffffL, new Builder().select(-1).build().getInputMask());
         }
 
-        @Test(expected = IllegalArgumentException.class)
+        @Test
         public void testIllegalInputId1() {
-            new Builder().select(-2);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> {
+                        new Builder().select(-2);
+                    });
         }
 
-        @Test(expected = IllegalArgumentException.class)
+        @Test
         public void testIllegalInputId2() {
-            new Builder().select(65);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> {
+                        new Builder().select(65);
+                    });
         }
     }
 }

@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.data.util;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.RowData;
@@ -25,10 +26,8 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import org.apache.commons.lang3.RandomStringUtils;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Utils for testing data formats. */
 public class DataFormatTestUtil {

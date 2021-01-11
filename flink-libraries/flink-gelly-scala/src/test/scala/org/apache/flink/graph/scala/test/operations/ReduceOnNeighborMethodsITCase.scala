@@ -24,7 +24,7 @@ import org.apache.flink.graph.scala.{NeighborsFunctionWithVertexValue, _}
 import org.apache.flink.graph.{Edge, EdgeDirection, ReduceNeighborsFunction, Vertex}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.util.Collector
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 

@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.planner.utils.{CountAccumulator, CountAggFunction, IntSumAggFunction}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang
 import java.lang.{Iterable => JIterable}

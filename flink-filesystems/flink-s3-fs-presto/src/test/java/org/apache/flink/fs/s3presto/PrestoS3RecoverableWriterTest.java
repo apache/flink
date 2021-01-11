@@ -26,7 +26,15 @@ import org.apache.flink.testutils.s3.S3TestCredentials;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.URI;
@@ -75,10 +83,12 @@ public class PrestoS3RecoverableWriterTest {
 
     // ----------------------- Tests -----------------------
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void requestingRecoverableWriterShouldThroughException() throws Exception {
-        URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    URI s3Uri = URI.create(S3TestCredentials.getTestBucketUri());
         FlinkS3FileSystem fileSystem = (FlinkS3FileSystem) FileSystem.get(s3Uri);
         fileSystem.createRecoverableWriter();
+        });
     }
 }

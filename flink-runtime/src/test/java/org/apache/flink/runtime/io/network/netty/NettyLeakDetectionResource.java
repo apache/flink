@@ -21,13 +21,13 @@ package org.apache.flink.runtime.io.network.netty;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetector;
 import org.apache.flink.shaded.netty4.io.netty.util.ResourceLeakDetectorFactory;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.ExternalResource;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * JUnit resource to fail with an assertion when Netty detects a resource leak (only with
@@ -51,9 +51,9 @@ public class NettyLeakDetectionResource extends ExternalResource {
     private static int refCount = 0;
 
     public NettyLeakDetectionResource() {
-        Assert.assertTrue(
-                "Error logging must be enabled for the ResourceLeakDetector.",
-                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled());
+        Assertions.assertTrue(
+                LoggerFactory.getLogger(ResourceLeakDetector.class).isErrorEnabled(),
+                "Error logging must be enabled for the ResourceLeakDetector.");
     }
 
     @Override

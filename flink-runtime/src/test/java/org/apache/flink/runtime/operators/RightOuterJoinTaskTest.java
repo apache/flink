@@ -29,13 +29,15 @@ import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
@@ -156,39 +158,43 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
 
         final int expCnt = calculateExpectedCount(keyCnt1, valCnt1, keyCnt2, valCnt2);
 
-        Assert.assertTrue(
-                "Result set size was " + this.outList.size() + ". Expected was " + expCnt,
-                this.outList.size() == expCnt);
+        Assertions.assertTrue(
+                this.outList.size() == expCnt,
+                "Result set size was " + this.outList.size() + ". Expected was " + expCnt);
 
         this.outList.clear();
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testFailingHashRightOuterJoinTask() throws Exception {
-        int keyCnt1 = 20;
-        int valCnt1 = 20;
+        assertThrows(
+                ExpectedTestException.class,
+                () -> {
+                    int keyCnt1 = 20;
+                    int valCnt1 = 20;
 
-        int keyCnt2 = 20;
-        int valCnt2 = 20;
+                    int keyCnt2 = 20;
+                    int valCnt2 = 20;
 
-        setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
-        addDriverComparator(this.comparator1);
-        addDriverComparator(this.comparator2);
-        getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
-        getTaskConfig().setDriverStrategy(DriverStrategy.RIGHT_HYBRIDHASH_BUILD_FIRST);
-        getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
-        setNumFileHandlesForSort(4);
+                    setOutput(new DiscardingOutputCollector<Tuple2<Integer, Integer>>());
+                    addDriverComparator(this.comparator1);
+                    addDriverComparator(this.comparator2);
+                    getTaskConfig().setDriverPairComparator(new RuntimePairComparatorFactory());
+                    getTaskConfig().setDriverStrategy(DriverStrategy.RIGHT_HYBRIDHASH_BUILD_FIRST);
+                    getTaskConfig().setRelativeMemoryDriver(this.hash_frac);
+                    setNumFileHandlesForSort(4);
 
-        final AbstractOuterJoinDriver<
-                        Tuple2<Integer, Integer>,
-                        Tuple2<Integer, Integer>,
-                        Tuple2<Integer, Integer>>
-                testTask = getOuterJoinDriver();
+                    final AbstractOuterJoinDriver<
+                                    Tuple2<Integer, Integer>,
+                                    Tuple2<Integer, Integer>,
+                                    Tuple2<Integer, Integer>>
+                            testTask = getOuterJoinDriver();
 
-        addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
-        addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
+                    addInput(new UniformIntTupleGenerator(keyCnt1, valCnt1, true), this.serializer);
+                    addInput(new UniformIntTupleGenerator(keyCnt2, valCnt2, true), this.serializer);
 
-        testDriver(testTask, MockFailingJoinStub.class);
+                    testDriver(testTask, MockFailingJoinStub.class);
+                });
     }
 
     @Test
@@ -229,7 +235,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         cancel();
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertFalse(taskRunner.isAlive(), "Task thread did not finish within 60 seconds");
 
         final Throwable taskError = error.get();
         if (taskError != null) {
@@ -275,7 +281,7 @@ public class RightOuterJoinTaskTest extends AbstractOuterJoinTaskTest {
         cancel();
         taskRunner.join(60000);
 
-        assertFalse("Task thread did not finish within 60 seconds", taskRunner.isAlive());
+        assertFalse(taskRunner.isAlive(), "Task thread did not finish within 60 seconds");
 
         final Throwable taskError = error.get();
         if (taskError != null) {

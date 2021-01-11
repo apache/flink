@@ -33,7 +33,15 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.Collector;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -43,8 +51,8 @@ import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("serial")
 public class OuterJoinOperatorBaseTest implements Serializable {
@@ -224,15 +232,20 @@ public class OuterJoinOperatorBaseTest implements Serializable {
         testOuterJoin(leftInput, rightInput, expected);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testThatExceptionIsThrownForOuterJoinTypeNull() throws Exception {
-        final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
-        final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    final List<String> leftInput = Arrays.asList("foo", "bar", "foobar");
+                    final List<String> rightInput = Arrays.asList("bar", "foobar", "foo");
 
-        baseOperator.setOuterJoinType(null);
-        ExecutionConfig executionConfig = new ExecutionConfig();
-        executionConfig.disableObjectReuse();
-        baseOperator.executeOnCollections(leftInput, rightInput, runtimeContext, executionConfig);
+                    baseOperator.setOuterJoinType(null);
+                    ExecutionConfig executionConfig = new ExecutionConfig();
+                    executionConfig.disableObjectReuse();
+                    baseOperator.executeOnCollections(
+                            leftInput, rightInput, runtimeContext, executionConfig);
+                });
     }
 
     private void testOuterJoin(

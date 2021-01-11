@@ -47,13 +47,16 @@ import org.apache.flink.optimizer.testfunctions.Top1GroupReducer;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings({"serial"})
 public class BranchingPlansCompilerTest extends CompilerTestBase {
@@ -124,7 +127,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            assertEquals("Wrong number of data sinks.", 3, oPlan.getDataSinks().size());
+            assertEquals(3, "Wrong number of data sinks.");
 
             // remove matching sinks to check relation
             for (SinkPlanNode sink : oPlan.getDataSinks()) {
@@ -439,7 +442,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -496,7 +499,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -529,7 +532,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             // ---------- check the optimizer plan ----------
 
             // number of sinks
-            Assert.assertEquals("Wrong number of data sinks.", 2, oPlan.getDataSinks().size());
+            Assertions.assertEquals(2, "Wrong number of data sinks.");
 
             // sinks contain all sink paths
             Set<String> allSinks = new HashSet<String>();
@@ -545,7 +548,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
                                                 .getUserCodeObject())
                                 .getOutputFilePath()
                                 .toString();
-                Assert.assertTrue("Invalid data sink.", allSinks.remove(path));
+                Assertions.assertTrue(allSinks.remove(path), "Invalid data sink.");
             }
 
             // ---------- compile plan to job graph to verify that no error is thrown ----------
@@ -554,7 +557,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             jobGen.compileJobGraph(oPlan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -612,7 +615,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -642,7 +645,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -680,7 +683,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -735,7 +738,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -794,7 +797,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -884,7 +887,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -915,7 +918,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -958,7 +961,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
@@ -989,7 +992,7 @@ public class BranchingPlansCompilerTest extends CompilerTestBase {
             compileNoStats(plan);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 

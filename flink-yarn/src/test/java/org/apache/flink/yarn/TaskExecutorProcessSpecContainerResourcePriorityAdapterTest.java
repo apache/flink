@@ -23,10 +23,17 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,9 +41,9 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link TaskExecutorProcessSpecContainerResourcePriorityAdapter}. */
 public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends TestLogger {
@@ -152,26 +159,38 @@ public class TaskExecutorProcessSpecContainerResourcePriorityAdapterTest extends
         assertThat(resultExternalResources.get(SUPPORTED_EXTERNAL_RESOURCE_NAME), is(amount));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailExceedMax() {
-        assumeTrue(isExternalResourceSupported());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    assumeTrue(isExternalResourceSupported());
 
-        getAdapterWithExternalResources(
-                SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX + 1);
+                    getAdapterWithExternalResources(
+                            SUPPORTED_EXTERNAL_RESOURCE_NAME, SUPPORTED_EXTERNAL_RESOURCE_MAX + 1);
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailResourceTypeNotSupported() {
-        assumeTrue(isExternalResourceSupported());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    assumeTrue(isExternalResourceSupported());
 
-        getAdapterWithExternalResources("testing-unsupported-resource", 1);
+                    getAdapterWithExternalResources("testing-unsupported-resource", 1);
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testExternalResourceFailHadoopVersionNotSupported() {
-        assumeFalse(isExternalResourceSupported());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    assumeFalse(isExternalResourceSupported());
 
-        getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, 100);
+                    getAdapterWithExternalResources(SUPPORTED_EXTERNAL_RESOURCE_NAME, 100);
+                });
     }
 
     private static TaskExecutorProcessSpecContainerResourcePriorityAdapter getAdapter() {

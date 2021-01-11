@@ -23,8 +23,15 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -35,27 +42,36 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** {@link ChannelStateChunkReader} test. */
 public class ChannelStateChunkReaderTest {
 
-    @Test(expected = TestException.class)
+    @Test
     public void testBufferRecycledOnFailure() throws IOException, InterruptedException {
-        FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
-        TestRecoveredChannelStateHandler handler = new TestRecoveredChannelStateHandler();
+        assertThrows(
+                TestException.class,
+                () -> {
+                    FailingChannelStateSerializer serializer = new FailingChannelStateSerializer();
+                    TestRecoveredChannelStateHandler handler =
+                            new TestRecoveredChannelStateHandler();
 
-        try (FSDataInputStream stream = getStream(serializer, 10)) {
-            new ChannelStateChunkReader(serializer)
-                    .readChunk(stream, serializer.getHeaderLength(), handler, "channelInfo");
-        } finally {
-            checkState(serializer.failed);
-            checkState(!handler.requestedBuffers.isEmpty());
-            assertTrue(
-                    handler.requestedBuffers.stream()
-                            .allMatch(TestChannelStateByteBuffer::isRecycled));
-        }
+                    try (FSDataInputStream stream = getStream(serializer, 10)) {
+                        new ChannelStateChunkReader(serializer)
+                                .readChunk(
+                                        stream,
+                                        serializer.getHeaderLength(),
+                                        handler,
+                                        "channelInfo");
+                    } finally {
+                        checkState(serializer.failed);
+                        checkState(!handler.requestedBuffers.isEmpty());
+                        assertTrue(
+                                handler.requestedBuffers.stream()
+                                        .allMatch(TestChannelStateByteBuffer::isRecycled));
+                    }
+                });
     }
 
     @Test

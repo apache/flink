@@ -17,14 +17,22 @@
 
 package org.apache.flink.util;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** {@link CloseableIterator} test. */
 @SuppressWarnings("unchecked")
@@ -57,23 +65,27 @@ public class CloseableIteratorTest {
         assertArrayEquals(ELEMENTS, iterated.toArray());
     }
 
-    @Test(expected = TestException.class)
+    @Test
     public void testFlattenErrorHandling() throws Exception {
-        List<String> closed = new ArrayList<>();
-        CloseableIterator<String> iterator =
-                CloseableIterator.flatten(
-                        CloseableIterator.ofElement(
-                                ELEMENTS[0],
-                                e -> {
-                                    closed.add(e);
-                                    throw new TestException();
-                                }),
-                        CloseableIterator.ofElement(ELEMENTS[1], closed::add));
-        try {
-            iterator.close();
-        } finally {
-            assertArrayEquals(ELEMENTS, closed.toArray());
-        }
+        assertThrows(
+                TestException.class,
+                () -> {
+                    List<String> closed = new ArrayList<>();
+                    CloseableIterator<String> iterator =
+                            CloseableIterator.flatten(
+                                    CloseableIterator.ofElement(
+                                            ELEMENTS[0],
+                                            e -> {
+                                                closed.add(e);
+                                                throw new TestException();
+                                            }),
+                                    CloseableIterator.ofElement(ELEMENTS[1], closed::add));
+                    try {
+                        iterator.close();
+                    } finally {
+                        assertArrayEquals(ELEMENTS, closed.toArray());
+                    }
+                });
     }
 
     private static class TestException extends RuntimeException {}

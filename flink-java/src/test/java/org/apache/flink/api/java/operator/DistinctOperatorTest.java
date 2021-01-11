@@ -26,8 +26,16 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -64,30 +72,37 @@ public class DistinctOperatorTest {
         try {
             tupleDs.distinct(0);
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testDistinctByKeyFields2() {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-
-        DataSet<Long> longDs = env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
-        // should not work: distinct on basic type
-        longDs.distinct(0);
+                    DataSet<Long> longDs =
+                            env.fromCollection(emptyLongData, BasicTypeInfo.LONG_TYPE_INFO);
+                    // should not work: distinct on basic type
+                    longDs.distinct(0);
+                });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testDistinctByKeyFields3() {
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    this.customTypeData.add(new CustomType());
 
-        this.customTypeData.add(new CustomType());
-
-        DataSet<CustomType> customDs = env.fromCollection(customTypeData);
-        // should not work: distinct on custom type
-        customDs.distinct(0);
+                    DataSet<CustomType> customDs = env.fromCollection(customTypeData);
+                    // should not work: distinct on custom type
+                    customDs.distinct(0);
+                });
     }
 
     @Test
@@ -114,15 +129,18 @@ public class DistinctOperatorTest {
         customDs.distinct();
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testDistinctByKeyFields6() {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
+                            env.fromCollection(emptyTupleData, tupleTypeInfo);
 
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-        DataSet<Tuple5<Integer, Long, String, Long, Integer>> tupleDs =
-                env.fromCollection(emptyTupleData, tupleTypeInfo);
-
-        // should not work, negative field position
-        tupleDs.distinct(-1);
+                    // should not work, negative field position
+                    tupleDs.distinct(-1);
+                });
     }
 
     @Test
@@ -134,7 +152,7 @@ public class DistinctOperatorTest {
         try {
             longDs.distinct("*");
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -157,7 +175,7 @@ public class DistinctOperatorTest {
                         }
                     });
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
@@ -169,38 +187,46 @@ public class DistinctOperatorTest {
             // should work
             longDs.distinct();
         } catch (Exception e) {
-            Assert.fail();
+            Assertions.fail();
         }
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testDistinctOnNotKeyDataType() throws Exception {
-        /*
-         * should not work. NotComparable data type cannot be used as key
-         */
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    /*
+                     * should not work. NotComparable data type cannot be used as key
+                     */
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        NotComparable a = new NotComparable();
-        List<NotComparable> l = new ArrayList<NotComparable>();
-        l.add(a);
+                    NotComparable a = new NotComparable();
+                    List<NotComparable> l = new ArrayList<NotComparable>();
+                    l.add(a);
 
-        DataSet<NotComparable> ds = env.fromCollection(l);
-        DataSet<NotComparable> reduceDs = ds.distinct();
+                    DataSet<NotComparable> ds = env.fromCollection(l);
+                    DataSet<NotComparable> reduceDs = ds.distinct();
+                });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testDistinctOnNotKeyDataTypeOnSelectAllChar() throws Exception {
-        /*
-         * should not work. NotComparable data type cannot be used as key
-         */
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    /*
+                     * should not work. NotComparable data type cannot be used as key
+                     */
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        NotComparable a = new NotComparable();
-        List<NotComparable> l = new ArrayList<NotComparable>();
-        l.add(a);
+                    NotComparable a = new NotComparable();
+                    List<NotComparable> l = new ArrayList<NotComparable>();
+                    l.add(a);
 
-        DataSet<NotComparable> ds = env.fromCollection(l);
-        DataSet<NotComparable> reduceDs = ds.distinct("*");
+                    DataSet<NotComparable> ds = env.fromCollection(l);
+                    DataSet<NotComparable> reduceDs = ds.distinct("*");
+                });
     }
 
     class NotComparable {

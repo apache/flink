@@ -31,9 +31,20 @@ import org.apache.flink.types.ByteValue;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestedLocalPropertiesFilteringTest {
 
@@ -59,13 +70,16 @@ public class RequestedLocalPropertiesFilteringTest {
                             BasicTypeInfo.INT_TYPE_INFO,
                             BasicTypeInfo.INT_TYPE_INFO);
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullProps() {
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    RequestedLocalProperties rlProp = new RequestedLocalProperties();
+                    rlProp.setGroupedFields(new FieldSet(0, 2, 3));
 
-        RequestedLocalProperties rlProp = new RequestedLocalProperties();
-        rlProp.setGroupedFields(new FieldSet(0, 2, 3));
-
-        rlProp.filterBySemanticProperties(null, 0);
+                    rlProp.filterBySemanticProperties(null, 0);
+                });
     }
 
     @Test
@@ -263,16 +277,19 @@ public class RequestedLocalPropertiesFilteringTest {
         assertNull(filtered2.getOrdering());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidInputIndex() {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sProps, new String[] {"1; 4"}, null, null, tupleInfo, tupleInfo);
 
-        SingleInputSemanticProperties sProps = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sProps, new String[] {"1; 4"}, null, null, tupleInfo, tupleInfo);
+                    RequestedLocalProperties rlProp = new RequestedLocalProperties();
+                    rlProp.setGroupedFields(new FieldSet(1, 4));
 
-        RequestedLocalProperties rlProp = new RequestedLocalProperties();
-        rlProp.setGroupedFields(new FieldSet(1, 4));
-
-        rlProp.filterBySemanticProperties(sProps, 1);
+                    rlProp.filterBySemanticProperties(sProps, 1);
+                });
     }
 }

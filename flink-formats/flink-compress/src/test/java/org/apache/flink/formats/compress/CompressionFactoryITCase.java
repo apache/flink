@@ -30,9 +30,10 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -42,14 +43,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} and
  * Hadoop Compression Codecs.
  */
+@Timeout(20)
 public class CompressionFactoryITCase extends AbstractTestBase {
 
     private final Configuration configuration = new Configuration();
@@ -57,8 +59,6 @@ public class CompressionFactoryITCase extends AbstractTestBase {
     private static final String TEST_CODEC_NAME = "Bzip2";
 
     private final List<String> testData = Arrays.asList("line1", "line2", "line3");
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Test
     public void testWriteCompressedFile() throws Exception {

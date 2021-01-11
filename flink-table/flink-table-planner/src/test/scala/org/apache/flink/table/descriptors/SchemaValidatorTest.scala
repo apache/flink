@@ -23,8 +23,8 @@ import org.apache.flink.table.descriptors.RowtimeTest.CustomExtractor
 import org.apache.flink.table.sources.tsextractors.{ExistingField, StreamRecordTimestamp}
 import org.apache.flink.table.sources.wmstrategies.{BoundedOutOfOrderTimestamps, PreserveWatermarks}
 
-import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.{assertEquals, assertTrue}
+import org.junit.jupiter.api.Test
 
 import java.util.Optional
 
@@ -72,9 +72,10 @@ class SchemaValidatorTest {
       SchemaValidator.deriveFieldMapping(props, Optional.of(inputSchema.toRowType)))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testDeriveTableSinkSchemaWithRowtimeFromSource(): Unit = {
-    val desc1 = new Schema()
+        assertThrows[TableException] {
+                val desc1 = new Schema()
       .field("otherField", Types.STRING).from("csvField")
       .field("abcField", Types.STRING)
       .field("p", Types.SQL_TIMESTAMP).proctime()
@@ -84,7 +85,8 @@ class SchemaValidatorTest {
     props.putProperties(desc1.toProperties)
 
     SchemaValidator.deriveTableSinkSchema(props)
-  }
+        }
+    }
 
   @Test
   def testDeriveTableSinkSchemaWithRowtimeFromField(): Unit = {

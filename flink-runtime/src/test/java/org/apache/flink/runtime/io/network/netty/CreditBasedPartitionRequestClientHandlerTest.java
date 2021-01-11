@@ -50,21 +50,24 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandlerContext;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 
 import static org.apache.flink.runtime.io.network.netty.PartitionRequestQueueTest.blockChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -86,7 +89,8 @@ public class CreditBasedPartitionRequestClientHandlerTest {
      *
      * @see <a href="https://issues.apache.org/jira/browse/FLINK-1627">FLINK-1627</a>
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     @SuppressWarnings("unchecked")
     public void testReleaseInputChannelDuringDecode() throws Exception {
         // Mocks an input channel in a state as it was released during a decode.
@@ -253,9 +257,9 @@ public class CreditBasedPartitionRequestClientHandlerTest {
         handler.addInputChannel(inputChannel);
 
         assertEquals(
-                "There should be no buffers available in the channel.",
                 0,
-                inputChannel.getNumberOfAvailableBuffers());
+                inputChannel.getNumberOfAvailableBuffers(),
+                "There should be no buffers available in the channel.");
 
         final BufferResponse bufferResponse =
                 createBufferResponse(

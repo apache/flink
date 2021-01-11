@@ -33,8 +33,10 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -95,8 +97,8 @@ public class MultiStateKeyIteratorTest {
             keys.add(iterator.next());
         }
 
-        Assert.assertEquals("Unexpected number of keys", 2, keys.size());
-        Assert.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
+        Assertions.assertEquals(2, "Unexpected number of keys");
+        Assertions.assertEquals("Unexpected keys found", Arrays.asList(1, 2), keys);
     }
 
     @Test
@@ -110,19 +112,17 @@ public class MultiStateKeyIteratorTest {
                 new MultiStateKeyIterator<>(descriptors, keyedStateBackend);
 
         int key = iterator.next();
-        Assert.assertEquals("Unexpected keys pulled from state backend", 1, key);
+        Assertions.assertEquals(1, key, "Unexpected keys pulled from state backend");
 
         iterator.remove();
-        Assert.assertFalse(
-                "Failed to drop key from all descriptors in state backend", iterator.hasNext());
+        Assertions.assertFalse(
+                iterator.hasNext(), "Failed to drop key from all descriptors in state backend");
 
         for (StateDescriptor<?, ?> descriptor : descriptors) {
-            Assert.assertEquals(
-                    "Failed to drop key for state descriptor",
+            Assertions.assertEquals(
                     0,
-                    keyedStateBackend
-                            .getKeys(descriptor.getName(), VoidNamespace.INSTANCE)
-                            .count());
+                    keyedStateBackend.getKeys(descriptor.getName(), VoidNamespace.INSTANCE).count(),
+                    "Failed to drop key for state descriptor");
         }
     }
 }

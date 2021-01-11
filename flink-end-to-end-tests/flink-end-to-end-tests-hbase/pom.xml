@@ -41,10 +41,6 @@ under the License.
 			<artifactId>flink-test-utils-junit</artifactId>
 			<scope>compile</scope>
 		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-		</dependency>
 
 		<!--using hbase shade jar to execute end-to-end test-->
 		<dependency>

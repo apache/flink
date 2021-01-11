@@ -21,14 +21,22 @@ package org.apache.flink.yarn;
 import org.apache.hadoop.util.VersionInfo;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 
 import static org.apache.flink.yarn.YarnTestUtils.isHadoopVersionGreaterThanOrEquals;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests to Yarn's priority scheduling. */
 public class YarnPrioritySchedulingITCase extends YarnTestBase {

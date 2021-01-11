@@ -24,12 +24,20 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableValueState}. */
 public class ImmutableValueStateTest {
@@ -50,19 +58,27 @@ public class ImmutableValueStateTest {
                         valueStateDesc, ByteBuffer.allocate(Long.BYTES).putLong(42L).array());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws IOException {
-        long value = valueState.value();
-        assertEquals(42L, value);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    long value = valueState.value();
+                    assertEquals(42L, value);
 
-        valueState.update(54L);
+                    valueState.update(54L);
+                });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws IOException {
-        long value = valueState.value();
-        assertEquals(42L, value);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    long value = valueState.value();
+                    assertEquals(42L, value);
 
-        valueState.clear();
+                    valueState.clear();
+                });
     }
 }

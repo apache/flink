@@ -27,9 +27,11 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
-
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
@@ -37,12 +39,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests the synchronous checkpoint execution at the {@link StreamTask}. */
 public class SynchronousCheckpointTest {
@@ -76,7 +76,8 @@ public class SynchronousCheckpointTest {
         assertThat(eventQueue.take(), is(Event.TASK_INITIALIZED));
     }
 
-    @Test(timeout = 20_000)
+    @Test
+    @Timeout(20)
     public void synchronousCheckpointBlocksUntilNotificationForCorrectCheckpointComes()
             throws Exception {
         launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
@@ -94,7 +95,8 @@ public class SynchronousCheckpointTest {
         assertFalse(streamTaskUnderTest.isCanceled());
     }
 
-    @Test(timeout = 10_000)
+    @Test
+    @Timeout(10)
     public void cancelShouldAlsoCancelPendingSynchronousCheckpoint() throws Throwable {
         launchSynchronousSavepointAndWaitForSyncSavepointIdToBeSet();
         assertTrue(streamTaskUnderTest.getSynchronousSavepointId().isPresent());

@@ -25,7 +25,6 @@ import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.DocWriteResponse;
@@ -36,25 +35,19 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import javax.annotation.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /** Suite of tests for {@link ElasticsearchSinkBase}. */
 public class ElasticsearchSinkBaseTest {
@@ -107,13 +100,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the failure
-            Assert.assertTrue(e.getCause().getMessage().contains("artificial failure for record"));
+            Assertions.assertTrue(
+                    e.getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -146,14 +140,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -161,7 +155,8 @@ public class ElasticsearchSinkBaseTest {
      * following checkpoint is rethrown; we set a timeout because the test will not finish if the
      * logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testItemFailureRethrownOnCheckpointAfterFlush() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -216,14 +211,14 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the failure from the 2nd request
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getCause().getMessage().contains("artificial failure for record"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -255,14 +250,14 @@ public class ElasticsearchSinkBaseTest {
             testHarness.processElement(new StreamRecord<>("next msg"));
         } catch (Exception e) {
             // the invoke should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause().getMessage().contains("artificial failure for bulk request"));
 
             // test succeeded
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -294,7 +289,7 @@ public class ElasticsearchSinkBaseTest {
             testHarness.snapshot(1L, 1000L);
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause()
                             .getCause()
                             .getMessage()
@@ -304,7 +299,7 @@ public class ElasticsearchSinkBaseTest {
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
@@ -312,7 +307,8 @@ public class ElasticsearchSinkBaseTest {
      * following checkpoint is rethrown; we set a timeout because the test will not finish if the
      * logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testBulkFailureRethrownOnOnCheckpointAfterFlush() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -363,7 +359,7 @@ public class ElasticsearchSinkBaseTest {
             snapshotThread.sync();
         } catch (Exception e) {
             // the snapshot should have failed with the bulk request failure
-            Assert.assertTrue(
+            Assertions.assertTrue(
                     e.getCause()
                             .getCause()
                             .getMessage()
@@ -373,14 +369,15 @@ public class ElasticsearchSinkBaseTest {
             return;
         }
 
-        Assert.fail();
+        Assertions.fail();
     }
 
     /**
      * Tests that the sink correctly waits for pending requests (including re-added requests) on
      * checkpoints; we set a timeout because the test will not finish if the logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testAtLeastOnceSink() throws Throwable {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -426,7 +423,7 @@ public class ElasticsearchSinkBaseTest {
         }
 
         // current number of pending request should be 1 due to the re-add
-        Assert.assertEquals(1, sink.getNumPendingRequests());
+        Assertions.assertEquals(1, sink.getNumPendingRequests());
 
         // this time, let the bulk request succeed, so no-more requests are re-added
         sink.setMockItemFailuresListForNextBulkItemResponses(
@@ -445,7 +442,8 @@ public class ElasticsearchSinkBaseTest {
      * disabled, the snapshot method does indeed finishes without waiting for pending requests; we
      * set a timeout because the test will not finish if the logic is broken.
      */
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testDoesNotWaitForPendingRequestsIfFlushingDisabled() throws Exception {
         final DummyElasticsearchSink<String> sink =
                 new DummyElasticsearchSink<>(
@@ -481,8 +479,8 @@ public class ElasticsearchSinkBaseTest {
         sink.open(mock(Configuration.class));
         sink.close();
 
-        Assert.assertTrue(sinkFunction.openCalled);
-        Assert.assertTrue(sinkFunction.closeCalled);
+        Assertions.assertTrue(sinkFunction.openCalled);
+        Assertions.assertTrue(sinkFunction.closeCalled);
     }
 
     private static class DummyElasticsearchSink<T> extends ElasticsearchSinkBase<T, Client> {

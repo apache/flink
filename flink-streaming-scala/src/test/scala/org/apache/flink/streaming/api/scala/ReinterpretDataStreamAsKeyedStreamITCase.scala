@@ -20,7 +20,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Integration test for [[DataStreamUtils.reinterpretAsKeyedStream()]].

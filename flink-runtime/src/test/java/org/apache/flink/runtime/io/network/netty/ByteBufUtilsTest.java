@@ -23,11 +23,11 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** Tests the methods in {@link ByteBufUtils}. */
 public class ByteBufUtilsTest extends TestLogger {
@@ -126,9 +126,9 @@ public class ByteBufUtilsTest extends TestLogger {
         for (int i = 0; i < length; ++i) {
             byte b = buf.getByte(start + i);
             assertEquals(
-                    String.format("The byte at position %d is not right.", start + i),
                     ACCUMULATION_BYTE,
-                    b);
+                    b,
+                    String.format("The byte at position %d is not right.", start + i));
         }
     }
 }

@@ -28,7 +28,9 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -42,9 +44,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests the behaviors of {@link HadoopFileCommitter}. */
 @RunWith(Parameterized.class)
@@ -234,8 +234,8 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBase {
         FileSystem fileSystem = FileSystem.get(basePath.toUri(), configuration);
         for (String targetFileName : targetFileNames) {
             assertFalse(
-                    "Pre-committed file should not exists: " + targetFileName,
-                    fileSystem.exists(new Path(basePath, targetFileName)));
+                    fileSystem.exists(new Path(basePath, targetFileName)),
+                    "Pre-committed file should not exists: " + targetFileName);
         }
     }
 
@@ -247,8 +247,8 @@ public abstract class AbstractFileCommitterTest extends AbstractTestBase {
         for (String targetFileName : targetFileNames) {
             Path targetFilePath = new Path(basePath, targetFileName);
             assertTrue(
-                    "Committed file should exists: " + targetFileName,
-                    fileSystem.exists(targetFilePath));
+                    fileSystem.exists(targetFilePath),
+                    "Committed file should exists: " + targetFileName);
             List<String> written = readFile(fileSystem, targetFilePath);
             assertEquals("Unexpected file content for file " + targetFilePath, CONTENTS, written);
         }

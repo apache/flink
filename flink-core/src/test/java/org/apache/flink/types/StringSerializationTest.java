@@ -20,7 +20,9 @@ package org.apache.flink.types;
 
 import org.apache.flink.util.StringUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,9 +35,9 @@ import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the serialization of Strings through the StringValue class. */
 public class StringSerializationTest {
@@ -288,11 +290,11 @@ public class StringSerializationTest {
         while (deserializer.available() > 0) {
             String deser = StringValue.readString(deserializer);
 
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertEquals(values[num], deser, "DeserializedString differs from original string.");
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 
     public static final void testCopy(String[] values) throws IOException {
@@ -322,11 +324,11 @@ public class StringSerializationTest {
         while (validate.available() > 0) {
             String deser = StringValue.readString(validate);
 
-            assertEquals("DeserializedString differs from original string.", values[num], deser);
+            assertEquals(values[num], deser, "DeserializedString differs from original string.");
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 
     // needed to test the binary compatibility for new/old string serialization code

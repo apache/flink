@@ -18,8 +18,15 @@
 
 package org.apache.flink.runtime.iterative.concurrent;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link SuperstepKickoffLatch}. */
 public class SuperstepKickoffLatchTest {
@@ -51,7 +58,7 @@ public class SuperstepKickoffLatchTest {
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
+            Assertions.fail("Error: " + t.getMessage());
         }
     }
 
@@ -81,7 +88,7 @@ public class SuperstepKickoffLatchTest {
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
+            Assertions.fail("Error: " + t.getMessage());
         }
     }
 
@@ -94,13 +101,13 @@ public class SuperstepKickoffLatchTest {
 
             try {
                 latch.awaitStartOfSuperstepOrTermination(2);
-                Assert.fail("should throw exception");
+                Assertions.fail("should throw exception");
             } catch (IllegalStateException e) {
                 // good
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Error: " + e.getMessage());
+            Assertions.fail("Error: " + e.getMessage());
         }
     }
 
@@ -131,11 +138,11 @@ public class SuperstepKickoffLatchTest {
                     throw new Exception("wrong exception type " + w.getError());
                 }
             } else {
-                Assert.fail("should cause exception");
+                Assertions.fail("should cause exception");
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
+            Assertions.fail("Error: " + t.getMessage());
         }
     }
 
@@ -166,7 +173,7 @@ public class SuperstepKickoffLatchTest {
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            Assert.fail("Error: " + t.getMessage());
+            Assertions.fail("Error: " + t.getMessage());
         }
     }
 

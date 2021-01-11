@@ -45,7 +45,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.junit.After;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -74,11 +74,11 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.RunnableFuture;
 
-import static junit.framework.TestCase.assertNotNull;
 import static org.apache.flink.contrib.streaming.state.RocksDBKeyedStateBackendBuilder.DB_INSTANCE_DIR_STRING;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
@@ -592,7 +592,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
             verify(rocksCloseable, times(1)).close();
         }
 
-        assertNotNull(null, keyedStateBackend.db);
+        assertNotNull(keyedStateBackend.db);
         RocksDB spyDB = keyedStateBackend.db;
 
         if (!enableIncrementalCheckpointing) {

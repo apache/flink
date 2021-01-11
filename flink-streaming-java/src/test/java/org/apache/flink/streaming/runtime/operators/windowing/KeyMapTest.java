@@ -18,17 +18,19 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link KeyMap}. */
 public class KeyMapTest {
@@ -213,7 +215,7 @@ public class KeyMapTest {
 
                     Integer boxed = nextKeyValue;
                     Integer previous = maps[pos].put(boxed, boxed);
-                    assertNull("Test problem - test does not assign unique maps", previous);
+                    assertNull(previous, "Test problem - test does not assign unique maps");
                 }
 
                 totalNumElements += numCopies;

@@ -18,58 +18,80 @@
 package org.apache.flink.streaming.connectors.rabbitmq.common;
 
 import com.rabbitmq.client.ConnectionFactory;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link RMQConnectionConfig}. */
 public class RMQConnectionConfigTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldThrowNullPointExceptionIfHostIsNull()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
-                new RMQConnectionConfig.Builder()
-                        .setPort(1000)
-                        .setUserName("guest")
-                        .setPassword("guest")
-                        .setVirtualHost("/")
-                        .build();
-        connectionConfig.getConnectionFactory();
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    RMQConnectionConfig connectionConfig =
+                            new RMQConnectionConfig.Builder()
+                                    .setPort(1000)
+                                    .setUserName("guest")
+                                    .setPassword("guest")
+                                    .setVirtualHost("/")
+                                    .build();
+                    connectionConfig.getConnectionFactory();
+                });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldThrowNullPointExceptionIfPortIsNull()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
-                new RMQConnectionConfig.Builder()
-                        .setHost("localhost")
-                        .setUserName("guest")
-                        .setPassword("guest")
-                        .setVirtualHost("/")
-                        .build();
-        connectionConfig.getConnectionFactory();
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    RMQConnectionConfig connectionConfig =
+                            new RMQConnectionConfig.Builder()
+                                    .setHost("localhost")
+                                    .setUserName("guest")
+                                    .setPassword("guest")
+                                    .setVirtualHost("/")
+                                    .build();
+                    connectionConfig.getConnectionFactory();
+                });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void shouldSetDefaultValueIfConnectionTimeoutNotGiven()
             throws NoSuchAlgorithmException, KeyManagementException, URISyntaxException {
-        RMQConnectionConfig connectionConfig =
-                new RMQConnectionConfig.Builder()
-                        .setHost("localhost")
-                        .setUserName("guest")
-                        .setPassword("guest")
-                        .setVirtualHost("/")
-                        .build();
-        ConnectionFactory factory = connectionConfig.getConnectionFactory();
-        assertEquals(ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT, factory.getConnectionTimeout());
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    RMQConnectionConfig connectionConfig =
+                            new RMQConnectionConfig.Builder()
+                                    .setHost("localhost")
+                                    .setUserName("guest")
+                                    .setPassword("guest")
+                                    .setVirtualHost("/")
+                                    .build();
+                    ConnectionFactory factory = connectionConfig.getConnectionFactory();
+                    assertEquals(
+                            ConnectionFactory.DEFAULT_CONNECTION_TIMEOUT,
+                            factory.getConnectionTimeout());
+                });
     }
 
     @Test

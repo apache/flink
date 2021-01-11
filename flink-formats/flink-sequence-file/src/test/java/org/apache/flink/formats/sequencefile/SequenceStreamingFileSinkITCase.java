@@ -33,9 +33,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,22 +44,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test case for writing bulk encoded files with the {@link StreamingFileSink} with
  * SequenceFile.
  */
+@Timeout(20)
 public class SequenceStreamingFileSinkITCase extends AbstractTestBase {
 
     private final Configuration configuration = new Configuration();
 
     private final List<Tuple2<Long, String>> testData =
             Arrays.asList(new Tuple2<>(1L, "a"), new Tuple2<>(2L, "b"), new Tuple2<>(3L, "c"));
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Test
     public void testWriteSequenceFile() throws Exception {

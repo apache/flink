@@ -29,8 +29,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JoinTaskExternalITCase
         extends DriverTestBase<FlatJoinFunction<Record, Record, Record>> {
@@ -93,10 +95,10 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -124,10 +126,10 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -155,10 +157,10 @@ public class JoinTaskExternalITCase
             testDriver(testTask, MockMatchStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Test caused an exception.");
+            Assertions.fail("Test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     public static final class MockMatchStub implements FlatJoinFunction<Record, Record, Record> {

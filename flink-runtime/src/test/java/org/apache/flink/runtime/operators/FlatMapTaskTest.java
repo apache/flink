@@ -30,8 +30,10 @@ import org.apache.flink.runtime.operators.testutils.UniformRecordGenerator;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,11 +63,10 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             testDriver(testDriver, MockMapStub.class);
         } catch (Exception e) {
             LOG.debug("Exception while running the test driver.", e);
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
-        Assert.assertEquals(
-                "Wrong result set size.", keyCnt * valCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(keyCnt * valCnt, "Wrong result set size.");
     }
 
     @Test
@@ -79,12 +80,12 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
         final FlatMapDriver<Record, Record> testTask = new FlatMapDriver<>();
         try {
             testDriver(testTask, MockFailingMapStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException e) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("Exception in test.");
+            Assertions.fail("Exception in test.");
         }
     }
 
@@ -118,11 +119,11 @@ public class FlatMapTaskTest extends DriverTestBase<FlatMapFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        Assertions.assertTrue(
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     public static class MockMapStub extends RichFlatMapFunction<Record, Record> {

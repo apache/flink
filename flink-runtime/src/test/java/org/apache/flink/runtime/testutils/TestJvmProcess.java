@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.testutils;
 
-import org.apache.flink.util.ShutdownHookUtil;
-
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.flink.util.ShutdownHookUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,13 +31,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import static org.apache.flink.runtime.testutils.CommonTestUtils.createTemporaryLog4JProperties;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
-import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.fail;
+import static org.apache.flink.runtime.testutils.CommonTestUtils.*;
+import static org.apache.flink.util.Preconditions.*;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** A {@link Process} running a separate JVM. */
 public abstract class TestJvmProcess {

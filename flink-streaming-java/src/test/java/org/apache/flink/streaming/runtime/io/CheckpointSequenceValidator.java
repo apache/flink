@@ -26,9 +26,9 @@ import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 
 import java.util.concurrent.Future;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** {@link AbstractInvokable} that validates expected order of completed and aborted checkpoints. */
 class CheckpointSequenceValidator extends AbstractInvokable {
@@ -61,14 +61,14 @@ class CheckpointSequenceValidator extends AbstractInvokable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics) {
         assertTrue(
+                i < checkpointIDs.length,
                 "Unexpected triggerCheckpointOnBarrier("
                         + checkpointMetaData.getCheckpointId()
-                        + ")",
-                i < checkpointIDs.length);
+                        + ")");
 
         final long expectedId = checkpointIDs[i++];
         if (expectedId >= 0) {
-            assertEquals("wrong checkpoint id", expectedId, checkpointMetaData.getCheckpointId());
+            assertEquals(expectedId, checkpointMetaData.getCheckpointId(), "wrong checkpoint id");
             assertTrue(checkpointMetaData.getTimestamp() > 0);
         } else {
             fail(
@@ -81,12 +81,12 @@ class CheckpointSequenceValidator extends AbstractInvokable {
     @Override
     public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {
         assertTrue(
-                "Unexpected abortCheckpointOnBarrier(" + checkpointId + ")",
-                i < checkpointIDs.length);
+                i < checkpointIDs.length,
+                "Unexpected abortCheckpointOnBarrier(" + checkpointId + ")");
 
         final long expectedId = checkpointIDs[i++];
         if (expectedId < 0) {
-            assertEquals("wrong checkpoint id for checkpoint abort", -expectedId, checkpointId);
+            assertEquals(-expectedId, checkpointId, "wrong checkpoint id for checkpoint abort");
         } else {
             fail(
                     String.format(

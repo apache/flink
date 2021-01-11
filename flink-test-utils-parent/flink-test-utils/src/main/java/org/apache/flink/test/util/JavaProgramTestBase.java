@@ -21,8 +21,10 @@ package org.apache.flink.test.util;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Base class for unit tests that run a single test with object reuse enabled/disabled and against
@@ -92,7 +94,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Pre-submit work caused an error: " + e.getMessage());
         }
 
         // This only works because the underlying ExecutionEnvironment is a TestEnvironment
@@ -111,11 +113,11 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
             } catch (Exception e) {
                 System.err.println(e.getMessage());
                 e.printStackTrace();
-                Assert.fail("Error while calling the test program: " + e.getMessage());
+                Assertions.fail("Error while calling the test program: " + e.getMessage());
             }
 
-            Assert.assertNotNull(
-                    "The test program never triggered an execution.", this.latestExecutionResult);
+            Assertions.assertNotNull(
+                    this.latestExecutionResult, "The test program never triggered an execution.");
         }
 
         // post-submit
@@ -124,7 +126,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Post-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Post-submit work caused an error: " + e.getMessage());
         }
     }
 
@@ -138,7 +140,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Pre-submit work caused an error: " + e.getMessage());
         }
 
         // This only works because the underlying ExecutionEnvironment is a TestEnvironment
@@ -157,11 +159,11 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
             } catch (Exception e) {
                 System.err.println(e.getMessage());
                 e.printStackTrace();
-                Assert.fail("Error while calling the test program: " + e.getMessage());
+                Assertions.fail("Error while calling the test program: " + e.getMessage());
             }
 
-            Assert.assertNotNull(
-                    "The test program never triggered an execution.", this.latestExecutionResult);
+            Assertions.assertNotNull(
+                    this.latestExecutionResult, "The test program never triggered an execution.");
         }
 
         // post-submit
@@ -170,7 +172,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Post-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Post-submit work caused an error: " + e.getMessage());
         }
     }
 
@@ -190,7 +192,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Pre-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Pre-submit work caused an error: " + e.getMessage());
         }
 
         // prepare the test environment
@@ -204,13 +206,13 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Error while calling the test program: " + e.getMessage());
+            Assertions.fail("Error while calling the test program: " + e.getMessage());
         } finally {
             miniClusterResource.getTestEnvironment().setAsContext();
         }
 
-        Assert.assertNotNull(
-                "The test program never triggered an execution.", this.latestExecutionResult);
+        Assertions.assertNotNull(
+                this.latestExecutionResult, "The test program never triggered an execution.");
 
         // post-submit
         try {
@@ -218,7 +220,7 @@ public abstract class JavaProgramTestBase extends AbstractTestBase {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail("Post-submit work caused an error: " + e.getMessage());
+            Assertions.fail("Post-submit work caused an error: " + e.getMessage());
         }
     }
 }

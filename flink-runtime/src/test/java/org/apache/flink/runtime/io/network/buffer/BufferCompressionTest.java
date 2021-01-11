@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -34,9 +34,10 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collection;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link BufferCompressor} and {@link BufferDecompressor}. */
 @RunWith(Parameterized.class)
@@ -112,70 +113,113 @@ public class BufferCompressionTest {
         verifyDecompressionResult(decompressedBuffer, NUM_LONGS / 4, NUM_LONGS / 2);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCompressEmptyBuffer() {
-        compress(compressor, bufferToCompress.readOnlySlice(0, 0), compressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    compress(
+                            compressor,
+                            bufferToCompress.readOnlySlice(0, 0),
+                            compressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecompressEmptyBuffer() {
-        Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(0, 0);
-        readOnlySlicedBuffer.setCompressed(true);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    Buffer readOnlySlicedBuffer = bufferToCompress.readOnlySlice(0, 0);
+                    readOnlySlicedBuffer.setCompressed(true);
 
-        decompress(decompressor, readOnlySlicedBuffer, decompressToOriginalBuffer);
+                    decompress(decompressor, readOnlySlicedBuffer, decompressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCompressBufferWithNonZeroReadOffset() {
-        bufferToCompress.setReaderIndex(1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    bufferToCompress.setReaderIndex(1);
 
-        compress(compressor, bufferToCompress, compressToOriginalBuffer);
+                    compress(compressor, bufferToCompress, compressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecompressBufferWithNonZeroReadOffset() {
-        bufferToCompress.setReaderIndex(1);
-        bufferToCompress.setCompressed(true);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    bufferToCompress.setReaderIndex(1);
+                    bufferToCompress.setCompressed(true);
 
-        decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+                    decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCompressNull() {
-        compress(compressor, null, compressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    compress(compressor, null, compressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecompressNull() {
-        decompress(decompressor, null, decompressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    decompress(decompressor, null, decompressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCompressCompressedBuffer() {
-        bufferToCompress.setCompressed(true);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    bufferToCompress.setCompressed(true);
 
-        compress(compressor, bufferToCompress, compressToOriginalBuffer);
+                    compress(compressor, bufferToCompress, compressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecompressUncompressedBuffer() {
-        decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    decompress(decompressor, bufferToCompress, decompressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testCompressEvent() throws IOException {
-        compress(
-                compressor,
-                EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
-                compressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    compress(
+                            compressor,
+                            EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                            compressToOriginalBuffer);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDecompressEvent() throws IOException {
-        decompress(
-                decompressor,
-                EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
-                decompressToOriginalBuffer);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    decompress(
+                            decompressor,
+                            EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE, false),
+                            decompressToOriginalBuffer);
+                });
     }
 
     @Test

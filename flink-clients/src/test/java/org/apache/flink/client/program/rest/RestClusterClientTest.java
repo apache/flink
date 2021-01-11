@@ -102,9 +102,9 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseSt
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
 
@@ -129,13 +129,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the {@link RestClusterClient}.
@@ -245,13 +245,13 @@ public class RestClusterClientTest extends TestLogger {
 
             try (RestClusterClient<?> restClusterClient =
                     createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
-                Assert.assertFalse(submitHandler.jobSubmitted);
+                Assertions.assertFalse(submitHandler.jobSubmitted);
                 restClusterClient.submitJob(jobGraph).get();
-                Assert.assertTrue(submitHandler.jobSubmitted);
+                Assertions.assertTrue(submitHandler.jobSubmitted);
 
-                Assert.assertFalse(terminationHandler.jobCanceled);
+                Assertions.assertFalse(terminationHandler.jobCanceled);
                 restClusterClient.cancel(jobId).get();
-                Assert.assertTrue(terminationHandler.jobCanceled);
+                Assertions.assertTrue(terminationHandler.jobCanceled);
             }
         }
     }
@@ -454,10 +454,10 @@ public class RestClusterClientTest extends TestLogger {
                 Iterator<JobStatusMessage> jobDetailsIterator = jobDetails.iterator();
                 JobStatusMessage job1 = jobDetailsIterator.next();
                 JobStatusMessage job2 = jobDetailsIterator.next();
-                Assert.assertNotEquals(
-                        "The job status should not be equal.",
+                Assertions.assertNotEquals(
                         job1.getJobState(),
-                        job2.getJobState());
+                        job2.getJobState(),
+                        "The job status should not be equal.");
             } finally {
                 restClusterClient.close();
             }

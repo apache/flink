@@ -36,8 +36,8 @@ import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.util.Visitor;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests in this class:
@@ -106,10 +106,10 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType redIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.PARTITION_HASH, mapIn);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, redIn);
+        Assertions.assertEquals(
+                ShipStrategyType.PARTITION_HASH, mapIn, "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(
+                ShipStrategyType.FORWARD, redIn, "Invalid ship strategy for an operator.");
     }
 
     /**
@@ -168,12 +168,12 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType reduceIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.", ShipStrategyType.FORWARD, mapIn);
-        Assert.assertEquals(
-                "Invalid ship strategy for an operator.",
+        Assertions.assertEquals(
+                ShipStrategyType.FORWARD, mapIn, "Invalid ship strategy for an operator.");
+        Assertions.assertEquals(
                 ShipStrategyType.PARTITION_HASH,
-                reduceIn);
+                reduceIn,
+                "Invalid ship strategy for an operator.");
     }
 
     /**
@@ -231,12 +231,12 @@ public class ParallelismChangeTest extends CompilerTestBase {
         ShipStrategyType mapIn = map2Node.getInput().getShipStrategy();
         ShipStrategyType reduceIn = red2Node.getInput().getShipStrategy();
 
-        Assert.assertTrue(
-                "Invalid ship strategy for an operator.",
+        Assertions.assertTrue(
                 (ShipStrategyType.PARTITION_RANDOM == mapIn
                                 && ShipStrategyType.PARTITION_HASH == reduceIn)
                         || (ShipStrategyType.PARTITION_HASH == mapIn
-                                && ShipStrategyType.FORWARD == reduceIn));
+                                && ShipStrategyType.FORWARD == reduceIn),
+                "Invalid ship strategy for an operator.");
     }
 
     @Test
@@ -285,16 +285,15 @@ public class ParallelismChangeTest extends CompilerTestBase {
         SingleInputPlanNode red2Node = (SingleInputPlanNode) sinkNode.getPredecessor();
         SingleInputPlanNode map2Node = (SingleInputPlanNode) red2Node.getPredecessor();
 
-        Assert.assertTrue(
-                "The no sorting local strategy.",
+        Assertions.assertTrue(
                 LocalStrategy.SORT == red2Node.getInput().getLocalStrategy()
-                        || LocalStrategy.SORT == map2Node.getInput().getLocalStrategy());
+                        || LocalStrategy.SORT == map2Node.getInput().getLocalStrategy(),
+                "The no sorting local strategy.");
 
-        Assert.assertTrue(
-                "The no partitioning ship strategy.",
+        Assertions.assertTrue(
                 ShipStrategyType.PARTITION_HASH == red2Node.getInput().getShipStrategy()
-                        || ShipStrategyType.PARTITION_HASH
-                                == map2Node.getInput().getShipStrategy());
+                        || ShipStrategyType.PARTITION_HASH == map2Node.getInput().getShipStrategy(),
+                "The no partitioning ship strategy.");
     }
 
     /**
@@ -359,14 +358,14 @@ public class ParallelismChangeTest extends CompilerTestBase {
                             Channel c1 = node.getInput1();
                             Channel c2 = node.getInput2();
 
-                            Assert.assertEquals(
-                                    "Incompatible shipping strategy chosen for match",
+                            Assertions.assertEquals(
                                     ShipStrategyType.FORWARD,
-                                    c1.getShipStrategy());
-                            Assert.assertEquals(
-                                    "Incompatible shipping strategy chosen for match",
+                                    c1.getShipStrategy(),
+                                    "Incompatible shipping strategy chosen for match");
+                            Assertions.assertEquals(
                                     ShipStrategyType.PARTITION_HASH,
-                                    c2.getShipStrategy());
+                                    c2.getShipStrategy(),
+                                    "Incompatible shipping strategy chosen for match");
                             return false;
                         }
                         return true;

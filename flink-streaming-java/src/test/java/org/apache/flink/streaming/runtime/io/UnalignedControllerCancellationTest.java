@@ -31,14 +31,14 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.List;
-
-import static org.junit.Assert.assertEquals;
 
 /** {@link UnalignedController} cancellation test. */
 @RunWith(Parameterized.class)
@@ -105,9 +105,9 @@ public class UnalignedControllerCancellationTest {
             }
         }
 
-        assertEquals("expectAbortCheckpoint", expectAbortCheckpoint, invokable.checkpointAborted);
+        assertEquals(expectAbortCheckpoint, invokable.checkpointAborted, "expectAbortCheckpoint");
         assertEquals(
-                "expectTriggerCheckpoint", expectTriggerCheckpoint, invokable.checkpointTriggered);
+                expectTriggerCheckpoint, invokable.checkpointTriggered, "expectTriggerCheckpoint");
     }
 
     private static CheckpointBarrier checkpoint(int checkpointId) {

@@ -18,10 +18,17 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test checkpoint statistics counters. */
 public class CheckpointStatsCountsTest {
@@ -82,14 +89,10 @@ public class CheckpointStatsCountsTest {
     public void testCompleteOrFailWithoutInProgressCheckpoint() {
         CheckpointStatsCounts counts = new CheckpointStatsCounts();
         counts.incrementCompletedCheckpoints();
-        assertTrue(
-                "Number of checkpoints in progress should never be negative",
-                counts.getNumberOfInProgressCheckpoints() >= 0);
+        assertTrue(                counts.getNumberOfInProgressCheckpoints() >= 0,                "Number of checkpoints in progress should never be negative");
 
         counts.incrementFailedCheckpoints();
-        assertTrue(
-                "Number of checkpoints in progress should never be negative",
-                counts.getNumberOfInProgressCheckpoints() >= 0);
+        assertTrue(                counts.getNumberOfInProgressCheckpoints() >= 0,                "Number of checkpoints in progress should never be negative");
     }
 
     /** Tests that that taking snapshots of the state are independent from the parent. */

@@ -71,9 +71,9 @@ import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -97,8 +97,8 @@ import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUti
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.clearMetaDataFollowsFlag;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.hasMetaDataFollowsFlag;
 import static org.apache.flink.contrib.streaming.state.snapshot.RocksSnapshotUtil.setMetaDataFollowsFlagInKey;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -236,7 +236,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
         testHarness.waitForTaskCompletion();
         if (errorRef.get() != null) {
@@ -354,17 +354,17 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
 
         ExecutorService threadPool = task.getAsyncOperationsThreadPool();
         threadPool.shutdown();
-        Assert.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
+        Assertions.assertTrue(threadPool.awaitTermination(60_000, TimeUnit.MILLISECONDS));
 
         Set<BlockingCheckpointOutputStream> createdStreams =
                 blockerCheckpointStreamFactory.getAllCreatedStreams();
 
         for (BlockingCheckpointOutputStream stream : createdStreams) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
+                    stream.isClosed(),
                     "Not all of the "
                             + createdStreams.size()
-                            + " created streams have been closed.",
-                    stream.isClosed());
+                            + " created streams have been closed.");
         }
 
         try {
@@ -431,7 +431,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                 FutureUtils.runIfNotDoneAndGet(snapshotFuture);
                 fail("Expected an exception to be thrown here.");
             } catch (ExecutionException e) {
-                Assert.assertEquals(testException, e.getCause());
+                Assertions.assertEquals(testException, e.getCause());
             }
 
             verify(outputStream).close();
@@ -445,21 +445,21 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
     @Test
     public void testConsistentSnapshotSerializationFlagsAndMasks() {
 
-        Assert.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
-        Assert.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
+        Assertions.assertEquals(0xFFFF, END_OF_KEY_GROUP_MARK);
+        Assertions.assertEquals(0x80, FIRST_BIT_IN_BYTE_MASK);
 
         byte[] expectedKey = new byte[] {42, 42};
         byte[] modKey = expectedKey.clone();
 
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertFalse(hasMetaDataFollowsFlag(modKey));
 
         setMetaDataFollowsFlagInKey(modKey);
-        Assert.assertTrue(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertTrue(hasMetaDataFollowsFlag(modKey));
 
         clearMetaDataFollowsFlag(modKey);
-        Assert.assertFalse(hasMetaDataFollowsFlag(modKey));
+        Assertions.assertFalse(hasMetaDataFollowsFlag(modKey));
 
-        Assert.assertTrue(Arrays.equals(expectedKey, modKey));
+        Assertions.assertTrue(Arrays.equals(expectedKey, modKey));
     }
 
     // ------------------------------------------------------------------------

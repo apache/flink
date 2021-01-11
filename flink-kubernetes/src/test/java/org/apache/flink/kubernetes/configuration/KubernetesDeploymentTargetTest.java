@@ -21,11 +21,19 @@ package org.apache.flink.kubernetes.configuration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link KubernetesDeploymentTarget}. */
 public class KubernetesDeploymentTargetTest {
@@ -37,15 +45,24 @@ public class KubernetesDeploymentTargetTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidInstantiationFromConfiguration() {
-        final Configuration configuration = getConfigurationWithTarget("invalid-target");
-        KubernetesDeploymentTarget.fromConfig(configuration);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    final Configuration configuration =
+                            getConfigurationWithTarget("invalid-target");
+                    KubernetesDeploymentTarget.fromConfig(configuration);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNullInstantiationFromConfiguration() {
-        KubernetesDeploymentTarget.fromConfig(new Configuration());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    KubernetesDeploymentTarget.fromConfig(new Configuration());
+                });
     }
 
     @Test

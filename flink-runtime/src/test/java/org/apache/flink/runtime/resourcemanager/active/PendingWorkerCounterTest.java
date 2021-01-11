@@ -21,7 +21,15 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
@@ -65,10 +73,12 @@ public class PendingWorkerCounterTest extends TestLogger {
         assertThat(counter.getNum(spec2), is(0));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testPendingWorkerCounterDecreaseOnZero() {
-        final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
+        assertThrows(IllegalStateException.class, () -> {
+                    final WorkerResourceSpec spec = new WorkerResourceSpec.Builder().build();
         final PendingWorkerCounter counter = new PendingWorkerCounter();
         counter.decreaseAndGet(spec);
+        });
     }
 }

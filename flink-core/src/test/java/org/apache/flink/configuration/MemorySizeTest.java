@@ -20,16 +20,25 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.MEGA_BYTES;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link MemorySize} class. */
 public class MemorySizeTest {
@@ -72,9 +81,13 @@ public class MemorySizeTest {
         assertEquals(2, teras.getTebiBytes());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalid() {
-        new MemorySize(-1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new MemorySize(-1);
+                });
     }
 
     @Test
@@ -203,14 +216,22 @@ public class MemorySizeTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseNumberOverflow() {
-        MemorySize.parseBytes("100000000000000000000000000000000 bytes");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MemorySize.parseBytes("100000000000000000000000000000000 bytes");
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testParseNumberTimeUnitOverflow() {
-        MemorySize.parseBytes("100000000000000 tb");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MemorySize.parseBytes("100000000000000 tb");
+                });
     }
 
     @Test
@@ -233,10 +254,14 @@ public class MemorySizeTest {
         assertThat(memory.divide(23), is(new MemorySize(4L)));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideByNegativeLong() {
-        final MemorySize memory = new MemorySize(100L);
-        memory.divide(-23L);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    final MemorySize memory = new MemorySize(100L);
+                    memory.divide(-23L);
+                });
     }
 
     @Test

@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{Va
 import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 import org.apache.flink.table.runtime.typeutils.DecimalDataTypeInfo
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 abstract class AggregateTestBase extends TableTestBase {
 

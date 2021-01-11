@@ -26,7 +26,7 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test empty (identity) bulk iteration. */
 public class IdentityIterationITCase extends JavaProgramTestBase {

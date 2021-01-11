@@ -20,20 +20,32 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link DataStreamSink}. */
 public class DataStreamSinkTest {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWhenGettingTransformationWithNewSinkAPI() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(IllegalStateException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void throwExceptionWhenSetUidWithNewSinkAPI() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).setUidHash("Test");
+        });
     }
 }

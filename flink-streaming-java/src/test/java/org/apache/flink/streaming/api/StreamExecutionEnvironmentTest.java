@@ -39,18 +39,18 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.SplittableIterator;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link StreamExecutionEnvironment}. */
 public class StreamExecutionEnvironmentTest {
@@ -61,10 +61,16 @@ public class StreamExecutionEnvironmentTest {
         env.fromElements(ParentClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void fromElementsWithBaseTypeTest2() {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.fromElements(
+                            SubClass.class, new SubClass(1, "Java"), new ParentClass(1, "hello"));
+                });
     }
 
     @Test
@@ -96,13 +102,13 @@ public class StreamExecutionEnvironmentTest {
             streamGraph.getStreamingPlanAsJSON();
 
             assertEquals(
-                    "Parallelism of collection source must be 1.",
                     1,
-                    streamGraph.getStreamNode(dataStream1.getId()).getParallelism());
+                    streamGraph.getStreamNode(dataStream1.getId()).getParallelism(),
+                    "Parallelism of collection source must be 1.");
             assertEquals(
-                    "Parallelism of parallel collection source must be 4.",
                     4,
-                    streamGraph.getStreamNode(dataStream2.getId()).getParallelism());
+                    streamGraph.getStreamNode(dataStream2.getId()).getParallelism(),
+                    "Parallelism of parallel collection source must be 4.");
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
@@ -177,71 +183,71 @@ public class StreamExecutionEnvironmentTest {
                                 });
 
         // default value for max parallelism
-        Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
         // bounds for parallelism 1
         try {
             operator.setParallelism(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         // bounds for parallelism 2
         operator.setParallelism(1);
-        Assert.assertEquals(1, operator.getParallelism());
+        Assertions.assertEquals(1, operator.getParallelism());
 
         // bounds for parallelism 3
         operator.setParallelism(1 << 15);
-        Assert.assertEquals(1 << 15, operator.getParallelism());
+        Assertions.assertEquals(1 << 15, operator.getParallelism());
 
         // default value after generating
         env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
-        Assert.assertEquals(-1, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(-1, operator.getTransformation().getMaxParallelism());
 
         // configured value after generating
         env.setMaxParallelism(42);
         env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
-        Assert.assertEquals(42, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(42, operator.getTransformation().getMaxParallelism());
 
         // bounds configured parallelism 1
         try {
             env.setMaxParallelism(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         // bounds configured parallelism 2
         try {
             env.setMaxParallelism(1 + (1 << 15));
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         // bounds for max parallelism 1
         try {
             operator.setMaxParallelism(0);
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         // bounds for max parallelism 2
         try {
             operator.setMaxParallelism(1 + (1 << 15));
-            Assert.fail();
+            Assertions.fail();
         } catch (IllegalArgumentException expected) {
         }
 
         // bounds for max parallelism 3
         operator.setMaxParallelism(1);
-        Assert.assertEquals(1, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(1, operator.getTransformation().getMaxParallelism());
 
         // bounds for max parallelism 4
         operator.setMaxParallelism(1 << 15);
-        Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
 
         // override config
         env.getStreamGraph(StreamExecutionEnvironment.DEFAULT_JOB_NAME, false).getJobGraph();
-        Assert.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
+        Assertions.assertEquals(1 << 15, operator.getTransformation().getMaxParallelism());
     }
 
     @Test

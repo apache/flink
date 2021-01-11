@@ -106,20 +106,23 @@ class TemporalJoinTest extends TableTestBase {
       "GROUP BY currency ")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleJoin(): Unit = {
-    val sqlQuery = "SELECT " +
+        assertThrows[TableException] {
+                val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
       "RatesHistoryWithPK FOR SYSTEM_TIME AS OF o.o_rowtime as r " +
       "on o.o_currency = r.currency"
 
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleRowtimeVersionedViewJoin(): Unit = {
-    val sqlQuery = "SELECT " +
+        assertThrows[TableException] {
+                val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
       "rates_last_row_rowtime " +
@@ -127,11 +130,13 @@ class TemporalJoinTest extends TableTestBase {
       "on o.o_currency = r1.currency"
 
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleProctimeVersionedViewJoin(): Unit = {
-    val sqlQuery = "SELECT " +
+        assertThrows[TableException] {
+                val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
       "FROM Orders AS o JOIN " +
       "rates_last_row_proctime " +
@@ -139,10 +144,12 @@ class TemporalJoinTest extends TableTestBase {
       "on o.o_currency = r1.currency"
 
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testSimpleViewProcTimeJoin(): Unit = {
+        assertThrows[TableException] {
 
     val sqlQuery = "SELECT " +
       "o_amount * rate as rate " +
@@ -152,5 +159,6 @@ class TemporalJoinTest extends TableTestBase {
       "on o.o_currency = r1.currency"
 
     util.verifyExecPlan(sqlQuery)
-  }
+        }
+    }
 }

@@ -29,43 +29,59 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** {@link ContinuousFileReaderOperator} test. */
 public class ContinuousFileReaderOperatorTest {
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testExceptionRethrownFromClose() throws Exception {
-        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
-                createHarness(failingFormat());
-        harness.getExecutionConfig().setAutoWatermarkInterval(10);
-        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
-                harness) {
-            tester.open();
-        }
+        assertThrows(
+                ExpectedTestException.class,
+                () -> {
+                    OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+                            createHarness(failingFormat());
+                    harness.getExecutionConfig().setAutoWatermarkInterval(10);
+                    harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+                    try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String>
+                            tester = harness) {
+                        tester.open();
+                    }
+                });
     }
 
-    @Test(expected = ExpectedTestException.class)
+    @Test
     public void testExceptionRethrownFromProcessElement() throws Exception {
-        OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
-                createHarness(failingFormat());
-        harness.getExecutionConfig().setAutoWatermarkInterval(10);
-        harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
-        try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> tester =
-                harness) {
-            tester.open();
-            tester.processElement(
-                    new StreamRecord<>(
-                            new TimestampedFileInputSplit(
-                                    0L, 1, new Path(), 0L, 0L, new String[] {})));
-            for (Mail m : harness.getTaskMailbox().drain()) {
-                m.run();
-            }
-            fail("should throw from processElement");
-        }
+        assertThrows(
+                ExpectedTestException.class,
+                () -> {
+                    OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String> harness =
+                            createHarness(failingFormat());
+                    harness.getExecutionConfig().setAutoWatermarkInterval(10);
+                    harness.setTimeCharacteristic(TimeCharacteristic.IngestionTime);
+                    try (OneInputStreamOperatorTestHarness<TimestampedFileInputSplit, String>
+                            tester = harness) {
+                        tester.open();
+                        tester.processElement(
+                                new StreamRecord<>(
+                                        new TimestampedFileInputSplit(
+                                                0L, 1, new Path(), 0L, 0L, new String[] {})));
+                        for (Mail m : harness.getTaskMailbox().drain()) {
+                            m.run();
+                        }
+                        fail("should throw from processElement");
+                    }
+                });
     }
 
     private FileInputFormat<String> failingFormat() {

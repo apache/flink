@@ -24,9 +24,11 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -104,15 +106,15 @@ public class MergeIteratorTest {
 
         int pos = 1;
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
-        Assert.assertEquals(expected[0], rec1.f0.intValue());
+        Assertions.assertTrue((rec1 = iterator.next(rec1)) != null);
+        Assertions.assertEquals(expected[0], rec1.f0.intValue());
 
         while ((rec2 = iterator.next(rec2)) != null) {
             k1 = rec1.f0;
             k2 = rec2.f0;
 
-            Assert.assertTrue(comparator.compare(k1, k2) <= 0);
-            Assert.assertEquals(expected[pos++], k2);
+            Assertions.assertTrue(comparator.compare(k1, k2) <= 0);
+            Assertions.assertEquals(expected[pos++], k2);
 
             Tuple2<Integer, String> tmp = rec1;
             rec1 = rec2;
@@ -157,18 +159,18 @@ public class MergeIteratorTest {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        Assertions.assertTrue((rec1 = iterator.next(rec1)) != null);
         while ((rec2 = iterator.next(rec2)) != null) {
             elementsFound++;
 
-            Assert.assertTrue(comparator.compare(rec1.f0, rec2.f0) <= 0);
+            Assertions.assertTrue(comparator.compare(rec1.f0, rec2.f0) <= 0);
 
             Tuple2<Integer, String> tmp = rec1;
             rec1 = rec2;
             rec2 = tmp;
         }
 
-        Assert.assertEquals("Too few elements returned from stream.", 50, elementsFound);
+        Assertions.assertEquals(50, elementsFound, "Too few elements returned from stream.");
     }
 
     @Test
@@ -209,7 +211,7 @@ public class MergeIteratorTest {
         Tuple2<Integer, String> rec1 = new Tuple2<>();
         Tuple2<Integer, String> rec2 = new Tuple2<>();
 
-        Assert.assertTrue((rec1 = iterator.next(rec1)) != null);
+        Assertions.assertTrue((rec1 = iterator.next(rec1)) != null);
         while ((rec2 = iterator.next(rec2)) != null) {
             if (comparator.compare(rec1.f0, rec2.f0) > 0) {
                 violationFound = true;
@@ -221,6 +223,6 @@ public class MergeIteratorTest {
             rec2 = tmp;
         }
 
-        Assert.assertTrue("Merge must have returned a wrong result", violationFound);
+        Assertions.assertTrue(violationFound, "Merge must have returned a wrong result");
     }
 }

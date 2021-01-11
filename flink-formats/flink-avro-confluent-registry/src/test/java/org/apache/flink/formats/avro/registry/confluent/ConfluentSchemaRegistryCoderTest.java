@@ -21,14 +21,22 @@ package org.apache.flink.formats.avro.registry.confluent;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link ConfluentSchemaRegistryCoder}. */
 public class ConfluentSchemaRegistryCoderTest {
@@ -55,21 +63,26 @@ public class ConfluentSchemaRegistryCoderTest {
         assertEquals(0, byteInStream.available());
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testMagicByteVerification() throws Exception {
-        MockSchemaRegistryClient client = new MockSchemaRegistryClient();
-        int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
+        assertThrows(
+                IOException.class,
+                () -> {
+                    MockSchemaRegistryClient client = new MockSchemaRegistryClient();
+                    int schemaId = client.register("testTopic", Schema.create(Schema.Type.BOOLEAN));
 
-        ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
-        ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
-        DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
-        dataOutputStream.writeByte(5);
-        dataOutputStream.writeInt(schemaId);
-        dataOutputStream.flush();
+                    ConfluentSchemaRegistryCoder coder = new ConfluentSchemaRegistryCoder(client);
+                    ByteArrayOutputStream byteOutStream = new ByteArrayOutputStream();
+                    DataOutputStream dataOutputStream = new DataOutputStream(byteOutStream);
+                    dataOutputStream.writeByte(5);
+                    dataOutputStream.writeInt(schemaId);
+                    dataOutputStream.flush();
 
-        ByteArrayInputStream byteInStream = new ByteArrayInputStream(byteOutStream.toByteArray());
-        coder.readSchema(byteInStream);
+                    ByteArrayInputStream byteInStream =
+                            new ByteArrayInputStream(byteOutStream.toByteArray());
+                    coder.readSchema(byteInStream);
 
-        // exception is thrown
+                    // exception is thrown
+                });
     }
 }

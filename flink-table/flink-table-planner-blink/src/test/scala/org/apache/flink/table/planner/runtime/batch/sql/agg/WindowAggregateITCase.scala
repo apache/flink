@@ -623,9 +623,10 @@ class WindowAggregateITCase extends BatchTestBase {
         localDateTime("1970-01-01 00:00:24.999"))))
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testSessionWindowWithProperties(): Unit = {
-    registerCollection(
+        assertThrows[RuntimeException] {
+                registerCollection(
       "T",
       data3WithTimestamp,
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
@@ -640,5 +641,6 @@ class WindowAggregateITCase extends BatchTestBase {
         "GROUP BY SESSION(ts, INTERVAL '4' SECOND)"
 
     checkResult(sqlQuery, Seq())
-  }
+        }
+    }
 }

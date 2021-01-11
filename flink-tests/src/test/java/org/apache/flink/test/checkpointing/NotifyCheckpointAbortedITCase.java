@@ -76,7 +76,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -89,9 +90,10 @@ import java.util.HashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Integrated tests to verify the logic to notify checkpoint aborted via RPC message. */
 @RunWith(Parameterized.class)
@@ -151,7 +153,8 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
      *
      * <p>The job graph looks like: NormalSource --> keyBy --> NormalMap --> DeclineSink
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
+    @Timeout(value = TEST_TIMEOUT, unit = TimeUnit.MILLISECONDS)
     public void testNotifyCheckpointAborted() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);

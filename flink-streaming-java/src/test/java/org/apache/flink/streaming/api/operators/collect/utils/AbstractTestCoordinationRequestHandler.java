@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.operators.collect.CollectCoordinationRespo
 import org.apache.flink.streaming.api.operators.collect.CollectSinkFunction;
 import org.apache.flink.util.OptionalFailure;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -85,11 +85,11 @@ public abstract class AbstractTestCoordinationRequestHandler<T>
             throw new RuntimeException("Handler closed");
         }
 
-        Assert.assertTrue(request instanceof CollectCoordinationRequest);
+        Assertions.assertTrue(request instanceof CollectCoordinationRequest);
         CollectCoordinationRequest collectRequest = (CollectCoordinationRequest) request;
 
         updateBufferedResults();
-        Assert.assertTrue(offset <= collectRequest.getOffset());
+        Assertions.assertTrue(offset <= collectRequest.getOffset());
 
         List<T> subList = Collections.emptyList();
         if (collectRequest.getVersion().equals(version)) {

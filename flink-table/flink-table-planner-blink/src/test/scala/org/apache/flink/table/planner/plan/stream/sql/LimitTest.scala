@@ -44,10 +44,12 @@ class LimitTest extends TableTestBase {
     util.verifyExecPlan("SELECT * FROM MyTable LIMIT 0")
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyExecPlan("SELECT * FROM MyTable LIMIT -1")
-  }
+        assertThrows[SqlParserException] {
+                util.verifyExecPlan("SELECT * FROM MyTable LIMIT -1")
+        }
+    }
 
   @Test
   def testLimitWithOffset(): Unit = {
@@ -69,10 +71,12 @@ class LimitTest extends TableTestBase {
     util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 0 OFFSET 10")
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
-  }
+        assertThrows[SqlParserException] {
+                util.verifyExecPlan("SELECT a, c FROM MyTable LIMIT 10 OFFSET -1")
+        }
+    }
 
   @Test
   def testFetchWithOffset(): Unit = {

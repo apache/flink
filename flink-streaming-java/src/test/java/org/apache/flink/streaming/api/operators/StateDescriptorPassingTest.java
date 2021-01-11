@@ -42,11 +42,19 @@ import org.apache.flink.util.Collector;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Various tests around the proper passing of state descriptors to the operators and their
@@ -256,9 +264,7 @@ public class StateDescriptorPassingTest {
 
         Kryo kryo = ((KryoSerializer<?>) serializer).getKryo();
 
-        assertTrue(
-                "serializer registration was not properly passed on",
-                kryo.getSerializer(File.class) instanceof JavaSerializer);
+        assertTrue(                kryo.getSerializer(File.class) instanceof JavaSerializer,                "serializer registration was not properly passed on");
     }
 
     private void validateListStateDescriptorConfigured(SingleOutputStreamOperator<?> result) {
@@ -281,8 +287,6 @@ public class StateDescriptorPassingTest {
 
         Kryo kryo = ((KryoSerializer<?>) elementSerializer).getKryo();
 
-        assertTrue(
-                "serializer registration was not properly passed on",
-                kryo.getSerializer(File.class) instanceof JavaSerializer);
+        assertTrue(                kryo.getSerializer(File.class) instanceof JavaSerializer,                "serializer registration was not properly passed on");
     }
 }

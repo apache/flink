@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.scala
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.streaming.util.typeutils.{FieldAccessorFactory, FieldAccessorTest}
 import org.apache.flink.util.TestLogger
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.scalatest.junit.JUnitSuiteLike
 
 case class Outer(a: Int, i: Inner, b: Boolean)

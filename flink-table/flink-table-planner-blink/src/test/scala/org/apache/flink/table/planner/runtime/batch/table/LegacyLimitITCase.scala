@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.TestLegacyLimitableTableSource
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 
 class LegacyLimitITCase extends BatchTestBase {

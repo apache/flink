@@ -25,7 +25,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils._
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.DataStream

@@ -24,7 +24,9 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -41,8 +43,8 @@ import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfi
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_HTTP_CLIENT_MAX_CONCURRENCY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_TIMESTAMP_DATE_FORMAT;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for KinesisConfigUtil. */
 @RunWith(PowerMockRunner.class)
@@ -134,7 +136,7 @@ public class KinesisConfigUtilTest {
         KinesisProducerConfiguration kpc =
                 KinesisConfigUtil.getValidatedProducerConfiguration(testConfig);
 
-        assertEquals("incorrect region", region, kpc.getRegion());
+        assertEquals(region, "incorrect region");
     }
 
     @Test

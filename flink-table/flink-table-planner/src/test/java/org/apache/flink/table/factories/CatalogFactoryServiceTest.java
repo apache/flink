@@ -21,7 +21,15 @@ package org.apache.flink.table.factories;
 import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.factories.utils.TestCatalogFactory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +37,7 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_TYPE;
 import static org.apache.flink.table.factories.utils.TestCatalogFactory.CATALOG_TYPE_TEST;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for testing external catalog discovery using {@link TableFactoryService}. The tests assume
@@ -45,11 +53,15 @@ public class CatalogFactoryServiceTest {
                 TestCatalogFactory.class);
     }
 
-    @Test(expected = NoMatchingTableFactoryException.class)
+    @Test
     public void testInvalidContext() {
-        Map<String, String> props = properties();
-        props.put(CATALOG_TYPE, "unknown-catalog-type");
-        TableFactoryService.find(CatalogFactory.class, props);
+        assertThrows(
+                NoMatchingTableFactoryException.class,
+                () -> {
+                    Map<String, String> props = properties();
+                    props.put(CATALOG_TYPE, "unknown-catalog-type");
+                    TableFactoryService.find(CatalogFactory.class, props);
+                });
     }
 
     @Test
@@ -63,11 +75,15 @@ public class CatalogFactoryServiceTest {
                 TestCatalogFactory.class);
     }
 
-    @Test(expected = NoMatchingTableFactoryException.class)
+    @Test
     public void testUnsupportedProperty() {
-        Map<String, String> props = properties();
-        props.put("unknown-property", "/new/path");
-        TableFactoryService.find(CatalogFactory.class, props);
+        assertThrows(
+                NoMatchingTableFactoryException.class,
+                () -> {
+                    Map<String, String> props = properties();
+                    props.put("unknown-property", "/new/path");
+                    TableFactoryService.find(CatalogFactory.class, props);
+                });
     }
 
     private Map<String, String> properties() {

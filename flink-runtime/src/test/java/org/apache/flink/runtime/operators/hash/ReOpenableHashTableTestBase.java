@@ -36,11 +36,17 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorIterator;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.*;
 
@@ -106,9 +112,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -134,7 +138,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -155,7 +159,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -180,7 +184,7 @@ public abstract class ReOpenableHashTableTestBase extends TestLogger {
             doTest(buildInput, probeInput, bgen, pgen);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

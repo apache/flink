@@ -33,12 +33,13 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.BlockingQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * These tests verify the behavior of a source function that triggers checkpoints in response to
@@ -140,16 +141,15 @@ public class SourceExternalCheckpointTriggerTest {
     private void verifyNextElement(BlockingQueue<Object> output, long expectedElement)
             throws InterruptedException {
         Object next = output.take();
-        assertTrue("next element is not an event", next instanceof StreamRecord);
-        assertEquals(
-                "wrong event", expectedElement, ((StreamRecord<Long>) next).getValue().longValue());
+        assertTrue(next instanceof StreamRecord, "next element is not an event");
+        assertEquals(expectedElement, "wrong event");
     }
 
     private void verifyCheckpointBarrier(BlockingQueue<Object> output, long checkpointId)
             throws InterruptedException {
         Object next = output.take();
-        assertTrue("next element is not a checkpoint barrier", next instanceof CheckpointBarrier);
-        assertEquals("wrong checkpoint id", checkpointId, ((CheckpointBarrier) next).getId());
+        assertTrue(next instanceof CheckpointBarrier, "next element is not a checkpoint barrier");
+        assertEquals(checkpointId, "wrong checkpoint id");
     }
 
     // ------------------------------------------------------------------------

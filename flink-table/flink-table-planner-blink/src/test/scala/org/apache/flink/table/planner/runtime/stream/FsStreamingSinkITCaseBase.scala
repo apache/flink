@@ -29,7 +29,7 @@ import org.apache.flink.table.filesystem.FileSystemOptions._
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil}
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.rules.Timeout
 import org.junit.{Assert, Before, Rule, Test}
 import java.io.File
@@ -83,12 +83,12 @@ abstract class FsStreamingSinkITCaseBase extends StreamingTestBase {
   def testPart(): Unit = {
     test(partition = true)
     val basePath = new File(new URI(resultPath).getPath, "d=2020-05-03")
-    Assert.assertEquals(5, basePath.list().length)
-    Assert.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists())
-    Assert.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists())
+    Assertions.assertEquals(5, basePath.list().length)
+    Assertions.assertTrue(new File(new File(basePath, "e=7"), "_MY_SUCCESS").exists())
+    Assertions.assertTrue(new File(new File(basePath, "e=8"), "_MY_SUCCESS").exists())
+    Assertions.assertTrue(new File(new File(basePath, "e=9"), "_MY_SUCCESS").exists())
+    Assertions.assertTrue(new File(new File(basePath, "e=10"), "_MY_SUCCESS").exists())
+    Assertions.assertTrue(new File(new File(basePath, "e=11"), "_MY_SUCCESS").exists())
   }
 
   private def test(partition: Boolean, policy: String = "success-file"): Unit = {

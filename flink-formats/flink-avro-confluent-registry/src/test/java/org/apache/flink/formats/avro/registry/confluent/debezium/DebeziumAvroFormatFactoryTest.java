@@ -36,17 +36,17 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link DebeziumAvroFormatFactory}. */
 public class DebeziumAvroFormatFactoryTest extends TestLogger {
@@ -77,7 +77,7 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
         DebeziumAvroSerializationSchema expectedSer =
                 new DebeziumAvroSerializationSchema(ROW_TYPE, REGISTRY_URL, SUBJECT);
         SerializationSchema<RowData> actualSer = createSerializationSchema(options);
-        Assert.assertEquals(expectedSer, actualSer);
+        Assertions.assertEquals(expectedSer, actualSer);
     }
 
     private Map<String, String> getAllOptions() {

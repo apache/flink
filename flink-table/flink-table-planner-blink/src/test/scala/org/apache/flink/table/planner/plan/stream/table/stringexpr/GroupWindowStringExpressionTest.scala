@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.utils.{CountAggFunction, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class GroupWindowStringExpressionTest extends TableTestBase {
 

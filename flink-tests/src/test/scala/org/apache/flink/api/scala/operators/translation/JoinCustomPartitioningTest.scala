@@ -20,8 +20,8 @@ package org.apache.flink.api.scala.operators.translation
 
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.optimizer.util.CompilerTestBase
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 import org.apache.flink.api.common.functions.Partitioner
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType

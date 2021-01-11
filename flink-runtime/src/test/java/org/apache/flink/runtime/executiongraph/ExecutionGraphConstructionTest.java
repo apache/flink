@@ -25,35 +25,27 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.*;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Matchers;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -570,10 +562,7 @@ public class ExecutionGraphConstructionTest {
                     all.add(v1s[i].getLocationConstraint());
                 }
 
-                assertEquals(
-                        "not all co location constraints are distinct",
-                        v1.getParallelism(),
-                        all.size());
+                assertEquals(                        v1.getParallelism(),                        all.size(),                         "not all co location constraints are distinct");
             }
 
             // check the v1 / v2 co location hints ( assumes parallelism(v1) >= parallelism(v2) )
@@ -595,10 +584,7 @@ public class ExecutionGraphConstructionTest {
                     all.add(v3s[i].getLocationConstraint());
                 }
 
-                assertEquals(
-                        "not all co location constraints are distinct",
-                        v3.getParallelism(),
-                        all.size());
+                assertEquals(                        v3.getParallelism(),                        all.size(),                         "not all co location constraints are distinct");
             }
 
             // check the v8 has no co location hints

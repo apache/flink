@@ -29,7 +29,9 @@ import org.apache.flink.util.IOUtils;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,10 +41,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.fillBufferWithAscendingNumbers;
 import static org.apache.flink.runtime.io.disk.iomanager.BufferFileWriterReaderTest.verifyBufferFilledWithAscendingNumbers;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class BufferFileWriterFileSegmentReaderTest {
 
@@ -145,7 +147,7 @@ public class BufferFileWriterFileSegmentReaderTest {
         assertTrue(reader.hasReachedEndOfFile());
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedFileSegments.size());
+        assertEquals(numBuffers, "Read less buffers than written.");
 
         currentNumber = 0;
         FileSegment fileSegment;

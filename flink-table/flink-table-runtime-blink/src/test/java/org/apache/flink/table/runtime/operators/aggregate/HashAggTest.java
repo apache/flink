@@ -27,11 +27,17 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.util.Collector;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -98,9 +104,7 @@ public class HashAggTest {
         this.ioManager.close();
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory leak: not all segments have been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory leak: not all segments have been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -135,7 +139,7 @@ public class HashAggTest {
         expected.put(4, 5L);
         expected.put(5, 11L);
         expected.put(10, null);
-        Assert.assertEquals(expected, outputMap);
+        Assertions.assertEquals(expected, outputMap);
     }
 
     @Test
@@ -148,6 +152,6 @@ public class HashAggTest {
         addRow(GenericRowData.of(null, 5L));
         operator.endInput();
         operator.close();
-        Assert.assertEquals(30002, outputMap.size());
+        Assertions.assertEquals(30002, outputMap.size());
     }
 }

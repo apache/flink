@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.PandasAggregateFunction
 import org.apache.flink.table.planner.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PythonGroupWindowAggregateTest extends TableTestBase {
 
@@ -42,9 +42,10 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeTumblingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
       "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
@@ -55,7 +56,8 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .select('b, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
-  }
+        }
+    }
 
   @Test
   def testPandasEventTimeSlidingGroupWindowOverTime(): Unit = {
@@ -72,9 +74,10 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
     util.verifyExecPlan(resultTable)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testPandasEventTimeSlidingGroupWindowOverCount(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, Int, Long)](
       "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
     val func = new PandasAggregateFunction
@@ -85,7 +88,8 @@ class PythonGroupWindowAggregateTest extends TableTestBase {
       .select('b, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
-  }
+        }
+    }
 
   @Test
   def testPandasGroupWindowAggregateWithoutKeys(): Unit = {

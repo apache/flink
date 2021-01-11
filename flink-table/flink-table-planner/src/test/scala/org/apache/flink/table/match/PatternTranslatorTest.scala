@@ -22,7 +22,7 @@ import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy._
 import org.apache.flink.cep.pattern.Pattern
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.TableException
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class PatternTranslatorTest extends PatternTranslatorTestBase {
 
@@ -267,9 +267,10 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         .within(Time.milliseconds(10 * 60 * 1000)))
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testWithinClauseWithYearMonthResolution(): Unit = {
-    verifyPattern(
+        assertThrows[TableException] {
+                verifyPattern(
       """MATCH_RECOGNIZE (
         |  ORDER BY proctime
         |  MEASURES
@@ -280,11 +281,13 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |) AS T
         |""".stripMargin,
       null /* don't care */)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testReluctantOptionalNotSupported(): Unit = {
-    verifyPattern(
+        assertThrows[TableException] {
+                verifyPattern(
       """MATCH_RECOGNIZE (
         |   ORDER BY proctime
         |   MEASURES
@@ -294,11 +297,13 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |     A as A.f0 = 1
         |)""".stripMargin,
       null /* don't care */)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testGroupPatternsAreNotSupported(): Unit = {
-    verifyPattern(
+        assertThrows[TableException] {
+                verifyPattern(
       """MATCH_RECOGNIZE (
         |   ORDER BY proctime
         |   MEASURES
@@ -308,7 +313,8 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |     A as A.f0 = 1
         |)""".stripMargin,
       null /* don't care */)
-  }
+        }
+    }
 
   @Test
   def testPermutationsAreNotSupported(): Unit = {

@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.messages.job.savepoints;
 
 import org.apache.flink.runtime.rest.messages.RestRequestMarshallingTestBase;
 
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 
 import java.util.UUID;
 
@@ -42,7 +42,7 @@ public class SavepointDisposalRequestTest
     @Override
     protected void assertOriginalEqualsToUnmarshalled(
             SavepointDisposalRequest expected, SavepointDisposalRequest actual) {
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 actual.getSavepointPath(),
                 Matchers.is(Matchers.equalTo(expected.getSavepointPath())));
     }

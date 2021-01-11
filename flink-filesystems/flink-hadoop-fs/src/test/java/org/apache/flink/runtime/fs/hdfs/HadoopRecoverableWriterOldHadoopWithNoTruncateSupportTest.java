@@ -32,7 +32,7 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -42,9 +42,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 /**
@@ -139,13 +140,11 @@ public class HadoopRecoverableWriterOldHadoopWithNoTruncateSupportTest {
         final RecoverableWriter.ResumeRecoverable recoverable = stream.persist();
         assertNotNull(recoverable);
 
-        try {
-            writerUnderTest.recover(recoverable);
-        } catch (IOException e) {
-            // this is the expected exception and we check also if the root cause is the hadoop <
-            // 2.7 version
-            assertTrue(e.getCause() instanceof IllegalStateException);
-        }
+        final IOException e =
+                assertThrows(IOException.class, () -> writerUnderTest.recover(recoverable));
+        // this is the expected exception and we check also if the root cause is the hadoop <
+        // 2.7 version
+        assertTrue(e.getCause() instanceof IllegalStateException);
     }
 
     @Test

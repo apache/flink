@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit._
 
 import java.util.TimeZone

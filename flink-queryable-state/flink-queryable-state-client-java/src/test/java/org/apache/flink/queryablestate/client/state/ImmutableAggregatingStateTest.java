@@ -25,11 +25,19 @@ import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableAggregatingStateTest}. */
 public class ImmutableAggregatingStateTest {
@@ -53,20 +61,28 @@ public class ImmutableAggregatingStateTest {
         aggrState = ImmutableAggregatingState.createState(aggrStateDesc, out.toByteArray());
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        String value = aggrState.get();
-        assertEquals("42", value);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    String value = aggrState.get();
+                    assertEquals("42", value);
 
-        aggrState.add(54L);
+                    aggrState.add(54L);
+                });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        String value = aggrState.get();
-        assertEquals("42", value);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    String value = aggrState.get();
+                    assertEquals("42", value);
 
-        aggrState.clear();
+                    aggrState.clear();
+                });
     }
 
     /**

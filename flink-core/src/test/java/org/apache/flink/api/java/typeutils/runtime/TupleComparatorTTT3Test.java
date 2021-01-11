@@ -31,7 +31,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.runtime.tuple.base.TupleComparatorTestBase;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TupleComparatorTTT3Test
         extends TupleComparatorTestBase<
@@ -175,14 +175,14 @@ public class TupleComparatorTTT3Test
                 this.deepEquals(
                         message, (Tuple2<?, ?>) should.getField(x), (Tuple2<?, ?>) is.getField(x));
             } else {
-                assertEquals(message, should.getField(x), is.getField(x));
+                assertEquals(should.getField(x), is.<Object>getField(x), message);
             }
         } // For
     }
 
     protected void deepEquals(String message, Tuple2<?, ?> should, Tuple2<?, ?> is) {
         for (int x = 0; x < should.getArity(); x++) {
-            assertEquals(message, (Object) should.getField(x), is.getField(x));
+            assertEquals((Object) should.getField(x), is.getField(x), message);
         }
     }
 }

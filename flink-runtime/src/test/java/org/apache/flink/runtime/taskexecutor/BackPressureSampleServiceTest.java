@@ -26,13 +26,17 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link BackPressureSampleService}. */
 public class BackPressureSampleServiceTest extends TestLogger {
@@ -58,7 +62,8 @@ public class BackPressureSampleServiceTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testSampleTaskBackPressure() throws Exception {
         final double backPressureRatio =
                 backPressureSampleService.sampleTaskBackPressure(new TestTask()).get();
@@ -66,7 +71,8 @@ public class BackPressureSampleServiceTest extends TestLogger {
         assertEquals(0.5, backPressureRatio, 0.0);
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testTaskStopsWithPartialSampling() throws Exception {
         final double backPressureRatio =
                 backPressureSampleService
@@ -76,11 +82,15 @@ public class BackPressureSampleServiceTest extends TestLogger {
         assertEquals(1.0, backPressureRatio, 0.0);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testShouldThrowExceptionIfTaskIsNotRunningBeforeSampling() {
-        backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    backPressureSampleService.sampleTaskBackPressure(new NeverRunningTask());
 
-        fail("Exception expected.");
+                    fail("Exception expected.");
+                });
     }
 
     /** Task that is always running. */

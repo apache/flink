@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.async;
 
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 import org.apache.flink.runtime.rest.messages.TriggerId;
-
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -29,7 +28,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the marshalling of {@link AsynchronousOperationResult}. */
 @RunWith(Parameterized.class)

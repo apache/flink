@@ -26,7 +26,15 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableMap;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedOutputStream;
@@ -43,9 +51,9 @@ import java.util.zip.ZipOutputStream;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for JAR file manifest parsing. */
 public class JarManifestParserTest extends TestLogger {
@@ -114,15 +122,23 @@ public class JarManifestParserTest extends TestLogger {
         assertThat(entryClass.get(), is(equalTo(TestJob.class.getCanonicalName())));
     }
 
-    @Test(expected = NoSuchElementException.class)
+    @Test
     public void testFindOnlyEntryClassEmptyArgument() throws IOException {
-        JarManifestParser.findOnlyEntryClass(Collections.emptyList());
+        assertThrows(
+                NoSuchElementException.class,
+                () -> {
+                    JarManifestParser.findOnlyEntryClass(Collections.emptyList());
+                });
     }
 
-    @Test(expected = NoSuchElementException.class)
+    @Test
     public void testFindOnlyEntryClassSingleJarWithNoManifest() throws IOException {
-        File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
-        JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest));
+        assertThrows(
+                NoSuchElementException.class,
+                () -> {
+                    File jarWithNoManifest = createJarFileWithManifest(ImmutableMap.of());
+                    JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarWithNoManifest));
+                });
     }
 
     @Test
@@ -137,11 +153,16 @@ public class JarManifestParserTest extends TestLogger {
                 is(equalTo(TestJob.class.getCanonicalName())));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFindOnlyEntryClassMultipleJarsWithMultipleManifestEntries() throws IOException {
-        File jarFile = TestJob.getTestJobJar();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    File jarFile = TestJob.getTestJobJar();
 
-        JarManifestParser.findOnlyEntryClass(ImmutableList.of(jarFile, jarFile, jarFile));
+                    JarManifestParser.findOnlyEntryClass(
+                            ImmutableList.of(jarFile, jarFile, jarFile));
+                });
     }
 
     @Test

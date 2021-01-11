@@ -24,7 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Utils for working with the various test harnesses. */
 public class TestHarnessUtil {
@@ -56,7 +56,7 @@ public class TestHarnessUtil {
      * Compare the two queues containing operator/task output by converting them to an array first.
      */
     public static <T> void assertOutputEquals(String message, Queue<T> expected, Queue<T> actual) {
-        Assert.assertArrayEquals(message, expected.toArray(), actual.toArray());
+        Assertions.assertArrayEquals(expected.toArray(), actual.toArray(), message);
     }
 
     /**
@@ -101,7 +101,7 @@ public class TestHarnessUtil {
         Arrays.sort(sortedExpected, comparator);
         Arrays.sort(sortedActual, comparator);
 
-        Assert.assertArrayEquals(message, sortedExpected, sortedActual);
+        Assertions.assertArrayEquals(sortedExpected, sortedActual, message);
     }
 
     /**
@@ -119,7 +119,7 @@ public class TestHarnessUtil {
                 highestWatermark = ((Watermark) elem).asWatermark().getTimestamp();
             } else if (elem instanceof StreamRecord) {
                 boolean dataIsOnTime = highestWatermark < ((StreamRecord) elem).getTimestamp();
-                Assert.assertTrue("Late data was emitted after join", dataIsOnTime);
+                Assertions.assertTrue(dataIsOnTime, "Late data was emitted after join");
             }
         }
     }

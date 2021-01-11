@@ -81,11 +81,14 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 
@@ -112,15 +115,15 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the {@link Dispatcher} component. */
 public class DispatcherTest extends TestLogger {
@@ -322,8 +325,8 @@ public class DispatcherTest extends TestLogger {
         jobMasterLeaderElectionService.getStartFuture().get();
 
         assertTrue(
-                "jobManagerRunner was not started",
-                jobMasterLeaderElectionService.getStartFuture().isDone());
+                jobMasterLeaderElectionService.getStartFuture().isDone(),
+                "jobManagerRunner was not started");
     }
 
     /**
@@ -363,7 +366,8 @@ public class DispatcherTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 5_000L)
+    @Test
+    @Timeout(5)
     public void testNonBlockingJobSubmission() throws Exception {
         dispatcher =
                 createAndStartDispatcher(
@@ -402,7 +406,8 @@ public class DispatcherTest extends TestLogger {
                 5L);
     }
 
-    @Test(timeout = 5_000L)
+    @Test
+    @Timeout(5)
     public void testInvalidCallDuringInitialization() throws Exception {
         dispatcher =
                 createAndStartDispatcher(
@@ -503,7 +508,7 @@ public class DispatcherTest extends TestLogger {
         // get failure cause
         ArchivedExecutionGraph execGraph =
                 dispatcherGateway.requestJob(jobGraph.getJobID(), TIMEOUT).get();
-        Assert.assertNotNull(execGraph.getFailureInfo());
+        Assertions.assertNotNull(execGraph.getFailureInfo());
         Throwable throwable =
                 execGraph
                         .getFailureInfo()
@@ -770,7 +775,7 @@ public class DispatcherTest extends TestLogger {
 
         ArchivedExecutionGraph execGraph =
                 dispatcherGateway.requestJob(jobGraph.getJobID(), TIMEOUT).get();
-        Assert.assertNotNull(execGraph.getFailureInfo());
+        Assertions.assertNotNull(execGraph.getFailureInfo());
         assertThat(
                 ExceptionUtils.findSerializedThrowable(
                                 execGraph.getFailureInfo().getException(),

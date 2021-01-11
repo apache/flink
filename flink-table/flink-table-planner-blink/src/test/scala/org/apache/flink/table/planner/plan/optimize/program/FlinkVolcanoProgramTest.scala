@@ -22,7 +22,7 @@ import org.apache.calcite.plan.Convention
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for [[FlinkVolcanoProgramTest]].
@@ -43,9 +43,11 @@ class FlinkVolcanoProgramTest {
       .build()
   }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testNullRequiredOutputTraits(): Unit = {
-    FlinkVolcanoProgramBuilder.newBuilder.setRequiredOutputTraits(null)
-  }
+        assertThrows[NullPointerException] {
+                FlinkVolcanoProgramBuilder.newBuilder.setRequiredOutputTraits(null)
+        }
+    }
 
 }

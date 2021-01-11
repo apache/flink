@@ -29,7 +29,15 @@ import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -37,8 +45,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link MessageSerializer}. */
 @RunWith(Parameterized.class)
@@ -112,9 +120,13 @@ public class MessageSerializerTest {
      * Tests that we don't try to be smart about <code>null</code> key and namespace. They should be
      * treated explicitly.
      */
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullPointerExceptionOnNullSerializedKeyAndNamepsace() throws Exception {
-        new KvStateInternalRequest(new KvStateID(), null);
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    new KvStateInternalRequest(new KvStateID(), null);
+                });
     }
 
     /** Tests response serialization. */
@@ -168,9 +180,13 @@ public class MessageSerializerTest {
      * Tests that we don't try to be smart about <code>null</code> results. They should be treated
      * explicitly.
      */
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullPointerExceptionOnNullSerializedResult() throws Exception {
-        new KvStateResponse((byte[]) null);
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    new KvStateResponse((byte[]) null);
+                });
     }
 
     /** Tests request failure serialization. */

@@ -25,11 +25,12 @@ import org.apache.flink.queryablestate.network.messages.MessageSerializer;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.nio.channels.ClosedChannelException;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -66,7 +67,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onRequestResult(eq(1222112277L), any(KvStateResponse.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Request failure
@@ -81,7 +82,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onRequestFailure(eq(1222112278L), isA(RuntimeException.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Server failure
@@ -103,7 +104,7 @@ public class KvStateClientHandlerTest {
         // Verify callback
         channel.writeInbound(buf);
         verify(callback, times(1)).onFailure(isA(IllegalStateException.class));
-        assertEquals("Buffer not recycled", 0, buf.refCnt());
+        assertEquals(0, "Buffer not recycled");
 
         //
         // Exception caught

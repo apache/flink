@@ -24,12 +24,19 @@ import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.apache.flink.runtime.shuffle.ShuffleServiceOptions.SHUFFLE_SERVICE_FACTORY_CLASS;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test suite for {@link ShuffleServiceLoader} utility. */
 public class ShuffleServiceLoaderTest extends TestLogger {
@@ -59,13 +66,17 @@ public class ShuffleServiceLoaderTest extends TestLogger {
                 instanceOf(CustomShuffleServiceFactory.class));
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testLoadShuffleServiceFactoryFailure() throws FlinkException {
-        Configuration configuration = new Configuration();
-        configuration.setString(
-                SHUFFLE_SERVICE_FACTORY_CLASS,
-                "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
-        ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+        assertThrows(
+                FlinkException.class,
+                () -> {
+                    Configuration configuration = new Configuration();
+                    configuration.setString(
+                            SHUFFLE_SERVICE_FACTORY_CLASS,
+                            "org.apache.flink.runtime.shuffle.UnavailableShuffleServiceFactory");
+                    ShuffleServiceLoader.loadShuffleServiceFactory(configuration);
+                });
     }
 
     /**

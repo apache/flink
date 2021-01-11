@@ -34,7 +34,15 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -47,9 +55,10 @@ public class AbstractYarnClusterTest extends TestLogger {
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     /** Tests that the cluster retrieval of a finished YARN application fails. */
-    @Test(expected = ClusterRetrieveException.class)
+    @Test
     public void testClusterClientRetrievalOfFinishedYarnApplication() throws Exception {
-        final ApplicationId applicationId =
+        assertThrows(ClusterRetrieveException.class, () -> {
+                    final ApplicationId applicationId =
                 ApplicationId.newInstance(System.currentTimeMillis(), 42);
         final ApplicationReport applicationReport =
                 createApplicationReport(
@@ -76,6 +85,7 @@ public class AbstractYarnClusterTest extends TestLogger {
         } finally {
             clusterDescriptor.close();
         }
+        });
     }
 
     private ApplicationReport createApplicationReport(

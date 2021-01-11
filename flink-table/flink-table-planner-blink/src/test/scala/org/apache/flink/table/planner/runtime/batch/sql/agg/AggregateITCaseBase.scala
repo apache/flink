@@ -365,14 +365,16 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testCountCannotByMultiFields(): Unit = {
-    checkQuery(
+        assertThrows[TableException] {
+                checkQuery(
       Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select count(distinct f0, f1) from TableName",
       Seq()
     )
-  }
+        }
+    }
 
   @Test
   def testSpark17124(): Unit = {
@@ -673,9 +675,10 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     )
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMultipleColumnDistinctCount(): Unit = {
-    val testData = Seq(
+        assertThrows[TableException] {
+                val testData = Seq(
       ("a", "b", "c"),
       ("a", "b", "c"),
       ("a", "b", "d"),
@@ -703,7 +706,8 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
       "select f0, count(distinct f1, f2) from TableName group by f0",
       Seq(("a", 2L), ("x", 2L)) // NOTE: Spark and MySQL returns 2
     )
-  }
+        }
+    }
 
   @Test
   def testZeroCount(): Unit = {

@@ -19,34 +19,46 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nonnull;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestDispatcher.NO_OP;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** {@link ChannelStateWriteRequestExecutorImpl} test. */
 public class ChannelStateWriteRequestExecutorImplTest {
 
     private static final String TASK_NAME = "test task";
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testCloseAfterSubmit() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submit);
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testCloseAfterSubmitPriority() throws Exception {
-        testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submitPriority);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    testCloseAfterSubmit(ChannelStateWriteRequestExecutor::submitPriority);
+                });
     }
 
     @Test

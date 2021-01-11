@@ -31,7 +31,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,8 +42,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Integration test for {@link BlobLibraryCacheManager}. */
 public class BlobLibraryCacheRecoveryITCase extends TestLogger {
@@ -159,11 +159,11 @@ public class BlobLibraryCacheRecoveryITCase extends TestLogger {
             String haBlobStorePath = config.getString(HighAvailabilityOptions.HA_STORAGE_PATH);
             File haBlobStoreDir = new File(haBlobStorePath, clusterId);
             File[] recoveryFiles = haBlobStoreDir.listFiles();
-            assertNotNull("HA storage directory does not exist", recoveryFiles);
+            assertNotNull(recoveryFiles, "HA storage directory does not exist");
             assertEquals(
-                    "Unclean state backend: " + Arrays.toString(recoveryFiles),
                     0,
-                    recoveryFiles.length);
+                    recoveryFiles.length,
+                    "Unclean state backend: " + Arrays.toString(recoveryFiles));
         } finally {
             for (BlobLibraryCacheManager s : libServer) {
                 if (s != null) {

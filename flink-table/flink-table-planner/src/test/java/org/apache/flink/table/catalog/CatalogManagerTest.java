@@ -25,7 +25,15 @@ import org.apache.flink.table.utils.ParserMock;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.Set;
@@ -37,10 +45,10 @@ import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link CatalogManager}. See also {@link PathResolutionTest}. */
 public class CatalogManagerTest extends TestLogger {
@@ -138,13 +146,18 @@ public class CatalogManagerTest extends TestLogger {
         manager.dropTable(identifier, false);
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testDropTemporaryNonExistingTable() throws Exception {
-        CatalogManager manager =
-                root().builtin(database(BUILTIN_DEFAULT_DATABASE_NAME, table("test"))).build();
+        assertThrows(
+                ValidationException.class,
+                () -> {
+                    CatalogManager manager =
+                            root().builtin(database(BUILTIN_DEFAULT_DATABASE_NAME, table("test")))
+                                    .build();
 
-        manager.dropTemporaryTable(
-                manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
+                    manager.dropTemporaryTable(
+                            manager.qualifyIdentifier(UnresolvedIdentifier.of("test")), false);
+                });
     }
 
     @Test

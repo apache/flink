@@ -20,9 +20,15 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.runtime.jobmaster.slotpool.PreviousAllocationSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,7 +55,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo3, match.get().getSlotInfo());
+        Assertions.assertEquals(slotInfo3, match.get().getSlotInfo());
 
         slotProfile =
                 SlotProfile.priorAllocation(
@@ -60,7 +66,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         Collections.emptySet());
         match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
+        Assertions.assertEquals(slotInfo2, match.get().getSlotInfo());
     }
 
     @Test
@@ -75,7 +81,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
                         Collections.emptySet());
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
-        Assert.assertEquals(slotInfo4, match.get().getSlotInfo());
+        Assertions.assertEquals(slotInfo4, match.get().getSlotInfo());
     }
 
     @Test
@@ -95,7 +101,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // there should be no valid option left and we expect null as return
-        Assert.assertFalse(match.isPresent());
+        Assertions.assertFalse(match.isPresent());
     }
 
     @Test
@@ -114,6 +120,6 @@ public class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // we expect that the candidate that is not blacklisted is returned
-        Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
+        Assertions.assertEquals(slotInfo2, match.get().getSlotInfo());
     }
 }

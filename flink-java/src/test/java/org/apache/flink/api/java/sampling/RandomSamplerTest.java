@@ -25,7 +25,10 @@ import org.apache.flink.util.Preconditions;
 import org.apache.commons.math3.stat.inference.KolmogorovSmirnovTest;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,8 +38,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This test suite try to verify whether all the random samplers work as we expected, which mainly
@@ -91,14 +95,22 @@ public class RandomSamplerTest {
         }
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testBernoulliSamplerWithUnexpectedFraction1() {
-        verifySamplerFraction(-1, false);
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
+                    verifySamplerFraction(-1, false);
+                });
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testBernoulliSamplerWithUnexpectedFraction2() {
-        verifySamplerFraction(2, false);
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
+                    verifySamplerFraction(2, false);
+                });
     }
 
     @Test
@@ -121,9 +133,13 @@ public class RandomSamplerTest {
         verifyRandomSamplerDuplicateElements(new BernoulliSampler<Double>(0.5));
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testPoissonSamplerWithUnexpectedFraction1() {
-        verifySamplerFraction(-1, true);
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
+                    verifySamplerFraction(-1, true);
+                });
     }
 
     @Test
@@ -138,14 +154,22 @@ public class RandomSamplerTest {
         verifySamplerFraction(1.5, true);
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testReservoirSamplerUnexpectedSize1() {
-        verifySamplerFixedSampleSize(-1, true);
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
+                    verifySamplerFixedSampleSize(-1, true);
+                });
     }
 
-    @Test(expected = java.lang.IllegalArgumentException.class)
+    @Test
     public void testReservoirSamplerUnexpectedSize2() {
-        verifySamplerFixedSampleSize(-1, false);
+        assertThrows(
+                java.lang.IllegalArgumentException.class,
+                () -> {
+                    verifySamplerFixedSampleSize(-1, false);
+                });
     }
 
     @Test
@@ -189,8 +213,8 @@ public class RandomSamplerTest {
         RandomSampler<Double> sampler = new ReservoirSamplerWithoutReplacement<Double>(20000);
         Iterator<Double> sampled = sampler.sample(source.iterator());
         assertTrue(
-                "ReservoirSamplerWithoutReplacement sampled output size should not beyond the source size.",
-                getSize(sampled) == SOURCE_SIZE);
+                getSize(sampled) == SOURCE_SIZE,
+                "ReservoirSamplerWithoutReplacement sampled output size should not beyond the source size.");
     }
 
     @Test
@@ -274,9 +298,9 @@ public class RandomSamplerTest {
         }
         double resultFraction = totalSampledSize / ((double) SOURCE_SIZE * sampleCount);
         assertTrue(
+                Math.abs((resultFraction - fraction) / fraction) < 0.2,
                 String.format(
-                        "expected fraction: %f, result fraction: %f", fraction, resultFraction),
-                Math.abs((resultFraction - fraction) / fraction) < 0.2);
+                        "expected fraction: %f, result fraction: %f", fraction, resultFraction));
     }
 
     /*
@@ -288,7 +312,7 @@ public class RandomSamplerTest {
         while (values.hasNext()) {
             double next = values.next();
             assertTrue(
-                    "Sampler returned duplicate element (" + next + "). Set=" + set, set.add(next));
+                    set.add(next), "Sampler returned duplicate element (" + next + "). Set=" + set);
         }
     }
 
@@ -383,12 +407,12 @@ public class RandomSamplerTest {
         double dValue = getDValue(sampled.length, defaultSampler.length);
         if (expectSuccess) {
             assertTrue(
-                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue),
-                    pValue <= dValue);
+                    pValue <= dValue,
+                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue));
         } else {
             assertTrue(
-                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue),
-                    pValue > dValue);
+                    pValue > dValue,
+                    String.format("KS test result with p value(%f), d value(%f)", pValue, dValue));
         }
     }
 

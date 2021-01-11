@@ -22,13 +22,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.util.FileUtils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.net.URL;
 import java.util.Objects;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JsonRowSchemaConverter}. */
 public class JsonRowSchemaConverterTest {
@@ -105,20 +113,32 @@ public class JsonRowSchemaConverterTest {
         assertEquals(Types.BIG_DEC, result);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMissingType() {
-        JsonRowSchemaConverter.convert("{ }");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    JsonRowSchemaConverter.convert("{ }");
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongType() {
-        JsonRowSchemaConverter.convert("{ type: 'whatever' }");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    JsonRowSchemaConverter.convert("{ type: 'whatever' }");
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testArrayWithAdditionalItems() {
-        JsonRowSchemaConverter.convert(
-                "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    JsonRowSchemaConverter.convert(
+                            "{ type: 'array', items: [{type: 'integer'}], additionalItems: true }");
+                });
     }
 
     @Test

@@ -21,16 +21,18 @@ package org.apache.flink.table.descriptors
 import java.util.{Arrays => JArrays, List => JList, Map => JMap}
 
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 
 class ClassInstanceTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMissingClass(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), ClassInstanceValidator.CLASS)
-  }
+        assertThrows[ValidationException] {
+                removePropertyAndVerify(descriptors().get(0), ClassInstanceValidator.CLASS)
+        }
+    }
 
   override def descriptors(): JList[Descriptor] = {
     val desc1 = new ClassInstance()

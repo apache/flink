@@ -32,7 +32,7 @@ import org.hamcrest.Matcher;
 import java.util.Objects;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 /** A collection of test specifications for the {@link PojoSerializerUpgradeTest}. */
 public class PojoSerializerUpgradeTestSpecifications {

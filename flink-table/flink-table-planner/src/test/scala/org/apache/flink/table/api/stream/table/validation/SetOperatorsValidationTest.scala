@@ -26,16 +26,17 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 import scala.collection.mutable
 
 class SetOperatorsValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap1(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -50,11 +51,13 @@ class SetOperatorsValidationTest extends TableTestBase {
     env.execute()
 
     assertEquals(true, StreamITCase.testResults.isEmpty)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionFieldsNameNotOverlap2(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv = StreamTableEnvironment.create(env, settings)
 
@@ -70,11 +73,13 @@ class SetOperatorsValidationTest extends TableTestBase {
     env.execute()
 
     assertEquals(true, StreamITCase.testResults.isEmpty)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnionTablesFromDifferentEnv(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[ValidationException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val settings = EnvironmentSettings.newInstance().useOldPlanner().build()
     val tEnv1 = StreamTableEnvironment.create(env, settings)
     val tEnv2 = StreamTableEnvironment.create(env, settings)
@@ -84,5 +89,6 @@ class SetOperatorsValidationTest extends TableTestBase {
 
     // Must fail. Tables are bound to different TableEnvironments.
     ds1.unionAll(ds2)
-  }
+        }
+    }
 }

@@ -27,14 +27,22 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the RUN command. */
 public class CliFrontendRunTest extends CliFrontendTestBase {
@@ -130,34 +138,46 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
         }
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        // test unrecognized option
-        String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
-        Configuration configuration = getConfiguration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    // test unrecognized option
+                    String[] parameters = {"-v", "-l", "-a", "some", "program", "arguments"};
+                    Configuration configuration = getConfiguration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.run(parameters);
+                });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testInvalidParallelismOption() throws Exception {
-        // test configure parallelism with non integer value
-        String[] parameters = {"-v", "-p", "text", getTestJarPath()};
-        Configuration configuration = getConfiguration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    // test configure parallelism with non integer value
+                    String[] parameters = {"-v", "-p", "text", getTestJarPath()};
+                    Configuration configuration = getConfiguration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.run(parameters);
+                });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testParallelismWithOverflow() throws Exception {
-        // test configure parallelism with overflow integer value
-        String[] parameters = {"-v", "-p", "475871387138", getTestJarPath()};
-        Configuration configuration = new Configuration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.run(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    // test configure parallelism with overflow integer value
+                    String[] parameters = {"-v", "-p", "475871387138", getTestJarPath()};
+                    Configuration configuration = new Configuration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.run(parameters);
+                });
     }
 
     // --------------------------------------------------------------------------------------------

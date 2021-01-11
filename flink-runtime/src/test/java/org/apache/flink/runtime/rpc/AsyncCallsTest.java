@@ -32,7 +32,15 @@ import org.apache.flink.util.TestLogger;
 import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -45,11 +53,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class AsyncCallsTest extends TestLogger {
 
@@ -135,7 +142,7 @@ public class AsyncCallsTest extends TestLogger {
             assertEquals("test", str);
 
             // validate that no concurrent access happened
-            assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+            assertFalse(concurrentAccess.get(), "Rpc Endpoint had concurrent access");
         } finally {
             RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
         }
@@ -193,9 +200,9 @@ public class AsyncCallsTest extends TestLogger {
             final long stop = System.nanoTime();
 
             // validate that no concurrent access happened
-            assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+            assertFalse(concurrentAccess.get(), "Rpc Endpoint had concurrent access");
 
-            assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
+            assertTrue(((stop - start) / 1_000_000) >= delay, "call was not properly delayed");
         } finally {
             RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
         }

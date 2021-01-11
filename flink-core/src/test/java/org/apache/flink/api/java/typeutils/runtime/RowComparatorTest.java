@@ -33,7 +33,7 @@ import org.junit.BeforeClass;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RowComparatorTest extends ComparatorTestBase<Row> {
 
@@ -85,11 +85,11 @@ public class RowComparatorTest extends ComparatorTestBase<Row> {
     @Override
     protected void deepEquals(String message, Row should, Row is) {
         int arity = should.getArity();
-        assertEquals(message, arity, is.getArity());
+        assertEquals(arity, is.getArity(), message);
         for (int i = 0; i < arity; i++) {
             Object copiedValue = should.getField(i);
             Object element = is.getField(i);
-            assertEquals(message, element, copiedValue);
+            assertEquals(element, copiedValue, message);
         }
     }
 

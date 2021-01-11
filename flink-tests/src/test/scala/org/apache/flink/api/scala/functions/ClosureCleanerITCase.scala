@@ -21,7 +21,7 @@ import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
-import org.junit.Assert.fail
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.{After, Before, Test, Rule}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith

@@ -64,8 +64,10 @@ import org.apache.flink.util.TestLogger;
 import com.amazonaws.services.kinesis.model.HashKeyRange;
 import com.amazonaws.services.kinesis.model.SequenceNumberRange;
 import com.amazonaws.services.kinesis.model.Shard;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
@@ -91,11 +93,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -979,8 +981,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         sourceFunc.cancel();
         testHarness.close();
 
-        assertEquals("record count", recordCount, testHarness.getOutput().size());
-        assertEquals("watermark count", watermarkCount, watermarks.size());
+        assertEquals(recordCount, "record count");
+        assertEquals(watermarkCount, "watermark count");
         assertThat(watermarks, org.hamcrest.Matchers.contains(new Watermark(-3), new Watermark(5)));
     }
 
@@ -1150,7 +1152,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         while (deadline.hasTimeLeft() && emitterQueue.getSize() < 1) {
             Thread.sleep(10);
         }
-        assertEquals("first record received", 1, emitterQueue.getSize());
+        assertEquals(1, "first record received");
 
         // Advance the watermark. Since the new record is past global watermark + threshold,
         // it won't be emitted and the watermark does not advance
@@ -1174,7 +1176,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
         // verify exception propagation
-        Assert.assertNull(sourceThreadError.get());
+        Assertions.assertNull(sourceThreadError.get());
         throwOnCollect.set(true);
         shard1.put(Long.toString(record2 + 1));
 
@@ -1182,8 +1184,8 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         while (deadline.hasTimeLeft() && sourceThreadError.get() == null) {
             Thread.sleep(10);
         }
-        Assert.assertNotNull(sourceThreadError.get());
-        Assert.assertNotNull("expected", sourceThreadError.get().getMessage());
+        Assertions.assertNotNull(sourceThreadError.get());
+        Assertions.assertNotNull(sourceThreadError.get().getMessage(), "expected");
 
         sourceFunc.cancel();
         testHarness.close();
@@ -1246,7 +1248,7 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         }
 
         static void assertGlobalWatermark(long expected) {
-            Assert.assertEquals(expected, WATERMARK.get());
+            Assertions.assertEquals(expected, WATERMARK.get());
         }
     }
 }

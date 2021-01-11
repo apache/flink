@@ -24,7 +24,7 @@ import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, 
 import org.apache.flink.table.utils._
 
 import org.hamcrest.Matchers.startsWith
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

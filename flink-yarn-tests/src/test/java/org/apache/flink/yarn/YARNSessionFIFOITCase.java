@@ -18,14 +18,13 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.testutils.logging.TestLoggerResource;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
-
-import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -34,27 +33,26 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoScheduler;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 /**
  * This test starts a MiniYARNCluster with a FIFO scheduler. There are no queues for that scheduler.
@@ -84,7 +82,8 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
         ensureNoProhibitedStringInLogFiles(PROHIBITED_STRINGS, WHITELISTED_STRINGS);
     }
 
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testDetachedMode() throws Exception {
         runTest(() -> runDetachedModeTest(Collections.emptyMap()));
     }
@@ -182,11 +181,11 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                         yc.start();
                         List<ApplicationReport> apps =
                                 yc.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-                        Assert.assertEquals(1, apps.size()); // Only one running
+                        Assertions.assertEquals(1, apps.size()); // Only one running
                         ApplicationReport app = apps.get(0);
 
-                        Assert.assertEquals("MyCustomName", app.getName());
-                        Assert.assertEquals("Apache Flink 1.x", app.getApplicationType());
+                        Assertions.assertEquals("MyCustomName", app.getName());
+                        Assertions.assertEquals("Apache Flink 1.x", app.getApplicationType());
                         ApplicationId id = app.getApplicationId();
                         yc.killApplication(id);
 
@@ -199,7 +198,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                         }
                     } catch (Throwable t) {
                         LOG.warn("Killing failed", t);
-                        Assert.fail();
+                        Assertions.fail();
                     } finally {
 
                         // cleanup the yarn-properties file

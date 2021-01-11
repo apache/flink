@@ -32,8 +32,8 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.memory.DataOutputView;
 
-import org.junit.Assert;
 import org.junit.Before;
+import org.junit.jupiter.api.Assertions;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -116,7 +116,7 @@ public class TypeSerializerFormatTest extends SequentialFormatTestBase<Tuple2<In
 
     @Override
     protected void checkEquals(Tuple2<Integer, String> expected, Tuple2<Integer, String> actual) {
-        Assert.assertEquals(expected.f0, actual.f0);
-        Assert.assertEquals(expected.f1, actual.f1);
+        Assertions.assertEquals(expected.f0, actual.f0);
+        Assertions.assertEquals(expected.f1, actual.f1);
     }
 }

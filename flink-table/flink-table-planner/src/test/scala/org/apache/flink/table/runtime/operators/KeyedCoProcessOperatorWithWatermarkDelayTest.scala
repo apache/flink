@@ -25,7 +25,7 @@ import org.apache.flink.streaming.api.functions.co.CoProcessFunction
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedTwoInputStreamOperatorTestHarness, TestHarnessUtil}
 import org.apache.flink.util.{Collector, TestLogger}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests [[KeyedCoProcessOperatorWithWatermarkDelay]].
@@ -60,11 +60,13 @@ class KeyedCoProcessOperatorWithWatermarkDelayTest extends TestLogger {
     testHarness.close()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testDelayParameter(): Unit = {
-    new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
+        assertThrows[IllegalArgumentException] {
+                new KeyedCoProcessOperatorWithWatermarkDelay[AnyRef, Integer, String, String](
       new EmptyCoProcessFunction, -1)
-  }
+        }
+    }
 }
 
 private class EmptyCoProcessFunction extends CoProcessFunction[Integer, String, String] {

@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaVa
 import org.apache.flink.table.utils.TableTestUtil._
 import org.apache.flink.table.utils._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CorrelateTest extends TableTestBase {
 

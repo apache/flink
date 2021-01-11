@@ -21,21 +21,25 @@ package org.apache.flink.table.descriptors
 import java.util
 
 import org.apache.flink.table.api.ValidationException
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 
 class FileSystemTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidPath(): Unit = {
-    addPropertyAndVerify(descriptors().get(0), "connector.path", "")
-  }
+        assertThrows[ValidationException] {
+                addPropertyAndVerify(descriptors().get(0), "connector.path", "")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMissingPath(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), "connector.path")
-  }
+        assertThrows[ValidationException] {
+                removePropertyAndVerify(descriptors().get(0), "connector.path")
+        }
+    }
 
   // ----------------------------------------------------------------------------------------------
 

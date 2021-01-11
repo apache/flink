@@ -23,7 +23,7 @@ import org.apache.flink.core.fs.UnsupportedFileSystemSchemeException;
 
 import java.net.URI;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A class with tests that require to be run in a Hadoop-free environment, to test proper error

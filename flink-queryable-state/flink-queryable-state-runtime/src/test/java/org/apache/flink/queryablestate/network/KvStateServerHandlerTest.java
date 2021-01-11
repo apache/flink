@@ -66,16 +66,18 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFra
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.net.InetAddress;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link KvStateServerHandler}. */
 @Ignore(
@@ -236,8 +238,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(requestId, response.getRequestId());
 
         assertTrue(
-                "Did not respond with expected failure cause",
-                response.getCause() instanceof UnknownKvStateIdException);
+                response.getCause() instanceof UnknownKvStateIdException,
+                "Did not respond with expected failure cause");
 
         assertEquals(1L, stats.getNumRequests());
         assertEquals(1L, stats.getNumFailed());
@@ -308,8 +310,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(requestId, response.getRequestId());
 
         assertTrue(
-                "Did not respond with expected failure cause",
-                response.getCause() instanceof UnknownKeyOrNamespaceException);
+                response.getCause() instanceof UnknownKeyOrNamespaceException,
+                "Did not respond with expected failure cause");
 
         assertEquals(1L, stats.getNumRequests());
         assertEquals(1L, stats.getNumFailed());
@@ -557,8 +559,8 @@ public class KvStateServerHandlerTest extends TestLogger {
         buf.release();
 
         assertTrue(
-                "Unexpected failure cause " + response.getClass().getName(),
-                response instanceof IllegalArgumentException);
+                response instanceof IllegalArgumentException,
+                "Unexpected failure cause " + response.getClass().getName());
 
         assertEquals(0L, stats.getNumRequests());
         assertEquals(0L, stats.getNumFailed());
@@ -586,7 +588,7 @@ public class KvStateServerHandlerTest extends TestLogger {
 
         // Write regular request
         channel.writeInbound(serRequest);
-        assertEquals("Buffer not recycled", 0L, serRequest.refCnt());
+        assertEquals(0L, "Buffer not recycled");
 
         // Write unexpected msg
         ByteBuf unexpected = channel.alloc().buffer(8);
@@ -596,7 +598,7 @@ public class KvStateServerHandlerTest extends TestLogger {
         assertEquals(1L, unexpected.refCnt());
 
         channel.writeInbound(unexpected);
-        assertEquals("Buffer not recycled", 0L, unexpected.refCnt());
+        assertEquals(0L, "Buffer not recycled");
         channel.finishAndReleaseAll();
     }
 
@@ -761,7 +763,7 @@ public class KvStateServerHandlerTest extends TestLogger {
         channel.writeInbound(serRequest);
 
         Object msg = readInboundBlocking(channel);
-        assertTrue("Not ChunkedByteBuf", msg instanceof ChunkedByteBuf);
+        assertTrue(msg instanceof ChunkedByteBuf, "Not ChunkedByteBuf");
         ((ChunkedByteBuf) msg).close();
     }
 

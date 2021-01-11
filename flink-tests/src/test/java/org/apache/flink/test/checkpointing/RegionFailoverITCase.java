@@ -58,10 +58,13 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -78,7 +81,7 @@ import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for region failover with multi regions. */
 public class RegionFailoverITCase extends TestLogger {
@@ -140,7 +143,8 @@ public class RegionFailoverITCase extends TestLogger {
      * NUM_OF_RESTARTS} times, and it will verify whether the restored state is identical to last
      * completed checkpoint's.
      */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testMultiRegionFailover() {
         try {
             JobGraph jobGraph = createJobGraph();
@@ -149,13 +153,13 @@ public class RegionFailoverITCase extends TestLogger {
             verifyAfterJobExecuted();
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assertions.fail(e.getMessage());
         }
     }
 
     private void verifyAfterJobExecuted() {
-        Assert.assertTrue(
-                "The test multi-region job has never ever restored state.", restoredState);
+        Assertions.assertTrue(
+                restoredState, "The test multi-region job has never ever restored state.");
 
         int keyCount = 0;
         for (Map<Integer, Integer> map : ValidatingSink.maps) {
@@ -309,25 +313,25 @@ public class RegionFailoverITCase extends TestLogger {
                         StreamSupport.stream(unionListState.get().spliterator(), false)
                                 .collect(Collectors.toSet());
                 if (getRuntimeContext().getTaskName().contains(SINGLE_REGION_SOURCE_NAME)) {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_SINGLE_REGION, actualIndices));
                 } else {
-                    Assert.assertTrue(
+                    Assertions.assertTrue(
                             CollectionUtils.isEqualCollection(
                                     EXPECTED_INDICES_MULTI_REGION, actualIndices));
                 }
 
                 if (indexOfThisSubtask == 0) {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
-                    Assert.assertTrue(
-                            "list state should be empty for subtask-0",
-                            ((List<Integer>) listState.get()).isEmpty());
+                    Assertions.assertTrue(
+                            ((List<Integer>) listState.get()).isEmpty(),
+                            "list state should be empty for subtask-0");
                 } else {
                     listState = context.getOperatorStateStore().getListState(stateDescriptor);
-                    Assert.assertTrue(
-                            "list state should not be empty for subtask-" + indexOfThisSubtask,
-                            ((List<Integer>) listState.get()).size() > 0);
+                    Assertions.assertTrue(
+                            ((List<Integer>) listState.get()).size() > 0,
+                            "list state should not be empty for subtask-" + indexOfThisSubtask);
 
                     if (indexOfThisSubtask == NUM_OF_REGIONS - 1) {
                         index = listState.get().iterator().next();

@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingA
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.{Ignore, Rule, Test}
 
 import java.sql.Timestamp

@@ -33,7 +33,9 @@ import org.apache.flink.util.InstantiationUtil;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
@@ -45,10 +47,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that {@link FileCache} can read zipped directories from BlobServer and properly cleans them
@@ -202,7 +204,7 @@ public class FileCacheDirectoriesTest {
         public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
 
             if (command instanceof FileCache.DeleteProcess) {
-                assertNull("Multiple delete process registered", lastDeleteProcess);
+                assertNull(lastDeleteProcess, "Multiple delete process registered");
                 lastDeleteProcess = (FileCache.DeleteProcess) command;
                 lastDelayMillis = unit.toMillis(delay);
                 return super.schedule(() -> {}, delay, unit);

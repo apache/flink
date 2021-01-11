@@ -17,29 +17,12 @@
 
 package org.apache.flink.streaming.connectors.kinesis.testutils;
 
-import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
-
 import com.amazonaws.kinesis.agg.RecordAggregator;
+import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyV2Interface;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.kinesis.model.Consumer;
-import software.amazon.awssdk.services.kinesis.model.ConsumerDescription;
-import software.amazon.awssdk.services.kinesis.model.ConsumerStatus;
-import software.amazon.awssdk.services.kinesis.model.DeregisterStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.DescribeStreamSummaryResponse;
-import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
-import software.amazon.awssdk.services.kinesis.model.Record;
-import software.amazon.awssdk.services.kinesis.model.RegisterStreamConsumerResponse;
-import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
-import software.amazon.awssdk.services.kinesis.model.StartingPosition;
-import software.amazon.awssdk.services.kinesis.model.StreamDescriptionSummary;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEventStream;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponse;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
+import software.amazon.awssdk.services.kinesis.model.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -50,12 +33,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.ACTIVE;
-import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.CREATING;
-import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.DELETING;
+import static software.amazon.awssdk.services.kinesis.model.ConsumerStatus.*;
 
 /**
  * Factory for different kinds of fake Kinesis behaviours using the {@link KinesisProxyV2Interface}

@@ -21,7 +21,7 @@ package org.apache.flink.api.java.summarize.aggregation;
 import org.apache.flink.api.java.summarize.BooleanColumnSummary;
 import org.apache.flink.types.BooleanValue;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 /** Tests for {@link ValueSummaryAggregator.BooleanValueSummaryAggregator}. */
 public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorTest {
@@ -48,10 +48,10 @@ public class BooleanValueSummaryAggregatorTest extends BooleanSummaryAggregatorT
             @Override
             protected void compareResults(
                     BooleanColumnSummary result1, BooleanColumnSummary result2) {
-                Assert.assertEquals(result1.getNullCount(), result2.getNullCount());
-                Assert.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
-                Assert.assertEquals(result1.getTrueCount(), result2.getTrueCount());
-                Assert.assertEquals(result1.getFalseCount(), result2.getFalseCount());
+                Assertions.assertEquals(result1.getNullCount(), result2.getNullCount());
+                Assertions.assertEquals(result1.getNonNullCount(), result2.getNonNullCount());
+                Assertions.assertEquals(result1.getTrueCount(), result2.getTrueCount());
+                Assertions.assertEquals(result1.getFalseCount(), result2.getFalseCount());
             }
         }.summarize(booleanValues);
     }

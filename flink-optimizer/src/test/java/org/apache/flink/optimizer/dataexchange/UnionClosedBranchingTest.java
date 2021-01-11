@@ -23,12 +23,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.optimizer.plan.Channel;
-import org.apache.flink.optimizer.plan.DualInputPlanNode;
-import org.apache.flink.optimizer.plan.NAryUnionPlanNode;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plan.SinkPlanNode;
-import org.apache.flink.optimizer.plan.SourcePlanNode;
+import org.apache.flink.optimizer.plan.*;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
@@ -38,8 +33,15 @@ import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -49,9 +51,7 @@ import java.util.List;
 
 import static org.apache.flink.runtime.io.network.DataExchangeMode.BATCH;
 import static org.apache.flink.runtime.io.network.DataExchangeMode.PIPELINED;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * This tests a fix for FLINK-2540.
@@ -147,26 +147,14 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
 
         // Verify that the compiler correctly sets the expected data exchange modes.
         for (Channel channel : joinNode.getInputs()) {
-            assertEquals(
-                    "Unexpected data exchange mode between union and join node.",
-                    unionToJoin,
-                    channel.getDataExchangeMode());
-            assertEquals(
-                    "Unexpected ship strategy between union and join node.",
-                    unionToJoinStrategy,
-                    channel.getShipStrategy());
+            assertEquals(                    unionToJoin,                    channel.getDataExchangeMode(),                     "Unexpected data exchange mode between union and join node.");
+            assertEquals(                    unionToJoinStrategy,                    channel.getShipStrategy(),                     "Unexpected ship strategy between union and join node.");
         }
 
         for (SourcePlanNode src : optimizedPlan.getDataSources()) {
             for (Channel channel : src.getOutgoingChannels()) {
-                assertEquals(
-                        "Unexpected data exchange mode between source and union node.",
-                        sourceToUnion,
-                        channel.getDataExchangeMode());
-                assertEquals(
-                        "Unexpected ship strategy between source and union node.",
-                        sourceToUnionStrategy,
-                        channel.getShipStrategy());
+                assertEquals(                        sourceToUnion,                        channel.getDataExchangeMode(),                         "Unexpected data exchange mode between source and union node.");
+                assertEquals(                        sourceToUnionStrategy,                        channel.getShipStrategy(),                         "Unexpected ship strategy between source and union node.");
             }
         }
 
@@ -180,34 +168,27 @@ public class UnionClosedBranchingTest extends CompilerTestBase {
         List<JobVertex> vertices = jobGraph.getVerticesSortedTopologicallyFromSources();
 
         // Sanity check for the test setup
-        assertEquals("Unexpected number of vertices created.", 4, vertices.size());
+        assertEquals(4,"Unexpected number of vertices created.");
 
         // Verify all sources
         JobVertex[] sources = new JobVertex[] {vertices.get(0), vertices.get(1)};
 
         for (JobVertex src : sources) {
             // Sanity check
-            assertTrue("Unexpected vertex type. Test setup is broken.", src.isInputVertex());
+            assertTrue(src.isInputVertex(), "Unexpected vertex type. Test setup is broken.");
 
             // The union is not translated to an extra union task, but the join uses a union
             // input gate to read multiple inputs. The source create a single result per consumer.
-            assertEquals(
-                    "Unexpected number of created results.",
-                    2,
-                    src.getNumberOfProducedIntermediateDataSets());
+            assertEquals(                    2,                    src.getNumberOfProducedIntermediateDataSets(),                     "Unexpected number of created results.");
 
             for (IntermediateDataSet dataSet : src.getProducedDataSets()) {
                 ResultPartitionType dsType = dataSet.getResultType();
 
                 // Ensure batch exchange unless PIPELINED_FORCE is enabled.
                 if (!executionMode.equals(ExecutionMode.PIPELINED_FORCED)) {
-                    assertTrue(
-                            "Expected batch exchange, but result type is " + dsType + ".",
-                            dsType.isBlocking());
+                    assertTrue(                            dsType.isBlocking(),                            "Expected batch exchange, but result type is " + dsType + ".");
                 } else {
-                    assertFalse(
-                            "Expected non-batch exchange, but result type is " + dsType + ".",
-                            dsType.isBlocking());
+                    assertFalse(                            dsType.isBlocking(),                            "Expected non-batch exchange, but result type is " + dsType + ".");
                 }
             }
         }

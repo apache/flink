@@ -29,7 +29,15 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -127,9 +135,10 @@ public class RightOuterJoinOperatorTest {
         ds1.rightOuterJoin(ds2).where("f0").equalTo(4).with(new DummyJoin());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testRightOuter7() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(IndexOutOfBoundsException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -137,11 +146,13 @@ public class RightOuterJoinOperatorTest {
 
         // invalid key position
         ds1.rightOuterJoin(ds2).where(5).equalTo(0).with(new DummyJoin());
+        });
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    @Test
     public void testRightOuter8() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -149,11 +160,13 @@ public class RightOuterJoinOperatorTest {
 
         // invalid key reference
         ds1.rightOuterJoin(ds2).where(1).equalTo("f5").with(new DummyJoin());
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRightOuter9() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -161,11 +174,13 @@ public class RightOuterJoinOperatorTest {
 
         // key types do not match
         ds1.rightOuterJoin(ds2).where(0).equalTo(1).with(new DummyJoin());
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRightOuter10() {
-        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(InvalidProgramException.class, () -> {
+                    final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds1 =
                 env.fromCollection(emptyTupleData, tupleTypeInfo);
         DataSet<Tuple5<Integer, Long, String, Long, Integer>> ds2 =
@@ -176,6 +191,7 @@ public class RightOuterJoinOperatorTest {
                 .where(new IntKeySelector())
                 .equalTo(new LongKeySelector())
                 .with(new DummyJoin());
+        });
     }
 
     @Test
@@ -193,9 +209,11 @@ public class RightOuterJoinOperatorTest {
         this.testRightOuterStrategies(JoinHint.REPARTITION_HASH_SECOND);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRightOuterStrategy4() {
-        this.testRightOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
+        assertThrows(InvalidProgramException.class, () -> {
+                    this.testRightOuterStrategies(JoinHint.BROADCAST_HASH_SECOND);
+        });
     }
 
     @Test

@@ -21,16 +21,18 @@ package org.apache.flink.types;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.StringUtils;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test for the serialization of StringValue. */
 public class StringValueSerializationTest {
@@ -135,13 +137,13 @@ public class StringValueSerializationTest {
             deser.read(deserializer);
 
             assertEquals(
-                    "DeserializedString differs from original string.",
                     values[num],
-                    deser.getValue());
+                    deser.getValue(),
+                    "DeserializedString differs from original string.");
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 
     public static void testCopy(String[] values) throws IOException {
@@ -176,12 +178,12 @@ public class StringValueSerializationTest {
             sValue.read(validate);
 
             assertEquals(
-                    "DeserializedString differs from original string.",
                     values[num],
-                    sValue.getValue());
+                    sValue.getValue(),
+                    "DeserializedString differs from original string.");
             num++;
         }
 
-        assertEquals("Wrong number of deserialized values", values.length, num);
+        assertEquals(values.length, num, "Wrong number of deserialized values");
     }
 }

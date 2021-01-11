@@ -20,8 +20,11 @@ package org.apache.flink.table.factories.datagen.types;
 
 import org.apache.flink.table.data.DecimalData;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 
@@ -41,8 +44,8 @@ public class DecimalDataRandomGeneratorTest {
                                 precision, scale, Double.MIN_VALUE, Double.MAX_VALUE);
 
                 DecimalData value = gen.next();
-                Assert.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", value);
+                Assertions.assertNotNull(
+                        value, "Null value for DECIMAL(" + precision + "," + scale + ")");
 
                 String strRepr = String.valueOf(value);
                 if (strRepr.charAt(0) == '-') {
@@ -52,7 +55,7 @@ public class DecimalDataRandomGeneratorTest {
 
                 if (scale != precision) {
                     // need to account for decimal . and potential leading zeros
-                    Assert.assertThat(
+                    MatcherAssert.assertThat(
                             "Wrong length for DECIMAL("
                                     + precision
                                     + ","
@@ -63,7 +66,7 @@ public class DecimalDataRandomGeneratorTest {
                             lessThanOrEqualTo(precision + 1));
                 } else {
                     // need to account for decimal . and potential leading zeros
-                    Assert.assertThat(
+                    MatcherAssert.assertThat(
                             "Wrong length for DECIMAL("
                                     + precision
                                     + ","
@@ -75,7 +78,7 @@ public class DecimalDataRandomGeneratorTest {
                 }
                 if (scale != 0) {
                     String decimalPart = strRepr.split("\\.")[1];
-                    Assert.assertThat(
+                    MatcherAssert.assertThat(
                             "Wrong length for DECIMAL("
                                     + precision
                                     + ","
@@ -101,13 +104,13 @@ public class DecimalDataRandomGeneratorTest {
                                 precision, scale, min.doubleValue(), max.doubleValue());
                 DecimalData result = gen.next();
 
-                Assert.assertNotNull(
-                        "Null value for DECIMAL(" + precision + "," + scale + ")", result);
-                Assert.assertThat(
+                Assertions.assertNotNull(
+                        result, "Null value for DECIMAL(" + precision + "," + scale + ")");
+                MatcherAssert.assertThat(
                         "value must be greater than or equal to min",
                         result.toBigDecimal(),
                         greaterThanOrEqualTo(min));
-                Assert.assertThat(
+                MatcherAssert.assertThat(
                         "value must be less than or equal to max",
                         result.toBigDecimal(),
                         lessThanOrEqualTo(max));

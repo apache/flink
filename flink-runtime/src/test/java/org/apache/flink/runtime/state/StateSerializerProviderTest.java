@@ -25,12 +25,20 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.testutils.statemigration.TestType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test suit for {@link StateSerializerProvider}. */
 public class StateSerializerProviderTest {
@@ -60,14 +68,18 @@ public class StateSerializerProviderTest {
     //  Tests for #previousSchemaSerializer()
     // --------------------------------------------------------------------------------
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testPreviousSchemaSerializerForEagerlyRegisteredStateSerializerProvider() {
-        StateSerializerProvider<TestType> testProvider =
-                StateSerializerProvider.fromNewRegisteredSerializer(
-                        new TestType.V1TestTypeSerializer());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StateSerializerProvider<TestType> testProvider =
+                            StateSerializerProvider.fromNewRegisteredSerializer(
+                                    new TestType.V1TestTypeSerializer());
 
-        // this should fail with an exception
-        testProvider.previousSchemaSerializer();
+                    // this should fail with an exception
+                    testProvider.previousSchemaSerializer();
+                });
     }
 
     @Test
@@ -101,26 +113,37 @@ public class StateSerializerProviderTest {
     //  Tests for #registerNewSerializerForRestoredState(TypeSerializer)
     // --------------------------------------------------------------------------------
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testRegisterNewSerializerWithEagerlyRegisteredStateSerializerProviderShouldFail() {
-        StateSerializerProvider<TestType> testProvider =
-                StateSerializerProvider.fromNewRegisteredSerializer(
-                        new TestType.V1TestTypeSerializer());
-        testProvider.registerNewSerializerForRestoredState(new TestType.V2TestTypeSerializer());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    StateSerializerProvider<TestType> testProvider =
+                            StateSerializerProvider.fromNewRegisteredSerializer(
+                                    new TestType.V1TestTypeSerializer());
+                    testProvider.registerNewSerializerForRestoredState(
+                            new TestType.V2TestTypeSerializer());
+                });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void
             testRegisterNewSerializerTwiceWithLazilyRegisteredStateSerializerProviderShouldFail() {
-        TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
-        StateSerializerProvider<TestType> testProvider =
-                StateSerializerProvider.fromPreviousSerializerSnapshot(
-                        serializer.snapshotConfiguration());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+                    StateSerializerProvider<TestType> testProvider =
+                            StateSerializerProvider.fromPreviousSerializerSnapshot(
+                                    serializer.snapshotConfiguration());
 
-        testProvider.registerNewSerializerForRestoredState(new TestType.V2TestTypeSerializer());
+                    testProvider.registerNewSerializerForRestoredState(
+                            new TestType.V2TestTypeSerializer());
 
-        // second registration should fail
-        testProvider.registerNewSerializerForRestoredState(new TestType.V2TestTypeSerializer());
+                    // second registration should fail
+                    testProvider.registerNewSerializerForRestoredState(
+                            new TestType.V2TestTypeSerializer());
+                });
     }
 
     @Test
@@ -204,29 +227,37 @@ public class StateSerializerProviderTest {
     //  Tests for #setPreviousSerializerSnapshotForRestoredState(TypeSerializerSnapshot)
     // --------------------------------------------------------------------------------
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSetSerializerSnapshotWithLazilyRegisteredSerializerProviderShouldFail() {
-        TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
-        StateSerializerProvider<TestType> testProvider =
-                StateSerializerProvider.fromPreviousSerializerSnapshot(
-                        serializer.snapshotConfiguration());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+                    StateSerializerProvider<TestType> testProvider =
+                            StateSerializerProvider.fromPreviousSerializerSnapshot(
+                                    serializer.snapshotConfiguration());
 
-        testProvider.setPreviousSerializerSnapshotForRestoredState(
-                serializer.snapshotConfiguration());
+                    testProvider.setPreviousSerializerSnapshotForRestoredState(
+                            serializer.snapshotConfiguration());
+                });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testSetSerializerSnapshotTwiceWithEagerlyRegisteredSerializerProviderShouldFail() {
-        TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
-        StateSerializerProvider<TestType> testProvider =
-                StateSerializerProvider.fromNewRegisteredSerializer(serializer);
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    TestType.V1TestTypeSerializer serializer = new TestType.V1TestTypeSerializer();
+                    StateSerializerProvider<TestType> testProvider =
+                            StateSerializerProvider.fromNewRegisteredSerializer(serializer);
 
-        testProvider.setPreviousSerializerSnapshotForRestoredState(
-                serializer.snapshotConfiguration());
+                    testProvider.setPreviousSerializerSnapshotForRestoredState(
+                            serializer.snapshotConfiguration());
 
-        // second registration should fail
-        testProvider.setPreviousSerializerSnapshotForRestoredState(
-                serializer.snapshotConfiguration());
+                    // second registration should fail
+                    testProvider.setPreviousSerializerSnapshotForRestoredState(
+                            serializer.snapshotConfiguration());
+                });
     }
 
     @Test

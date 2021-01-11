@@ -41,11 +41,17 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("deprecation")
 public class HashVsSortMiniBenchmark {
@@ -103,9 +109,7 @@ public class HashVsSortMiniBenchmark {
     @After
     public void afterTest() throws Exception {
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(                    this.memoryManager.verifyEmpty(),                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -189,7 +193,8 @@ public class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
             sorter1.close();
@@ -201,7 +206,7 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Sort-Merge Took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -250,7 +255,8 @@ public class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -260,7 +266,7 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Hash Build First Took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -309,7 +315,8 @@ public class HashVsSortMiniBenchmark {
 
             iterator.open();
 
-            while (iterator.callWithNextKey(matcher, collector)) ;
+            while (iterator.callWithNextKey(matcher, collector))
+                ;
 
             iterator.close();
 
@@ -319,7 +326,7 @@ public class HashVsSortMiniBenchmark {
             System.out.println("Hash Build Second took " + msecs + " msecs.");
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -352,7 +359,8 @@ public class HashVsSortMiniBenchmark {
         long stop1 = System.nanoTime();
 
         Tuple2<Integer, String> t = new Tuple2<>();
-        while (iter.next() != null) ;
+        while (iter.next() != null)
+            ;
 
         long stop2 = System.nanoTime();
 

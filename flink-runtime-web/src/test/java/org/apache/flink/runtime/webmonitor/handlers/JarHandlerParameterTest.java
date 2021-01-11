@@ -38,10 +38,10 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.nio.file.Files;
@@ -57,11 +57,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.fail;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Base test class for jar request handlers. */
 public abstract class JarHandlerParameterTest<
@@ -320,8 +320,8 @@ public abstract class JarHandlerParameterTest<
 
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
-        Assert.assertEquals(0, ParameterProgram.actualArguments.length);
-        Assert.assertEquals(
+        Assertions.assertEquals(0, ParameterProgram.actualArguments.length);
+        Assertions.assertEquals(
                 CoreOptions.DEFAULT_PARALLELISM.defaultValue().intValue(),
                 getExecutionConfig(jobGraph).getParallelism());
         return jobGraph;
@@ -329,8 +329,8 @@ public abstract class JarHandlerParameterTest<
 
     JobGraph validateGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);
-        Assert.assertArrayEquals(PROG_ARGS, ParameterProgram.actualArguments);
-        Assert.assertEquals(PARALLELISM, getExecutionConfig(jobGraph).getParallelism());
+        Assertions.assertArrayEquals(PROG_ARGS, ParameterProgram.actualArguments);
+        Assertions.assertEquals(PARALLELISM, getExecutionConfig(jobGraph).getParallelism());
         return jobGraph;
     }
 

@@ -31,7 +31,9 @@ import org.apache.flink.core.fs.Path;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.DataOutputStream;
@@ -44,10 +46,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Queue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Base class for adapters, as used by {@link StreamFormatAdapterTest} and {@link
@@ -204,7 +205,7 @@ public abstract class AdapterTestBase<FormatT> {
     // ------------------------------------------------------------------------
 
     protected static void verifyIntListResult(List<Integer> result) {
-        assertEquals("wrong result size", NUM_NUMBERS, result.size());
+        assertEquals(NUM_NUMBERS, "wrong result size");
         int nextExpected = 0;
         for (int next : result) {
             if (next != nextExpected++) {

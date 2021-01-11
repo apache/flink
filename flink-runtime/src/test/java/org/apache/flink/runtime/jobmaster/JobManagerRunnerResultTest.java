@@ -23,12 +23,20 @@ import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraph
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link JobManagerRunnerResult}. */
 public class JobManagerRunnerResultTest extends TestLogger {
@@ -75,20 +83,28 @@ public class JobManagerRunnerResultTest extends TestLogger {
         assertThat(jobManagerRunnerResult.getArchivedExecutionGraph(), is(archivedExecutionGraph));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetArchivedExecutionGraphFromJobNotFinishedFails() {
-        final JobManagerRunnerResult jobManagerRunnerResult =
-                JobManagerRunnerResult.forJobNotFinished();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobManagerRunnerResult jobManagerRunnerResult =
+                            JobManagerRunnerResult.forJobNotFinished();
 
-        jobManagerRunnerResult.getArchivedExecutionGraph();
+                    jobManagerRunnerResult.getArchivedExecutionGraph();
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetArchivedExecutionGraphFromInitializationFailureFails() {
-        final JobManagerRunnerResult jobManagerRunnerResult =
-                JobManagerRunnerResult.forInitializationFailure(testException);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobManagerRunnerResult jobManagerRunnerResult =
+                            JobManagerRunnerResult.forInitializationFailure(testException);
 
-        jobManagerRunnerResult.getArchivedExecutionGraph();
+                    jobManagerRunnerResult.getArchivedExecutionGraph();
+                });
     }
 
     @Test
@@ -99,19 +115,27 @@ public class JobManagerRunnerResultTest extends TestLogger {
         assertThat(jobManagerRunnerResult.getInitializationFailure(), is(testException));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetInitializationFailureFromJobNotFinished() {
-        final JobManagerRunnerResult jobManagerRunnerResult =
-                JobManagerRunnerResult.forJobNotFinished();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobManagerRunnerResult jobManagerRunnerResult =
+                            JobManagerRunnerResult.forJobNotFinished();
 
-        jobManagerRunnerResult.getInitializationFailure();
+                    jobManagerRunnerResult.getInitializationFailure();
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testGetInitializationFailureFromSuccessfulJobManagerResult() {
-        final JobManagerRunnerResult jobManagerRunnerResult =
-                JobManagerRunnerResult.forSuccess(archivedExecutionGraph);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final JobManagerRunnerResult jobManagerRunnerResult =
+                            JobManagerRunnerResult.forSuccess(archivedExecutionGraph);
 
-        jobManagerRunnerResult.getInitializationFailure();
+                    jobManagerRunnerResult.getInitializationFailure();
+                });
     }
 }

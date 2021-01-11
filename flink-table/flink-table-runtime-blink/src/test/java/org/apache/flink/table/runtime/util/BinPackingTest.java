@@ -19,8 +19,15 @@
 
 package org.apache.flink.table.runtime.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -32,45 +39,21 @@ public class BinPackingTest {
 
     @Test
     public void testBinPacking() {
-        Assert.assertEquals(
-                "Should pack the first 2 values",
-                asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 3));
+        Assertions.assertEquals(                asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 3),                 "Should pack the first 2 values");
 
-        Assert.assertEquals(
-                "Should pack the first 2 values",
-                asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 5));
+        Assertions.assertEquals(                asList(asList(1, 2), singletonList(3), singletonList(4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 5),                 "Should pack the first 2 values");
 
-        Assert.assertEquals(
-                "Should pack the first 3 values",
-                asList(asList(1, 2, 3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 6));
+        Assertions.assertEquals(                asList(asList(1, 2, 3), singletonList(4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 6),                 "Should pack the first 3 values");
 
-        Assert.assertEquals(
-                "Should pack the first 3 values",
-                asList(asList(1, 2, 3), singletonList(4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 8));
+        Assertions.assertEquals(                asList(asList(1, 2, 3), singletonList(4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 8),                 "Should pack the first 3 values");
 
-        Assert.assertEquals(
-                "Should pack the first 3 values, last 2 values",
-                asList(asList(1, 2, 3), asList(4, 5)),
-                pack(asList(1, 2, 3, 4, 5), 9));
+        Assertions.assertEquals(                asList(asList(1, 2, 3), asList(4, 5)),                pack(asList(1, 2, 3, 4, 5), 9),                 "Should pack the first 3 values, last 2 values");
 
-        Assert.assertEquals(
-                "Should pack the first 4 values",
-                asList(asList(1, 2, 3, 4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 10));
+        Assertions.assertEquals(                asList(asList(1, 2, 3, 4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 10),                 "Should pack the first 4 values");
 
-        Assert.assertEquals(
-                "Should pack the first 4 values",
-                asList(asList(1, 2, 3, 4), singletonList(5)),
-                pack(asList(1, 2, 3, 4, 5), 14));
+        Assertions.assertEquals(                asList(asList(1, 2, 3, 4), singletonList(5)),                pack(asList(1, 2, 3, 4, 5), 14),                 "Should pack the first 4 values");
 
-        Assert.assertEquals(
-                "Should pack the first 5 values",
-                singletonList(asList(1, 2, 3, 4, 5)),
-                pack(asList(1, 2, 3, 4, 5), 15));
+        Assertions.assertEquals(                singletonList(asList(1, 2, 3, 4, 5)),                pack(asList(1, 2, 3, 4, 5), 15),                 "Should pack the first 5 values");
     }
 
     private List<List<Integer>> pack(List<Integer> items, long targetWeight) {

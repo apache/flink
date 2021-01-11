@@ -32,12 +32,18 @@ import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.testfunctions.IdentityGroupReducerCombinable;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings({"serial", "unchecked"})
 public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
@@ -72,9 +78,7 @@ public class CustomPartitioningGlobalOptimizationTest extends CompilerTestBase {
             SinkPlanNode sink = op.getDataSinks().iterator().next();
             SingleInputPlanNode reducer = (SingleInputPlanNode) sink.getInput().getSource();
 
-            assertTrue(
-                    "Reduce is not chained, property reuse does not happen",
-                    reducer.getInput().getSource() instanceof DualInputPlanNode);
+            assertTrue(                    reducer.getInput().getSource() instanceof DualInputPlanNode,                    "Reduce is not chained, property reuse does not happen");
 
             DualInputPlanNode join = (DualInputPlanNode) reducer.getInput().getSource();
 

@@ -39,8 +39,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.ClassRule;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.concurrent.TimeUnit;
 
@@ -71,13 +71,13 @@ public abstract class CancelingTestBase extends TestLogger {
 
     private static void verifyJvmOptions() {
         final long heap = Runtime.getRuntime().maxMemory() >> 20;
-        Assert.assertTrue(
+        Assertions.assertTrue(
+                heap > MINIMUM_HEAP_SIZE_MB - 50,
                 "Insufficient java heap space "
                         + heap
                         + "mb - set JVM option: -Xmx"
                         + MINIMUM_HEAP_SIZE_MB
-                        + "m",
-                heap > MINIMUM_HEAP_SIZE_MB - 50);
+                        + "m");
     }
 
     private static Configuration getConfiguration() {
@@ -111,7 +111,7 @@ public abstract class CancelingTestBase extends TestLogger {
             jobStatus = client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
         if (jobStatus != JobStatus.RUNNING) {
-            Assert.fail("Job not in state RUNNING.");
+            Assertions.fail("Job not in state RUNNING.");
         }
 
         Thread.sleep(msecsTillCanceling);
@@ -129,7 +129,7 @@ public abstract class CancelingTestBase extends TestLogger {
                     client.getJobStatus(jobID).get(rpcTimeout, TimeUnit.MILLISECONDS);
         }
         if (jobStatusAfterCancel != JobStatus.CANCELED) {
-            Assert.fail("Failed to cancel job with ID " + jobID + '.');
+            Assertions.fail("Failed to cancel job with ID " + jobID + '.');
         }
     }
 

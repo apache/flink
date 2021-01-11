@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -43,8 +43,8 @@ import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEq
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the recovery of files of a {@link BlobServer} from a HA store. */
 public class BlobServerRecoveryTest extends TestLogger {
@@ -128,7 +128,7 @@ public class BlobServerRecoveryTest extends TestLogger {
             // check that the storage directory exists
             final Path blobServerPath = new Path(storagePath, "blob");
             FileSystem fs = blobServerPath.getFileSystem();
-            assertTrue("Unknown storage dir: " + blobServerPath, fs.exists(blobServerPath));
+            assertTrue(fs.exists(blobServerPath), "Unknown storage dir: " + blobServerPath);
 
             // Verify HA requests from cache1 (connected to server1) with no immediate access to the
             // file
@@ -143,7 +143,7 @@ public class BlobServerRecoveryTest extends TestLogger {
             server1.cleanupJob(jobId[1], true);
 
             // Verify everything is clean
-            assertTrue("HA storage directory does not exist", fs.exists(new Path(storagePath)));
+            assertTrue(fs.exists(new Path(storagePath)), "HA storage directory does not exist");
             if (fs.exists(blobServerPath)) {
                 final org.apache.flink.core.fs.FileStatus[] recoveryFiles =
                         fs.listStatus(blobServerPath);

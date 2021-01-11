@@ -17,15 +17,14 @@
  */
 package org.apache.flink.api.scala.operators
 
-import java.util
-
-import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
-import org.junit.Assert
 import org.apache.flink.api.common.InvalidProgramException
 import org.apache.flink.api.common.operators.Order
-import org.junit.Test
-
 import org.apache.flink.api.scala._
+import org.apache.flink.api.scala.util.CollectionDataSets.CustomType
+import org.junit.jupiter.api.{Assertions, Test}
+import org.scalatest.Matchers.assertThrows
+
+import java.util
 
 
 class GroupingTest {
@@ -44,44 +43,52 @@ class GroupingTest {
       tupleDs.groupBy(0)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyIndices2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val longDs = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val longDs = env.fromCollection(emptyLongData)
 
-    // should not work, grouping on basic type
-    longDs.groupBy(0)
+      // should not work, grouping on basic type
+      longDs.groupBy(0)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyIndices3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val customDs = env.fromCollection(customTypeData)
 
-    // should not work, field position key on custom type
-    customDs.groupBy(0)
+      // should not work, field position key on custom type
+      customDs.groupBy(0)
+    }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testGroupByKeyIndices4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, field position out of range
-    tupleDs.groupBy(5)
+      // should not work, field position out of range
+      tupleDs.groupBy(5)
+    }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testGroupByKeyIndices5(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, negative field position
-    tupleDs.groupBy(-1)
+      // should not work, negative field position
+      tupleDs.groupBy(-1)
+    }
   }
 
   @Test
@@ -94,35 +101,41 @@ class GroupingTest {
       tupleDs.groupBy("_1")
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyFields2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val longDs = env.fromCollection(emptyLongData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val longDs = env.fromCollection(emptyLongData)
 
-    // should not work, grouping on basic type
-    longDs.groupBy("_1")
+      // should not work, grouping on basic type
+      longDs.groupBy("_1")
+    }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testGroupByKeyFields3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
+    assertThrows[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val customDs = env.fromCollection(customTypeData)
 
-    // should not work, field key on custom type
-    customDs.groupBy("_1")
+      // should not work, field key on custom type
+      customDs.groupBy("_1")
+    }
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testGroupByKeyFields4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[RuntimeException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, invalid field
-    tupleDs.groupBy("foo")
+      // should not work, invalid field
+      tupleDs.groupBy("foo")
+    }
   }
 
   @Test
@@ -144,35 +157,41 @@ class GroupingTest {
       ds.groupBy("myInt")
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyExpressions2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
 
-    // should not work: groups on basic type
-    val longDs = env.fromCollection(emptyLongData)
-    longDs.groupBy("l")
+      // should not work: groups on basic type
+      val longDs = env.fromCollection(emptyLongData)
+      longDs.groupBy("l")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupByKeyExpressions3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val customDs = env.fromCollection(customTypeData)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val customDs = env.fromCollection(customTypeData)
 
-    // should not work: groups on custom type
-    customDs.groupBy(0)
+      // should not work: groups on custom type
+      customDs.groupBy(0)
+    }
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testGroupByKeyExpressions4(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromCollection(customTypeData)
+    assertThrows[IllegalArgumentException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds = env.fromCollection(customTypeData)
 
-    // should not work, non-existent field
-    ds.groupBy("myNonExistent")
+      // should not work, non-existent field
+      ds.groupBy("myNonExistent")
+    }
   }
 
   @Test
@@ -180,10 +199,12 @@ class GroupingTest {
     val env = ExecutionEnvironment.getExecutionEnvironment
     try {
       val customDs = env.fromCollection(customTypeData)
-      customDs.groupBy { _.myLong }
+      customDs.groupBy {
+        _.myLong
+      }
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -195,24 +216,28 @@ class GroupingTest {
       tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
-  @Test(expected = classOf[IndexOutOfBoundsException])
+  @Test
   def testGroupSortKeyFields2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val tupleDs = env.fromCollection(emptyTupleData)
+    assertThrows[IndexOutOfBoundsException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val tupleDs = env.fromCollection(emptyTupleData)
 
-    // should not work, field position out of range
-    tupleDs.groupBy(0).sortGroup(5, Order.ASCENDING)
+      // should not work, field position out of range
+      tupleDs.groupBy(0).sortGroup(5, Order.ASCENDING)
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testGroupSortKeyFields3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val longDs = env.fromCollection(emptyLongData)
-    longDs.groupBy { x: Long => x } .sortGroup(0, Order.ASCENDING)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val longDs = env.fromCollection(emptyLongData)
+      longDs.groupBy { x: Long => x }.sortGroup(0, Order.ASCENDING)
+    }
   }
 
   @Test
@@ -223,7 +248,7 @@ class GroupingTest {
       tupleDs.groupBy(0).sortGroup(0, Order.ASCENDING).sortGroup(2, Order.DESCENDING)
     }
     catch {
-      case e: Exception => Assert.fail()
+      case e: Exception => Assertions.fail()
     }
   }
 
@@ -235,28 +260,34 @@ class GroupingTest {
     ds.groupBy("*")
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testAtomicValueInvalid1(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(0, 1, 2)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds = env.fromElements(0, 1, 2)
 
-    ds.groupBy("invalidKey")
+      ds.groupBy("invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testAtomicValueInvalid2(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(0, 1, 2)
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds = env.fromElements(0, 1, 2)
 
-    ds.groupBy("_", "invalidKey")
+      ds.groupBy("_", "invalidKey")
+    }
   }
 
-  @Test(expected = classOf[InvalidProgramException])
+  @Test
   def testAtomicValueInvalid3(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = env.fromElements(new util.ArrayList[Integer]())
+    assertThrows[InvalidProgramException] {
+      val env = ExecutionEnvironment.getExecutionEnvironment
+      val ds = env.fromElements(new util.ArrayList[Integer]())
 
-    ds.groupBy("*")
+      ds.groupBy("*")
+    }
   }
 }
 

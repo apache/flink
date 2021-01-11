@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test for (un)marshalling of the {@link ThreadDumpInfo}. */
 public class ThreadDumpInfoTest extends RestResponseMarshallingTestBase<ThreadDumpInfo> {

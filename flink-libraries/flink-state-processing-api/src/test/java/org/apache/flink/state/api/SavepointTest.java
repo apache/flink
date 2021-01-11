@@ -28,7 +28,15 @@ import org.apache.flink.state.api.functions.StateBootstrapFunction;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -39,9 +47,10 @@ public class SavepointTest {
 
     private static final String UID = "uid";
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNewSavepointEnforceUniqueUIDs() {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -56,11 +65,13 @@ public class SavepointTest {
         new NewSavepoint(metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .withOperator(UID, transformation);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testExistingSavepointEnforceUniqueUIDs() throws IOException {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -79,11 +90,13 @@ public class SavepointTest {
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .withOperator(UID, transformation);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testExistingSavepointEnforceUniqueUIDsWithOldSavepoint() throws IOException {
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(10);
 
         DataSource<Integer> input = env.fromElements(0);
@@ -102,6 +115,7 @@ public class SavepointTest {
         new ExistingSavepoint(env, metadata, new MemoryStateBackend())
                 .withOperator(UID, transformation)
                 .write("");
+        });
     }
 
     private static class ExampleStateBootstrapFunction extends StateBootstrapFunction<Integer> {

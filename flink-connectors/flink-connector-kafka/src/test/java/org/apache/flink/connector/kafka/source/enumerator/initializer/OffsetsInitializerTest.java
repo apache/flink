@@ -26,17 +26,18 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link OffsetsInitializer}. */
 public class OffsetsInitializerTest {
@@ -68,7 +69,7 @@ public class OffsetsInitializerTest {
         assertEquals(partitions.size(), offsets.size());
         assertTrue(offsets.keySet().containsAll(partitions));
         for (long offset : offsets.values()) {
-            Assert.assertEquals(KafkaPartitionSplit.EARLIEST_OFFSET, offset);
+            Assertions.assertEquals(KafkaPartitionSplit.EARLIEST_OFFSET, offset);
         }
         assertEquals(OffsetResetStrategy.EARLIEST, initializer.getAutoOffsetResetStrategy());
     }
@@ -130,14 +131,20 @@ public class OffsetsInitializerTest {
             long expectedOffset =
                     tp.equals(missingPartition) ? 0L : committedOffsets.get(tp).offset();
             assertEquals(
-                    String.format("%s has incorrect offset.", tp), expectedOffset, (long) offset);
+                    expectedOffset, (long) offset, String.format("%s has incorrect offset.", tp));
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testSpecifiedOffsetsInitializerWithoutOffsetResetStrategy() {
-        OffsetsInitializer initializer =
-                OffsetsInitializer.offsets(Collections.emptyMap(), OffsetResetStrategy.NONE);
-        initializer.getPartitionOffsets(KafkaSourceTestEnv.getPartitionsForTopic(TOPIC), retriever);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    OffsetsInitializer initializer =
+                            OffsetsInitializer.offsets(
+                                    Collections.emptyMap(), OffsetResetStrategy.NONE);
+                    initializer.getPartitionOffsets(
+                            KafkaSourceTestEnv.getPartitionsForTopic(TOPIC), retriever);
+                });
     }
 }

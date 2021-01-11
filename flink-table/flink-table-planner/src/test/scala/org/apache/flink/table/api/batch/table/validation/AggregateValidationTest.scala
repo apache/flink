@@ -27,69 +27,82 @@ import org.junit._
 
 class AggregateValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNonWorkingAggregationDataTypes(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(String, Int)]("Table2")
 
     // Must fail. Field '_1 is not a numeric type.
     t.select('_1.sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testNoNestedAggregations(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(String, Int)]("Table2")
 
     // Must fail. Sum aggregation can not be chained.
     t.select('_2.sum.sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingOnNonExistentField(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. '_foo not a valid field
     t.groupBy('_foo).select('a.avg)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testGroupingInvalidSelection(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy('a, 'b)
     // must fail. 'c is not a grouping key or aggregation
     .select('c)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testAggregationOnNonExistingField(): Unit = {
+        assertThrows[ValidationException] {
 
     val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // Must fail. Field 'foo does not exist.
     t.select('foo.avg)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testInvalidUdAggArgs() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
 
     // must fail. UDAGG does not accept String type
     t.select(myWeightedAvg('c, 'a))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingInvalidUdAggArgs() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
@@ -97,12 +110,14 @@ class AggregateValidationTest extends TableTestBase {
     t.groupBy('b)
     // must fail. UDAGG does not accept String type
     .select(myWeightedAvg('c, 'a))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingNestedUdAgg() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
@@ -110,91 +125,109 @@ class AggregateValidationTest extends TableTestBase {
     t.groupBy('c)
     // must fail. UDAGG does not accept String type
     .select(myWeightedAvg(myWeightedAvg('b, 'a), 'a))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testAggregationOnNonExistingFieldJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.select($"foo".avg)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testNonWorkingAggregationDataTypesJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Cannot compute SUM aggregate on String field.
     t.select($"c".sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testNoNestedAggregationsJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
     t.select($"b".sum.sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testNoDeeplyNestedAggregationsJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Long, String)]("Table2",'b, 'c)
     // Must fail. Aggregation on aggregation not allowed.
     t.select(($"b".sum + 1).sum)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingOnNonExistentFieldJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. Field foo is not in input
     t.groupBy($"foo")
     .select($"a".avg)
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingInvalidSelectionJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy($"a", $"b")
     // must fail. Field c is not a grouping key or aggregation
     .select($"c")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testUnknownUdAggJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     // must fail. unknown is not known
     .select(call("unknown", $"c"))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingUnknownUdAggJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     t.groupBy($"a", $"b")
     // must fail. unknown is not known
     .select(call("unknown", $"c"))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testInvalidUdAggArgsJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
@@ -202,12 +235,14 @@ class AggregateValidationTest extends TableTestBase {
 
     // must fail. UDAGG does not accept String type
     t.select(call("myWeightedAvg", $"c", $"a"))
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   @throws[Exception]
   def testGroupingInvalidUdAggArgsJava() {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
 
     val myWeightedAvg = new WeightedAvgWithMergeAndReset
@@ -216,5 +251,6 @@ class AggregateValidationTest extends TableTestBase {
     t.groupBy($"b")
     // must fail. UDAGG does not accept String type
     t.select(call("myWeightedAvg", $"c", $"a"))
-  }
+        }
+    }
 }

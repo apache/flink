@@ -36,7 +36,7 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -47,16 +47,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.api.common.InputDependencyConstraint.ALL;
 import static org.apache.flink.api.common.InputDependencyConstraint.ANY;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Unit tests for {@link DefaultExecutionTopology}. */
 public class DefaultExecutionTopologyTest extends TestLogger {
@@ -153,19 +154,23 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testErrorIfCoLocatedTasksAreNotInSameRegion() throws Exception {
-        int parallelism = 3;
-        final JobVertex v1 = createNoOpVertex(parallelism);
-        final JobVertex v2 = createNoOpVertex(parallelism);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    int parallelism = 3;
+                    final JobVertex v1 = createNoOpVertex(parallelism);
+                    final JobVertex v2 = createNoOpVertex(parallelism);
 
-        SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
-        v1.setSlotSharingGroup(slotSharingGroup);
-        v2.setSlotSharingGroup(slotSharingGroup);
-        v1.setStrictlyCoLocatedWith(v2);
+                    SlotSharingGroup slotSharingGroup = new SlotSharingGroup();
+                    v1.setSlotSharingGroup(slotSharingGroup);
+                    v2.setSlotSharingGroup(slotSharingGroup);
+                    v1.setStrictlyCoLocatedWith(v2);
 
-        final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
-        DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+                    final ExecutionGraph executionGraph = createSimpleTestGraph(v1, v2);
+                    DefaultExecutionTopology.fromExecutionGraph(executionGraph);
+                });
     }
 
     private void assertRegionContainsAllVertices(
@@ -208,8 +213,8 @@ public class DefaultExecutionTopologyTest extends TestLogger {
         }
 
         assertFalse(
-                "Number of adapted vertices exceeds number of original vertices.",
-                adaptedVertices.hasNext());
+                adaptedVertices.hasNext(),
+                "Number of adapted vertices exceeds number of original vertices.");
     }
 
     private static void assertPartitionsEquals(

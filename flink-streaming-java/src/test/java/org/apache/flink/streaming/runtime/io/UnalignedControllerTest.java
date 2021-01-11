@@ -46,7 +46,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -58,10 +58,10 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the behaviors of the {@link CheckpointedInputGate}. */
 public class UnalignedControllerTest {
@@ -917,9 +917,9 @@ public class UnalignedControllerTest {
     private void assertInflightData(BufferOrEvent... expected) {
         Collection<BufferOrEvent> andResetInflightData = getAndResetInflightData();
         assertEquals(
-                "Unexpected in-flight sequence: " + andResetInflightData,
                 getIds(Arrays.asList(expected)),
-                getIds(andResetInflightData));
+                getIds(andResetInflightData),
+                "Unexpected in-flight sequence: " + andResetInflightData);
     }
 
     private Collection<BufferOrEvent> getAndResetInflightData() {
@@ -933,9 +933,9 @@ public class UnalignedControllerTest {
 
     private void assertOutput(BufferOrEvent... expectedSequence) {
         assertEquals(
-                "Unexpected output sequence",
                 getIds(Arrays.asList(expectedSequence)),
-                getIds(output));
+                getIds(output),
+                "Unexpected output sequence");
     }
 
     private List<Object> getIds(Collection<BufferOrEvent> buffers) {

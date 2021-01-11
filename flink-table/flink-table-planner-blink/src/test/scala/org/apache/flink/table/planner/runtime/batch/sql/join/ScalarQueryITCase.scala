@@ -63,10 +63,12 @@ class ScalarQueryITCase extends BatchTestBase {
       Seq(row(3, 3.0)))
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testScalarSubQueryException(): Unit = {
-    checkResult(
+        assertThrows[RuntimeException] {
+                checkResult(
       "SELECT * FROM l WHERE a = (SELECT c FROM r)",
       Seq(row(3, 3.0)))
-  }
+        }
+    }
 }

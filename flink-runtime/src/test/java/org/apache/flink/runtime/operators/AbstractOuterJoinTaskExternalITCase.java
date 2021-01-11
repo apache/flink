@@ -32,8 +32,10 @@ import org.apache.flink.runtime.operators.testutils.BinaryOperatorTestBase;
 import org.apache.flink.runtime.operators.testutils.UniformIntTupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 public abstract class AbstractOuterJoinTaskExternalITCase
         extends BinaryOperatorTestBase<
@@ -114,7 +116,7 @@ public abstract class AbstractOuterJoinTaskExternalITCase
                 this.comparator2.duplicate());
         testDriver(testTask, MockJoinStub.class);
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     protected abstract int calculateExpectedCount(

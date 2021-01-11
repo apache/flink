@@ -28,13 +28,21 @@ import org.apache.flink.cep.pattern.conditions.SimpleCondition;
 import org.apache.flink.cep.pattern.conditions.SubtypeCondition;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /** Tests for constructing {@link Pattern}. */
@@ -243,121 +251,183 @@ public class PatternTest extends TestLogger {
         assertTrue(pattern.getPrevious().getCondition() instanceof RichAndCondition);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPatternTimesNegativeTimes() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(-1);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPatternTimesNegativeFrom() throws Exception {
-        Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(-1, 2);
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce1() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .oneOrMore()
+                            .oneOrMore()
+                            .optional();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce2() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().optional().times(1);
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).oneOrMore().optional().times(1);
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce3() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(1).oneOrMore();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce4() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testPatternCanHaveQuantifierSpecifiedOnce5() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).oneOrMore().oneOrMore().optional();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .oneOrMore()
+                            .oneOrMore()
+                            .optional();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .oneOrMore();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notNext("not")
+                            .where(dummyCondition())
+                            .oneOrMore();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeTimes() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .times(3);
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notNext("not")
+                            .where(dummyCondition())
+                            .times(3);
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotNextCannotBeOptional() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notNext("not")
-                .where(dummyCondition())
-                .optional();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notNext("not")
+                            .where(dummyCondition())
+                            .optional();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeOneOrMore() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .oneOrMore();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notFollowedBy("not")
+                            .where(dummyCondition())
+                            .oneOrMore();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeTimes() throws Exception {
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .times(3);
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notFollowedBy("not")
+                            .where(dummyCondition())
+                            .times(3);
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testNotFollowedCannotBeOptional() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .notFollowedBy("not")
-                .where(dummyCondition())
-                .optional();
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .notFollowedBy("not")
+                            .where(dummyCondition())
+                            .optional();
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedToTimes() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).times(1).until(dummyCondition());
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).times(1).until(dummyCondition());
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedToSingleton() throws Exception {
-
-        Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start").where(dummyCondition()).until(dummyCondition());
+                });
     }
 
-    @Test(expected = MalformedPatternException.class)
+    @Test
     public void testUntilCannotBeAppliedTwice() throws Exception {
-
-        Pattern.begin("start")
-                .where(dummyCondition())
-                .until(dummyCondition())
-                .until(dummyCondition());
+        assertThrows(
+                MalformedPatternException.class,
+                () -> {
+                    Pattern.begin("start")
+                            .where(dummyCondition())
+                            .until(dummyCondition())
+                            .until(dummyCondition());
+                });
     }
 
     private SimpleCondition<Object> dummyCondition() {

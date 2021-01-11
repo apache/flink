@@ -24,9 +24,16 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -111,12 +118,12 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "{order_timestamp|yyyy_MM_dd_HH-ss}_index", schema);
         indexGenerator.open();
-        Assert.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
         IndexGenerator indexGenerator1 =
                 IndexGeneratorFactory.createIndexGenerator(
                         "{order_timestamp|yyyy_MM_dd_HH_mm}_index", schema);
         indexGenerator1.open();
-        Assert.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
+        Assertions.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
     }
 
     @Test
@@ -125,12 +132,12 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "{local_datetime|yyyy_MM_dd_HH-ss}_index", schema);
         indexGenerator.open();
-        Assert.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("2020_03_18_12-14_index", indexGenerator.generate(rows.get(0)));
         IndexGenerator indexGenerator1 =
                 IndexGeneratorFactory.createIndexGenerator(
                         "{local_datetime|yyyy_MM_dd_HH_mm}_index", schema);
         indexGenerator1.open();
-        Assert.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
+        Assertions.assertEquals("2020_03_19_12_22_index", indexGenerator1.generate(rows.get(1)));
     }
 
     @Test
@@ -139,8 +146,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{log_date|yyyy/MM/dd}", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -149,8 +156,8 @@ public class IndexGeneratorTest {
                 IndexGeneratorFactory.createIndexGenerator(
                         "my-index-{local_date|yyyy/MM/dd}", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index-2020/03/18", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index-2020/03/19", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -158,8 +165,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("my-index-{log_time|HH-mm}", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index-12-12", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index-12-22", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index-12-12", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index-12-22", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -167,8 +174,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("my-index-{local_time|HH-mm}", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index-12-13", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -176,8 +183,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("my-index-{local_time|}", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index-12_13_14", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -185,8 +192,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("index_{item}", schema);
         indexGenerator.open();
-        Assert.assertEquals("index_apple", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("index_peanut", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("index_apple", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("index_peanut", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -194,8 +201,8 @@ public class IndexGeneratorTest {
         IndexGenerator indexGenerator =
                 IndexGeneratorFactory.createIndexGenerator("my-index", schema);
         indexGenerator.open();
-        Assert.assertEquals("my-index", indexGenerator.generate(rows.get(0)));
-        Assert.assertEquals("my-index", indexGenerator.generate(rows.get(1)));
+        Assertions.assertEquals("my-index", indexGenerator.generate(rows.get(0)));
+        Assertions.assertEquals("my-index", indexGenerator.generate(rows.get(1)));
     }
 
     @Test
@@ -206,7 +213,7 @@ public class IndexGeneratorTest {
         try {
             IndexGeneratorFactory.createIndexGenerator("my-index-{unknown_ts|yyyy-MM-dd}", schema);
         } catch (TableException e) {
-            Assert.assertEquals(e.getMessage(), expectedExceptionMsg);
+            Assertions.assertEquals(e.getMessage(), expectedExceptionMsg);
         }
     }
 
@@ -218,7 +225,7 @@ public class IndexGeneratorTest {
         try {
             IndexGeneratorFactory.createIndexGenerator("my-index-{id|yyyy-MM-dd}", schema);
         } catch (TableException e) {
-            Assert.assertEquals(expectedExceptionMsg, e.getMessage());
+            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
         }
     }
 
@@ -231,7 +238,7 @@ public class IndexGeneratorTest {
             IndexGeneratorFactory.createIndexGenerator(
                     "my-index-{local_date}-{local_time}", schema);
         } catch (TableException e) {
-            Assert.assertEquals(expectedExceptionMsg, e.getMessage());
+            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
         }
     }
 
@@ -242,7 +249,7 @@ public class IndexGeneratorTest {
             IndexGeneratorFactory.createIndexGenerator(
                     "my-index-{local_date|yyyy/MM/dd HH:mm}", schema);
         } catch (UnsupportedTemporalTypeException e) {
-            Assert.assertEquals(expectedExceptionMsg, e.getMessage());
+            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
         }
     }
 
@@ -254,7 +261,7 @@ public class IndexGeneratorTest {
         try {
             IndexGeneratorFactory.createIndexGenerator("index_{status}", schema);
         } catch (IllegalArgumentException e) {
-            Assert.assertEquals(expectedExceptionMsg, e.getMessage());
+            Assertions.assertEquals(expectedExceptionMsg, e.getMessage());
         }
     }
 }

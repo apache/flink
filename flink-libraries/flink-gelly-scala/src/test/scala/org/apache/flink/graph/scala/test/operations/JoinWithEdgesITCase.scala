@@ -25,7 +25,7 @@ import org.apache.flink.graph.scala.test.TestGraphUtils
 import org.apache.flink.graph.scala.utils.EdgeToTuple3Map
 import org.apache.flink.graph.{Edge, EdgeJoinFunction}
 import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 

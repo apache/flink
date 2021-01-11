@@ -26,7 +26,9 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,11 +44,11 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link TextInputFormat}. */
 public class TextInputFormatTest extends TestLogger {
@@ -80,12 +82,12 @@ public class TextInputFormatTest extends TestLogger {
         try {
             assertFalse(inputFormat.reachedEnd());
             String result = inputFormat.nextRecord("");
-            assertNotNull("Expecting first record here", result);
+            assertNotNull(result, "Expecting first record here");
             assertEquals(first, result);
 
             assertFalse(inputFormat.reachedEnd());
             result = inputFormat.nextRecord(result);
-            assertNotNull("Expecting second record here", result);
+            assertNotNull(result, "Expecting second record here");
             assertEquals(second, result);
 
             assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));
@@ -184,19 +186,19 @@ public class TextInputFormatTest extends TestLogger {
                 || (lineBreaker.equals(delimiter))) {
 
             result = inputFormat.nextRecord("");
-            assertNotNull("Expecting first record here", result);
+            assertNotNull(result, "Expecting first record here");
             assertEquals(first, result);
 
             result = inputFormat.nextRecord(result);
-            assertNotNull("Expecting second record here", result);
+            assertNotNull(result, "Expecting second record here");
             assertEquals(second, result);
 
             result = inputFormat.nextRecord(result);
-            assertNull("The input file is over", result);
+            assertNull(result, "The input file is over");
 
         } else {
             result = inputFormat.nextRecord("");
-            assertNotNull("Expecting first record here", result);
+            assertNotNull(result, "Expecting first record here");
             assertEquals(content, result);
         }
     }
@@ -242,7 +244,7 @@ public class TextInputFormatTest extends TestLogger {
         try {
             assertFalse(inputFormat.reachedEnd());
             String result = inputFormat.nextRecord("");
-            assertNotNull("Expecting first record here", result);
+            assertNotNull(result, "Expecting first record here");
             assertEquals(first, result);
             assertFalse(inputFormat.reachedEnd());
 
@@ -255,7 +257,7 @@ public class TextInputFormatTest extends TestLogger {
 
             assertFalse(inputFormat.reachedEnd());
             result = inputFormat.nextRecord(result);
-            assertNotNull("Expecting second record here", result);
+            assertNotNull(result, "Expecting second record here");
             assertEquals(second, result);
 
             assertTrue(inputFormat.reachedEnd() || null == inputFormat.nextRecord(result));

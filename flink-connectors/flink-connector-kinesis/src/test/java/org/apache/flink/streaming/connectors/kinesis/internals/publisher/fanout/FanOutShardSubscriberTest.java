@@ -22,7 +22,15 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.FakeKinesisFanOut
 
 import io.netty.handler.timeout.ReadTimeoutException;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 import software.amazon.awssdk.services.kinesis.model.StartingPosition;
 

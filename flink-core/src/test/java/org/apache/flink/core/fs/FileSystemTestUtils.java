@@ -20,7 +20,7 @@ package org.apache.flink.core.fs;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Various utility functions for testing {@link FileSystem} implementations. */
 public class FileSystemTestUtils {

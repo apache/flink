@@ -22,7 +22,7 @@ import java.util.{Arrays => JArrays, List => JList, Map => JMap}
 import java.math.{BigDecimal => JBigDecimal}
 
 import org.apache.flink.table.api.{Types, ValidationException}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConverters._
 
@@ -31,16 +31,20 @@ import scala.collection.JavaConverters._
   */
 class LiteralValueTest extends DescriptorTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMissingValue(): Unit = {
-    removePropertyAndVerify(descriptors().get(0), LiteralValueValidator.VALUE)
-  }
+        assertThrows[ValidationException] {
+                removePropertyAndVerify(descriptors().get(0), LiteralValueValidator.VALUE)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testWrongValue(): Unit = {
-    // byte expected
+        assertThrows[ValidationException] {
+                // byte expected
     addPropertyAndVerify(descriptors().get(2), LiteralValueValidator.VALUE, "12.222")
-  }
+        }
+    }
 
   override def descriptors(): JList[Descriptor] = {
     val bigDecimalDesc = new LiteralValue().of(Types.DECIMAL).value(new JBigDecimal(1))

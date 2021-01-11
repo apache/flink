@@ -22,17 +22,20 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.PermanentBlobCache;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.blob.PermanentBlobService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.*;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.UserCodeClassLoader;
-
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -49,12 +52,8 @@ import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCount
 import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFilesExist;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link BlobLibraryCacheManager}. */
 public class BlobLibraryCacheManagerTest extends TestLogger {
@@ -398,9 +397,7 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
 
             // make sure no further blobs can be downloaded by removing the write
             // permissions from the directory
-            assertTrue(
-                    "Could not remove write permissions from cache directory",
-                    cacheDir.setWritable(false, false));
+            assertTrue(                    cacheDir.setWritable(false, false),                    "Could not remove write permissions from cache directory");
 
             // since we cannot download this library any more, this call should fail
             try {
@@ -432,29 +429,40 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         }
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void getOrResolveClassLoader_missingBlobKey_shouldFail() throws IOException {
-        final PermanentBlobKey missingKey = new PermanentBlobKey();
+        assertThrows(
+                IOException.class,
+                () -> {
+                    final PermanentBlobKey missingKey = new PermanentBlobKey();
 
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        classLoaderLease.getOrResolveClassLoader(
-                Collections.singletonList(missingKey), Collections.emptyList());
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.singletonList(missingKey), Collections.emptyList());
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void getOrResolveClassLoader_closedLease_shouldFail() throws IOException {
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        classLoaderLease.release();
+                    classLoaderLease.release();
 
-        classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.emptyList(), Collections.emptyList());
+                });
     }
 
     @Test
@@ -502,16 +510,22 @@ public class BlobLibraryCacheManagerTest extends TestLogger {
         assertThat(classLoader1, sameInstance(classLoader2));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void closingLibraryCacheManager_invalidatesAllOpenLeases() throws IOException {
-        final BlobLibraryCacheManager libraryCacheManager = createSimpleBlobLibraryCacheManager();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final BlobLibraryCacheManager libraryCacheManager =
+                            createSimpleBlobLibraryCacheManager();
 
-        final LibraryCacheManager.ClassLoaderLease classLoaderLease =
-                libraryCacheManager.registerClassLoaderLease(new JobID());
+                    final LibraryCacheManager.ClassLoaderLease classLoaderLease =
+                            libraryCacheManager.registerClassLoaderLease(new JobID());
 
-        libraryCacheManager.shutdown();
+                    libraryCacheManager.shutdown();
 
-        classLoaderLease.getOrResolveClassLoader(Collections.emptyList(), Collections.emptyList());
+                    classLoaderLease.getOrResolveClassLoader(
+                            Collections.emptyList(), Collections.emptyList());
+                });
     }
 
     @Test

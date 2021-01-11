@@ -22,15 +22,15 @@ RichJoinFunction}
 import org.apache.flink.api.common.operators.GenericDataSinkBase
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.java.operators.translation.WrappingFunction
-import org.junit.Assert.assertArrayEquals
-import org.junit.Assert.assertEquals
-import org.junit.Assert.fail
+import org.junit.jupiter.api.Assertions.assertArrayEquals
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.fail
 import org.apache.flink.api.common.{InvalidProgramException, Plan}
 import org.apache.flink.api.common.aggregators.LongSumAggregator
 import org.apache.flink.api.common.operators.base.DeltaIterationBase
 import org.apache.flink.api.common.operators.base.InnerJoinOperatorBase
 import org.apache.flink.api.common.operators.base.MapOperatorBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import org.apache.flink.util.Collector
 

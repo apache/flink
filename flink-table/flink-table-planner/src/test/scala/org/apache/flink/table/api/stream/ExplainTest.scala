@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.TableTestUtil.{readFromResource, replaceStageId, streamTableNode}
 import org.apache.flink.test.util.AbstractTestBase
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 
 class ExplainTest extends AbstractTestBase {

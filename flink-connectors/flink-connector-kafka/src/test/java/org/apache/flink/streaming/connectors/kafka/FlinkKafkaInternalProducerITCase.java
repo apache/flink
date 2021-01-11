@@ -32,15 +32,17 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for our own {@link FlinkKafkaInternalProducer}. */
 @SuppressWarnings("serial")
@@ -83,7 +85,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         extraProperties.put("isolation.level", "read_committed");
     }
 
-    @Test(timeout = 60000L)
+    @Test
+    @Timeout(60)
     public void testHappyPath() throws Exception {
         String topicName = "flink-kafka-producer-happy-path";
 
@@ -97,12 +100,13 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         } finally {
             kafkaProducer.close(Duration.ofSeconds(5));
         }
-        assertNull("The message should have been successfully sent", exceptionInCallback);
+        assertNull(exceptionInCallback, "The message should have been successfully sent");
         assertRecord(topicName, "42", "42");
         deleteTestTopic(topicName);
     }
 
-    @Test(timeout = 30000L)
+    @Test
+    @Timeout(30)
     public void testResumeTransaction() throws Exception {
         String topicName = "flink-kafka-producer-resume-transaction";
         FlinkKafkaInternalProducer<String, String> kafkaProducer =
@@ -113,7 +117,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
             kafkaProducer.send(
                     new ProducerRecord<>(topicName, "42", "42"), new ErrorCheckingCallback());
             kafkaProducer.flush();
-            assertNull("The message should have been successfully sent", exceptionInCallback);
+            assertNull(exceptionInCallback, "The message should have been successfully sent");
             long producerId = kafkaProducer.getProducerId();
             short epoch = kafkaProducer.getEpoch();
 
@@ -146,7 +150,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         deleteTestTopic(topicName);
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testPartitionsForAfterClosed() {
         FlinkKafkaInternalProducer<String, String> kafkaProducer =
                 new FlinkKafkaInternalProducer<>(extraProperties);
@@ -154,7 +159,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         kafkaProducer.partitionsFor("Topic");
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testInitTransactionsAfterClosed() {
         FlinkKafkaInternalProducer<String, String> kafkaProducer =
                 new FlinkKafkaInternalProducer<>(extraProperties);
@@ -162,7 +168,8 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         kafkaProducer.initTransactions();
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testBeginTransactionAfterClosed() {
         FlinkKafkaInternalProducer<String, String> kafkaProducer =
                 new FlinkKafkaInternalProducer<>(extraProperties);
@@ -171,21 +178,24 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         kafkaProducer.beginTransaction();
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testCommitTransactionAfterClosed() {
         String topicName = "testCommitTransactionAfterClosed";
         FlinkKafkaInternalProducer<String, String> kafkaProducer = getClosedProducer(topicName);
         kafkaProducer.commitTransaction();
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testResumeTransactionAfterClosed() {
         String topicName = "testAbortTransactionAfterClosed";
         FlinkKafkaInternalProducer<String, String> kafkaProducer = getClosedProducer(topicName);
         kafkaProducer.resumeTransaction(0L, (short) 1);
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testAbortTransactionAfterClosed() {
         String topicName = "testAbortTransactionAfterClosed";
         FlinkKafkaInternalProducer<String, String> kafkaProducer = getClosedProducer(topicName);
@@ -193,14 +203,16 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         kafkaProducer.resumeTransaction(0L, (short) 1);
     }
 
-    @Test(timeout = 30000L, expected = IllegalStateException.class)
+    @Test
+    @Timeout(30000L, expected = IllegalStateException.class, unit = TimeUnit.MILLISECONDS)
     public void testFlushAfterClosed() {
         String topicName = "testCommitTransactionAfterClosed";
         FlinkKafkaInternalProducer<String, String> kafkaProducer = getClosedProducer(topicName);
         kafkaProducer.flush();
     }
 
-    @Test(timeout = 30000L)
+    @Test
+    @Timeout(30)
     public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
         String topic = "flink-kafka-producer-txn-coordinator-changed";
         createTestTopic(topic, 1, 2);
@@ -225,7 +237,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         kafkaProducer.send(
                 new ProducerRecord<>(topicName, "42", "42"), new ErrorCheckingCallback());
         kafkaProducer.close(Duration.ofSeconds(5));
-        assertNull("The message should have been successfully sent", exceptionInCallback);
+        assertNull(exceptionInCallback, "The message should have been successfully sent");
         return kafkaProducer;
     }
 

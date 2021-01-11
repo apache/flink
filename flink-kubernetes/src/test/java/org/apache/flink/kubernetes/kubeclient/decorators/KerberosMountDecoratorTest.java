@@ -18,22 +18,19 @@
 
 package org.apache.flink.kubernetes.kubeclient.decorators;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.KubernetesPodTestBase;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParametersTest;
 import org.apache.flink.kubernetes.utils.Constants;
-
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.VolumeMount;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** General tests for the {@link KerberosMountDecoratorTest}. */
 public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
@@ -77,10 +74,10 @@ public class KerberosMountDecoratorTest extends KubernetesPodTestBase {
         kerberosMountDecorator.buildAccompanyingKubernetesResources();
 
         assertEquals(
-                String.format("%s/%s", Constants.KERBEROS_KEYTAB_MOUNT_POINT, KEYTAB_FILE),
                 this.testingKubernetesParameters
                         .getFlinkConfiguration()
-                        .get(SecurityOptions.KERBEROS_LOGIN_KEYTAB));
+                        .get(SecurityOptions.KERBEROS_LOGIN_KEYTAB),
+                String.format("%s/%s", Constants.KERBEROS_KEYTAB_MOUNT_POINT, KEYTAB_FILE));
     }
 
     @Test

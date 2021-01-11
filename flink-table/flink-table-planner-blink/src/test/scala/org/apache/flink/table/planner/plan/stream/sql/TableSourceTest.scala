@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableSourceTest extends TableTestBase {
 

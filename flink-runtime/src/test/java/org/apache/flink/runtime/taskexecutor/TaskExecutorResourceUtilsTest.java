@@ -26,11 +26,19 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test suite for {@link TaskExecutorResourceUtils}. */
 public class TaskExecutorResourceUtilsTest extends TestLogger {
@@ -51,12 +59,18 @@ public class TaskExecutorResourceUtilsTest extends TestLogger {
         assertThat(resourceSpec.getManagedMemorySize(), is(MANAGED));
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testResourceSpecFromConfigFailsIfNetworkSizeIsNotFixed() {
-        Configuration configuration = createValidConfig();
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
-        configuration.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
-        TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    Configuration configuration = createValidConfig();
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.ofMebiBytes(1));
+                    configuration.set(
+                            TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.ofMebiBytes(2));
+                    TaskExecutorResourceUtils.resourceSpecFromConfig(configuration);
+                });
     }
 
     @Test

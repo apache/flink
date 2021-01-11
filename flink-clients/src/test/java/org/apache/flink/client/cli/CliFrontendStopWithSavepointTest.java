@@ -29,16 +29,24 @@ import org.apache.flink.util.FlinkException;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the STOP command. */
 public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
@@ -181,32 +189,45 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         stopWithSavepointLatch.await();
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        // test unrecognized option
-        String[] parameters = {"-v", "-l"};
-        Configuration configuration = getConfiguration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.stop(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    // test unrecognized option
+                    String[] parameters = {"-v", "-l"};
+                    Configuration configuration = getConfiguration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.stop(parameters);
+                });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testMissingJobId() throws Exception {
-        // test missing job id
-        String[] parameters = {};
-        Configuration configuration = getConfiguration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.stop(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    // test missing job id
+                    String[] parameters = {};
+                    Configuration configuration = getConfiguration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.stop(parameters);
+                });
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testWrongSavepointDirOrder() throws Exception {
-        JobID jid = new JobID();
-        String[] parameters = {"-s", "-d", "test-target-dir", jid.toString()};
-        MockedCliFrontend testFrontend = new MockedCliFrontend(new TestingClusterClient());
-        testFrontend.stop(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    JobID jid = new JobID();
+                    String[] parameters = {"-s", "-d", "test-target-dir", jid.toString()};
+                    MockedCliFrontend testFrontend =
+                            new MockedCliFrontend(new TestingClusterClient());
+                    testFrontend.stop(parameters);
+                });
     }
 
     @Test

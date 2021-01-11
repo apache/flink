@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
-import org.junit.Assert.{assertTrue, fail}
+import org.junit.jupiter.api.Assertions.{assertTrue, fail}
 import org.junit.{Before, Test}
 
 /**

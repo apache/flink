@@ -24,7 +24,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.PythonScalarFunction
 import org.apache.flink.table.utils.{MockPythonTableFunction, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CalcPythonCorrelateTransposeRuleTest extends TableTestBase {
   @Test

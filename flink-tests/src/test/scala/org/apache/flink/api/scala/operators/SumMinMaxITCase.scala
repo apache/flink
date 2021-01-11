@@ -23,10 +23,10 @@ import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
 import org.apache.flink.test.util.MultipleProgramsTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 
 import org.apache.flink.api.scala._
 

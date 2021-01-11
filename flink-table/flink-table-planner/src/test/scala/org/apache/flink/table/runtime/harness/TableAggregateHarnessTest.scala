@@ -28,7 +28,7 @@ import org.apache.flink.table.runtime.types.CRow
 import org.apache.flink.table.utils.{Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Integer => JInt}
 import java.util.concurrent.ConcurrentLinkedQueue

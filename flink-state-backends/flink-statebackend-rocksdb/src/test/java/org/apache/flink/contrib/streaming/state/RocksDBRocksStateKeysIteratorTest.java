@@ -24,10 +24,16 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.contrib.streaming.state.iterator.RocksStateKeysIterator;
 import org.apache.flink.core.memory.DataOutputSerializer;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.ColumnFamilyHandle;
 
@@ -115,10 +121,10 @@ public class RocksDBRocksStateKeysIteratorTest {
                 }
 
                 fetchedKeys.sort(Comparator.comparingInt(a -> a));
-                Assert.assertEquals(1000, fetchedKeys.size());
+                Assertions.assertEquals(1000, fetchedKeys.size());
 
                 for (int i = 0; i < 1000; ++i) {
-                    Assert.assertEquals(i, fetchedKeys.get(i).intValue());
+                    Assertions.assertEquals(i, fetchedKeys.get(i).intValue());
                 }
             }
         }

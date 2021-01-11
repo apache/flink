@@ -24,7 +24,15 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,17 +45,20 @@ import static org.hamcrest.Matchers.is;
 /** Tests for {@link BatchGlobalCommitterOperator}. */
 public class BatchGlobalCommitterOperatorTest extends TestLogger {
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void throwExceptionWithoutCommitter() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        assertThrows(IllegalStateException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(null);
 
         testHarness.initializeEmptyState();
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void doNotSupportRetry() throws Exception {
-        final OneInputStreamOperatorTestHarness<String, String> testHarness =
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    final OneInputStreamOperatorTestHarness<String, String> testHarness =
                 createTestHarness(new TestSink.AlwaysRetryGlobalCommitter());
 
         testHarness.initializeEmptyState();
@@ -55,6 +66,7 @@ public class BatchGlobalCommitterOperatorTest extends TestLogger {
         testHarness.processElement(new StreamRecord<>("hotel"));
         testHarness.endInput();
         testHarness.close();
+        });
     }
 
     @Test

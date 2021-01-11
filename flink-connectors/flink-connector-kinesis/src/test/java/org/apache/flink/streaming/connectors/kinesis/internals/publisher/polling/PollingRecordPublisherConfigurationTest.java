@@ -17,16 +17,20 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Properties;
 
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_GETRECORDS_INTERVAL_MILLIS;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_GETRECORDS_MAX;
-import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_USE_ADAPTIVE_READS;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link PollingRecordPublisherConfiguration}. */
 public class PollingRecordPublisherConfigurationTest {

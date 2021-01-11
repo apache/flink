@@ -64,7 +64,10 @@ import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -92,12 +95,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
 @RunWith(Parameterized.class)
@@ -497,7 +500,8 @@ public class LocalExecutorITCase extends TestLogger {
         executor.closeSession(sessionId);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionChangelog() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -541,7 +545,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionChangelogMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -587,7 +592,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -614,7 +620,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionTableMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -651,7 +658,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionLimitedTable() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -673,7 +681,8 @@ public class LocalExecutorITCase extends TestLogger {
         executeStreamQueryTable(replaceVars, query, expectedResults);
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testBatchQueryExecution() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -714,7 +723,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testBatchQueryExecutionMultipleTimes() throws Exception {
         final URL url = getClass().getClassLoader().getResource("test-data.csv");
         Objects.requireNonNull(url);
@@ -757,7 +767,8 @@ public class LocalExecutorITCase extends TestLogger {
         }
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInStreamingChangelogMode() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -788,7 +799,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertTrue(throwableWithMessage.isPresent());
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInStreamingTableMode() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -819,7 +831,8 @@ public class LocalExecutorITCase extends TestLogger {
         assertTrue(throwableWithMessage.isPresent());
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void ensureExceptionOnFaultySourceInBatch() throws Exception {
         final String missingFileName = "missing-source";
 
@@ -867,7 +880,8 @@ public class LocalExecutorITCase extends TestLogger {
         return throwableWithMessage;
     }
 
-    @Test(timeout = 90_000L)
+    @Test
+    @Timeout(90)
     public void testStreamQueryExecutionSink() throws Exception {
         final String csvOutputPath =
                 new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv")

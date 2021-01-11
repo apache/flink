@@ -31,14 +31,14 @@ import com.google.pubsub.v1.ReceivedMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test of the PubSub SINK with the Google PubSub emulator. */
 public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
@@ -96,42 +96,49 @@ public class EmulatedPubSubSinkTest extends GCloudUnitTestBase {
         List<ReceivedMessage> receivedMessages =
                 pubsubHelper.pullMessages(PROJECT_NAME, SUBSCRIPTION_NAME, 100);
 
-        assertEquals("Wrong number of elements", input.size(), receivedMessages.size());
+        assertEquals(input.size(), receivedMessages.size(), "Wrong number of elements");
 
         // Check output strings
         List<String> output = new ArrayList<>();
         receivedMessages.forEach(msg -> output.add(msg.getMessage().getData().toStringUtf8()));
 
         for (String test : input) {
-            assertTrue("Missing " + test, output.contains(StringUtils.reverse(test)));
+            assertTrue(output.contains(StringUtils.reverse(test)), "Missing " + test);
         }
     }
 
-    @Test(expected = Exception.class)
+    @Test
     public void testPubSubSinkThrowsExceptionOnFailure() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.enableCheckpointing(100);
-        env.setParallelism(1);
-        env.setRestartStrategy(RestartStrategies.noRestart());
+        assertThrows(
+                Exception.class,
+                () -> {
+                    StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.enableCheckpointing(100);
+                    env.setParallelism(1);
+                    env.setRestartStrategy(RestartStrategies.noRestart());
 
-        // Create test stream
-        // use source function to prevent the job from shutting down before a checkpoint has been
-        // made
-        env.addSource(new SingleInputSourceFunction())
-                .map((MapFunction<String, String>) StringUtils::reverse)
-                .addSink(
-                        PubSubSink.newBuilder()
-                                .withSerializationSchema(new SimpleStringSchema())
-                                .withProjectName(PROJECT_NAME)
-                                .withTopicName(TOPIC_NAME)
-                                // Specific for emulator
-                                .withHostAndPortForEmulator("unknown-host-to-force-sink-crash:1234")
-                                .withCredentials(EmulatorCredentials.getInstance())
-                                .build())
-                .name("PubSub sink");
+                    // Create test stream
+                    // use source function to prevent the job from shutting down before a checkpoint
+                    // has been
+                    // made
+                    env.addSource(new SingleInputSourceFunction())
+                            .map((MapFunction<String, String>) StringUtils::reverse)
+                            .addSink(
+                                    PubSubSink.newBuilder()
+                                            .withSerializationSchema(new SimpleStringSchema())
+                                            .withProjectName(PROJECT_NAME)
+                                            .withTopicName(TOPIC_NAME)
+                                            // Specific for emulator
+                                            .withHostAndPortForEmulator(
+                                                    "unknown-host-to-force-sink-crash:1234")
+                                            .withCredentials(EmulatorCredentials.getInstance())
+                                            .build())
+                            .name("PubSub sink");
 
-        // Run
-        env.execute();
+                    // Run
+                    env.execute();
+                });
     }
 
     private static class SingleInputSourceFunction implements SourceFunction<String> {

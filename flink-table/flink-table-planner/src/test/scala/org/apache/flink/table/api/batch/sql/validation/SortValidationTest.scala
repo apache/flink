@@ -24,17 +24,19 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SortValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testLimitWithoutOrder(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[TableException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT * FROM MyTable LIMIT 5"
 
     util.tableEnv.sqlQuery(sqlQuery).toDataSet[Row]
-  }
+        }
+    }
 }

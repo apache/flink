@@ -129,7 +129,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
           case _ =>
         }
       }
-      Assert.assertTrue(haveTwoOp)
+      Assertions.assertTrue(haveTwoOp)
     }
   }
 

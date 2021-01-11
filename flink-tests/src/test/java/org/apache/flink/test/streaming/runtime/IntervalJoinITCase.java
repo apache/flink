@@ -33,9 +33,17 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -244,32 +252,46 @@ public class IntervalJoinITCase {
                 "(key,9):(key,9)");
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFailsWithoutUpperBound() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    final StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setParallelism(1);
 
-        DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
-        DataStream<Tuple2<String, Integer>> streamTwo = env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamOne =
+                            env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamTwo =
+                            env.fromElements(Tuple2.of("1", 1));
 
-        streamOne
-                .keyBy(new Tuple2KeyExtractor())
-                .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(Time.milliseconds(0), null);
+                    streamOne
+                            .keyBy(new Tuple2KeyExtractor())
+                            .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                            .between(Time.milliseconds(0), null);
+                });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testFailsWithoutLowerBound() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    final StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setParallelism(1);
 
-        DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
-        DataStream<Tuple2<String, Integer>> streamTwo = env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamOne =
+                            env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamTwo =
+                            env.fromElements(Tuple2.of("1", 1));
 
-        streamOne
-                .keyBy(new Tuple2KeyExtractor())
-                .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .between(null, Time.milliseconds(1));
+                    streamOne
+                            .keyBy(new Tuple2KeyExtractor())
+                            .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                            .between(null, Time.milliseconds(1));
+                });
     }
 
     @Test
@@ -361,39 +383,48 @@ public class IntervalJoinITCase {
                 "(key,2):(key,2)");
     }
 
-    @Test(expected = UnsupportedTimeCharacteristicException.class)
+    @Test
     public void testExecutionFailsInProcessingTime() throws Exception {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        assertThrows(
+                UnsupportedTimeCharacteristicException.class,
+                () -> {
+                    final StreamExecutionEnvironment env =
+                            StreamExecutionEnvironment.getExecutionEnvironment();
+                    env.setParallelism(1);
 
-        DataStream<Tuple2<String, Integer>> streamOne = env.fromElements(Tuple2.of("1", 1));
-        DataStream<Tuple2<String, Integer>> streamTwo = env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamOne =
+                            env.fromElements(Tuple2.of("1", 1));
+                    DataStream<Tuple2<String, Integer>> streamTwo =
+                            env.fromElements(Tuple2.of("1", 1));
 
-        streamOne
-                .keyBy(new Tuple2KeyExtractor())
-                .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
-                .inProcessingTime()
-                .between(Time.milliseconds(0), Time.milliseconds(0))
-                .process(
-                        new ProcessJoinFunction<
-                                Tuple2<String, Integer>, Tuple2<String, Integer>, String>() {
-                            @Override
-                            public void processElement(
-                                    Tuple2<String, Integer> left,
-                                    Tuple2<String, Integer> right,
-                                    Context ctx,
-                                    Collector<String> out)
-                                    throws Exception {
-                                out.collect(left + ":" + right);
-                            }
-                        });
+                    streamOne
+                            .keyBy(new Tuple2KeyExtractor())
+                            .intervalJoin(streamTwo.keyBy(new Tuple2KeyExtractor()))
+                            .inProcessingTime()
+                            .between(Time.milliseconds(0), Time.milliseconds(0))
+                            .process(
+                                    new ProcessJoinFunction<
+                                            Tuple2<String, Integer>,
+                                            Tuple2<String, Integer>,
+                                            String>() {
+                                        @Override
+                                        public void processElement(
+                                                Tuple2<String, Integer> left,
+                                                Tuple2<String, Integer> right,
+                                                Context ctx,
+                                                Collector<String> out)
+                                                throws Exception {
+                                            out.collect(left + ":" + right);
+                                        }
+                                    });
+                });
     }
 
     private static void expectInAnyOrder(String... expected) {
         List<String> listExpected = Lists.newArrayList(expected);
         Collections.sort(listExpected);
         Collections.sort(testResults);
-        Assert.assertEquals(listExpected, testResults);
+        Assertions.assertEquals(listExpected, testResults);
     }
 
     private static class AscendingTuple2TimestampExtractor

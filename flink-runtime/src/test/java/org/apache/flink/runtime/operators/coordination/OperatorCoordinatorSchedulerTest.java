@@ -54,7 +54,10 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
@@ -70,19 +73,19 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.core.testutils.FlinkMatchers.futureWillCompleteExceptionally;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Tests for the integration of the {@link OperatorCoordinator} with the scheduler, to ensure the
@@ -330,9 +333,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertArrayEquals(
-                "coordinator should have a restored checkpoint",
                 coordinatorState,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have a restored checkpoint");
     }
 
     @Test
@@ -343,9 +346,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertSame(
-                "coordinator should have null restored state",
                 TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have null restored state");
         assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
     }
 
@@ -397,9 +400,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertNull(                coordinator.getLastRestoredCheckpointState(),                "coordinator should not have a restored checkpoint");
     }
 
     @Test
@@ -411,9 +412,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 takeCompleteCheckpoint(scheduler, coordinator, new byte[] {37, 11, 83, 4});
 
         assertEquals(
-                "coordinator should be notified of completed checkpoint",
                 checkpointId,
-                coordinator.getLastCheckpointComplete());
+                coordinator.getLastCheckpointComplete(),
+                "coordinator should be notified of completed checkpoint");
     }
 
     // ------------------------------------------------------------------------
@@ -428,9 +429,9 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         failGlobalAndRestart(scheduler, new TestException());
 
         assertSame(
-                "coordinator should have null restored state",
                 TestingOperatorCoordinator.NULL_RESTORE_VALUE,
-                coordinator.getLastRestoredCheckpointState());
+                coordinator.getLastRestoredCheckpointState(),
+                "coordinator should have null restored state");
         assertEquals(OperatorCoordinator.NO_CHECKPOINT, coordinator.getLastRestoredCheckpointId());
     }
 
@@ -465,9 +466,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
         failAndRestartTask(scheduler, 0);
 
-        assertNull(
-                "coordinator should not have a restored checkpoint",
-                coordinator.getLastRestoredCheckpointState());
+        assertNull(                coordinator.getLastRestoredCheckpointState(),                "coordinator should not have a restored checkpoint");
     }
 
     // ------------------------------------------------------------------------
@@ -687,13 +686,13 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private TestingOperatorCoordinator getCoordinator(DefaultScheduler scheduler) {
         final ExecutionJobVertex vertexWithCoordinator = getJobVertex(scheduler, testVertexId);
-        assertNotNull("vertex for coordinator not found", vertexWithCoordinator);
+        assertNotNull(vertexWithCoordinator, "vertex for coordinator not found");
 
         final Optional<OperatorCoordinatorHolder> coordinatorOptional =
                 vertexWithCoordinator.getOperatorCoordinators().stream()
                         .filter((holder) -> holder.operatorId().equals(testOperatorId))
                         .findFirst();
-        assertTrue("vertex does not contain coordinator", coordinatorOptional.isPresent());
+        assertTrue(coordinatorOptional.isPresent(), "vertex does not contain coordinator");
 
         final OperatorCoordinator coordinator = coordinatorOptional.get().coordinator();
         assertThat(coordinator, instanceOf(TestingOperatorCoordinator.class));

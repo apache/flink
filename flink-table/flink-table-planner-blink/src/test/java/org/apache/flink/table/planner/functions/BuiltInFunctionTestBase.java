@@ -36,7 +36,9 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.types.Row;
 
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -50,11 +52,10 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Test base for testing {@link BuiltInFunctionDefinition}.
@@ -165,16 +166,16 @@ public abstract class BuiltInFunctionTestBase {
 
         final Row row = iterator.next();
 
-        assertFalse("No more rows expected.", iterator.hasNext());
+        assertFalse(iterator.hasNext(), "No more rows expected.");
 
-        assertEquals("Only 1 column expected.", 1, row.getArity());
+        assertEquals(1, "Only 1 column expected.");
 
         assertEquals(
-                "Logical type doesn't match.",
                 expectedDataType.getLogicalType(),
-                result.getTableSchema().getFieldDataTypes()[0].getLogicalType());
+                result.getTableSchema().getFieldDataTypes()[0].getLogicalType(),
+                "Logical type doesn't match.");
 
-        assertEquals("Result doesn't match.", testItem.result, row.getField(0));
+        assertEquals(testItem.result, "Result doesn't match.");
     }
 
     /**

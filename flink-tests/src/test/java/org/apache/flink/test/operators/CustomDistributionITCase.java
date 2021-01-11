@@ -36,11 +36,19 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Integration tests for custom {@link DataDistribution}. */
 @SuppressWarnings("serial")
@@ -267,14 +275,19 @@ public class CustomDistributionITCase extends TestLogger {
     /*
      * Test the number of partition keys larger than the number of distribution fields
      */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPartitionMoreThanDistribution() throws Exception {
-        final TestDataDist2 dist = new TestDataDist2();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    final TestDataDist2 dist = new TestDataDist2();
 
-        ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
+                    ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple3<Integer, Long, String>> input = CollectionDataSets.get3TupleDataSet(env);
-        DataSetUtils.partitionByRange(input, dist, 0, 1, 2);
+                    DataSet<Tuple3<Integer, Long, String>> input =
+                            CollectionDataSets.get3TupleDataSet(env);
+                    DataSetUtils.partitionByRange(input, dist, 0, 1, 2);
+                });
     }
 
     /** The class is used to do the tests of range partition with one key. */

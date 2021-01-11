@@ -25,7 +25,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for both windowed and non-windowed joins.

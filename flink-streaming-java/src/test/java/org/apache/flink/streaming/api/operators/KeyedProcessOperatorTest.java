@@ -38,13 +38,20 @@ import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests {@link KeyedProcessOperator}. */
 public class KeyedProcessOperatorTest extends TestLogger {
@@ -62,7 +69,7 @@ public class KeyedProcessOperatorTest extends TestLogger {
                     Tuple2<Integer, String> value, Context ctx, Collector<String> out)
                     throws Exception {
 
-                assertTrue("Did not get expected key.", ctx.getCurrentKey().equals(value.f0));
+                assertTrue(ctx.getCurrentKey().equals(value.f0), "Did not get expected key.");
 
                 // we check that we receive this output, to ensure that the assert was actually
                 // checked

@@ -22,9 +22,17 @@ import org.apache.flink.graph.asm.translate.TranslateFunction;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link LongValueToSignedIntValue}. */
 public class LongValueToSignedIntValueTest {
@@ -44,13 +52,21 @@ public class LongValueToSignedIntValueTest {
                 translator.translate(new LongValue((long) Integer.MAX_VALUE), reuse));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testUpperOutOfRange() throws Exception {
-        translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), reuse);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testLowerOutOfRange() throws Exception {
-        translator.translate(new LongValue((long) Integer.MIN_VALUE - 1), reuse);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    translator.translate(new LongValue((long) Integer.MIN_VALUE - 1), reuse);
+                });
     }
 }

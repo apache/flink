@@ -27,7 +27,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, StreamingWithStateTestBase}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 
 import java.util
@@ -131,7 +131,7 @@ class JoinITCase extends StreamingWithStateTestBase {
     env.execute()
 
     // Assert there is no result with null keys.
-    Assert.assertFalse(StreamITCase.testResults.toString().contains("null"))
+    Assertions.assertFalse(StreamITCase.testResults.toString().contains("null"))
   }
 
   /** test rowtime inner join **/

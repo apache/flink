@@ -42,7 +42,7 @@ import org.apache.flink.util.Preconditions;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,9 +51,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for the facilities provided by {@link AbstractStreamOperator}. This mostly tests timers and

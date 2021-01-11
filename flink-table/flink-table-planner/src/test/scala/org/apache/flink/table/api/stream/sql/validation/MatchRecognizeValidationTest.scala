@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.Pytho
 import org.apache.flink.table.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class MatchRecognizeValidationTest extends TableTestBase {
 
@@ -32,18 +32,22 @@ class MatchRecognizeValidationTest extends TableTestBase {
   streamUtil.addTable[(Int, String, Long)]("MyTable", 'a, 'b, 'c.rowtime, 'proctime.proctime)
 
   /** Function 'MATCH_ROWTIME()' can only be used in MATCH_RECOGNIZE **/
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMatchRowtimeInSelect() = {
-    val sql = "SELECT MATCH_ROWTIME() FROM MyTable"
+        assertThrows[ValidationException] {
+                val sql = "SELECT MATCH_ROWTIME() FROM MyTable"
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Function 'MATCH_PROCTIME()' can only be used in MATCH_RECOGNIZE **/
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testMatchProctimeInSelect() = {
-    val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
+        assertThrows[ValidationException] {
+                val sql = "SELECT MATCH_PROCTIME() FROM MyTable"
     streamUtil.verifySql(sql, "n/a")
-  }
+        }
+    }
 
   /** Python Function can not be used in MATCH_RECOGNIZE for now **/
   @Test

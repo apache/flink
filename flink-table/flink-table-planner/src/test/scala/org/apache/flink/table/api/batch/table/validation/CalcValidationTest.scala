@@ -23,9 +23,8 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
-
-import org.junit.Assert._
 import org.junit._
+import org.junit.jupiter.api.Assertions._
 
 class CalcValidationTest extends TableTestBase {
 
@@ -34,71 +33,82 @@ class CalcValidationTest extends TableTestBase {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage("Cannot resolve field [foo], input field list:[a, b, c].")
     val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
       // must fail. Field 'foo does not exist
       .select('a, 'foo)
   }
 
-  @Test(expected = classOf[ValidationException])
-  def testSelectAmbiguousRenaming(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-      // must fail. 'a and 'b are both renamed to 'foo
-      .select('a + 1 as 'foo, 'b + 2 as 'foo).toDataSet[Row].print()
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testSelectAmbiguousRenaming2(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-      // must fail. 'a and 'b are both renamed to 'a
-      .select('a, 'b as 'a).toDataSet[Row].print()
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFilterInvalidFieldName(): Unit = {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-
-    // must fail. Field 'foo does not exist
-    t.filter( 'foo === 2 )
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testSelectInvalidField() {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-
-    // Must fail. Field foo does not exist
-    t.select($"a" + 1, $"foo" + 2)
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testSelectAmbiguousFieldNames() {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-
-    // Must fail. Field foo does not exist
-    t.select($"a" + 1 as "foo", $"b" + 2 as "foo")
-  }
-
-  @Test(expected = classOf[ValidationException])
-  def testFilterInvalidField() {
-    val util = batchTestUtil()
-    val t = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
-
-    // Must fail. Field foo does not exist.
-    t.filter($"foo" === 17)
-  }
-
   @Test
-  def testAliasStarException(): Unit = {
-    val util = batchTestUtil()
+  def testSelectAmbiguousRenaming(): Unit = {
+    Assertions
 
-    try {
-      util.addTable[(Int, Long, String)]("Table1", '*, 'b, 'c)
-      fail("TableException expected")
-    } catch {
+    @Test
+    def testSelectAmbiguousRenaming2(): Unit = {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
+        val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+          // must fail. 'a and 'b are both renamed to 'a
+          .select('a, 'b as 'a).toDataSet[Row].print()
+      }
+    }
+
+    @Test
+    def testFilterInvalidFieldName(): Unit = {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
+        val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+        // must fail. Field 'foo does not exist
+        t.filter('foo === 2)
+      }
+    }
+
+    @Test
+    def testSelectInvalidField() {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
+        val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+        // Must fail. Field foo does not exist
+        t.select($"a" + 1, $"foo" + 2)
+      }
+    }
+
+    @Test
+    def testSelectAmbiguousFieldNames() {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
+        val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+        // Must fail. Field foo does not exist
+        t.select($"a" + 1 as "foo", $"b" + 2 as "foo")
+      }
+    }
+
+    @Test
+    def testFilterInvalidField() {
+      assertThrows[ValidationException] {
+        val util = batchTestUtil()
+        val t = util.addTable[(Int, Long, String)]("Table3", 'a, 'b, 'c)
+
+        // Must fail. Field foo does not exist.
+        t.filter($"foo" === 17)
+      }
+    }
+
+    @Test
+    def testAliasStarException(): Unit = {
+      val util = batchTestUtil()
+
+      try {
+        util.addTable[(Int, Long, String)]("Table1", '*, 'b, 'c)
+        fail("TableException expected")
+      }
+      );
+    }
+
+    catch
+    {
       case _: ValidationException => //ignore
     }
 
@@ -116,11 +126,13 @@ class CalcValidationTest extends TableTestBase {
     }
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testDuplicateFlattening(): Unit = {
-    val util = batchTestUtil()
-    val table = util.addTable[((Int, Long), (String, Boolean), String)]("MyTable", 'a, 'b, 'c)
+    assertThrows[ValidationException] {
+      val util = batchTestUtil()
+      val table = util.addTable[((Int, Long), (String, Boolean), String)]("MyTable", 'a, 'b, 'c)
 
-    table.select('a.flatten(), 'a.flatten())
+      table.select('a.flatten(), 'a.flatten())
+    }
   }
 }

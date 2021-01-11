@@ -25,8 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -35,7 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test the distributed cache. */
 public class DistributedCacheTest extends AbstractTestBase {
@@ -81,11 +80,11 @@ public class DistributedCacheTest extends AbstractTestBase {
         @Override
         public void flatMap(String word, Collector<Tuple1<String>> out) throws Exception {
             assertTrue(
+                    wordList.contains(word),
                     "Unexpected word in stream! wordFromStream: "
                             + word
                             + ", shouldBeOneOf: "
-                            + wordList.toString(),
-                    wordList.contains(word));
+                            + wordList.toString());
 
             out.collect(new Tuple1<>(word));
         }

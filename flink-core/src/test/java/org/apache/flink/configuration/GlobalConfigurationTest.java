@@ -21,7 +21,12 @@ package org.apache.flink.configuration;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -30,10 +35,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory
@@ -95,19 +101,31 @@ public class GlobalConfigurationTest extends TestLogger {
         }
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFailIfNull() {
-        GlobalConfiguration.loadConfiguration((String) null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    GlobalConfiguration.loadConfiguration((String) null);
+                });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfNotLoaded() {
-        GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    GlobalConfiguration.loadConfiguration("/some/path/" + UUID.randomUUID());
+                });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testInvalidConfiguration() throws IOException {
-        GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath());
+                });
     }
 
     @Test

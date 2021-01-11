@@ -25,8 +25,10 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -118,9 +120,9 @@ public class CoStreamMapTest implements Serializable {
 
         testHarness.close();
 
-        Assert.assertTrue(
-                "RichFunction methods where not called.", TestOpenCloseCoMapFunction.closeCalled);
-        Assert.assertTrue("Output contains no elements.", testHarness.getOutput().size() > 0);
+        Assertions.assertTrue(
+                TestOpenCloseCoMapFunction.closeCalled, "RichFunction methods where not called.");
+        Assertions.assertTrue(testHarness.getOutput().size() > 0, "Output contains no elements.");
     }
 
     // This must only be used in one test, otherwise the static fields will be changed
@@ -136,7 +138,7 @@ public class CoStreamMapTest implements Serializable {
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
             if (closeCalled) {
-                Assert.fail("Close called before open.");
+                Assertions.fail("Close called before open.");
             }
             openCalled = true;
         }
@@ -145,7 +147,7 @@ public class CoStreamMapTest implements Serializable {
         public void close() throws Exception {
             super.close();
             if (!openCalled) {
-                Assert.fail("Open was not called before close.");
+                Assertions.fail("Open was not called before close.");
             }
             closeCalled = true;
         }
@@ -153,7 +155,7 @@ public class CoStreamMapTest implements Serializable {
         @Override
         public String map1(Double value) throws Exception {
             if (!openCalled) {
-                Assert.fail("Open was not called before run.");
+                Assertions.fail("Open was not called before run.");
             }
             return value.toString();
         }
@@ -161,7 +163,7 @@ public class CoStreamMapTest implements Serializable {
         @Override
         public String map2(Integer value) throws Exception {
             if (!openCalled) {
-                Assert.fail("Open was not called before run.");
+                Assertions.fail("Open was not called before run.");
             }
             return value.toString();
         }

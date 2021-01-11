@@ -118,10 +118,9 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -153,14 +152,14 @@ import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singleton;
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
@@ -174,11 +173,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamTask}. */
+@Timeout(30)
 public class StreamTaskTest extends TestLogger {
 
     private static OneShotLatch syncLatch;
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(30);
 
     @Test
     public void testCleanUpExceptionSuppressing() throws Exception {
@@ -302,7 +300,7 @@ public class StreamTaskTest extends TestLogger {
 
             task.getExecutingThread().join();
 
-            assertFalse("Task did not cancel", task.getExecutingThread().isAlive());
+            assertFalse(task.getExecutingThread().isAlive(), "Task did not cancel");
             assertEquals(ExecutionState.CANCELED, task.getExecutionState());
         }
     }
@@ -976,7 +974,7 @@ public class StreamTaskTest extends TestLogger {
             checkpointCompletedLatch.await(30, TimeUnit.SECONDS);
 
             // ensure that 'null' was acknowledged as subtask state
-            Assert.assertNull(checkpointResult.get(0));
+            Assertions.assertNull(checkpointResult.get(0));
 
             task.streamTask.cancel();
             task.waitForTaskCompletion(true);
@@ -1215,14 +1213,14 @@ public class StreamTaskTest extends TestLogger {
         }
 
         assertTrue(
-                RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is still running",
                 Thread.getAllStackTraces().keySet().stream()
                         .noneMatch(
                                 thread ->
                                         thread.getName()
                                                 .startsWith(
                                                         RecordWriter
-                                                                .DEFAULT_OUTPUT_FLUSH_THREAD_NAME)));
+                                                                .DEFAULT_OUTPUT_FLUSH_THREAD_NAME)),
+                RecordWriter.DEFAULT_OUTPUT_FLUSH_THREAD_NAME + " thread is still running");
     }
 
     @Test

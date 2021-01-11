@@ -19,23 +19,14 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.config.CatalogConfig;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBoolean;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDate;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
-import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
-import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
-import org.apache.flink.table.catalog.stats.Date;
+import org.apache.flink.table.catalog.stats.*;
 import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
 
 import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Utility class for catalog testing. TODO: Move util methods to CatalogTest and remove this class

@@ -35,7 +35,7 @@ import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.util.Collector
 
 import org.hamcrest.CoreMatchers.equalTo
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 

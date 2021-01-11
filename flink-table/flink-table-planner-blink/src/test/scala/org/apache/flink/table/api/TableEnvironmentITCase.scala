@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, FileUtils, TestLogger}
 
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -619,7 +619,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
     try {
       // it would fail due to query and sink type mismatch
       tableEnv.executeSql("insert into dest1 select count(*) from src")
-      Assert.fail("insert is expected to fail due to type mismatch")
+      Assertions.fail("insert is expected to fail due to type mismatch")
     } catch {
       case _: Exception => //expected
     }

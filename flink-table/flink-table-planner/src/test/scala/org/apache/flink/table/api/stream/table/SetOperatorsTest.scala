@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SetOperatorsTest extends TableTestBase {
 

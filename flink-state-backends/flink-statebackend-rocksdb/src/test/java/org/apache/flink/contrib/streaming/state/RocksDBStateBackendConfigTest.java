@@ -45,10 +45,12 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.IOUtils;
 
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 import org.rocksdb.BlockBasedTableConfig;
 import org.rocksdb.ColumnFamilyOptions;
@@ -66,14 +68,15 @@ import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -146,18 +149,18 @@ public class RocksDBStateBackendConfigTest {
         final MockEnvironment env = getMockEnvironment(tempFolder.newFolder());
 
         // Fix the option key string
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "state.backend.rocksdb.timer-service.factory",
                 RocksDBOptions.TIMER_SERVICE_FACTORY.key());
 
         // Fix the option value string and ensure all are covered
-        Assert.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
-        Assert.assertEquals(
+        Assertions.assertEquals(2, RocksDBStateBackend.PriorityQueueStateType.values().length);
+        Assertions.assertEquals(
                 "ROCKSDB", RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
-        Assert.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
+        Assertions.assertEquals("HEAP", RocksDBStateBackend.PriorityQueueStateType.HEAP.toString());
 
         // Fix the default
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 RocksDBStateBackend.PriorityQueueStateType.ROCKSDB,
                 RocksDBOptions.TIMER_SERVICE_FACTORY.defaultValue());
 
@@ -166,7 +169,7 @@ public class RocksDBStateBackendConfigTest {
 
         RocksDBKeyedStateBackend<Integer> keyedBackend =
                 createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 RocksDBPriorityQueueSetFactory.class,
                 keyedBackend.getPriorityQueueFactory().getClass());
         keyedBackend.dispose();
@@ -179,7 +182,7 @@ public class RocksDBStateBackendConfigTest {
         rocksDbBackend =
                 rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
         keyedBackend = createKeyedStateBackend(rocksDbBackend, env, IntSerializer.INSTANCE);
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 HeapPriorityQueueSetFactory.class,
                 keyedBackend.getPriorityQueueFactory().getClass());
         keyedBackend.dispose();
@@ -284,26 +287,38 @@ public class RocksDBStateBackendConfigTest {
     }
 
     /** Validates that empty arguments for the local DB path are invalid. */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetEmptyPaths() throws Exception {
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
-        RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-        rocksDbBackend.setDbStoragePaths();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    String checkpointPath = tempFolder.newFolder().toURI().toString();
+                    RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+                    rocksDbBackend.setDbStoragePaths();
+                });
     }
 
     /** Validates that schemes other than 'file:/' are not allowed. */
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNonFileSchemePath() throws Exception {
-        String checkpointPath = tempFolder.newFolder().toURI().toString();
-        RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-        rocksDbBackend.setDbStoragePath("hdfs:///some/path/to/perdition");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    String checkpointPath = tempFolder.newFolder().toURI().toString();
+                    RocksDBStateBackend rocksDbBackend = new RocksDBStateBackend(checkpointPath);
+                    rocksDbBackend.setDbStoragePath("hdfs:///some/path/to/perdition");
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDbPathRelativePaths() throws Exception {
-        RocksDBStateBackend rocksDbBackend =
-                new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
-        rocksDbBackend.setDbStoragePath("relative/path");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    RocksDBStateBackend rocksDbBackend =
+                            new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+                    rocksDbBackend.setDbStoragePath("relative/path");
+                });
     }
 
     // ------------------------------------------------------------------------
@@ -388,7 +403,7 @@ public class RocksDBStateBackendConfigTest {
                 hasFailure = true;
             }
             assertTrue(
-                    "We must see a failure because no storaged directory is feasible.", hasFailure);
+                    hasFailure, "We must see a failure because no storaged directory is feasible.");
         } finally {
             //noinspection ResultOfMethodCallIgnored
             targetDir.setWritable(true, false);

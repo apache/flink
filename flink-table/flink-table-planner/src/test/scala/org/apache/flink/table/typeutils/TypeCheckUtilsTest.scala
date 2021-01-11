@@ -22,8 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.{Types => ScalaTypes}
 import org.apache.flink.table.api.{Types, ValidationException}
 import org.apache.flink.table.typeutils.TypeCheckUtils.validateEqualsHashCode
-import org.junit.Assert.{assertFalse, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
+import org.junit.jupiter.api.Test
 
 class TypeCheckUtilsTest {
 
@@ -38,20 +38,26 @@ class TypeCheckUtilsTest {
     validateEqualsHashCode("", Types.PRIMITIVE_ARRAY(Types.LONG))
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType(): Unit = {
-    validateEqualsHashCode("", ScalaTypes.NOTHING)
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", ScalaTypes.NOTHING)
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType2(): Unit = {
-    validateEqualsHashCode("", Types.ROW(ScalaTypes.NOTHING))
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", Types.ROW(ScalaTypes.NOTHING))
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidType3(): Unit = {
-    validateEqualsHashCode("", Types.OBJECT_ARRAY[Nothing](ScalaTypes.NOTHING))
-  }
+        assertThrows[ValidationException] {
+                validateEqualsHashCode("", Types.OBJECT_ARRAY[Nothing](ScalaTypes.NOTHING))
+        }
+    }
 
   @Test
   def testPrimitiveWrapper (): Unit = {

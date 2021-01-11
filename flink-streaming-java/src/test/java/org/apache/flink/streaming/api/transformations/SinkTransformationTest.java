@@ -24,7 +24,15 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
@@ -34,27 +42,33 @@ import static org.apache.flink.core.memory.ManagedMemoryUseCase.STATE_BACKEND;
 /** Unit tests for {@link SinkTransformation}. */
 public class SinkTransformationTest {
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void unSupportSetResource() {
-        final SinkTransformation<Integer, String, String, String> sinkTransformation =
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
 
         sinkTransformation.setResources(
                 ResourceSpec.newBuilder(1, 1).build(), ResourceSpec.newBuilder(2, 2).build());
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void unSupportDeclareOperatorScopeManagedMemory() {
-        final SinkTransformation<Integer, String, String, String> sinkTransformation =
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
         sinkTransformation.declareManagedMemoryUseCaseAtOperatorScope(STATE_BACKEND, 1);
+        });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void unSupportDeclareSlotScopeManagedMemory() {
-        final SinkTransformation<Integer, String, String, String> sinkTransformation =
+        assertThrows(UnsupportedOperationException.class, () -> {
+                    final SinkTransformation<Integer, String, String, String> sinkTransformation =
                 createSinkTransformation();
         sinkTransformation.declareManagedMemoryUseCaseAtSlotScope(STATE_BACKEND);
+        });
     }
 
     private static SinkTransformation<Integer, String, String, String> createSinkTransformation() {

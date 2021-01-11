@@ -24,10 +24,16 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link CoGroupedStreams}. */
 public class CoGroupedStreamsTest {
@@ -62,7 +68,7 @@ public class CoGroupedStreamsTest {
 
         withLateness.apply(coGroupFunction, BasicTypeInfo.STRING_TYPE_INFO);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 lateness.toMilliseconds(), withLateness.getWindowedStream().getAllowedLateness());
     }
 
@@ -78,7 +84,7 @@ public class CoGroupedStreamsTest {
                         .window(tsAssigner)
                         .allowedLateness(lateness);
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 lateness.toMilliseconds(), withLateness.getAllowedLateness().toMilliseconds());
     }
 }

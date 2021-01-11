@@ -30,7 +30,7 @@ import org.junit.BeforeClass;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests {@link org.apache.flink.api.java.typeutils.runtime.RowComparator} for wide rows. */
 public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
@@ -57,11 +57,11 @@ public class RowComparatorWithManyFieldsTests extends ComparatorTestBase<Row> {
     @Override
     protected void deepEquals(String message, Row should, Row is) {
         int arity = should.getArity();
-        assertEquals(message, arity, is.getArity());
+        assertEquals(arity, is.getArity(), message);
         for (int i = 0; i < arity; i++) {
             Object copiedValue = should.getField(i);
             Object element = is.getField(i);
-            assertEquals(message, element, copiedValue);
+            assertEquals(element, copiedValue, message);
         }
     }
 

@@ -26,7 +26,10 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -41,11 +44,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyLong;
@@ -58,7 +61,8 @@ import static org.mockito.Mockito.verify;
 public class JobLeaderIdServiceTest extends TestLogger {
 
     /** Tests adding a job and finding out its leader id */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testAddingJob() throws Exception {
         final JobID jobId = new JobID();
         final String address = "foobar";
@@ -92,7 +96,8 @@ public class JobLeaderIdServiceTest extends TestLogger {
     }
 
     /** Tests that removing a job completes the job leader id future exceptionally */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRemovingJob() throws Exception {
         final JobID jobId = new JobID();
         TestingHighAvailabilityServices highAvailabilityServices =
@@ -175,7 +180,8 @@ public class JobLeaderIdServiceTest extends TestLogger {
      * Tests that a timeout get cancelled once a job leader has been found. Furthermore, it tests
      * that a new timeout is registered after the jobmanager has lost leadership.
      */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void jobTimeoutAfterLostLeadership() throws Exception {
         final JobID jobId = new JobID();
         final String address = "foobar";

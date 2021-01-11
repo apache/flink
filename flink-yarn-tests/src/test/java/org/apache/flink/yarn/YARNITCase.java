@@ -21,11 +21,7 @@ package org.apache.flink.yarn;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.AkkaOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.configuration.*;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,14 +30,21 @@ import org.apache.flink.yarn.configuration.YarnConfigOptions;
 import org.apache.flink.yarn.testjob.YarnTestArchiveJob;
 import org.apache.flink.yarn.testjob.YarnTestCacheJob;
 import org.apache.flink.yarn.util.TestUtils;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -54,9 +57,7 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Test cases for the deployment of Yarn Flink clusters. */
 public class YARNITCase extends YarnTestBase {
@@ -200,13 +201,9 @@ public class YARNITCase extends YarnTestBase {
             final Path stagingDirectory =
                     new Path(fs.getHomeDirectory(), ".flink/" + appId.toString());
             if (isProvidedLibDirsConfigured) {
-                assertFalse(
-                        "The provided lib dirs is set, so the lib directory should not be uploaded to staging directory.",
-                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+                assertFalse(                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())),                        "The provided lib dirs is set, so the lib directory should not be uploaded to staging directory.");
             } else {
-                assertTrue(
-                        "The lib directory should be uploaded to staging directory.",
-                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())));
+                assertTrue(                        fs.exists(new Path(stagingDirectory, flinkLibFolder.getName())),                        "The lib directory should be uploaded to staging directory.");
             }
         }
     }

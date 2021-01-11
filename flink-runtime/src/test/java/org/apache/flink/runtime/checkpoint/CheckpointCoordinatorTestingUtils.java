@@ -60,7 +60,7 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.mockito.invocation.InvocationOnMock;
 
 import javax.annotation.Nullable;
@@ -81,8 +81,8 @@ import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -231,7 +231,7 @@ public class CheckpointCoordinatorTestingUtils {
                             .getTaskVertices()[i]
                             .getCurrentExecutionAttempt()
                             .getTaskRestore();
-            Assert.assertEquals(1L, taskRestore.getRestoreCheckpointId());
+            Assertions.assertEquals(1L, taskRestore.getRestoreCheckpointId());
             TaskStateSnapshot stateSnapshot = taskRestore.getTaskStateSnapshot();
 
             OperatorSubtaskState operatorState =
@@ -326,7 +326,7 @@ public class CheckpointCoordinatorTestingUtils {
             if (collectionList != null) {
                 for (int i = 0; i < collectionList.size(); ++i) {
                     Collection<OperatorStateHandle> stateHandles = collectionList.get(i);
-                    Assert.assertNotNull(stateHandles);
+                    Assertions.assertNotNull(stateHandles);
                     for (OperatorStateHandle operatorStateHandle : stateHandles) {
                         collectResult(i, operatorStateHandle, actualResult);
                     }
@@ -335,7 +335,7 @@ public class CheckpointCoordinatorTestingUtils {
         }
 
         Collections.sort(actualResult);
-        Assert.assertEquals(expectedResult, actualResult);
+        Assertions.assertEquals(expectedResult, actualResult);
     }
 
     static void collectResult(

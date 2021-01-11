@@ -57,7 +57,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -70,9 +70,9 @@ import java.util.Collection;
 import java.util.Map;
 
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This verifies that checkpointing works correctly with event time windows. This is more strict
@@ -700,9 +700,9 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             // verify the contents of that window, the contents should be:
             // (key + num windows so far)
             assertEquals(
-                    "Window counts don't match for key " + value.f0 + ".",
                     value.f0.intValue() + windowCounts.get(value.f0),
-                    value.f3.value);
+                    value.f3.value,
+                    "Window counts don't match for key " + value.f0 + ".");
         }
     }
 
@@ -736,7 +736,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
             }
 
             assertEquals(
-                    "Window start: " + value.f1 + " end: " + value.f2, expectedSum, value.f3.value);
+                    expectedSum, value.f3.value, "Window start: " + value.f1 + " end: " + value.f2);
 
             windowCounts.merge(value.f0, 1, (val, increment) -> val + increment);
         }

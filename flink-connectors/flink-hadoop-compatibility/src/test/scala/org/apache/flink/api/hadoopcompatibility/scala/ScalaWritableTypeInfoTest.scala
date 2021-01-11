@@ -21,8 +21,8 @@ import org.apache.flink.api.java.typeutils.WritableTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.util.TestLogger
 import org.apache.hadoop.io.Text
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 class ScalaWritableTypeInfoTest extends TestLogger {
 

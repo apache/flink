@@ -20,7 +20,15 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -43,14 +51,18 @@ public class CatalogDescriptorTest extends DescriptorTestBase {
     private static final String CATALOG_FOO = "foo";
     private static final String CATALOG_FOO_VALUE = "foo-1";
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingCatalogType() {
-        removePropertyAndVerify(descriptors().get(0), CATALOG_TYPE);
+        assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), CATALOG_TYPE);
+        });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testMissingFoo() {
-        removePropertyAndVerify(descriptors().get(0), CATALOG_FOO);
+        assertThrows(ValidationException.class, () -> {
+                    removePropertyAndVerify(descriptors().get(0), CATALOG_FOO);
+        });
     }
 
     @Override

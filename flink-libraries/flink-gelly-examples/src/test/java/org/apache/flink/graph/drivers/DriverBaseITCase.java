@@ -26,7 +26,6 @@ import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 import org.junit.runners.Parameterized;
@@ -113,7 +112,7 @@ public abstract class DriverBaseITCase extends MultipleProgramsTestBase {
 
         // subtract the extra newline
         int numberOfRecords = output.split(System.getProperty("line.separator")).length - 1;
-        Assert.assertEquals(records, numberOfRecords);
+        Assertions.assertEquals(records, numberOfRecords);
     }
 
     /**
@@ -127,7 +126,7 @@ public abstract class DriverBaseITCase extends MultipleProgramsTestBase {
     protected void expectedOutput(String[] parameters, String expected) throws Exception {
         String output = getSystemOutput(parameters);
 
-        Assert.assertThat(output, RegexMatcher.matchesRegex(expected));
+        MatcherAssert.assertThat(output, RegexMatcher.matchesRegex(expected));
     }
 
     /**
@@ -153,8 +152,8 @@ public abstract class DriverBaseITCase extends MultipleProgramsTestBase {
             }
         }
 
-        Assert.assertEquals(expected.getCount(), count);
-        Assert.assertEquals(expected.getChecksum(), checksum);
+        Assertions.assertEquals(expected.getCount(), count);
+        Assertions.assertEquals(expected.getChecksum(), checksum);
     }
 
     /**

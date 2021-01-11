@@ -24,8 +24,8 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Assertions for availability futures. */
 public class AvailabilityUtil {

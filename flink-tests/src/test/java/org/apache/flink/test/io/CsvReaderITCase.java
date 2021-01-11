@@ -33,7 +33,15 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.util.FileUtils;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -88,22 +96,26 @@ public class CsvReaderITCase extends MultipleProgramsTestBase {
         compareResultAsText(result, expected);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPOJOTypeWithoutFieldsOrder() throws Exception {
-        final String inputData = "";
+        assertThrows(IllegalArgumentException.class, () -> {
+                    final String inputData = "";
         final String dataPath = createInputData(inputData);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         env.readCsvFile(dataPath).pojoType(POJOItem.class);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testPOJOTypeWitNullFieldsOrder() throws Exception {
-        final String inputData = "";
+        assertThrows(IllegalArgumentException.class, () -> {
+                    final String inputData = "";
         final String dataPath = createInputData(inputData);
         final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
         env.readCsvFile(dataPath).pojoType(POJOItem.class, null);
+        });
     }
 
     @Test

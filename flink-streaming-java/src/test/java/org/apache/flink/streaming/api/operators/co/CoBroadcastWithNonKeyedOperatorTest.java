@@ -31,15 +31,17 @@ import org.apache.flink.streaming.util.TwoInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /** Tests for the {@link CoBroadcastWithNonKeyedOperator}. */
@@ -169,7 +171,7 @@ public class CoBroadcastWithNonKeyedOperatorTest {
                 retrievedKeySet.add(entry.getKey());
             }
 
-            Assert.assertEquals(keysToRegister, retrievedKeySet);
+            Assertions.assertEquals(keysToRegister, retrievedKeySet);
 
             out.collect(value + "WM:" + ctx.currentWatermark() + " TS:" + ctx.timestamp());
         }
@@ -316,22 +318,22 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             Queue<?> output2 = testHarness2.getOutput();
             Queue<?> output3 = testHarness3.getOutput();
 
-            Assert.assertEquals(expected.size(), output1.size());
+            Assertions.assertEquals(expected.size(), output1.size());
             for (Object o : output1) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                Assertions.assertTrue(expected.contains(rec.getValue()));
             }
 
-            Assert.assertEquals(expected.size(), output2.size());
+            Assertions.assertEquals(expected.size(), output2.size());
             for (Object o : output2) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                Assertions.assertTrue(expected.contains(rec.getValue()));
             }
 
-            Assert.assertEquals(expected.size(), output3.size());
+            Assertions.assertEquals(expected.size(), output3.size());
             for (Object o : output3) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                Assertions.assertTrue(expected.contains(rec.getValue()));
             }
         }
     }
@@ -409,16 +411,16 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             Queue<?> output1 = testHarness1.getOutput();
             Queue<?> output2 = testHarness2.getOutput();
 
-            Assert.assertEquals(expected.size(), output1.size());
+            Assertions.assertEquals(expected.size(), output1.size());
             for (Object o : output1) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                Assertions.assertTrue(expected.contains(rec.getValue()));
             }
 
-            Assert.assertEquals(expected.size(), output2.size());
+            Assertions.assertEquals(expected.size(), output2.size());
             for (Object o : output2) {
                 StreamRecord<String> rec = (StreamRecord<String>) o;
-                Assert.assertTrue(expected.contains(rec.getValue()));
+                Assertions.assertTrue(expected.contains(rec.getValue()));
             }
         }
     }
@@ -487,14 +489,14 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processWatermark2(new Watermark(10L));
             testHarness.processElement2(new StreamRecord<>(5, 12L));
         } catch (NullPointerException e) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
                     e.getMessage());
             exceptionThrown = true;
         }
 
         if (!exceptionThrown) {
-            Assert.fail("No exception thrown");
+            Assertions.fail("No exception thrown");
         }
     }
 
@@ -532,14 +534,14 @@ public class CoBroadcastWithNonKeyedOperatorTest {
             testHarness.processWatermark2(new Watermark(10L));
             testHarness.processElement1(new StreamRecord<>("5", 12L));
         } catch (NullPointerException e) {
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     "Keyed state can only be used on a 'keyed stream', i.e., after a 'keyBy()' operation.",
                     e.getMessage());
             exceptionThrown = true;
         }
 
         if (!exceptionThrown) {
-            Assert.fail("No exception thrown");
+            Assertions.fail("No exception thrown");
         }
     }
 

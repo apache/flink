@@ -32,7 +32,7 @@ import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Rule, Test}
 
 import java.io.File
@@ -230,9 +230,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('w.end as 't, 'id.count as 'icnt, 'num.sum as 'nsum)
     table.executeInsert("retractSink").await()
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertFalse(      sink.getRawResults.exists(_.startsWith("(false,")),      "Received retraction messages for append only table")
 
     val retracted = sink.getRetractResults.sorted
     val expected = List(
@@ -271,9 +269,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('count, 'len.count as 'lencnt, 'cTrue)
     table.executeInsert("upsertSink").await()
 
-    assertTrue(
-      "Results must include delete messages",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertTrue(      sink.getRawResults.exists(_.startsWith("(false,")),      "Results must include delete messages")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -307,9 +303,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'w.end as 'window_end, 'id.count as 'icnt)
     table.executeInsert("upsertSink").await()
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertFalse(      sink.getRawResults.exists(_.startsWith("(false,")),      "Received retraction messages for append only table")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -351,9 +345,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('w.start as 'wstart, 'w.end as 'wend, 'num, 'id.count as 'icnt)
     table.executeInsert("upsertSink").await()
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertFalse(      sink.getRawResults.exists(_.startsWith("(false,")),      "Received retraction messages for append only table")
 
     val retracted = sink.getUpsertResults.sorted
     val expected = List(
@@ -393,9 +385,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('w.end as 'wend, 'id.count as 'cnt)
     table.executeInsert("upsertSink").await()
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertFalse(      sink.getRawResults.exists(_.startsWith("(false,")),      "Received retraction messages for append only table")
 
     val retracted = sink.getRawResults.sorted
     val expected = List(
@@ -435,9 +425,7 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'id.count as 'cnt)
     table.executeInsert("upsertSink").await()
 
-    assertFalse(
-      "Received retraction messages for append only table",
-      sink.getRawResults.exists(_.startsWith("(false,")))
+    assertFalse(      sink.getRawResults.exists(_.startsWith("(false,")),      "Received retraction messages for append only table")
 
     val retracted = sink.getRawResults.sorted
     val expected = List(
@@ -491,9 +479,10 @@ class LegacyTableSinkITCase extends AbstractTestBase {
     assertEquals(expectedWithFilter.sorted, sink.getUpsertResults.sorted)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToAppendStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -507,11 +496,13 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
 
     r.toAppendStream[Row]
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testToRetractStreamMultiRowtime(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
@@ -525,7 +516,8 @@ class LegacyTableSinkITCase extends AbstractTestBase {
       .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
 
     r.toRetractStream[Row]
-  }
+        }
+    }
 
   @Test
   def testDecimalAppendStreamTableSink(): Unit = {

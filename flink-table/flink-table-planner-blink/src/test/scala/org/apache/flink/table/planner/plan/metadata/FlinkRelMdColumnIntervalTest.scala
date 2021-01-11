@@ -31,8 +31,8 @@ import org.apache.calcite.rel.logical.LogicalExchange
 import org.apache.calcite.rex.{RexCall, RexUtil}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import java.sql.{Date, Time, Timestamp}
 

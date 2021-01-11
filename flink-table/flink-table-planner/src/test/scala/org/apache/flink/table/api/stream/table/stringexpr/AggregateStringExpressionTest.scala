@@ -24,7 +24,7 @@ import org.apache.flink.table.functions.aggfunctions.CountAggFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.utils.{CountMinMax, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateStringExpressionTest extends TableTestBase {
 

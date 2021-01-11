@@ -37,11 +37,7 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
-import org.apache.flink.runtime.taskexecutor.SlotReport;
-import org.apache.flink.runtime.taskexecutor.SlotStatus;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.runtime.taskexecutor.*;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotAllocationException;
 import org.apache.flink.runtime.taskexecutor.exceptions.SlotOccupiedException;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -49,45 +45,22 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.ThrowingRunnable;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nonnull;
-
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link SlotManagerImpl}. */
 public class SlotManagerImplTest extends TestLogger {
@@ -127,9 +100,7 @@ public class SlotManagerImplTest extends TestLogger {
             slotManager.registerTaskManager(
                     taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
-            assertTrue(
-                    "The number registered slots does not equal the expected number.",
-                    2 == slotManager.getNumberRegisteredSlots());
+            assertTrue(                    2 == slotManager.getNumberRegisteredSlots(),                    "The number registered slots does not equal the expected number.");
 
             assertNotNull(slotManager.getSlot(slotId1));
             assertNotNull(slotManager.getSlot(slotId2));
@@ -174,9 +145,7 @@ public class SlotManagerImplTest extends TestLogger {
             slotManager.registerTaskManager(
                     taskManagerConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
-            assertTrue(
-                    "The number registered slots does not equal the expected number.",
-                    2 == slotManager.getNumberRegisteredSlots());
+            assertTrue(                    2 == slotManager.getNumberRegisteredSlots(),                    "The number registered slots does not equal the expected number.");
 
             TaskManagerSlot slot1 = slotManager.getSlot(slotId1);
             TaskManagerSlot slot2 = slotManager.getSlot(slotId2);
@@ -191,9 +160,7 @@ public class SlotManagerImplTest extends TestLogger {
 
             PendingSlotRequest pendingSlotRequest = slotManager.getSlotRequest(allocationId2);
 
-            assertTrue(
-                    "The pending slot request should have been assigned to slot 2",
-                    pendingSlotRequest.isAssigned());
+            assertTrue(                    pendingSlotRequest.isAssigned(),                    "The pending slot request should have been assigned to slot 2");
 
             slotManager.unregisterTaskManager(
                     taskManagerConnection.getInstanceID(), TEST_EXCEPTION);
@@ -299,9 +266,7 @@ public class SlotManagerImplTest extends TestLogger {
             slotManager.registerTaskManager(
                     taskExecutorConnection, slotReport, ResourceProfile.ANY, ResourceProfile.ANY);
 
-            assertTrue(
-                    "The slot request should be accepted",
-                    slotManager.registerSlotRequest(slotRequest));
+            assertTrue(                    slotManager.registerSlotRequest(slotRequest),                    "The slot request should be accepted");
 
             assertThat(
                     requestFuture.get(),
@@ -318,9 +283,9 @@ public class SlotManagerImplTest extends TestLogger {
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
         }
     }
 
@@ -426,9 +391,7 @@ public class SlotManagerImplTest extends TestLogger {
         try (SlotManagerImpl slotManager =
                 createSlotManager(resourceManagerId, resourceManagerActions)) {
 
-            assertTrue(
-                    "The slot request should be accepted",
-                    slotManager.registerSlotRequest(slotRequest));
+            assertTrue(                    slotManager.registerSlotRequest(slotRequest),                    "The slot request should be accepted");
 
             assertThat(numberAllocateResourceCalls.get(), is(1));
 
@@ -450,9 +413,9 @@ public class SlotManagerImplTest extends TestLogger {
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
         }
     }
 
@@ -482,18 +445,18 @@ public class SlotManagerImplTest extends TestLogger {
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
 
             // this should be ignored since the allocation id does not match
             slotManager.freeSlot(slotId, new AllocationID());
 
             assertTrue(slot.getState() == SlotState.ALLOCATED);
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
 
             slotManager.freeSlot(slotId, allocationId);
 
@@ -607,9 +570,9 @@ public class SlotManagerImplTest extends TestLogger {
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
 
             assertFalse(slotManager.registerSlotRequest(slotRequest2));
         }
@@ -660,9 +623,9 @@ public class SlotManagerImplTest extends TestLogger {
             TaskManagerSlot slot = slotManager.getSlot(slotId);
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
 
             slotManager.freeSlot(slotId, allocationId);
 
@@ -673,9 +636,9 @@ public class SlotManagerImplTest extends TestLogger {
             assertTrue(slotManager.registerSlotRequest(slotRequest2));
 
             assertEquals(
-                    "The slot has not been allocated to the expected allocation id.",
                     allocationId,
-                    slot.getAllocationId());
+                    slot.getAllocationId(),
+                    "The slot has not been allocated to the expected allocation id.");
         }
 
         // check that we have only called the resource allocation only for the first slot request,
@@ -1853,16 +1816,12 @@ public class SlotManagerImplTest extends TestLogger {
                         .setMaxSlotNum(maxSlotNum)
                         .buildAndStartWithDirectExec(resourceManagerId, resourceManagerActions)) {
 
-            assertTrue(
-                    "The slot request should be accepted",
-                    slotManager.registerSlotRequest(createSlotRequest(jobId)));
+            assertTrue(                    slotManager.registerSlotRequest(createSlotRequest(jobId)),                    "The slot request should be accepted");
             assertThat(resourceRequests.get(), is(1));
 
             // The second slot request should not try to allocate a new resource because of the max
             // limitation.
-            assertTrue(
-                    "The slot request should be accepted",
-                    slotManager.registerSlotRequest(createSlotRequest(jobId)));
+            assertTrue(                    slotManager.registerSlotRequest(createSlotRequest(jobId)),                    "The slot request should be accepted");
             assertThat(resourceRequests.get(), is(1));
         }
     }

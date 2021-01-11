@@ -24,7 +24,15 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -32,8 +40,8 @@ import java.io.FileNotFoundException;
 import java.util.Set;
 
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link GPUDriver}. */
 public class GPUDriverTest extends TestLogger {
@@ -55,50 +63,73 @@ public class GPUDriverTest extends TestLogger {
         assertThat(gpuResource.size(), is(gpuAmount));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testGPUDriverWithInvalidAmount() throws Exception {
-        final int gpuAmount = -1;
-        final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    final int gpuAmount = -1;
+                    final Configuration config = new Configuration();
+                    config.setString(
+                            GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
 
-        final GPUDriver gpuDriver = new GPUDriver(config);
-        gpuDriver.retrieveResourceInfo(gpuAmount);
+                    final GPUDriver gpuDriver = new GPUDriver(config);
+                    gpuDriver.retrieveResourceInfo(gpuAmount);
+                });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testGPUDriverWithIllegalConfigTestScript() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, " ");
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    final Configuration config = new Configuration();
+                    config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, " ");
 
-        new GPUDriver(config);
+                    new GPUDriver(config);
+                });
     }
 
-    @Test(expected = FileNotFoundException.class)
+    @Test
     public void testGPUDriverWithTestScriptDoNotExist() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, "invalid/path");
+        assertThrows(
+                FileNotFoundException.class,
+                () -> {
+                    final Configuration config = new Configuration();
+                    config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, "invalid/path");
 
-        new GPUDriver(config);
+                    new GPUDriver(config);
+                });
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testGPUDriverWithInexecutableScript() throws Exception {
-        final Configuration config = new Configuration();
-        final File inexecutableFile = TEMP_FOLDER.newFile();
-        assertTrue(inexecutableFile.setExecutable(false));
+        assertThrows(
+                FlinkException.class,
+                () -> {
+                    final Configuration config = new Configuration();
+                    final File inexecutableFile = TEMP_FOLDER.newFile();
+                    assertTrue(inexecutableFile.setExecutable(false));
 
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, inexecutableFile.getAbsolutePath());
+                    config.setString(
+                            GPUDriver.DISCOVERY_SCRIPT_PATH, inexecutableFile.getAbsolutePath());
 
-        new GPUDriver(config);
+                    new GPUDriver(config);
+                });
     }
 
-    @Test(expected = FlinkException.class)
+    @Test
     public void testGPUDriverWithTestScriptExitWithNonZero() throws Exception {
-        final Configuration config = new Configuration();
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
-        config.setString(GPUDriver.DISCOVERY_SCRIPT_ARG, "--exit-non-zero");
+        assertThrows(
+                FlinkException.class,
+                () -> {
+                    final Configuration config = new Configuration();
+                    config.setString(
+                            GPUDriver.DISCOVERY_SCRIPT_PATH, TESTING_DISCOVERY_SCRIPT_PATH);
+                    config.setString(GPUDriver.DISCOVERY_SCRIPT_ARG, "--exit-non-zero");
 
-        final GPUDriver gpuDriver = new GPUDriver(config);
-        gpuDriver.retrieveResourceInfo(1);
+                    final GPUDriver gpuDriver = new GPUDriver(config);
+                    gpuDriver.retrieveResourceInfo(1);
+                });
     }
 }

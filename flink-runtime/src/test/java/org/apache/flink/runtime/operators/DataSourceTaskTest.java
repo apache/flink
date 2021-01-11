@@ -28,9 +28,9 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.BufferedWriter;
@@ -76,32 +76,32 @@ public class DataSourceTaskTest extends TaskTestBase {
             testTask.invoke();
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Invoke method caused exception.");
+            Assertions.fail("Invoke method caused exception.");
         }
 
         try {
             Field formatField = DataSourceTask.class.getDeclaredField("format");
             formatField.setAccessible(true);
             MockInputFormat inputFormat = (MockInputFormat) formatField.get(testTask);
-            Assert.assertTrue(
+            Assertions.assertTrue(
+                    inputFormat.opened,
                     "Invalid status of the input format. Expected for opened: true, Actual: "
-                            + inputFormat.opened,
-                    inputFormat.opened);
-            Assert.assertTrue(
+                            + inputFormat.opened);
+            Assertions.assertTrue(
+                    inputFormat.closed,
                     "Invalid status of the input format. Expected for closed: true, Actual: "
-                            + inputFormat.closed,
-                    inputFormat.closed);
+                            + inputFormat.closed);
         } catch (Exception e) {
             System.err.println(e);
-            Assert.fail("Reflection error while trying to validate inputFormat status.");
+            Assertions.fail("Reflection error while trying to validate inputFormat status.");
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
+                this.outList.size() == keyCnt * valCnt,
                 "Invalid output size. Expected: "
                         + (keyCnt * valCnt)
                         + " Actual: "
-                        + this.outList.size(),
-                this.outList.size() == keyCnt * valCnt);
+                        + this.outList.size());
 
         HashMap<Integer, HashSet<Integer>> keyValueCountMap = new HashMap<>(keyCnt);
 
@@ -116,22 +116,22 @@ public class DataSourceTaskTest extends TaskTestBase {
             keyValueCountMap.get(key).add(val);
         }
 
-        Assert.assertTrue(
+        Assertions.assertTrue(
+                keyValueCountMap.keySet().size() == keyCnt,
                 "Invalid key count in out file. Expected: "
                         + keyCnt
                         + " Actual: "
-                        + keyValueCountMap.keySet().size(),
-                keyValueCountMap.keySet().size() == keyCnt);
+                        + keyValueCountMap.keySet().size());
 
         for (Integer mapKey : keyValueCountMap.keySet()) {
-            Assert.assertTrue(
+            Assertions.assertTrue(
+                    keyValueCountMap.get(mapKey).size() == valCnt,
                     "Invalid value count for key: "
                             + mapKey
                             + ". Expected: "
                             + valCnt
                             + " Actual: "
-                            + keyValueCountMap.get(mapKey).size(),
-                    keyValueCountMap.get(mapKey).size() == valCnt);
+                            + keyValueCountMap.get(mapKey).size());
         }
     }
 
@@ -160,10 +160,10 @@ public class DataSourceTaskTest extends TaskTestBase {
         } catch (Exception e) {
             stubFailed = true;
         }
-        Assert.assertTrue("Function exception was not forwarded.", stubFailed);
+        Assertions.assertTrue(stubFailed, "Function exception was not forwarded.");
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        Assertions.assertTrue(tempTestFile.exists(), "Temp output file does not exist");
     }
 
     @Test
@@ -190,7 +190,8 @@ public class DataSourceTaskTest extends TaskTestBase {
                             testTask.invoke();
                         } catch (Exception ie) {
                             ie.printStackTrace();
-                            Assert.fail("Task threw exception although it was properly canceled");
+                            Assertions.fail(
+                                    "Task threw exception although it was properly canceled");
                         }
                     }
                 };
@@ -203,11 +204,11 @@ public class DataSourceTaskTest extends TaskTestBase {
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
         // assert that temp file was created
-        Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
+        Assertions.assertTrue(tempTestFile.exists(), "Temp output file does not exist");
     }
 
     public static class InputFilePreparator {
@@ -265,19 +266,19 @@ public class DataSourceTaskTest extends TaskTestBase {
 
         public void openInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
+            Assertions.assertFalse(
+                    opened,
                     "Invalid status of the input format. Expected for opened: false, Actual: "
-                            + opened,
-                    opened);
+                            + opened);
             opened = true;
         }
 
         public void closeInputFormat() {
             // ensure this is called only once
-            Assert.assertFalse(
+            Assertions.assertFalse(
+                    closed,
                     "Invalid status of the input format. Expected for closed: false, Actual: "
-                            + closed,
-                    closed);
+                            + closed);
             closed = true;
         }
     }

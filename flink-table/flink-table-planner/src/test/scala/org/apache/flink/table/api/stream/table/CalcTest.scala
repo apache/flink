@@ -25,7 +25,7 @@ import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class CalcTest extends TableTestBase {
 

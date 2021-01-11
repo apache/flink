@@ -18,20 +18,20 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the destruction of a {@link LocalBufferPool}. */
+@Timeout(10)
 public class LocalBufferPoolDestroyTest {
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     /**
      * Tests that a blocking request fails properly if the buffer pool is destroyed.
@@ -75,7 +75,7 @@ public class LocalBufferPoolDestroyTest {
             }
 
             // Verify that Thread was in blocking request
-            assertTrue("Did not trigger blocking buffer request.", success);
+            assertTrue(success, "Did not trigger blocking buffer request.");
 
             // Destroy the buffer pool
             localBufferPool.lazyDestroy();
@@ -84,7 +84,7 @@ public class LocalBufferPoolDestroyTest {
             thread.join();
 
             // Verify expected Exception
-            assertNotNull("Did not throw expected Exception", asyncException.get());
+            assertNotNull(asyncException.get(), "Did not throw expected Exception");
             assertTrue(asyncException.get() instanceof IllegalStateException);
         } finally {
             if (localBufferPool != null) {
@@ -128,7 +128,7 @@ public class LocalBufferPoolDestroyTest {
         public void run() {
             try {
                 String msg = "Test assumption violated: expected no available buffer";
-                assertNull(msg, bufferPool.requestBuffer());
+                assertNull(bufferPool.requestBuffer(), msg);
 
                 bufferPool.requestBufferBuilderBlocking();
             } catch (Exception t) {

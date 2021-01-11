@@ -29,8 +29,8 @@ import org.apache.flink.table.runtime.aggregate.KeyedProcessFunctionWithCleanupS
 import org.apache.flink.table.runtime.harness.HarnessTestBase
 import org.apache.flink.table.runtime.harness.HarnessTestBase.TestTableConfig
 import org.apache.flink.util.Collector
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class KeyedProcessFunctionWithCleanupStateTest extends HarnessTestBase {
 

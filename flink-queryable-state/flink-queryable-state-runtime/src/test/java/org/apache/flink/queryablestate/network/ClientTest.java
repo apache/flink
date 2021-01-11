@@ -60,9 +60,11 @@ import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocke
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,11 +91,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link Client}. */
 public class ClientTest extends TestLogger {
@@ -174,10 +176,10 @@ public class ClientTest extends TestLogger {
 
             for (long i = 0L; i < numQueries; i++) {
                 ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-                assertNotNull("Receive timed out", buf);
+                assertNotNull(buf, "Receive timed out");
 
                 Channel ch = channel.get();
-                assertNotNull("Channel not active", ch);
+                assertNotNull(ch, "Channel not active");
 
                 assertEquals(MessageType.REQUEST, MessageSerializer.deserializeHeader(buf));
                 long requestId = MessageSerializer.getRequestId(buf);
@@ -252,7 +254,7 @@ public class ClientTest extends TestLogger {
                     LOG.error("An exception occurred while shutting down netty.", e);
                 }
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
                         ExceptionUtils.stringifyException(exc), client.isEventGroupShutdown());
             }
 
@@ -260,7 +262,7 @@ public class ClientTest extends TestLogger {
                 serverChannel.close();
             }
 
-            assertEquals("Channel leak", 0L, stats.getNumConnections());
+            assertEquals(0L, "Channel leak");
         }
     }
 
@@ -305,10 +307,10 @@ public class ClientTest extends TestLogger {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Assert.assertTrue(client.isEventGroupShutdown());
+                Assertions.assertTrue(client.isEventGroupShutdown());
             }
 
-            assertEquals("Channel leak", 0L, stats.getNumConnections());
+            assertEquals(0L, "Channel leak");
         }
     }
 
@@ -422,10 +424,10 @@ public class ClientTest extends TestLogger {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Assert.assertTrue(client.isEventGroupShutdown());
+                Assertions.assertTrue(client.isEventGroupShutdown());
             }
 
-            assertEquals("Channel leak", 0L, stats.getNumConnections());
+            assertEquals(0L, "Channel leak");
         }
     }
 
@@ -479,17 +481,17 @@ public class ClientTest extends TestLogger {
             futures.add(client.sendRequest(serverAddress, request));
 
             ByteBuf buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-            assertNotNull("Receive timed out", buf);
+            assertNotNull(buf, "Receive timed out");
             buf.release();
 
             buf = received.poll(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
-            assertNotNull("Receive timed out", buf);
+            assertNotNull(buf, "Receive timed out");
             buf.release();
 
             assertEquals(1L, stats.getNumConnections());
 
             Channel ch = channel.get();
-            assertNotNull("Channel not active", ch);
+            assertNotNull(ch, "Channel not active");
 
             // Respond with failure
             ch.writeAndFlush(
@@ -537,14 +539,14 @@ public class ClientTest extends TestLogger {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Assert.assertTrue(client.isEventGroupShutdown());
+                Assertions.assertTrue(client.isEventGroupShutdown());
             }
 
             if (serverChannel != null) {
                 serverChannel.close();
             }
 
-            assertEquals("Channel leak", 0L, stats.getNumConnections());
+            assertEquals(0L, "Channel leak");
         }
     }
 
@@ -597,7 +599,7 @@ public class ClientTest extends TestLogger {
             while (!received.get() && deadline.hasTimeLeft()) {
                 Thread.sleep(50L);
             }
-            assertTrue("Receive timed out", received.get());
+            assertTrue(received.get(), "Receive timed out");
 
             assertEquals(1, stats.getNumConnections());
 
@@ -631,14 +633,14 @@ public class ClientTest extends TestLogger {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Assert.assertTrue(client.isEventGroupShutdown());
+                Assertions.assertTrue(client.isEventGroupShutdown());
             }
 
             if (serverChannel != null) {
                 serverChannel.close();
             }
 
-            assertEquals("Channel leak", 0L, stats.getNumConnections());
+            assertEquals(0L, "Channel leak");
         }
     }
 
@@ -814,7 +816,7 @@ public class ClientTest extends TestLogger {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            Assert.assertTrue(client.isEventGroupShutdown());
+            Assertions.assertTrue(client.isEventGroupShutdown());
 
             for (Future<Void> future : taskFutures) {
                 try {
@@ -858,7 +860,7 @@ public class ClientTest extends TestLogger {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                Assert.assertTrue(client.isEventGroupShutdown());
+                Assertions.assertTrue(client.isEventGroupShutdown());
             }
 
             for (int i = 0; i < numServers; i++) {

@@ -22,11 +22,19 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BloomFilterTest {
 
@@ -44,24 +52,40 @@ public class BloomFilterTest {
         bloomFilter.setBitsLocation(memorySegment, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments1() {
-        new BloomFilter(-1, 128);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new BloomFilter(-1, 128);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments2() {
-        new BloomFilter(0, 128);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new BloomFilter(0, 128);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments3() {
-        new BloomFilter(1024, -1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new BloomFilter(1024, -1);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testBloomFilterArguments4() {
-        new BloomFilter(1024, 0);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new BloomFilter(1024, 0);
+                });
     }
 
     @Test

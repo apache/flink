@@ -31,16 +31,8 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
-import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
-import org.apache.flink.runtime.io.network.buffer.BufferPool;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
-import org.apache.flink.runtime.io.network.partition.NoOpBufferAvailablityListener;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.buffer.*;
+import org.apache.flink.runtime.io.network.partition.*;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.util.DeserializationUtils;
 import org.apache.flink.runtime.operators.shipping.OutputEmitter;
@@ -50,10 +42,16 @@ import org.apache.flink.testutils.serialization.types.SerializationTestTypeFacto
 import org.apache.flink.testutils.serialization.types.Util;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.util.XORShiftRandom;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -61,10 +59,7 @@ import java.util.ArrayDeque;
 import java.util.Random;
 
 import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for the {@link RecordWriter}. */
 public class RecordWriterTest {
@@ -353,8 +348,8 @@ public class RecordWriterTest {
         assertEquals(0, buffer1.getReaderIndex());
         assertEquals(0, buffer2.getReaderIndex());
         buffer1.setReaderIndex(1);
-        assertEquals(
-                "Buffer 2 shares the same reader index as buffer 1", 0, buffer2.getReaderIndex());
+        assertEquals(0,
+                "Buffer 2 shares the same reader index as buffer 1");
     }
 
     protected void verifyDeserializationResults(
@@ -372,7 +367,7 @@ public class RecordWriterTest {
             assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
         }
         assertFalse(view.isAvailable(Integer.MAX_VALUE));
-        Assert.assertEquals(numValues, assertRecords);
+        Assertions.assertEquals(numValues, assertRecords);
     }
 
     /** Creates the {@link RecordWriter} instance based on whether it is a broadcast writer. */

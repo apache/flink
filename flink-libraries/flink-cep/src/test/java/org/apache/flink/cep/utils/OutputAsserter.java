@@ -25,8 +25,8 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import java.util.Queue;
 
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Asserter for output from {@link OneInputStreamOperatorTestHarness}. */
 public class OutputAsserter {

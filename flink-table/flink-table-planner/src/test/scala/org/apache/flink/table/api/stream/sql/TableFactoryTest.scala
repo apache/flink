@@ -21,8 +21,7 @@ package org.apache.flink.table.api.stream.sql
 import org.apache.flink.table.catalog.{GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.utils.{TableTestBase, TestContextTableFactory}
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 import java.util.Optional
 
@@ -70,7 +69,7 @@ class TableFactoryTest extends TableTestBase {
     util.tableEnv.sqlUpdate(query)
     // trigger translating
     util.tableEnv.execute("job name")
-    Assert.assertTrue(factory.hasInvokedSource)
-    Assert.assertTrue(factory.hasInvokedSink)
+    Assertions.assertTrue(factory.hasInvokedSource)
+    Assertions.assertTrue(factory.hasInvokedSink)
   }
 }

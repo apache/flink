@@ -29,7 +29,10 @@ import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
 
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -41,11 +44,12 @@ import java.net.URLClassLoader;
 import java.util.Objects;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link InstantiationUtil}. */
 public class InstantiationUtilTest extends TestLogger {
@@ -125,9 +129,13 @@ public class InstantiationUtilTest extends TestLogger {
         assertFalse(InstantiationUtil.isProperClass(Value.class));
     }
 
-    @Test(expected = RuntimeException.class)
+    @Test
     public void testCheckForInstantiationOfPrivateClass() {
-        InstantiationUtil.checkForInstantiation(TestClass.class);
+        assertThrows(
+                RuntimeException.class,
+                () -> {
+                    InstantiationUtil.checkForInstantiation(TestClass.class);
+                });
     }
 
     @Test
@@ -141,7 +149,7 @@ public class InstantiationUtilTest extends TestLogger {
                 InstantiationUtil.deserializeFromByteArray(serializer, serialized);
 
         assertEquals(
-                "Serialized record is not equal after serialization.", toSerialize, deserialized);
+                toSerialize, deserialized, "Serialized record is not equal after serialization.");
     }
 
     @Test

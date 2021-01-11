@@ -25,10 +25,12 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.util.TestNotificationListener;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
@@ -39,9 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link AsynchronousBufferFileWriter}. */
@@ -70,15 +70,15 @@ public class AsynchronousBufferFileWriterTest {
     public void testAddAndHandleRequest() throws Exception {
         addRequest();
         assertEquals(
-                "Didn't increment number of outstanding requests.",
                 1,
-                writer.getNumberOfOutstandingRequests());
+                writer.getNumberOfOutstandingRequests(),
+                "Didn't increment number of outstanding requests.");
 
         handleRequest();
         assertEquals(
-                "Didn't decrement number of outstanding requests.",
                 0,
-                writer.getNumberOfOutstandingRequests());
+                writer.getNumberOfOutstandingRequests(),
+                "Didn't decrement number of outstanding requests.");
     }
 
     @Test
@@ -98,12 +98,12 @@ public class AsynchronousBufferFileWriterTest {
         } finally {
             if (!buffer.isRecycled()) {
                 buffer.recycleBuffer();
-                Assert.fail("buffer not recycled");
+                Assertions.fail("buffer not recycled");
             }
             assertEquals(
-                    "Shouln't increment number of outstanding requests.",
                     0,
-                    writer.getNumberOfOutstandingRequests());
+                    writer.getNumberOfOutstandingRequests(),
+                    "Shouln't increment number of outstanding requests.");
         }
     }
 
@@ -113,19 +113,19 @@ public class AsynchronousBufferFileWriterTest {
 
         // Unsuccessful subscription, because no outstanding requests
         assertFalse(
-                "Allowed to subscribe w/o any outstanding requests.",
-                writer.registerAllRequestsProcessedListener(listener));
+                writer.registerAllRequestsProcessedListener(listener),
+                "Allowed to subscribe w/o any outstanding requests.");
 
         // Successful subscription
         addRequest();
         assertTrue(
-                "Didn't allow to subscribe.",
-                writer.registerAllRequestsProcessedListener(listener));
+                writer.registerAllRequestsProcessedListener(listener),
+                "Didn't allow to subscribe.");
 
         // Test notification
         handleRequest();
 
-        assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
+        assertEquals(1, "Listener was not notified.");
     }
 
     @Test
@@ -163,7 +163,7 @@ public class AsynchronousBufferFileWriterTest {
 
         sync.await();
 
-        assertEquals("Listener was not notified.", 1, listener.getNumberOfNotifications());
+        assertEquals(1, "Listener was not notified.");
     }
 
     @Test
@@ -204,18 +204,18 @@ public class AsynchronousBufferFileWriterTest {
                 try {
                     if (subscribeFuture.get()) {
                         assertEquals(
-                                "Race: Successfully subscribed, but was never notified.",
                                 1,
-                                listener.getNumberOfNotifications());
+                                listener.getNumberOfNotifications(),
+                                "Race: Successfully subscribed, but was never notified.");
                     } else {
                         assertEquals(
-                                "Race: Never subscribed successfully, but was notified.",
                                 0,
-                                listener.getNumberOfNotifications());
+                                listener.getNumberOfNotifications(),
+                                "Race: Never subscribed successfully, but was notified.");
                     }
                 } catch (Throwable t) {
                     System.out.println(i);
-                    Assert.fail(t.getMessage());
+                    Assertions.fail(t.getMessage());
                 }
             }
         } finally {

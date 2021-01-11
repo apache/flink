@@ -34,8 +34,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -91,10 +93,10 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -130,10 +132,10 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -167,10 +169,10 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -204,10 +206,10 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -241,10 +243,10 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             testDriver(testTask, MockCoGroupStub.class);
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
-        Assert.assertEquals("Wrong result set size.", expCnt, this.output.getNumberOfRecords());
+        Assertions.assertEquals(expCnt, "Wrong result set size.");
     }
 
     @Test
@@ -270,12 +272,12 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
 
         try {
             testDriver(testTask, MockFailingCoGroupStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException etex) {
             // good!
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
     }
 
@@ -300,7 +302,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         final AtomicBoolean success = new AtomicBoolean(false);
@@ -326,11 +328,11 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        Assertions.assertTrue(
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -354,7 +356,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             addInputSorted(new DelayingInfinitiveInputIterator(1000), this.comparator2.duplicate());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         final AtomicBoolean success = new AtomicBoolean(false);
@@ -380,11 +382,11 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        Assertions.assertTrue(
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -408,7 +410,7 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             addInput(new UniformRecordGenerator(keyCnt, valCnt, true));
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("The test caused an exception.");
+            Assertions.fail("The test caused an exception.");
         }
 
         final AtomicBoolean success = new AtomicBoolean(false);
@@ -434,11 +436,11 @@ public class CoGroupTaskTest extends DriverTestBase<CoGroupFunction<Record, Reco
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        Assertions.assertTrue(
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     public static class MockFailingCoGroupStub extends RichCoGroupFunction<Record, Record, Record> {

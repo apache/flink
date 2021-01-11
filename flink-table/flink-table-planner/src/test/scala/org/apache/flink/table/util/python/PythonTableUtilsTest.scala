@@ -22,8 +22,8 @@ import java.time.ZoneId
 import java.util.TimeZone
 
 import org.apache.calcite.avatica.util.DateTimeUtils
-import org.junit.Test
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertEquals
 
 class PythonTableUtilsTest {
 

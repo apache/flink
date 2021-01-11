@@ -18,13 +18,6 @@
 
 package org.apache.flink.tests.util.kafka;
 
-import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
-import org.apache.flink.tests.util.flink.FlinkContainer;
-import org.apache.flink.tests.util.flink.SQLJobSubmission;
-import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
-
 import io.confluent.kafka.schemaregistry.avro.AvroSchema;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
@@ -33,12 +26,21 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.tests.util.TestUtils;
+import org.apache.flink.tests.util.categories.TravisGroup1;
+import org.apache.flink.tests.util.flink.FlinkContainer;
+import org.apache.flink.tests.util.flink.SQLJobSubmission;
+import org.apache.flink.tests.util.kafka.containers.SchemaRegistryContainer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
-import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
@@ -53,7 +55,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** End-to-end test for SQL client using Avro Confluent Registry format. */
 @Category(value = {TravisGroup1.class})
@@ -95,7 +97,8 @@ public class SQLClientSchemaRegistryITCase {
         registryClient = new CachedSchemaRegistryClient(registry.getSchemaRegistryUrl(), 10);
     }
 
-    @Test(timeout = 120_000)
+    @Test
+    @Timeout(120)
     public void testReading() throws Exception {
         String testCategoryTopic = "test-category-" + UUID.randomUUID().toString();
         String testResultsTopic = "test-results-" + UUID.randomUUID().toString();
@@ -161,7 +164,8 @@ public class SQLClientSchemaRegistryITCase {
         assertThat(categories, equalTo(Collections.singletonList("1,electronics,null")));
     }
 
-    @Test(timeout = 120_000)
+    @Test
+    @Timeout(120)
     public void testWriting() throws Exception {
         String testUserBehaviorTopic = "test-user-behavior-" + UUID.randomUUID().toString();
         // Create topic test-avro

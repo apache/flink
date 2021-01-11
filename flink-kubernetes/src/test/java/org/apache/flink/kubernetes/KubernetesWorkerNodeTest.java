@@ -20,10 +20,16 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 /** Tests for {@link KubernetesWorkerNode}. */
@@ -36,7 +42,7 @@ public class KubernetesWorkerNodeTest extends TestLogger {
         final String correctPodName = "flink-on-kubernetes-taskmanager-11-5";
         final KubernetesWorkerNode workerNode =
                 new KubernetesWorkerNode(new ResourceID(correctPodName));
-        Assert.assertEquals(11L, workerNode.getAttempt());
+        Assertions.assertEquals(11L, workerNode.getAttempt());
 
         final String wrongPodName = "flink-on-kubernetes-xxxtaskmanager-11-5";
         final KubernetesWorkerNode workerNode1 =

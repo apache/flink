@@ -18,7 +18,6 @@
 
 package org.apache.flink.testutils.junit;
 
-import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -53,16 +52,6 @@ public class RetryRule implements TestRule {
     public Statement apply(Statement statement, Description description) {
         RetryOnFailure retryOnFailure = description.getAnnotation(RetryOnFailure.class);
         RetryOnException retryOnException = description.getAnnotation(RetryOnException.class);
-
-        // sanity check that we don't use expected exceptions with the RetryOnX annotations
-        if (retryOnFailure != null || retryOnException != null) {
-            Test test = description.getAnnotation(Test.class);
-            if (test.expected() != Test.None.class) {
-                throw new IllegalArgumentException(
-                        "You cannot combine the RetryOnFailure "
-                                + "annotation with the Test(expected) annotation.");
-            }
-        }
 
         // sanity check that we don't use both annotations
         if (retryOnFailure != null && retryOnException != null) {

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.io.network.util;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.testutils.serialization.types.SerializationTestType;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayDeque;
 
@@ -47,7 +47,7 @@ public final class DeserializationUtils {
             SerializationTestType actual = expected.getClass().newInstance();
 
             if (deserializer.getNextRecord(actual).isFullRecord()) {
-                Assert.assertEquals(expected, actual);
+                Assertions.assertEquals(expected, actual);
                 deserializedRecords++;
             } else {
                 records.addFirst(expected);

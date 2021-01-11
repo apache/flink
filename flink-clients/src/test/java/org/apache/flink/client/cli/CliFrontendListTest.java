@@ -27,15 +27,23 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -92,13 +100,17 @@ public class CliFrontendListTest extends CliFrontendTestBase {
         }
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testUnrecognizedOption() throws Exception {
-        String[] parameters = {"-v", "-k"};
-        Configuration configuration = getConfiguration();
-        CliFrontend testFrontend =
-                new CliFrontend(configuration, Collections.singletonList(getCli()));
-        testFrontend.list(parameters);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    String[] parameters = {"-v", "-k"};
+                    Configuration configuration = getConfiguration();
+                    CliFrontend testFrontend =
+                            new CliFrontend(configuration, Collections.singletonList(getCli()));
+                    testFrontend.list(parameters);
+                });
     }
 
     @Test

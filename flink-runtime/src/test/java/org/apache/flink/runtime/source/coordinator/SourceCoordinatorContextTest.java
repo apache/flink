@@ -26,7 +26,9 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,9 +40,9 @@ import java.util.List;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.getSplitsAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for {@link SourceCoordinatorContext}. */
 public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
@@ -61,7 +63,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
         assertEquals(readerInfo.get(0), context.registeredReaders().get(0));
 
         context.unregisterSourceReader(0);
-        assertEquals("Only reader 2 should be registered.", 2, context.registeredReaders().size());
+        assertEquals(2, "Only reader 2 should be registered.");
         assertNull(context.registeredReaders().get(0));
         assertEquals(readerInfo.get(1), context.registeredReaders().get(1));
         assertEquals(readerInfo.get(2), context.registeredReaders().get(2));
@@ -102,9 +104,9 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                 splitSplitAssignmentTracker.uncheckpointedAssignments().get(1));
         // The OperatorCoordinatorContext should have received the event sending call.
         assertEquals(
-                "There should be two events sent to the subtasks.",
                 2,
-                operatorCoordinatorContext.getEventsToOperator().size());
+                operatorCoordinatorContext.getEventsToOperator().size(),
+                "There should be two events sent to the subtasks.");
 
         // Assert the events to subtask0.
         List<OperatorEvent> eventsToSubtask0 =

@@ -24,19 +24,17 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
-import org.junit.Rule;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * Tests a join, which leads to a deadlock with large data sizes and PIPELINED-only execution.
  *
  * @see <a href="https://issues.apache.org/jira/browse/FLINK-1343">FLINK-1343</a>
  */
+@Timeout(120) // Set timeout for deadlocks
 public class JoinDeadlockITCase extends JavaProgramTestBase {
 
     protected String resultPath;
-
-    @Rule public Timeout globalTimeout = new Timeout(120 * 1000); // Set timeout for deadlocks
 
     @Override
     protected void preSubmit() throws Exception {

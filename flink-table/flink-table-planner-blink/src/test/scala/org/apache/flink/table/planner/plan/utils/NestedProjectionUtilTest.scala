@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.FlinkRexBuilder
 
-import org.junit.Assert.{assertTrue, assertEquals}
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.{assertTrue, assertEquals}
+import org.junit.jupiter.api.Test
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._

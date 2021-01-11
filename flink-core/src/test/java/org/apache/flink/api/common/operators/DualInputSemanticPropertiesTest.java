@@ -20,11 +20,21 @@ package org.apache.flink.api.common.operators;
 
 import org.apache.flink.api.common.operators.util.FieldSet;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DualInputSemanticPropertiesTest {
 
@@ -235,19 +245,25 @@ public class DualInputSemanticPropertiesTest {
         assertTrue(sp.getReadFields(1).contains(3));
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testAddForwardedFieldsTargetTwice1() {
-
-        DualInputSemanticProperties sp = new DualInputSemanticProperties();
-        sp.addForwardedField(0, 0, 2);
-        sp.addForwardedField(0, 1, 2);
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
+                    DualInputSemanticProperties sp = new DualInputSemanticProperties();
+                    sp.addForwardedField(0, 0, 2);
+                    sp.addForwardedField(0, 1, 2);
+                });
     }
 
-    @Test(expected = SemanticProperties.InvalidSemanticAnnotationException.class)
+    @Test
     public void testAddForwardedFieldsTargetTwice2() {
-
-        DualInputSemanticProperties sp = new DualInputSemanticProperties();
-        sp.addForwardedField(1, 0, 2);
-        sp.addForwardedField(1, 1, 2);
+        assertThrows(
+                SemanticProperties.InvalidSemanticAnnotationException.class,
+                () -> {
+                    DualInputSemanticProperties sp = new DualInputSemanticProperties();
+                    sp.addForwardedField(1, 0, 2);
+                    sp.addForwardedField(1, 1, 2);
+                });
     }
 }

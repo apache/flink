@@ -39,7 +39,7 @@ import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.test.state.operator.restore.ExecutionMode;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -201,15 +201,15 @@ public class KeyedJob {
                     while (input.hasNext() && restored.hasNext()) {
                         Tuple2<Integer, Integer> value = input.next();
                         Integer rValue = restored.next();
-                        Assert.assertEquals(rValue, value.f1);
+                        Assertions.assertEquals(rValue, value.f1);
                     }
-                    Assert.assertEquals(restored.hasNext(), input.hasNext());
+                    Assertions.assertEquals(restored.hasNext(), input.hasNext());
             }
         }
 
         @Override
         public void close() {
-            Assert.assertTrue("Apply was never called.", applyCalled);
+            Assertions.assertTrue(applyCalled, "Apply was never called.");
         }
     }
 
@@ -242,14 +242,14 @@ public class KeyedJob {
                     break;
                 case MIGRATE:
                 case RESTORE:
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
+                            1,
+                            state.size(),
                             "Failed for "
                                     + valueToStore
-                                    + getRuntimeContext().getIndexOfThisSubtask(),
-                            1,
-                            state.size());
+                                    + getRuntimeContext().getIndexOfThisSubtask());
                     String value = state.get(0);
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
                             valueToStore + getRuntimeContext().getIndexOfThisSubtask(), value);
             }
         }

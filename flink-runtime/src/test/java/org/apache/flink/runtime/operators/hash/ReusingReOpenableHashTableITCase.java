@@ -27,7 +27,7 @@ import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -95,12 +95,13 @@ public class ReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBas
 
         iterator.open();
         // do first join with both inputs
-        while (iterator.callWithNextKey(firstMatcher, collector)) ;
+        while (iterator.callWithNextKey(firstMatcher, collector))
+            ;
 
         // assert that each expected match was seen for the first input
         for (Entry<Integer, Collection<TupleMatch>> entry : expectedFirstMatchesMap.entrySet()) {
             if (!entry.getValue().isEmpty()) {
-                Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                Assertions.fail("Collection for key " + entry.getKey() + " is not empty");
             }
         }
 
@@ -110,13 +111,14 @@ public class ReusingReOpenableHashTableITCase extends ReOpenableHashTableTestBas
             // prepare ..
             iterator.reopenProbe(probeInput);
             // .. and do second join
-            while (iterator.callWithNextKey(nMatcher[i], collector)) ;
+            while (iterator.callWithNextKey(nMatcher[i], collector))
+                ;
 
             // assert that each expected match was seen for the second input
             for (Entry<Integer, Collection<TupleMatch>> entry :
                     expectedNMatchesMapList.get(i).entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    Assertions.fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         }

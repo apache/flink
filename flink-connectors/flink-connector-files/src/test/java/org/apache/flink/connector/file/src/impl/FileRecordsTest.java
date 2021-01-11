@@ -21,14 +21,22 @@ package org.apache.flink.connector.file.src.impl;
 import org.apache.flink.connector.file.src.util.RecordAndPosition;
 import org.apache.flink.connector.file.src.util.SingletonResultIterator;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for the {@link FileRecords} class. */
 public class FileRecordsTest {
@@ -77,22 +85,30 @@ public class FileRecordsTest {
         assertEquals(99, recAndPos.getRecordSkipCount());
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRecordsInitiallyIllegal() {
-        final FileRecords<Object> records =
-                FileRecords.forRecords("splitId", new SingletonResultIterator<>());
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final FileRecords<Object> records =
+                            FileRecords.forRecords("splitId", new SingletonResultIterator<>());
 
-        records.nextRecordFromSplit();
+                    records.nextRecordFromSplit();
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testRecordsOnSecondSplitIllegal() {
-        final FileRecords<Object> records =
-                FileRecords.forRecords("splitId", new SingletonResultIterator<>());
-        records.nextSplit();
-        records.nextSplit();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final FileRecords<Object> records =
+                            FileRecords.forRecords("splitId", new SingletonResultIterator<>());
+                    records.nextSplit();
+                    records.nextSplit();
 
-        records.nextRecordFromSplit();
+                    records.nextRecordFromSplit();
+                });
     }
 
     @Test

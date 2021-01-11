@@ -30,7 +30,15 @@ import org.apache.flink.util.CollectionUtil;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -43,8 +51,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** ITCase for {@link JdbcDynamicTableSource}. */
 public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
@@ -231,8 +238,6 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
         expected.add(
                 "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
         assertEquals(1, result.size());
-        assertTrue(
-                "The actual output is not a subset of the expected set.",
-                expected.containsAll(result));
+        assertTrue(                expected.containsAll(result),                "The actual output is not a subset of the expected set.");
     }
 }

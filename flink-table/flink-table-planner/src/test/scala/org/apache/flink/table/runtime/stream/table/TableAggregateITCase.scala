@@ -26,7 +26,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, Strea
 import org.apache.flink.table.utils.{Top3, Top3WithEmitRetractValue, Top3WithMapView}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.{Before, Test}
 
 /**

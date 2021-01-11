@@ -23,7 +23,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.expressions.utils.ExpressionTestBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 /**
   * Tests all SQL expressions that are currently supported according to the documentation.
@@ -278,15 +278,19 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "null")
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testHashFunctionsUnsupportedLength(): Unit = {
-    testSqlApi("SHA2('', 333)", "")
-  }
+        assertThrows[RuntimeException] {
+                testSqlApi("SHA2('', 333)", "")
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testHashFunctionSha2NoParam(): Unit = {
-    testSqlApi("SHA2('')", "")
-  }
+        assertThrows[ValidationException] {
+                testSqlApi("SHA2('')", "")
+        }
+    }
 
   override def testData: Any = new Row(0)
 

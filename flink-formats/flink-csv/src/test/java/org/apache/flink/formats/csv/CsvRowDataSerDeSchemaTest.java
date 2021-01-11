@@ -28,7 +28,15 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -56,10 +64,10 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.data.StringData.fromString;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link CsvRowDataDeserializationSchema} and {@link CsvRowDataSerializationSchema}. */
 public class CsvRowDataSerDeSchemaTest {
@@ -261,16 +269,28 @@ public class CsvRowDataSerDeSchemaTest {
                 serialize(serSchemaBuilder, rowData("Test", 12, "2019-12-26 12:12:12")));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidNesting() throws Exception {
-        testNullableField(
-                ROW(FIELD("f0", ROW(FIELD("f0", STRING())))), "FAIL", Row.of(Row.of("FAIL")));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    testNullableField(
+                            ROW(FIELD("f0", ROW(FIELD("f0", STRING())))),
+                            "FAIL",
+                            Row.of(Row.of("FAIL")));
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidType() throws Exception {
-        testNullableField(
-                RAW(TypeExtractor.getForClass(java.util.Date.class)), "FAIL", new java.util.Date());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    testNullableField(
+                            RAW(TypeExtractor.getForClass(java.util.Date.class)),
+                            "FAIL",
+                            new java.util.Date());
+                });
     }
 
     @Test

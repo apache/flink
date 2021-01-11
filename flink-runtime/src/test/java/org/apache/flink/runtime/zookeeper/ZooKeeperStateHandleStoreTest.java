@@ -35,7 +35,9 @@ import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -46,15 +48,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -132,22 +135,31 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that an existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testAddAlreadyExistingPath() throws Exception {
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        assertThrows(
+                Exception.class,
+                () -> {
+                    final TestingLongStateHandleHelper stateHandleProvider =
+                            new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
+                    ZooKeeperStateHandleStore<Long> store =
+                            new ZooKeeperStateHandleStore<>(
+                                    ZOOKEEPER.getClient(), stateHandleProvider);
 
-        ZOOKEEPER.getClient().create().forPath("/testAddAlreadyExistingPath");
+                    ZOOKEEPER.getClient().create().forPath("/testAddAlreadyExistingPath");
 
-        store.addAndLock("/testAddAlreadyExistingPath", 1L);
+                    store.addAndLock("/testAddAlreadyExistingPath", 1L);
 
-        // writing to the state storage should have succeeded
-        assertEquals(1, stateHandleProvider.getStateHandles());
+                    // writing to the state storage should have succeeded
+                    assertEquals(1, stateHandleProvider.getStateHandles());
 
-        // the created state handle should have been cleaned up if the add operation failed
-        assertEquals(1, stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
+                    // the created state handle should have been cleaned up if the add operation
+                    // failed
+                    assertEquals(
+                            1,
+                            stateHandleProvider.getStateHandles().get(0).getNumberOfDiscardCalls());
+                });
     }
 
     /** Tests that the created state handle is discarded if ZooKeeper create fails. */
@@ -223,14 +235,20 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that a non existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testReplaceNonExistingPath() throws Exception {
-        final RetrievableStateStorageHelper<Long> stateStorage = new TestingLongStateHandleHelper();
+        assertThrows(
+                Exception.class,
+                () -> {
+                    final RetrievableStateStorageHelper<Long> stateStorage =
+                            new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateStorage);
+                    ZooKeeperStateHandleStore<Long> store =
+                            new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateStorage);
 
-        store.replace("/testReplaceNonExistingPath", IntegerResourceVersion.valueOf(0), 1L);
+                    store.replace(
+                            "/testReplaceNonExistingPath", IntegerResourceVersion.valueOf(0), 1L);
+                });
     }
 
     /** Tests that the replace state handle is discarded if ZooKeeper setData fails. */
@@ -303,14 +321,20 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     /** Tests that a non existing path throws an Exception. */
-    @Test(expected = Exception.class)
+    @Test
     public void testGetNonExistingPath() throws Exception {
-        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        assertThrows(
+                Exception.class,
+                () -> {
+                    final TestingLongStateHandleHelper stateHandleProvider =
+                            new TestingLongStateHandleHelper();
 
-        ZooKeeperStateHandleStore<Long> store =
-                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
+                    ZooKeeperStateHandleStore<Long> store =
+                            new ZooKeeperStateHandleStore<>(
+                                    ZOOKEEPER.getClient(), stateHandleProvider);
 
-        store.getAndLock("/testGetNonExistingPath");
+                    store.getAndLock("/testGetNonExistingPath");
+                });
     }
 
     /** Tests that all added state is returned. */
@@ -499,16 +523,16 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         Stat nodeStat = ZOOKEEPER.getClient().checkExists().forPath(statePath);
 
         assertNotNull(
-                "NodeStat should not be null, otherwise the referenced node does not exist.",
-                nodeStat);
+                nodeStat,
+                "NodeStat should not be null, otherwise the referenced node does not exist.");
 
         zkStore2.releaseAndTryRemove(statePath);
 
         nodeStat = ZOOKEEPER.getClient().checkExists().forPath(statePath);
 
         assertNull(
-                "NodeState should be null, because the referenced node should no longer exist.",
-                nodeStat);
+                nodeStat,
+                "NodeState should be null, because the referenced node should no longer exist.");
     }
 
     /**
@@ -549,7 +573,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(lockNodePath);
 
         // zkStore2 should not have created a lock node
-        assertNull("zkStore2 should not have created a lock node.", stat);
+        assertNull(stat, "zkStore2 should not have created a lock node.");
 
         Collection<String> children = ZOOKEEPER.getClient().getChildren().forPath(path);
 
@@ -560,7 +584,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
-        assertNull("The state node should have been removed.", stat);
+        assertNull(stat, "The state node should have been removed.");
     }
 
     /**
@@ -623,20 +647,20 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(lockPath);
 
-        assertNotNull("Expected an existing lock", stat);
+        assertNotNull(stat, "Expected an existing lock");
 
         zkStore.release(path);
 
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
         // release should have removed the lock child
-        assertEquals("Expected no lock nodes as children", 0, stat.getNumChildren());
+        assertEquals(0, "Expected no lock nodes as children");
 
         zkStore.releaseAndTryRemove(path);
 
         stat = ZOOKEEPER.getClient().checkExists().forPath(path);
 
-        assertNull("State node should have been removed.", stat);
+        assertNull(stat, "State node should have been removed.");
     }
 
     /**
@@ -660,7 +684,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         for (String path : paths) {
             Stat stat = ZOOKEEPER.getClient().checkExists().forPath(zkStore.getLockPath(path));
 
-            assertNotNull("Expecte and existing lock.", stat);
+            assertNotNull(stat, "Expecte and existing lock.");
         }
 
         zkStore.releaseAll();

@@ -28,9 +28,10 @@ import org.junit._
 
 class InsertIntoValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInconsistentLengthInsert(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e")
@@ -45,11 +46,13 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.sqlUpdate(sql)
     // trigger validation
     util.tableEnv.execute("test")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnmatchedTypesInsert(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e", "f")
@@ -64,11 +67,13 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.sqlUpdate(sql)
     // trigger validation
     util.tableEnv.execute("test")
-  }
+        }
+    }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testUnsupportedPartialInsert(): Unit = {
-    val util = batchTestUtil()
+        assertThrows[ValidationException] {
+                val util = batchTestUtil()
     util.addTable[(Int, Long, String)]("sourceTable", 'a, 'b, 'c)
 
     val fieldNames = Array("d", "e", "f")
@@ -83,7 +88,8 @@ class InsertIntoValidationTest extends TableTestBase {
     util.tableEnv.sqlUpdate(sql)
     // trigger validation
     util.tableEnv.execute("test")
-  }
+        }
+    }
 
   @Test
   def testValidationExceptionMessage(): Unit = {

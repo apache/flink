@@ -45,7 +45,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlAggFunction, SqlOperator}
 import org.apache.calcite.util.ImmutableBitSet
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, BeforeClass, Test}
 
 import java.math.BigDecimal

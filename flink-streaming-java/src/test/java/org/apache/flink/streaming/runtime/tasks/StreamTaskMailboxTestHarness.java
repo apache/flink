@@ -27,7 +27,7 @@ import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import java.util.Queue;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test harness for testing a {@link StreamTask}.
@@ -159,8 +159,8 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         MemoryManager memMan = this.streamMockEnvironment.getMemoryManager();
         if (memMan != null) {
             assertTrue(
-                    "Memory Manager managed memory was not completely freed.",
-                    memMan.verifyEmpty());
+                    memMan.verifyEmpty(),
+                    "Memory Manager managed memory was not completely freed.");
             memMan.shutdown();
         }
     }

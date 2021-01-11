@@ -26,13 +26,14 @@ import org.apache.flink.table.runtime.stream.table.{TestAppendSink, TestUpsertSi
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableSinkValidationTest extends TableTestBase {
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAppendSinkOnUpdatingTable(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'id, 'num, 'text)
@@ -45,11 +46,13 @@ class TableSinkValidationTest extends TableTestBase {
 
     // must fail because table is not append-only
     env.execute()
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testUpsertSinkOnUpdatingTableWithoutFullKey(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
     val t = StreamTestData.get3TupleDataStream(env)
@@ -65,11 +68,13 @@ class TableSinkValidationTest extends TableTestBase {
 
     // must fail because table is updating table without full key
     env.execute()
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAppendSinkOnLeftJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+        assertThrows[TableException] {
+                val env = StreamExecutionEnvironment.getExecutionEnvironment
     val tEnv = StreamTableEnvironment.create(env)
 
     val ds1 = StreamTestData.get3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
@@ -83,5 +88,6 @@ class TableSinkValidationTest extends TableTestBase {
 
     // must fail because table is not append-only
     env.execute()
-  }
+        }
+    }
 }

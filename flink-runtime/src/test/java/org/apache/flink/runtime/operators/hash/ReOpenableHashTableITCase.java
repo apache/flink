@@ -38,9 +38,9 @@ import org.apache.flink.util.MutableObjectIterator;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class ReOpenableHashTableITCase extends TestLogger {
 
@@ -95,9 +95,9 @@ public class ReOpenableHashTableITCase extends TestLogger {
         }
 
         if (this.memoryManager != null) {
-            Assert.assertTrue(
-                    "Memory Leak: Not all memory has been returned to the memory manager.",
-                    this.memoryManager.verifyEmpty());
+            Assertions.assertTrue(
+                    this.memoryManager.verifyEmpty(),
+                    "Memory Leak: Not all memory has been returned to the memory manager.");
             this.memoryManager.shutdown();
             this.memoryManager = null;
         }
@@ -198,15 +198,15 @@ public class ReOpenableHashTableITCase extends TestLogger {
                         join.getBuildSideIterator();
                 if ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues = 1;
-                    Assert.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                    Assertions.assertEquals(
+                            key, record.f0, "Probe-side key was different than build-side key.");
                 } else {
                     fail("No build side values found for a probe key.");
                 }
                 while ((record = buildSide.next(recordReuse)) != null) {
                     numBuildValues++;
-                    Assert.assertEquals(
-                            "Probe-side key was different than build-side key.", key, record.f0);
+                    Assertions.assertEquals(
+                            key, record.f0, "Probe-side key was different than build-side key.");
                 }
 
                 Long contained = map.get(key);
@@ -221,23 +221,23 @@ public class ReOpenableHashTableITCase extends TestLogger {
         }
 
         join.close();
-        Assert.assertEquals("Wrong number of keys", NUM_KEYS, map.size());
+        Assertions.assertEquals(NUM_KEYS, "Wrong number of keys");
         for (Map.Entry<Integer, Long> entry : map.entrySet()) {
             long val = entry.getValue();
             int key = entry.getKey();
 
             if (key == REPEATED_VALUE_1 || key == REPEATED_VALUE_2) {
-                Assert.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
+                Assertions.assertEquals(
                         (PROBE_VALS_PER_KEY + REPEATED_VALUE_COUNT_PROBE)
                                 * (BUILD_VALS_PER_KEY + REPEATED_VALUE_COUNT_BUILD)
                                 * NUM_PROBES,
-                        val);
+                        val,
+                        "Wrong number of values in per-key cross product for key " + key);
             } else {
-                Assert.assertEquals(
-                        "Wrong number of values in per-key cross product for key " + key,
+                Assertions.assertEquals(
                         PROBE_VALS_PER_KEY * BUILD_VALS_PER_KEY * NUM_PROBES,
-                        val);
+                        val,
+                        "Wrong number of values in per-key cross product for key " + key);
             }
         }
 

@@ -22,15 +22,24 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link RowTypeInfo}. */
 public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
@@ -55,16 +64,24 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
         };
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongNumberOfFieldNames() {
-        new RowTypeInfo(typeList, new String[] {"int", "string"});
-        // number of field names should be equal to number of types, go fail
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new RowTypeInfo(typeList, new String[] {"int", "string"});
+                    // number of field names should be equal to number of types, go fail
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDuplicateCustomFieldNames() {
-        new RowTypeInfo(typeList, new String[] {"int", "string", "string"});
-        // field names should not be the same, go fail
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new RowTypeInfo(typeList, new String[] {"int", "string", "string"});
+                    // field names should not be the same, go fail
+                });
     }
 
     @Test

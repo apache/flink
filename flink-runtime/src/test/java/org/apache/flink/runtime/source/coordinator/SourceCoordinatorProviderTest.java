@@ -29,15 +29,15 @@ import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCo
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link SourceCoordinatorProvider}. */
 public class SourceCoordinatorProviderTest {
@@ -93,16 +93,16 @@ public class SourceCoordinatorProviderTest {
         final SourceCoordinator<?, ?> restoredSourceCoordinator =
                 (SourceCoordinator<?, ?>) coordinator.getInternalCoordinator();
         assertNotEquals(
-                "The restored source coordinator should be a different instance",
                 restoredSourceCoordinator,
-                sourceCoordinator);
+                sourceCoordinator,
+                "The restored source coordinator should be a different instance");
         assertEquals(
-                "There should only be one registered reader.",
                 1,
-                restoredSourceCoordinator.getContext().registeredReaders().size());
+                restoredSourceCoordinator.getContext().registeredReaders().size(),
+                "There should only be one registered reader.");
         assertNotNull(
-                "The only registered reader should be reader 0",
-                restoredSourceCoordinator.getContext().registeredReaders().get(0));
+                restoredSourceCoordinator.getContext().registeredReaders().get(0),
+                "The only registered reader should be reader 0");
     }
 
     @Test

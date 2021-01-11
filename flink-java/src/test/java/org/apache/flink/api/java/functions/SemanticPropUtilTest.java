@@ -31,10 +31,17 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for semantic properties utils. */
 public class SemanticPropUtilTest {
@@ -738,124 +745,184 @@ public class SemanticPropUtilTest {
         assertTrue(sp.getForwardingTargetFields(0, 5).size() == 0);
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testInvalidPojoField() {
-        String[] forwardedFields = {"invalidField"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, pojoType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"invalidField"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, pojoType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedNoArrowOneStringInvalidDelimiter() {
-        String[] forwardedFields = {"f2,f3,f0"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f2,f3,f0"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedSameTargetTwice() {
-        String[] forwardedFields = {"f0->f2; f1->f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f0->f2; f1->f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, fiveIntTupleType, fiveIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidTargetFieldType1() {
-        String[] forwardedFields = {"f0->f0", "f1->f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, fiveIntTupleType, threeMixedTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f0->f0", "f1->f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, fiveIntTupleType, threeMixedTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidTargetFieldType2() {
-        String[] forwardedFields = {"f2.*->*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f2.*->*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidTargetFieldType3() {
-        String[] forwardedFields = {"*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidTargetFieldType4() {
-        String[] forwardedFields = {"int1; string1"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"int1; string1"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, pojoInTupleType, pojo2Type);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidTargetFieldType5() {
-        String[] forwardedFields = {"f0.*->*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, nestedTupleType, fiveIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f0.*->*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, nestedTupleType, fiveIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedWildCardInvalidTypes1() {
-        String[] forwardedFields = {"*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, fiveIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, fiveIntTupleType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedWildCardInvalidTypes2() {
-        String[] forwardedFields = {"*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, threeIntTupleType, fiveIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, threeIntTupleType, fiveIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedWildCardInvalidTypes3() {
-        String[] forwardedFields = {"*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, pojoType, pojo2Type);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, pojoType, pojo2Type);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedForwardWildCard() {
-        String[] forwardedFields = {"f1->*"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f1->*"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidExpression() {
-        String[] forwardedFields = {"f0"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, intType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f0"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, intType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedForwardMultiFields() {
-        String[] forwardedFields = {"f1->f0,f1"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"f1->f0,f1"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedInvalidString() {
-        String[] forwardedFields = {"notValid"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwardedFields = {"notValid"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, forwardedFields, null, null, threeIntTupleType, threeIntTupleType);
+                });
     }
 
     // --------------------------------------------------------------------------------------------
@@ -999,60 +1066,103 @@ public class SemanticPropUtilTest {
         assertTrue(sp.getForwardingTargetFields(0, 5).size() == 0);
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidTypes1() {
-        String[] nonForwardedFields = {"f1; f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, threeIntTupleType, nestedPojoType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"f1; f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, null, nonForwardedFields, null, threeIntTupleType, nestedPojoType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidTypes2() {
-        String[] nonForwardedFields = {"f1; f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, nestedPojoType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"f1; f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, null, nonForwardedFields, null, nestedPojoType, threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidTypes3() {
-        String[] nonForwardedFields = {"f1; f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, threeIntTupleType, fiveIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"f1; f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp,
+                            null,
+                            nonForwardedFields,
+                            null,
+                            threeIntTupleType,
+                            fiveIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidTypes4() {
-        String[] nonForwardedFields = {"f1; f2"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, fiveIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"f1; f2"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp,
+                            null,
+                            nonForwardedFields,
+                            null,
+                            fiveIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidTypes5() {
-        String[] nonForwardedFields = {"int1"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, pojoType, pojo2Type);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"int1"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, null, nonForwardedFields, null, pojoType, pojo2Type);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidNesting() {
-        String[] nonForwardedFields = {"f0.f4"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, nestedTupleType, nestedTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"f0.f4"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, null, nonForwardedFields, null, nestedTupleType, nestedTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedInvalidString() {
-        String[] nonForwardedFields = {"notValid"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, nonForwardedFields, null, threeIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFields = {"notValid"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp,
+                            null,
+                            nonForwardedFields,
+                            null,
+                            threeIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1259,12 +1369,16 @@ public class SemanticPropUtilTest {
         assertTrue(fs.contains(5));
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testReadFieldsInvalidString() {
-        String[] readFields = {"notValid"};
-        SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sp, null, null, readFields, threeIntTupleType, threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] readFields = {"notValid"};
+                    SingleInputSemanticProperties sp = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sp, null, null, readFields, threeIntTupleType, threeIntTupleType);
+                });
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1482,40 +1596,46 @@ public class SemanticPropUtilTest {
         assertTrue(dsp.getForwardingTargetFields(1, 4).contains(4));
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedDualInvalidTypes1() {
-
-        String[] nonForwardedFieldsFirst = {"f1"};
-        DualInputSemanticProperties dsp = new DualInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsDualFromString(
-                dsp,
-                null,
-                null,
-                nonForwardedFieldsFirst,
-                null,
-                null,
-                null,
-                fiveIntTupleType,
-                threeIntTupleType,
-                threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFieldsFirst = {"f1"};
+                    DualInputSemanticProperties dsp = new DualInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsDualFromString(
+                            dsp,
+                            null,
+                            null,
+                            nonForwardedFieldsFirst,
+                            null,
+                            null,
+                            null,
+                            fiveIntTupleType,
+                            threeIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testNonForwardedDualInvalidTypes2() {
-
-        String[] nonForwardedFieldsSecond = {"f1"};
-        DualInputSemanticProperties dsp = new DualInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsDualFromString(
-                dsp,
-                null,
-                null,
-                null,
-                nonForwardedFieldsSecond,
-                null,
-                null,
-                threeIntTupleType,
-                pojoInTupleType,
-                threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] nonForwardedFieldsSecond = {"f1"};
+                    DualInputSemanticProperties dsp = new DualInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsDualFromString(
+                            dsp,
+                            null,
+                            null,
+                            null,
+                            nonForwardedFieldsSecond,
+                            null,
+                            null,
+                            threeIntTupleType,
+                            pojoInTupleType,
+                            threeIntTupleType);
+                });
     }
 
     @Test
@@ -1677,51 +1797,63 @@ public class SemanticPropUtilTest {
         assertTrue(dsp.getReadFields(1).contains(1));
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedNonForwardedCheck() {
-        String[] forwarded = {"1"};
-        String[] nonForwarded = {"1"};
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                new SingleInputSemanticProperties(),
-                forwarded,
-                nonForwarded,
-                null,
-                threeIntTupleType,
-                threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwarded = {"1"};
+                    String[] nonForwarded = {"1"};
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            new SingleInputSemanticProperties(),
+                            forwarded,
+                            nonForwarded,
+                            null,
+                            threeIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedNonForwardedFirstCheck() {
-        String[] forwarded = {"1"};
-        String[] nonForwarded = {"1"};
-        SemanticPropUtil.getSemanticPropsDualFromString(
-                new DualInputSemanticProperties(),
-                forwarded,
-                null,
-                nonForwarded,
-                null,
-                null,
-                null,
-                threeIntTupleType,
-                threeIntTupleType,
-                threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwarded = {"1"};
+                    String[] nonForwarded = {"1"};
+                    SemanticPropUtil.getSemanticPropsDualFromString(
+                            new DualInputSemanticProperties(),
+                            forwarded,
+                            null,
+                            nonForwarded,
+                            null,
+                            null,
+                            null,
+                            threeIntTupleType,
+                            threeIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
-    @Test(expected = InvalidSemanticAnnotationException.class)
+    @Test
     public void testForwardedNonForwardedSecondCheck() {
-        String[] forwarded = {"1"};
-        String[] nonForwarded = {"1"};
-        SemanticPropUtil.getSemanticPropsDualFromString(
-                new DualInputSemanticProperties(),
-                null,
-                forwarded,
-                null,
-                nonForwarded,
-                null,
-                null,
-                threeIntTupleType,
-                threeIntTupleType,
-                threeIntTupleType);
+        assertThrows(
+                InvalidSemanticAnnotationException.class,
+                () -> {
+                    String[] forwarded = {"1"};
+                    String[] nonForwarded = {"1"};
+                    SemanticPropUtil.getSemanticPropsDualFromString(
+                            new DualInputSemanticProperties(),
+                            null,
+                            forwarded,
+                            null,
+                            nonForwarded,
+                            null,
+                            null,
+                            threeIntTupleType,
+                            threeIntTupleType,
+                            threeIntTupleType);
+                });
     }
 
     // --------------------------------------------------------------------------------------------

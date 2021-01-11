@@ -54,10 +54,11 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -83,15 +84,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test starts a MiniYARNCluster with a CapacityScheduler. Is has, by default a queue called
@@ -531,7 +532,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testDetachedPerJobYarnCluster() throws Exception {
         runTest(
                 () -> {
@@ -546,7 +548,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
     }
 
     /** Test a fire-and-forget job submission to a YARN cluster. */
-    @Test(timeout = 60000)
+    @Test
+    @Timeout(60)
     public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
         runTest(
                 () -> {
@@ -613,8 +616,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         RunTypes.CLI_FRONTEND);
 
         // it should usually be 2, but on slow machines, the number varies
-        Assert.assertTrue(
-                "There should be at most 2 containers running", getRunningContainers() <= 2);
+        Assertions.assertTrue(
+                getRunningContainers() <= 2, "There should be at most 2 containers running");
         // give the runner some time to detach
         for (int attempt = 0; runner.isAlive() && attempt < 5; attempt++) {
             try {
@@ -622,7 +625,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             } catch (InterruptedException e) {
             }
         }
-        Assert.assertFalse("The runner should detach.", runner.isAlive());
+        Assertions.assertFalse(runner.isAlive(), "The runner should detach.");
         LOG.info("CLI Frontend has returned, so the job is running");
 
         // find out the application id and wait until it has finished.
@@ -665,7 +668,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             // check the output files.
             File[] listOfOutputFiles = tmpOutFolder.listFiles();
 
-            Assert.assertNotNull("Taskmanager output not found", listOfOutputFiles);
+            Assertions.assertNotNull(listOfOutputFiles, "Taskmanager output not found");
             LOG.info("The job has finished. TaskManager output files found in {}", tmpOutFolder);
 
             // read all output files in output folder to one output string
@@ -677,14 +680,20 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
             }
             // String content = FileUtils.readFileToString(taskmanagerOut);
             // check for some of the wordcount outputs.
-            Assert.assertTrue(
-                    "Expected string 'da 5' or '(all,2)' not found in string '" + content + "'",
-                    content.contains("da 5")
+            Assertions.assertTrue(
+                    content.contains(
+                                    "da 5",
+                                    "Expected string 'da 5' or '(all,2)' not found in string '"
+                                            + content
+                                            + "'")
                             || content.contains("(da,5)")
                             || content.contains("(all,2)"));
-            Assert.assertTrue(
-                    "Expected string 'der 29' or '(mind,1)' not found in string'" + content + "'",
-                    content.contains("der 29")
+            Assertions.assertTrue(
+                    content.contains(
+                                    "der 29",
+                                    "Expected string 'der 29' or '(mind,1)' not found in string'"
+                                            + content
+                                            + "'")
                             || content.contains("(der,29)")
                             || content.contains("(mind,1)"));
 
@@ -699,25 +708,25 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                                             && dir.getAbsolutePath().contains(id.toString());
                                 }
                             });
-            Assert.assertNotNull("Unable to locate JobManager log", jobmanagerLog);
+            Assertions.assertNotNull(jobmanagerLog, "Unable to locate JobManager log");
             content = FileUtils.readFileToString(jobmanagerLog);
             String expected = "Starting TaskManagers";
-            Assert.assertTrue(
+            Assertions.assertTrue(
+                    content.contains(expected),
                     "Expected string '"
                             + expected
                             + "' not found in JobManager log: '"
                             + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
+                            + "'");
             expected = " (2/2) (attempt #0) with attempt id ";
-            Assert.assertTrue(
+            Assertions.assertTrue(
+                    content.contains(expected),
                     "Expected string '"
                             + expected
                             + "' not found in JobManager log."
                             + "This string checks that the job has been started with a parallelism of 2. Log contents: '"
                             + jobmanagerLog
-                            + "'",
-                    content.contains(expected));
+                            + "'");
 
             // make sure the detached app is really finished.
             LOG.info("Checking again that app has finished");

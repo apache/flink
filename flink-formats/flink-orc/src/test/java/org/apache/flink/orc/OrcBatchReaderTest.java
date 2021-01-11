@@ -25,10 +25,16 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-
 import org.apache.orc.TypeDescription;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link OrcBatchReader}. */
 public class OrcBatchReaderTest {
@@ -54,12 +60,12 @@ public class OrcBatchReaderTest {
         TypeInformation typeInfo =
                 OrcBatchReader.schemaToTypeInfo(TypeDescription.fromString(schema));
 
-        Assert.assertNotNull(typeInfo);
-        Assert.assertTrue(typeInfo instanceof RowTypeInfo);
+        Assertions.assertNotNull(typeInfo);
+        Assertions.assertTrue(typeInfo instanceof RowTypeInfo);
         RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInfo;
 
         // validate field types
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {
                     Types.BOOLEAN,
                     Types.BYTE,
@@ -77,7 +83,7 @@ public class OrcBatchReaderTest {
                 rowTypeInfo.getFieldTypes());
 
         // validate field names
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {
                     "boolean1",
                     "byte1",
@@ -125,12 +131,12 @@ public class OrcBatchReaderTest {
         TypeInformation typeInfo =
                 OrcBatchReader.schemaToTypeInfo(TypeDescription.fromString(schema));
 
-        Assert.assertNotNull(typeInfo);
-        Assert.assertTrue(typeInfo instanceof RowTypeInfo);
+        Assertions.assertNotNull(typeInfo);
+        Assertions.assertTrue(typeInfo instanceof RowTypeInfo);
         RowTypeInfo rowTypeInfo = (RowTypeInfo) typeInfo;
 
         // validate field types
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new TypeInformation[] {
                     Types.ROW_NAMED(
                             new String[] {"list"},
@@ -150,7 +156,7 @@ public class OrcBatchReaderTest {
                 rowTypeInfo.getFieldTypes());
 
         // validate field names
-        Assert.assertArrayEquals(
+        Assertions.assertArrayEquals(
                 new String[] {"middle", "list", "map"}, rowTypeInfo.getFieldNames());
     }
 }

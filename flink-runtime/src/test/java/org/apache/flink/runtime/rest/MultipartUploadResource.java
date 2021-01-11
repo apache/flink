@@ -67,8 +67,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
 /** Test base for verifying support of multipart uploads via REST. */
@@ -242,7 +242,7 @@ public class MultipartUploadResource extends ExternalResource {
             actualUploadDir = files.get(0);
         }
         try (Stream<Path> containedFiles = Files.list(actualUploadDir)) {
-            assertEquals("Not all files were cleaned up.", 0, containedFiles.count());
+            assertEquals(0, "Not all files were cleaned up.");
         }
     }
 

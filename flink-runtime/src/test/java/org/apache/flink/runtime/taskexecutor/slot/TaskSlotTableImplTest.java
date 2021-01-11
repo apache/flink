@@ -28,28 +28,23 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.TriFunctionWithException;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
-
-import org.junit.Test;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link TaskSlotTable}. */
 public class TaskSlotTableImplTest extends TestLogger {
@@ -377,7 +372,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRemoveTaskCallsFreeSlotAction() throws Exception {
         final JobID jobId = new JobID();
         final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
@@ -397,7 +393,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testFreeSlotInterruptsSubmittedTask() throws Exception {
         TestingTaskSlotPayload task = new TestingTaskSlotPayload();
         try (final TaskSlotTable<TaskSlotPayload> taskSlotTable =
@@ -408,7 +405,8 @@ public class TaskSlotTableImplTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testTableIsClosedOnlyWhenAllTasksTerminated() throws Exception {
         TestingTaskSlotPayload task = new TestingTaskSlotPayload();
         final TaskSlotTable<TaskSlotPayload> taskSlotTable =

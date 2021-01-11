@@ -37,8 +37,10 @@ import org.apache.flink.types.Record;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,18 +81,18 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             testDriver(testTask, MockReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Exception in Test: " + e.getMessage());
+            Assertions.fail("Exception in Test: " + e.getMessage());
         }
 
-        Assert.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+        Assertions.assertTrue(
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
-                    "Incorrect result",
+            Assertions.assertTrue(
                     record.getField(1, IntValue.class).getValue()
-                            == valCnt - record.getField(0, IntValue.class).getValue());
+                            == valCnt - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -112,18 +114,18 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             testDriver(testTask, MockReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Invoke method caused exception: " + e.getMessage());
+            Assertions.fail("Invoke method caused exception: " + e.getMessage());
         }
 
-        Assert.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+        Assertions.assertTrue(
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
-                    "Incorrect result",
+            Assertions.assertTrue(
                     record.getField(1, IntValue.class).getValue()
-                            == valCnt - record.getField(0, IntValue.class).getValue());
+                            == valCnt - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -161,7 +163,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             testDriver(testTask, MockCombiningReduceStub.class);
         } catch (Exception e) {
             LOG.info("Exception while running the test task.", e);
-            Assert.fail("Invoke method caused exception: " + e.getMessage());
+            Assertions.fail("Invoke method caused exception: " + e.getMessage());
         } finally {
             if (sorter != null) {
                 sorter.close();
@@ -173,15 +175,15 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             expSum += i;
         }
 
-        Assert.assertTrue(
-                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt,
-                this.outList.size() == keyCnt);
+        Assertions.assertTrue(
+                this.outList.size() == keyCnt,
+                "Resultset size was " + this.outList.size() + ". Expected was " + keyCnt);
 
         for (Record record : this.outList) {
-            Assert.assertTrue(
-                    "Incorrect result",
+            Assertions.assertTrue(
                     record.getField(1, IntValue.class).getValue()
-                            == expSum - record.getField(0, IntValue.class).getValue());
+                            == expSum - record.getField(0, IntValue.class).getValue(),
+                    "Incorrect result");
         }
 
         this.outList.clear();
@@ -201,14 +203,14 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
 
         try {
             testDriver(testTask, MockFailingReduceStub.class);
-            Assert.fail("Function exception was not forwarded.");
+            Assertions.fail("Function exception was not forwarded.");
         } catch (ExpectedTestException eetex) {
             // Good!
         } catch (Exception e) {
             LOG.info(
                     "Exception which was not the ExpectedTestException while running the test task.",
                     e);
-            Assert.fail("Test caused exception: " + e.getMessage());
+            Assertions.fail("Test caused exception: " + e.getMessage());
         }
 
         this.outList.clear();
@@ -226,7 +228,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             addInputSorted(new DelayingInfinitiveInputIterator(100), this.comparator.duplicate());
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail();
+            Assertions.fail();
         }
 
         final AtomicBoolean success = new AtomicBoolean(false);
@@ -252,11 +254,11 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
 
-        Assert.assertTrue(
-                "Test threw an exception even though it was properly canceled.", success.get());
+        Assertions.assertTrue(
+                success.get(), "Test threw an exception even though it was properly canceled.");
     }
 
     @Test
@@ -295,7 +297,7 @@ public class ReduceTaskTest extends DriverTestBase<RichGroupReduceFunction<Recor
             tct.join();
             taskRunner.join();
         } catch (InterruptedException ie) {
-            Assert.fail("Joining threads failed");
+            Assertions.fail("Joining threads failed");
         }
     }
 

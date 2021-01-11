@@ -24,9 +24,17 @@ import org.apache.flink.api.java.typeutils.MultisetTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.ValidationException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link TypeStringUtils}. */
 public class TypeStringUtilsTest {
@@ -132,19 +140,32 @@ public class TypeStringUtilsTest {
                         Types.LOCAL_DATE));
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError1() {
-        TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
+        assertThrows(
+                ValidationException.class,
+                () -> {
+                    TypeStringUtils.readTypeInfo("ROW<<f0 DECIMAL, f1 TINYINT>"); // additional <
+                });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError2() {
-        TypeStringUtils.readTypeInfo("ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+        assertThrows(
+                ValidationException.class,
+                () -> {
+                    TypeStringUtils.readTypeInfo(
+                            "ROW<f0 DECIMAL DECIMAL, f1 TINYINT>"); // duplicate type
+                });
     }
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testSyntaxError3() {
-        TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
+        assertThrows(
+                ValidationException.class,
+                () -> {
+                    TypeStringUtils.readTypeInfo("ROW<f0 INVALID, f1 TINYINT>"); // invalid type
+                });
     }
 
     private void testReadAndWrite(String expected, TypeInformation<?> type) {

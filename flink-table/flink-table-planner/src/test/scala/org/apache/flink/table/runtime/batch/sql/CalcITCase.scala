@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.utils.{TableProgramsCollectionTestBase, Ta
 import org.apache.flink.test.util.TestBaseUtils
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -157,8 +157,9 @@ class CalcITCase(
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInvalidFields(): Unit = {
+        assertThrows[ValidationException] {
 
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
@@ -169,7 +170,8 @@ class CalcITCase(
     tEnv.registerTable("MyTable", ds)
 
     tEnv.sqlQuery(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testAllRejectingFilter(): Unit = {

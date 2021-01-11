@@ -38,7 +38,15 @@ import org.apache.flink.test.operators.util.CollectionDataSets.POJO;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -77,9 +85,11 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
         testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testLeftOuterJoin5() throws Exception {
-        testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+        assertThrows(InvalidProgramException.class, () -> {
+                    testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+        });
     }
 
     private void testLeftOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
@@ -126,9 +136,11 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
         testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testRightOuterJoin5() throws Exception {
-        testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+        assertThrows(InvalidProgramException.class, () -> {
+                    testRightOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+        });
     }
 
     private void testRightOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {
@@ -170,14 +182,18 @@ public class OuterJoinITCase extends MultipleProgramsTestBase {
         testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.REPARTITION_HASH_SECOND);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testFullOuterJoin4() throws Exception {
-        testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+        assertThrows(InvalidProgramException.class, () -> {
+                    testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_FIRST);
+        });
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testFullOuterJoin5() throws Exception {
-        testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+        assertThrows(InvalidProgramException.class, () -> {
+                    testFullOuterJoinOnTuplesWithKeyPositions(JoinHint.BROADCAST_HASH_SECOND);
+        });
     }
 
     private void testFullOuterJoinOnTuplesWithKeyPositions(JoinHint hint) throws Exception {

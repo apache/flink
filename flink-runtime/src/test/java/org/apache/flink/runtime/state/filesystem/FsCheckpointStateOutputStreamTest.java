@@ -28,9 +28,9 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory.FsCheckpointStateOutputStream;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -47,13 +47,14 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
@@ -77,15 +78,19 @@ public class FsCheckpointStateOutputStreamTest {
 
     @Rule public final TemporaryFolder tempDir = new TemporaryFolder();
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrongParameters() throws Exception {
-        // this should fail
-        new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
-                Path.fromLocalFile(tempDir.newFolder()),
-                FileSystem.getLocalFileSystem(),
-                4000,
-                5000,
-                relativePaths);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    // this should fail
+                    new FsCheckpointStreamFactory.FsCheckpointStateOutputStream(
+                            Path.fromLocalFile(tempDir.newFolder()),
+                            FileSystem.getLocalFileSystem(),
+                            4000,
+                            5000,
+                            relativePaths);
+                });
     }
 
     @Test
@@ -133,7 +138,7 @@ public class FsCheckpointStateOutputStreamTest {
                         relativePaths);
 
         for (int i = 0; i < 64; ++i) {
-            Assert.assertEquals(i, stream.getPos());
+            Assertions.assertEquals(i, stream.getPos());
             stream.write(0x42);
         }
 
@@ -152,7 +157,7 @@ public class FsCheckpointStateOutputStreamTest {
         byte[] data = "testme!".getBytes(ConfigConstants.DEFAULT_CHARSET);
 
         for (int i = 0; i < 7; ++i) {
-            Assert.assertEquals(i * (1 + data.length), stream.getPos());
+            Assertions.assertEquals(i * (1 + data.length), stream.getPos());
             stream.write(0x42);
             stream.write(data);
         }
@@ -424,7 +429,7 @@ public class FsCheckpointStateOutputStreamTest {
         URI uri = path.toUri();
         if ("file".equals(uri.getScheme())) {
             File file = new File(uri.getPath());
-            assertFalse("file not properly deleted", file.exists());
+            assertFalse(file.exists(), "file not properly deleted");
         } else {
             throw new IllegalArgumentException("not a local path");
         }
@@ -449,9 +454,9 @@ public class FsCheckpointStateOutputStreamTest {
                 pos += read;
             }
 
-            assertEquals("not enough data", holder.length, pos);
-            assertEquals("too much data", -1, is.read());
-            assertArrayEquals("wrong data", data, holder);
+            assertEquals(holder.length, pos, "not enough data");
+            assertEquals(-1, "too much data");
+            assertArrayEquals(data, holder, "wrong data");
         } finally {
             is.close();
         }

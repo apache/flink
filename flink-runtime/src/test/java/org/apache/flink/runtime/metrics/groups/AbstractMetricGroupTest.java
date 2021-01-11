@@ -39,7 +39,7 @@ import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.collection.IsMapContaining;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,8 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsNot.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link AbstractMetricGroup}. */
 public class AbstractMetricGroupTest extends TestLogger {
@@ -189,9 +189,9 @@ public class AbstractMetricGroupTest extends TestLogger {
             MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
             tmGroup.counter("1");
             assertEquals(
-                    "Reporters were not properly instantiated",
                     2,
-                    testRegistry.getReporters().size());
+                    testRegistry.getReporters().size(),
+                    "Reporters were not properly instantiated");
             for (MetricReporter reporter : testRegistry.getReporters()) {
                 ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
                 if (typedReporter.failureCause != null) {
@@ -218,9 +218,9 @@ public class AbstractMetricGroupTest extends TestLogger {
                             .addGroup("C");
             tmGroup.counter("1");
             assertEquals(
-                    "Reporters were not properly instantiated",
                     2,
-                    testRegistry.getReporters().size());
+                    testRegistry.getReporters().size(),
+                    "Reporters were not properly instantiated");
             for (MetricReporter reporter : testRegistry.getReporters()) {
                 ScopeCheckingTestReporter typedReporter = (ScopeCheckingTestReporter) reporter;
                 if (typedReporter.failureCause != null) {
@@ -266,7 +266,6 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A-B-C-D-1", group.getMetricIdentifier(metricName, this));
             // the metric name however is still affected by the filter as it is not cached
             assertEquals(
-                    "A-B-C-D-4",
                     group.getMetricIdentifier(
                             metricName,
                             new CharacterFilter() {
@@ -274,7 +273,8 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 public String filterCharacters(String input) {
                                     return input.replace("B", "X").replace("1", "4");
                                 }
-                            }));
+                            }),
+                    "A-B-C-D-4");
         }
     }
 
@@ -294,7 +294,6 @@ public class AbstractMetricGroupTest extends TestLogger {
             assertEquals("A!B!X!D!1", group.getMetricIdentifier(metricName, FILTER_C));
             // the metric name however is still affected by the filter as it is not cached
             assertEquals(
-                    "A!B!X!D!3",
                     group.getMetricIdentifier(
                             metricName,
                             new CharacterFilter() {
@@ -302,7 +301,8 @@ public class AbstractMetricGroupTest extends TestLogger {
                                 public String filterCharacters(String input) {
                                     return input.replace("A", "X").replace("1", "3");
                                 }
-                            }));
+                            }),
+                    "A!B!X!D!3");
         }
     }
 
@@ -346,7 +346,7 @@ public class AbstractMetricGroupTest extends TestLogger {
         try {
             TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
             assertEquals(
-                    "MetricReporters list should be empty", 0, testRegistry.getReporters().size());
+                    0, testRegistry.getReporters().size(), "MetricReporters list should be empty");
 
             // default delimiter should be used
             assertEquals("A.B.X.D.1", group.getMetricIdentifier("1", FILTER_C));

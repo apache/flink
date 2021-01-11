@@ -24,8 +24,7 @@ import org.apache.flink.api.java.io.LocalCollectionOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.test.optimizer.iterations.MultipleJoinsWithSolutionSetCompilerTest;
 import org.apache.flink.test.util.JavaProgramTestBase;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +60,7 @@ public class MultipleSolutionSetJoinsITCase extends JavaProgramTestBase {
         env.execute();
 
         for (Tuple2<Long, Double> tuple : resultCollector) {
-            Assert.assertEquals(expectedFactor * tuple.f0, tuple.f1.doubleValue(), 0.0);
+            Assertions.assertEquals(expectedFactor * tuple.f0, tuple.f1.doubleValue(), 0.0);
         }
     }
 }

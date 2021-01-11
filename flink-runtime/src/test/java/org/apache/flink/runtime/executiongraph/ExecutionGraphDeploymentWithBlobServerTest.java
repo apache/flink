@@ -27,7 +27,6 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.SerializedValue;
-
 import org.junit.After;
 import org.junit.Before;
 import org.mockito.Matchers;
@@ -38,7 +37,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 

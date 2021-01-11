@@ -27,14 +27,22 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link BlobUtils} working on non-writable directories. */
 public class BlobUtilsNonWritableTest extends TestLogger {
@@ -62,38 +70,56 @@ public class BlobUtilsNonWritableTest extends TestLogger {
         assertTrue(blobUtilsTestDirectory.delete());
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionOnCreateStorageDirectoryFailure() throws IOException {
-        Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY,
-                new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
-        // Should throw an Exception
-        BlobUtils.initLocalStorageDirectory(config);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    Configuration config = new Configuration();
+                    config.setString(
+                            BlobServerOptions.STORAGE_DIRECTORY,
+                            new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS).getAbsolutePath());
+                    // Should throw an Exception
+                    BlobUtils.initLocalStorageDirectory(config);
+                });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionOnCreateCacheDirectoryFailureNoJob() throws IOException {
-        // Should throw an Exception
-        BlobUtils.getStorageLocation(
-                new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS), null, new TransientBlobKey());
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Should throw an Exception
+                    BlobUtils.getStorageLocation(
+                            new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS),
+                            null,
+                            new TransientBlobKey());
+                });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionOnCreateCacheDirectoryFailureForJobTransient() throws IOException {
-        // Should throw an Exception
-        BlobUtils.getStorageLocation(
-                new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS),
-                new JobID(),
-                new TransientBlobKey());
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Should throw an Exception
+                    BlobUtils.getStorageLocation(
+                            new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS),
+                            new JobID(),
+                            new TransientBlobKey());
+                });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionOnCreateCacheDirectoryFailureForJobPermanent() throws IOException {
-        // Should throw an Exception
-        BlobUtils.getStorageLocation(
-                new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS),
-                new JobID(),
-                new PermanentBlobKey());
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Should throw an Exception
+                    BlobUtils.getStorageLocation(
+                            new File(blobUtilsTestDirectory, CANNOT_CREATE_THIS),
+                            new JobID(),
+                            new PermanentBlobKey());
+                });
     }
 }

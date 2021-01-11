@@ -25,7 +25,15 @@ import org.apache.flink.ml.common.MLEnvironment;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The base class for testing the base implementation of pipeline stages, i.e. Estimators and
@@ -34,9 +42,10 @@ import org.junit.Test;
  */
 abstract class PipelineStageTestBase {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testMismatchTableEnvironment() {
-        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
         DataSet<Integer> input = env.getExecutionEnvironment().fromElements(1, 2, 3);
         Table t = env.getBatchTableEnvironment().fromDataSet(input);
@@ -50,11 +59,13 @@ abstract class PipelineStageTestBase {
             ((Transformer) pipelineStageBase)
                     .transform(MLEnvironmentFactory.getDefault().getBatchTableEnvironment(), t);
         }
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testNullInputTable() {
-        Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    Long id = MLEnvironmentFactory.getNewMLEnvironmentId();
         MLEnvironment env = MLEnvironmentFactory.get(id);
 
         PipelineStageBase<?> pipelineStageBase = createPipelineStage();
@@ -64,6 +75,7 @@ abstract class PipelineStageTestBase {
         } else {
             ((Transformer) pipelineStageBase).transform(env.getBatchTableEnvironment(), null);
         }
+        });
     }
 
     protected abstract PipelineStageBase createPipelineStage();

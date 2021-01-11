@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{Types, _}
 import org.apache.flink.table.utils.{PojoTableFunc, TableFunc2, _}
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import org.mockito.Mockito.{mock, when}
 
 class CorrelateStringExpressionTest extends TableTestBase {

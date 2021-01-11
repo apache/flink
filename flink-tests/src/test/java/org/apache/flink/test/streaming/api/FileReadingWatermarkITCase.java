@@ -25,8 +25,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.time.Time;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +33,7 @@ import java.io.PrintWriter;
 import java.util.UUID;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests that watermarks are emitted while file is being read, particularly the last split.
@@ -62,7 +61,7 @@ public class FileReadingWatermarkITCase {
 
         int actual = result.getAccumulatorResult(NUM_WATERMARKS_ACC_NAME);
 
-        assertTrue("too few watermarks emitted: " + actual, actual >= MIN_EXPECTED_WATERMARKS);
+        assertTrue(actual >= MIN_EXPECTED_WATERMARKS, "too few watermarks emitted: " + actual);
     }
 
     private File getSourceFile() throws IOException {

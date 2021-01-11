@@ -46,19 +46,20 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.MutableObjectIterator;
-
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /** Test for sort merge inner join. */
@@ -125,9 +126,7 @@ public class RandomSortMergeInnerJoinTest {
 
         // assert that each expected match was seen
         for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-            Assert.assertTrue(
-                    "Collection for key " + entry.getKey() + " is not empty",
-                    entry.getValue().isEmpty());
+            Assertions.assertTrue(                    entry.getValue().isEmpty(),                    "Collection for key " + entry.getKey() + " is not empty");
         }
     }
 
@@ -204,12 +203,12 @@ public class RandomSortMergeInnerJoinTest {
             // assert that each expected match was seen
             for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    Assertions.fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            Assertions.fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -225,12 +224,12 @@ public class RandomSortMergeInnerJoinTest {
 
             Collection<Match> matches = expectedMatchesMap.get(key);
             if (matches == null) {
-                Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
+                Assertions.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
             }
 
             boolean contained = matches.remove(new Match(value1, value2));
             if (!contained) {
-                Assert.fail(
+                Assertions.fail(
                         "Produced match was not contained: "
                                 + key
                                 + " - "

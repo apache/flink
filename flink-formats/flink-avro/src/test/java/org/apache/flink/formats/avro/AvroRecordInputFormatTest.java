@@ -18,6 +18,18 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileReader;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.file.FileReader;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.avro.util.Utf8;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -35,22 +47,9 @@ import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
-
-import org.apache.avro.Schema;
-import org.apache.avro.file.DataFileReader;
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.file.FileReader;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumReader;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.avro.util.Utf8;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -62,17 +61,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -222,35 +213,35 @@ public class AvroRecordInputFormatTest {
         assertNotNull(u);
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
-        assertEquals("name not equal", TEST_NAME, name);
+        assertNotNull(name, "empty record");
+        assertEquals(TEST_NAME, name, "name not equal");
 
         // check arrays
         List<CharSequence> sl = u.getTypeArrayString();
-        assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-        assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+        assertEquals(TEST_ARRAY_STRING_1, "element 0 not equal");
+        assertEquals(TEST_ARRAY_STRING_2, "element 1 not equal");
 
         List<Boolean> bl = u.getTypeArrayBoolean();
-        assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-        assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+        assertEquals(TEST_ARRAY_BOOLEAN_1, "element 0 not equal");
+        assertEquals(TEST_ARRAY_BOOLEAN_2, "element 1 not equal");
 
         // check enums
         Colors enumValue = u.getTypeEnum();
-        assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
+        assertEquals(TEST_ENUM_COLOR, enumValue, "enum not equal");
 
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
         assertEquals(
-                "map value of key 1 not equal",
                 TEST_MAP_VALUE1,
-                lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+                lm.get(new Utf8(TEST_MAP_KEY1)).longValue(),
+                "map value of key 1 not equal");
         assertEquals(
-                "map value of key 2 not equal",
                 TEST_MAP_VALUE2,
-                lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+                lm.get(new Utf8(TEST_MAP_KEY2)).longValue(),
+                "map value of key 2 not equal");
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertFalse(format.reachedEnd(), "expecting second element");
+        assertNotNull(format.nextRecord(u), "expecting second element");
 
         assertNull(format.nextRecord(u));
         assertTrue(format.reachedEnd());
@@ -276,35 +267,35 @@ public class AvroRecordInputFormatTest {
         assertNotNull(u);
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
-        assertEquals("name not equal", TEST_NAME, name);
+        assertNotNull(name, "empty record");
+        assertEquals(TEST_NAME, name, "name not equal");
 
         // check arrays
         List<CharSequence> sl = u.getTypeArrayString();
-        assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-        assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+        assertEquals(TEST_ARRAY_STRING_1, "element 0 not equal");
+        assertEquals(TEST_ARRAY_STRING_2, "element 1 not equal");
 
         List<Boolean> bl = u.getTypeArrayBoolean();
-        assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-        assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+        assertEquals(TEST_ARRAY_BOOLEAN_1, "element 0 not equal");
+        assertEquals(TEST_ARRAY_BOOLEAN_2, "element 1 not equal");
 
         // check enums
         Colors enumValue = u.getTypeEnum();
-        assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
+        assertEquals(TEST_ENUM_COLOR, enumValue, "enum not equal");
 
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
         assertEquals(
-                "map value of key 1 not equal",
                 TEST_MAP_VALUE1,
-                lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+                lm.get(new Utf8(TEST_MAP_KEY1)).longValue(),
+                "map value of key 1 not equal");
         assertEquals(
-                "map value of key 2 not equal",
                 TEST_MAP_VALUE2,
-                lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+                lm.get(new Utf8(TEST_MAP_KEY2)).longValue(),
+                "map value of key 2 not equal");
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertFalse(format.reachedEnd(), "expecting second element");
+        assertNotNull(format.nextRecord(u), "expecting second element");
 
         assertNull(format.nextRecord(u));
         assertTrue(format.reachedEnd());
@@ -411,9 +402,9 @@ public class AvroRecordInputFormatTest {
 
             // check if it is still the same
             assertNotNull(newRec);
-            assertEquals("name not equal", TEST_NAME, newRec.getName().toString());
+            assertEquals(TEST_NAME, "name not equal");
             assertEquals(
-                    "enum not equal", TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString());
+                    TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString(), "enum not equal");
         }
     }
 
@@ -450,38 +441,38 @@ public class AvroRecordInputFormatTest {
 
             GenericRecord u = format.nextRecord(null);
             assertNotNull(u);
-            assertEquals("The schemas should be equal", userSchema, u.getSchema());
+            assertEquals(userSchema, "The schemas should be equal");
 
             String name = u.get("name").toString();
-            assertNotNull("empty record", name);
-            assertEquals("name not equal", TEST_NAME, name);
+            assertNotNull(name, "empty record");
+            assertEquals(TEST_NAME, name, "name not equal");
 
             // check arrays
             List<CharSequence> sl = (List<CharSequence>) u.get("type_array_string");
-            assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-            assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+            assertEquals(TEST_ARRAY_STRING_1, "element 0 not equal");
+            assertEquals(TEST_ARRAY_STRING_2, "element 1 not equal");
 
             List<Boolean> bl = (List<Boolean>) u.get("type_array_boolean");
-            assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-            assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+            assertEquals(TEST_ARRAY_BOOLEAN_1, "element 0 not equal");
+            assertEquals(TEST_ARRAY_BOOLEAN_2, "element 1 not equal");
 
             // check enums
             GenericData.EnumSymbol enumValue = (GenericData.EnumSymbol) u.get("type_enum");
-            assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), enumValue.toString());
+            assertEquals(TEST_ENUM_COLOR.toString(), enumValue.toString(), "enum not equal");
 
             // check maps
             Map<CharSequence, Long> lm = (Map<CharSequence, Long>) u.get("type_map");
             assertEquals(
-                    "map value of key 1 not equal",
                     TEST_MAP_VALUE1,
-                    lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
+                    lm.get(new Utf8(TEST_MAP_KEY1)).longValue(),
+                    "map value of key 1 not equal");
             assertEquals(
-                    "map value of key 2 not equal",
                     TEST_MAP_VALUE2,
-                    lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+                    lm.get(new Utf8(TEST_MAP_KEY2)).longValue(),
+                    "map value of key 2 not equal");
 
-            assertFalse("expecting second element", format.reachedEnd());
-            assertNotNull("expecting second element", format.nextRecord(u));
+            assertFalse(format.reachedEnd(), "expecting second element");
+            assertNotNull(format.nextRecord(u), "expecting second element");
 
             assertNull(format.nextRecord(u));
             assertTrue(format.reachedEnd());

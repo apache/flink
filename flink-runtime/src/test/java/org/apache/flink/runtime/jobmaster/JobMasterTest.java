@@ -143,7 +143,15 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
@@ -195,9 +203,9 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link JobMaster}. */
 public class JobMasterTest extends TestLogger {
@@ -1212,7 +1220,8 @@ public class JobMasterTest extends TestLogger {
                 .map(
                         accessExecutionJobVertex ->
                                 Arrays.asList(accessExecutionJobVertex.getTaskVertices()))
-                .orElse(Collections.emptyList()).stream()
+                .orElse(Collections.emptyList())
+                .stream()
                 .map(AccessExecutionVertex::getCurrentExecutionAttempt)
                 .collect(Collectors.toList());
     }

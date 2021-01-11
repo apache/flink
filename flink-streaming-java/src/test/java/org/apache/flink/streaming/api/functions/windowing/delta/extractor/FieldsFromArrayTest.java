@@ -17,9 +17,9 @@
 
 package org.apache.flink.streaming.api.functions.windowing.delta.extractor;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link FieldsFromArray}. */
 public class FieldsFromArrayTest {
@@ -104,9 +104,9 @@ public class FieldsFromArrayTest {
     }
 
     private void arrayEqualityCheck(Object[] array1, Object[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
+        assertEquals(array1.length, array2.length, "The result arrays must have the same length");
         for (int i = 0; i < array1.length; i++) {
-            assertEquals("Unequal fields at position " + i, array1[i], array2[i]);
+            assertEquals(array1[i], array2[i], "Unequal fields at position " + i);
         }
     }
 }

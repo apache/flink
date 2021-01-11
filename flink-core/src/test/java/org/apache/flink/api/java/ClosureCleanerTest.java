@@ -24,8 +24,16 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.util.function.SerializableSupplier;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -35,15 +43,19 @@ import java.io.Serializable;
 /** Tests for {@link ClosureCleaner}. */
 public class ClosureCleanerTest {
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testNonSerializable() throws Exception {
-        MapCreator creator = new NonSerializableMapCreator();
-        MapFunction<Integer, Integer> map = creator.getMap();
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    MapCreator creator = new NonSerializableMapCreator();
+                    MapFunction<Integer, Integer> map = creator.getMap();
 
-        ClosureCleaner.ensureSerializable(map);
+                    ClosureCleaner.ensureSerializable(map);
 
-        int result = map.map(3);
-        Assert.assertEquals(result, 4);
+                    int result = map.map(3);
+                    Assertions.assertEquals(result, 4);
+                });
     }
 
     @Test
@@ -54,7 +66,7 @@ public class ClosureCleanerTest {
         ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
         int result = map.map(3);
-        Assert.assertEquals(result, 4);
+        Assertions.assertEquals(result, 4);
     }
 
     @Test
@@ -65,7 +77,7 @@ public class ClosureCleanerTest {
         ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
         int result = map.map(3);
-        Assert.assertEquals(result, 4);
+        Assertions.assertEquals(result, 4);
     }
 
     @Test
@@ -78,20 +90,24 @@ public class ClosureCleanerTest {
         ClosureCleaner.ensureSerializable(map);
 
         int result = map.map(3);
-        Assert.assertEquals(result, 4);
+        Assertions.assertEquals(result, 4);
     }
 
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testNestedNonSerializable() throws Exception {
-        MapCreator creator = new NestedNonSerializableMapCreator(1);
-        MapFunction<Integer, Integer> map = creator.getMap();
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    MapCreator creator = new NestedNonSerializableMapCreator(1);
+                    MapFunction<Integer, Integer> map = creator.getMap();
 
-        ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+                    ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 
-        ClosureCleaner.ensureSerializable(map);
+                    ClosureCleaner.ensureSerializable(map);
 
-        int result = map.map(3);
-        Assert.assertEquals(result, 4);
+                    int result = map.map(3);
+                    Assertions.assertEquals(result, 4);
+                });
     }
 
     @Test
@@ -106,7 +122,7 @@ public class ClosureCleanerTest {
         ClosureCleaner.ensureSerializable(wrapped);
 
         int result = wrapped.map(3);
-        Assert.assertEquals(result, 4);
+        Assertions.assertEquals(result, 4);
     }
 
     @Test
@@ -118,7 +134,7 @@ public class ClosureCleanerTest {
 
         int result = complexMap.map(3);
 
-        Assert.assertEquals(result, 5);
+        Assertions.assertEquals(result, 5);
     }
 
     @Test
@@ -130,7 +146,7 @@ public class ClosureCleanerTest {
 
         int result = complexMap.map(3);
 
-        Assert.assertEquals(result, 4);
+        Assertions.assertEquals(result, 4);
     }
 
     @Test
@@ -219,14 +235,14 @@ public class ClosureCleanerTest {
     public void testWriteReplace() {
         WithWriteReplace.SerializablePayload writeReplace =
                 new WithWriteReplace.SerializablePayload(new WithWriteReplace.Payload("text"));
-        Assert.assertEquals("text", writeReplace.get().getRaw());
+        Assertions.assertEquals("text", writeReplace.get().getRaw());
         ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.TOP_LEVEL, true);
     }
 
     @Test
     public void testWriteReplaceRecursive() {
         WithWriteReplace writeReplace = new WithWriteReplace(new WithWriteReplace.Payload("text"));
-        Assert.assertEquals("text", writeReplace.getPayload().getRaw());
+        Assertions.assertEquals("text", writeReplace.getPayload().getRaw());
         ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
     }
 
@@ -234,9 +250,14 @@ public class ClosureCleanerTest {
      * Verify that ClosureCleaner works correctly on Object, which doesn't have any superclasses or
      * interfaces that it implements.
      */
-    @Test(expected = InvalidProgramException.class)
+    @Test
     public void testCleanObject() {
-        ClosureCleaner.clean(new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+        assertThrows(
+                InvalidProgramException.class,
+                () -> {
+                    ClosureCleaner.clean(
+                            new Object(), ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+                });
     }
 }
 

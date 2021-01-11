@@ -18,15 +18,23 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link MathUtils}. */
 public class MathUtilTest {
@@ -136,12 +144,12 @@ public class MathUtilTest {
 
     @Test
     public void testFlipSignBit() {
-        Assert.assertEquals(0L, MathUtils.flipSignBit(Long.MIN_VALUE));
-        Assert.assertEquals(Long.MIN_VALUE, MathUtils.flipSignBit(0L));
-        Assert.assertEquals(-1L, MathUtils.flipSignBit(Long.MAX_VALUE));
-        Assert.assertEquals(Long.MAX_VALUE, MathUtils.flipSignBit(-1L));
-        Assert.assertEquals(42L | Long.MIN_VALUE, MathUtils.flipSignBit(42L));
-        Assert.assertEquals(-42L & Long.MAX_VALUE, MathUtils.flipSignBit(-42L));
+        Assertions.assertEquals(0L, MathUtils.flipSignBit(Long.MIN_VALUE));
+        Assertions.assertEquals(Long.MIN_VALUE, MathUtils.flipSignBit(0L));
+        Assertions.assertEquals(-1L, MathUtils.flipSignBit(Long.MAX_VALUE));
+        Assertions.assertEquals(Long.MAX_VALUE, MathUtils.flipSignBit(-1L));
+        Assertions.assertEquals(42L | Long.MIN_VALUE, MathUtils.flipSignBit(42L));
+        Assertions.assertEquals(-42L & Long.MAX_VALUE, MathUtils.flipSignBit(-42L));
     }
 
     @Test
@@ -155,18 +163,30 @@ public class MathUtilTest {
         assertThat(MathUtils.divideRoundUp(2, 3), is(1));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDividend() {
-        MathUtils.divideRoundUp(-1, 1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MathUtils.divideRoundUp(-1, 1);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpNegativeDivisor() {
-        MathUtils.divideRoundUp(1, -1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MathUtils.divideRoundUp(1, -1);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDivideRoundUpZeroDivisor() {
-        MathUtils.divideRoundUp(1, 0);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MathUtils.divideRoundUp(1, 0);
+                });
     }
 }

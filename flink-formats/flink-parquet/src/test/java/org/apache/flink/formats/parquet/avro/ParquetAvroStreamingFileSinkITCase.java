@@ -38,9 +38,10 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.util.HadoopInputFile;
 import org.apache.parquet.io.InputFile;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -52,18 +53,17 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Parquet.
  */
 @SuppressWarnings("serial")
+@Timeout(20)
 public class ParquetAvroStreamingFileSinkITCase extends AbstractTestBase {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Test
     public void testWriteParquetAvroSpecific() throws Exception {

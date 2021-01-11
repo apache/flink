@@ -22,9 +22,15 @@ package org.apache.flink.ml.common.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit test for OutputColsHelper. */
 public class OutputColsHelperTest {
@@ -53,7 +59,7 @@ public class OutputColsHelperTest {
                         });
         OutputColsHelper helper =
                 new OutputColsHelper(tableSchema, "res", TypeInformation.of(String.class));
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -64,8 +70,8 @@ public class OutputColsHelperTest {
         helper =
                 new OutputColsHelper(
                         tableSchema, "res", TypeInformation.of(String.class), reservedColNames);
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
-        Assert.assertArrayEquals(reservedColNames, helper.getReservedColumns());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertArrayEquals(reservedColNames, helper.getReservedColumns());
 
         expectSchema =
                 new TableSchema(
@@ -83,7 +89,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(String.class), TypeInformation.of(Integer.class)
                         },
                         reservedColNames);
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -95,8 +101,8 @@ public class OutputColsHelperTest {
                             TypeInformation.of(String.class)
                         });
         helper = new OutputColsHelper(tableSchema, "res", TypeInformation.of(String.class));
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
-        Assert.assertArrayEquals(tableSchema.getFieldNames(), helper.getReservedColumns());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertArrayEquals(tableSchema.getFieldNames(), helper.getReservedColumns());
 
         expectSchema =
                 new TableSchema(
@@ -107,7 +113,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Integer.class)
                         });
         helper = new OutputColsHelper(tableSchema, "f0", TypeInformation.of(Integer.class));
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -124,7 +130,7 @@ public class OutputColsHelperTest {
                         new TypeInformation[] {
                             TypeInformation.of(Integer.class), TypeInformation.of(String.class)
                         });
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -140,7 +146,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Integer.class), TypeInformation.of(String.class)
                         },
                         reservedColNames);
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -158,7 +164,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Integer.class), TypeInformation.of(String.class)
                         },
                         new String[] {"f1", "f0"});
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
     }
 
     @Test
@@ -166,7 +172,7 @@ public class OutputColsHelperTest {
         OutputColsHelper helper =
                 new OutputColsHelper(tableSchema, "res", TypeInformation.of(String.class));
         Row expectRow = Row.of("a", 1L, 1, "b");
-        Assert.assertEquals(helper.getResultRow(row, Row.of("b")), expectRow);
+        Assertions.assertEquals(helper.getResultRow(row, Row.of("b")), expectRow);
 
         helper =
                 new OutputColsHelper(
@@ -176,7 +182,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(String.class), TypeInformation.of(Integer.class)
                         });
         expectRow = Row.of("a", 1L, 1, "b", 2);
-        Assert.assertEquals(expectRow, helper.getResultRow(row, Row.of("b", 2)));
+        Assertions.assertEquals(expectRow, helper.getResultRow(row, Row.of("b", 2)));
 
         helper =
                 new OutputColsHelper(
@@ -187,7 +193,7 @@ public class OutputColsHelperTest {
                         },
                         reservedColNames);
         expectRow = Row.of("b", 2);
-        Assert.assertEquals(expectRow, helper.getResultRow(row, Row.of(2, "b")));
+        Assertions.assertEquals(expectRow, helper.getResultRow(row, Row.of(2, "b")));
     }
 
     @Test
@@ -206,7 +212,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Integer.class), TypeInformation.of(String.class)
                         },
                         new String[] {"res", "res2"});
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -224,7 +230,7 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Integer.class), TypeInformation.of(String.class)
                         },
                         new String[] {"f1", "res"});
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
 
         expectSchema =
                 new TableSchema(
@@ -244,6 +250,6 @@ public class OutputColsHelperTest {
                             TypeInformation.of(Double.class)
                         },
                         new String[] {"f1", "res"});
-        Assert.assertEquals(expectSchema, helper.getResultSchema());
+        Assertions.assertEquals(expectSchema, helper.getResultSchema());
     }
 }

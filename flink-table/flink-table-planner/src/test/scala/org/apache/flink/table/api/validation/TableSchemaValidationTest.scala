@@ -20,7 +20,7 @@ package org.apache.flink.table.api.validation
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.api.{TableSchema, ValidationException}
 import org.apache.flink.table.utils.TableTestBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 
 class TableSchemaValidationTest extends TableTestBase {

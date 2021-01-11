@@ -28,17 +28,19 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class BufferFileWriterReaderTest {
 
@@ -128,7 +130,7 @@ public class BufferFileWriterReaderTest {
         assertTrue(reader.hasReachedEndOfFile());
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedBuffers.size());
+        assertEquals(numBuffers, "Read less buffers than written.");
 
         currentNumber = 0;
         Buffer buffer;
@@ -174,7 +176,7 @@ public class BufferFileWriterReaderTest {
         assertTrue(reader.hasReachedEndOfFile());
 
         // Verify that the content is the same
-        assertEquals("Read less buffers than written.", numBuffers, returnedBuffers.size());
+        assertEquals(numBuffers, "Read less buffers than written.");
 
         // Start number after skipped buffers...
         currentNumber = (BUFFER_SIZE / 4) * toSkip;

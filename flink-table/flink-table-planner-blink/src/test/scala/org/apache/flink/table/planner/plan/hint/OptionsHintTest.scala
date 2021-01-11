@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet}
 
 import org.hamcrest.Matchers._
-import org.junit.Assert.{assertEquals, assertThat}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertThat}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters

@@ -36,14 +36,19 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test for {@link StreamArrowPythonRowTimeBoundedRangeOperator}. These test that:
@@ -207,7 +212,7 @@ public class StreamArrowPythonRowTimeBoundedRangeOperatorTest
 
         AbstractKeyedStateBackend stateBackend =
                 (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
-        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0,"Initial state is not empty");
 
         testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c2", 0L, 100L)));
         testHarness.processElement(new StreamRecord<>(newBinaryRow(true, "c1", "c4", 1L, 100L)));
@@ -219,7 +224,7 @@ public class StreamArrowPythonRowTimeBoundedRangeOperatorTest
         testHarness.processWatermark(new Watermark(4000L));
         // at this moment the function should have cleaned up states
 
-        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0,"State has not been cleaned up");
 
         testHarness.close();
     }

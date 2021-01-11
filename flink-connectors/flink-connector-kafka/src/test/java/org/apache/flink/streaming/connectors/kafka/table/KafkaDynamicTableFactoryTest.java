@@ -55,7 +55,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
@@ -71,11 +71,11 @@ import java.util.regex.Pattern;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Abstract test base for {@link KafkaDynamicTableFactory}. */
 public class KafkaDynamicTableFactoryTest extends TestLogger {
@@ -613,8 +613,8 @@ public class KafkaDynamicTableFactoryTest extends TestLogger {
             createTableSink(SCHEMA, modifiedOptions);
         } catch (Throwable t) {
             assertEquals(
-                    String.format(errorMessageTemp, "'topic-pattern'", TOPIC_REGEX),
-                    t.getCause().getMessage());
+                    t.getCause().getMessage(),
+                    String.format(errorMessageTemp, "'topic-pattern'", TOPIC_REGEX));
         }
     }
 

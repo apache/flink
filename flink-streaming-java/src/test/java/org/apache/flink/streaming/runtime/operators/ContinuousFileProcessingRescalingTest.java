@@ -36,8 +36,15 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.SteppingMailboxProcessor
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -76,7 +83,7 @@ public class ContinuousFileProcessingRescalingTest {
                     i.awaitEverythingProcessed();
                 }
 
-                Assert.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
+                Assertions.assertEquals(collectOutput(beforeRescale), collectOutput(afterRescale));
             }
         } finally {
             for (HarnessWithFormat harness : beforeRescale) {
@@ -110,7 +117,7 @@ public class ContinuousFileProcessingRescalingTest {
                     harness.awaitEverythingProcessed();
                 }
 
-                Assert.assertEquals(
+                Assertions.assertEquals(
                         collectOutput(beforeRescale), collectOutput(afterRescale0, afterRescale1));
             }
         }

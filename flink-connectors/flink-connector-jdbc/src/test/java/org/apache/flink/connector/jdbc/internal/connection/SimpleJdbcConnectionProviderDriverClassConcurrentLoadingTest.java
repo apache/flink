@@ -21,16 +21,18 @@ package org.apache.flink.connector.jdbc.internal.connection;
 import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.fakedb.FakeDBUtils;
 import org.apache.flink.core.testutils.CheckedThread;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * This test deals with sql driver class loading issues, write it alone so it won't be interfered by
@@ -51,7 +53,8 @@ public class SimpleJdbcConnectionProviderDriverClassConcurrentLoadingTest {
         return false;
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void testDriverClassConcurrentLoading() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
 

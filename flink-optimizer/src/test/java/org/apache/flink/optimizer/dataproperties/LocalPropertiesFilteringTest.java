@@ -31,9 +31,20 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.LongValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class LocalPropertiesFilteringTest {
 
@@ -390,15 +401,18 @@ public class LocalPropertiesFilteringTest {
         assertNull(filtered.getUniqueFields());
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test
     public void testInvalidInputIndex() {
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> {
+                    SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
+                    SemanticPropUtil.getSemanticPropsSingleFromString(
+                            sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
 
-        SingleInputSemanticProperties sprops = new SingleInputSemanticProperties();
-        SemanticPropUtil.getSemanticPropsSingleFromString(
-                sprops, new String[] {"0;1"}, null, null, tupleInfo, tupleInfo);
+                    LocalProperties lprops = LocalProperties.forGrouping(new FieldList(0, 1));
 
-        LocalProperties lprops = LocalProperties.forGrouping(new FieldList(0, 1));
-
-        lprops.filterBySemanticProperties(sprops, 1);
+                    lprops.filterBySemanticProperties(sprops, 1);
+                });
     }
 }

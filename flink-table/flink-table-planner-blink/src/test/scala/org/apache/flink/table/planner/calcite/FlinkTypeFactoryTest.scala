@@ -23,9 +23,8 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
-
-import junit.framework.TestCase.{assertFalse, assertTrue}
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.{Assertions, Test}
 
 import java.time.DayOfWeek
 
@@ -36,14 +35,14 @@ class FlinkTypeFactoryTest {
     val typeFactory = FlinkTypeFactory.INSTANCE
 
     def test(t: LogicalType): Unit = {
-      Assert.assertEquals(
+      Assertions.assertEquals(
         t.copy(true),
         FlinkTypeFactory.toLogicalType(
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       if (!hasRoot(t, LogicalTypeRoot.NULL)) {
-        Assert.assertEquals(
+        Assertions.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(
             typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
@@ -51,14 +50,14 @@ class FlinkTypeFactoryTest {
       }
 
       // twice for cache.
-      Assert.assertEquals(
+      Assertions.assertEquals(
         t.copy(true),
         FlinkTypeFactory.toLogicalType(
           typeFactory.createFieldTypeFromLogicalType(t.copy(true)))
       )
 
       if (!hasRoot(t, LogicalTypeRoot.NULL)) {
-        Assert.assertEquals(
+        Assertions.assertEquals(
           t.copy(false),
           FlinkTypeFactory.toLogicalType(
             typeFactory.createFieldTypeFromLogicalType(t.copy(false)))
@@ -90,9 +89,9 @@ class FlinkTypeFactoryTest {
   }
 
   @Test def testDecimalInferType(): Unit = {
-    Assert.assertEquals(new DecimalType(7, 0), FlinkTypeSystem.inferIntDivType(5, 2, 4))
-    Assert.assertEquals(new DecimalType(38, 5), FlinkTypeSystem.inferAggSumType(5))
-    Assert.assertEquals(new DecimalType(false, 38, 6), FlinkTypeSystem.inferAggAvgType(5))
+    Assertions.assertEquals(new DecimalType(7, 0), FlinkTypeSystem.inferIntDivType(5, 2, 4))
+    Assertions.assertEquals(new DecimalType(38, 5), FlinkTypeSystem.inferAggSumType(5))
+    Assertions.assertEquals(new DecimalType(false, 38, 6), FlinkTypeSystem.inferAggAvgType(5))
   }
 
   @Test
@@ -101,19 +100,21 @@ class FlinkTypeFactoryTest {
     val genericTypeInfo = Types.GENERIC(classOf[TestClass])
     val genericTypeInfo2 = Types.GENERIC(classOf[TestClass2])
     val genericRelType = typeFactory
-        .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo))
+      .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo))
     val genericRelType2 = typeFactory
-        .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo))
+      .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo))
     val genericRelType3 = typeFactory
-        .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo2))
+      .createFieldTypeFromLogicalType(new TypeInformationRawType(genericTypeInfo2))
 
-    assertTrue("The type expect to be canonized", genericRelType eq genericRelType2)
-    assertFalse("The type expect to be not canonized", genericRelType eq genericRelType3)
+    assertTrue(genericRelType eq genericRelType2, "The type expect to be canonized")
+    assertFalse(genericRelType eq genericRelType3, "The type expect to be not canonized")
     assertFalse("The type expect to be not canonized",
       typeFactory.builder().add("f0", genericRelType).build()
-          eq typeFactory.builder().add("f0", genericRelType3).build())
+        eq typeFactory.builder().add("f0", genericRelType3).build())
   }
 
   case class TestClass(f0: Int, f1: String)
+
   case class TestClass2(f0: Int, f1: String)
+
 }

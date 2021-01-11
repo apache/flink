@@ -23,7 +23,7 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
@@ -32,12 +32,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Stream;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isOneOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Tests for the creation of {@link LocalBufferPool} instances from the {@link NetworkBufferPool}
@@ -62,7 +62,7 @@ public class BufferPoolFactoryTest {
     public void verifyAllBuffersReturned() {
         String msg = "Did not return all buffers to network buffer pool after test.";
         try {
-            assertEquals(msg, numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments());
+            assertEquals(numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments(), msg);
         } finally {
             // in case buffers have actually been requested, we must release them again
             networkBufferPool.destroyAllBufferPools();
@@ -297,7 +297,7 @@ public class BufferPoolFactoryTest {
 
             // similar to #verifyAllBuffersReturned()
             String msg = "Wrong number of available segments after creating buffer pools.";
-            assertEquals(msg, 0, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(0, globalPool.getNumberOfAvailableMemorySegments(), msg);
         } finally {
             // in case buffers have actually been requested, we must release them again
             globalPool.destroyAllBufferPools();
@@ -337,25 +337,25 @@ public class BufferPoolFactoryTest {
 
             String msg =
                     "Wrong number of available segments after creating buffer pools and requesting segments.";
-            assertEquals(msg, 2, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(2, globalPool.getNumberOfAvailableMemorySegments(), msg);
 
             globalPool.recycleMemorySegments(segmentList1);
-            assertEquals(msg, 4, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(4, globalPool.getNumberOfAvailableMemorySegments(), msg);
             assertEquals(3, first.getNumBuffers());
             assertEquals(3, second.getNumBuffers());
 
             globalPool.recycleMemorySegments(segmentList2);
-            assertEquals(msg, 6, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(6, globalPool.getNumberOfAvailableMemorySegments(), msg);
             assertEquals(4, first.getNumBuffers());
             assertEquals(4, second.getNumBuffers());
 
             globalPool.recycleMemorySegments(segmentList3);
-            assertEquals(msg, 8, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(8, globalPool.getNumberOfAvailableMemorySegments(), msg);
             assertEquals(5, first.getNumBuffers());
             assertEquals(5, second.getNumBuffers());
 
             first.lazyDestroy();
-            assertEquals(msg, 9, globalPool.getNumberOfAvailableMemorySegments());
+            assertEquals(9, globalPool.getNumberOfAvailableMemorySegments(), msg);
             assertEquals(10, second.getNumBuffers());
         } finally {
             globalPool.destroyAllBufferPools();

@@ -60,10 +60,11 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -83,9 +84,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link AsyncWaitOperator}. These test that:
@@ -97,10 +98,9 @@ import static org.junit.Assert.assertTrue;
  *   <li>Snapshot state and restore state
  * </ul>
  */
+@Timeout(10)
 public class AsyncWaitOperatorTest extends TestLogger {
     private static final long TIMEOUT = 1000L;
-
-    @Rule public Timeout timeoutRule = new Timeout(10, TimeUnit.SECONDS);
 
     private static class MyAsyncFunction extends RichAsyncFunction<Integer, Integer> {
         private static final long serialVersionUID = 8522411971886428444L;
@@ -287,14 +287,14 @@ public class AsyncWaitOperatorTest extends TestLogger {
         } else {
             Object[] jobOutputQueue = testHarness.getOutput().toArray();
 
-            Assert.assertEquals(
-                    "Watermark should be at index 2",
+            Assertions.assertEquals(
                     new Watermark(initialTime + 2),
-                    jobOutputQueue[2]);
-            Assert.assertEquals(
-                    "StreamRecord 3 should be at the end",
+                    jobOutputQueue[2],
+                    "Watermark should be at index 2");
+            Assertions.assertEquals(
                     new StreamRecord<>(6, initialTime + 3),
-                    jobOutputQueue[3]);
+                    jobOutputQueue[3],
+                    "StreamRecord 3 should be at the end");
 
             TestHarnessUtil.assertOutputEqualsSorted(
                     "Output for StreamRecords does not match",
@@ -476,7 +476,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
         // be build our own OperatorChain
         final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
-        Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+        Assertions.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
         return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
     }
@@ -798,7 +798,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
      *
      * <p>See FLINK-7949
      */
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRestartWithFullQueue() throws Exception {
         final int capacity = 10;
 

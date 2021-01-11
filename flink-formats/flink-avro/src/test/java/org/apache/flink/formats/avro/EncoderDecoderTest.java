@@ -18,18 +18,13 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.formats.avro.generated.Address;
-import org.apache.flink.formats.avro.generated.Colors;
-import org.apache.flink.formats.avro.generated.Fixed16;
-import org.apache.flink.formats.avro.generated.Fixed2;
-import org.apache.flink.formats.avro.generated.User;
+import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.flink.formats.avro.generated.*;
 import org.apache.flink.formats.avro.utils.DataInputDecoder;
 import org.apache.flink.formats.avro.utils.DataOutputEncoder;
 import org.apache.flink.util.StringUtils;
-
-import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.avro.reflect.ReflectDatumWriter;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,16 +36,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
@@ -351,7 +339,7 @@ public class EncoderDecoderTest {
 
                 for (long val : values) {
                     long read = DataInputDecoder.readVarLongCount(dataIn);
-                    assertEquals("Wrong var-len encoded value read.", val, read);
+                    assertEquals(val, read, "Wrong var-len encoded value read.");
                 }
             }
         } catch (Exception e) {
@@ -414,24 +402,24 @@ public class EncoderDecoderTest {
             if (obj.getClass().isArray()) {
                 Class<?> clazz = obj.getClass();
                 if (clazz == byte[].class) {
-                    assertArrayEquals(message, (byte[]) obj, (byte[]) result);
+                    assertArrayEquals((byte[]) obj, (byte[]) result, message);
                 } else if (clazz == short[].class) {
-                    assertArrayEquals(message, (short[]) obj, (short[]) result);
+                    assertArrayEquals((short[]) obj, (short[]) result, message);
                 } else if (clazz == int[].class) {
-                    assertArrayEquals(message, (int[]) obj, (int[]) result);
+                    assertArrayEquals((int[]) obj, (int[]) result, message);
                 } else if (clazz == long[].class) {
-                    assertArrayEquals(message, (long[]) obj, (long[]) result);
+                    assertArrayEquals((long[]) obj, (long[]) result, message);
                 } else if (clazz == char[].class) {
-                    assertArrayEquals(message, (char[]) obj, (char[]) result);
+                    assertArrayEquals((char[]) obj, (char[]) result, message);
                 } else if (clazz == float[].class) {
-                    assertArrayEquals(message, (float[]) obj, (float[]) result, 0.0f);
+                    assertArrayEquals((float[]) obj, (float[]) result, 0.0f, message);
                 } else if (clazz == double[].class) {
-                    assertArrayEquals(message, (double[]) obj, (double[]) result, 0.0);
+                    assertArrayEquals((double[]) obj, (double[]) result, 0.0, message);
                 } else {
-                    assertArrayEquals(message, (Object[]) obj, (Object[]) result);
+                    assertArrayEquals((Object[]) obj, (Object[]) result, message);
                 }
             } else {
-                assertEquals(message, obj, result);
+                assertEquals(obj, result, message);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

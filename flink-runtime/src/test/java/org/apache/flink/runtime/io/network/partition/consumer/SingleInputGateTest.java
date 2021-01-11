@@ -61,7 +61,15 @@ import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 
 import org.apache.flink.shaded.guava18.com.google.common.io.Closer;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -84,32 +92,45 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link SingleInputGate}. */
 public class SingleInputGateTest extends InputGateTestBase {
 
-    @Test(expected = CheckpointException.class)
+    @Test
     public void testCheckpointsDeclinedUnlessAllChannelsAreKnown() throws CheckpointException {
-        SingleInputGate gate =
-                createInputGate(createNettyShuffleEnvironment(), 1, ResultPartitionType.PIPELINED);
-        gate.setInputChannels(
-                new InputChannelBuilder().setChannelIndex(0).buildUnknownChannel(gate));
-        gate.checkpointStarted(
-                new CheckpointBarrier(1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+        assertThrows(
+                CheckpointException.class,
+                () -> {
+                    SingleInputGate gate =
+                            createInputGate(
+                                    createNettyShuffleEnvironment(),
+                                    1,
+                                    ResultPartitionType.PIPELINED);
+                    gate.setInputChannels(
+                            new InputChannelBuilder().setChannelIndex(0).buildUnknownChannel(gate));
+                    gate.checkpointStarted(
+                            new CheckpointBarrier(
+                                    1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+                });
     }
 
-    @Test(expected = CheckpointException.class)
+    @Test
     public void testCheckpointsDeclinedUnlessStateConsumed() throws CheckpointException {
-        SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
-        checkState(!gate.getStateConsumedFuture().isDone());
-        gate.checkpointStarted(
-                new CheckpointBarrier(1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+        assertThrows(
+                CheckpointException.class,
+                () -> {
+                    SingleInputGate gate = createInputGate(createNettyShuffleEnvironment());
+                    checkState(!gate.getStateConsumedFuture().isDone());
+                    gate.checkpointStarted(
+                            new CheckpointBarrier(
+                                    1L, 1L, alignedNoTimeout(CHECKPOINT, getDefault())));
+                });
     }
 
     /**
@@ -463,7 +484,7 @@ public class SingleInputGateTest extends InputGateTestBase {
         }
 
         // Verify that async consumer is in blocking request
-        assertTrue("Did not trigger blocking buffer request.", success);
+        assertTrue(success, "Did not trigger blocking buffer request.");
 
         // Release the input gate
         inputGate.close();

@@ -29,7 +29,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -42,9 +42,9 @@ import java.util.concurrent.TimeUnit;
 import static org.apache.flink.configuration.GlobalConfiguration.FLINK_CONF_FILENAME;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getCurrentClasspath;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for passing and loading dynamical properties of task manager. Usually(in Yarn, Kubernetes),
@@ -93,7 +93,7 @@ public class TaskManagerLoadingDynamicPropertiesITCase extends TestLogger {
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 throw new Exception("TestingTaskManagerRunner did not shutdown in time.");
             }
-            assertEquals(processOutput.toString(), 0, process.exitValue());
+            assertEquals(0, process.exitValue(), processOutput.toString());
         } finally {
             process.destroy();
         }

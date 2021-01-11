@@ -31,10 +31,12 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link ProcTimeRangeBoundedPrecedingFunction}. */
 public class ProcTimeRangeBoundedPrecedingFunctionTest {
@@ -73,7 +75,7 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
         AbstractKeyedStateBackend stateBackend =
                 (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
 
-        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0, "Initial state is not empty");
 
         // put some records
         testHarness.setProcessingTime(100);
@@ -88,7 +90,7 @@ public class ProcTimeRangeBoundedPrecedingFunctionTest {
         testHarness.setProcessingTime(4000);
         // at this moment the function should have cleaned up states
 
-        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0, "State has not been cleaned up");
     }
 
     private OneInputStreamOperatorTestHarness<RowData, RowData> createTestHarness(

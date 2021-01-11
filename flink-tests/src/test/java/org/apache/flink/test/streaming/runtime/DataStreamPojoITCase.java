@@ -24,7 +24,15 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -194,12 +202,14 @@ public class DataStreamPojoITCase extends AbstractTestBase {
         see.execute();
     }
 
-    @Test(expected = CompositeType.InvalidFieldReferenceException.class)
+    @Test
     public void testFailOnNestedPojoFieldAccessor() throws Exception {
-        StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertThrows(CompositeType.InvalidFieldReferenceException.class, () -> {
+                    StreamExecutionEnvironment see = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Data> dataStream = see.fromCollection(elements);
         dataStream.keyBy("aaa", "stats.count").sum("stats.nonExistingField");
+        });
     }
 
     /** POJO. */

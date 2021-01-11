@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A test that validates that the concurrency checks in the Avro Serializer are not hard coded to
@@ -56,8 +56,8 @@ public class AvroSerializerConcurrencyCheckInactiveITCase {
         }
 
         assertTrue(
+                assertionError,
                 "testConcurrentUseOfSerializer() should have failed if "
-                        + "concurrency checks are off by default",
-                assertionError);
+                        + "concurrency checks are off by default");
     }
 }

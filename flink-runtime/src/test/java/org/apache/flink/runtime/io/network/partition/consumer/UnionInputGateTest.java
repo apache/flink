@@ -22,16 +22,16 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.TestingResultPartitionManager;
-
 import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import static org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateTest.verifyBufferOrEvent;
 import static org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder.createRemoteWithIdAndLocation;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 /** Tests for {@link UnionInputGate}. */
 public class UnionInputGateTest extends InputGateTestBase {
@@ -43,7 +43,8 @@ public class UnionInputGateTest extends InputGateTestBase {
      * <p>For buffer-or-event instances, it is important to verify that they have been set off to
      * the correct logical index.
      */
-    @Test(timeout = 120 * 1000)
+    @Test
+    @Timeout(120 * 1)
     public void testBasicGetNextLogic() throws Exception {
         // Setup
         final SingleInputGate ig1 = createInputGate(3);

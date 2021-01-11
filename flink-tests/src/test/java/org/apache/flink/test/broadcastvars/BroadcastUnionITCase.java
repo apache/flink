@@ -24,8 +24,7 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.test.util.JavaProgramTestBase;
-
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.List;
 
@@ -48,7 +47,7 @@ public class BroadcastUnionITCase extends JavaProgramTestBase {
                         .reduce(new Reducer())
                         .collect();
 
-        Assert.assertEquals(Long.valueOf(3025), result.get(0));
+        Assertions.assertEquals(Long.valueOf(3025), result.get(0));
     }
 
     private static class Mapper extends RichMapFunction<Long, Long> {

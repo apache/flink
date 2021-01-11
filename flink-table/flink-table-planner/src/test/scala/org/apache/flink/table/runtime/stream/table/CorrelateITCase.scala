@@ -27,7 +27,7 @@ import org.apache.flink.table.utils._
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Before, Rule, Test}
 
 import java.lang.{Boolean => JBoolean}

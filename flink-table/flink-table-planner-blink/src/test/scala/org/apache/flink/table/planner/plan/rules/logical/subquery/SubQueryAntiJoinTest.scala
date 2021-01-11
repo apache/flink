@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 
 /**
@@ -618,14 +618,16 @@ class SubQueryAntiJoinTest extends SubQueryTestBase {
     util.verifyRelPlanNotExpected(sqlQuery4, "joinType=[anti]")
   }
 
-  @Test(expected = classOf[AssertionError])
+  @Test
   def testNotExistsWithCorrelatedOnWhere_UnsupportedCondition2(): Unit = {
-    // TODO Calcite decorrelateRel error
+        assertThrows[AssertionError] {
+                // TODO Calcite decorrelateRel error
     val sqlQuery = "SELECT * FROM l WHERE NOT EXISTS " +
       " (SELECT * FROM (SELECT * FROM r WHERE r.d = l.a AND r.e > 100) s " +
       "LEFT JOIN t ON s.f = t.k AND l.b = t.j)"
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testMultiNotExistsWithCorrelatedOnWhere_NestedCorrelation(): Unit = {

@@ -34,7 +34,15 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -134,9 +142,10 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
         return fileSystem;
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testExceptionWritingAfterCloseForCommit() throws Exception {
-        final Path path = new Path(basePathForTest, "part-0");
+        assertThrows(IOException.class, () -> {
+                    final Path path = new Path(basePathForTest, "part-0");
 
         final RecoverableFsDataOutputStream stream =
                 getFileSystem().createRecoverableWriter().open(path);
@@ -144,6 +153,7 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
         stream.closeForCommit().getRecoverable();
         stream.write(testData2.getBytes(StandardCharsets.UTF_8));
+        });
     }
 
     // IMPORTANT FOR THE FOLLOWING TWO TESTS:
@@ -154,9 +164,10 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
     // when we try to "publish" the multipart upload and we realize that the MPU is no longer
     // active.
 
-    @Test(expected = IOException.class)
+    @Test
     public void testResumeAfterCommit() throws Exception {
-        final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
+        assertThrows(IOException.class, () -> {
+                    final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
         final Path path = new Path(basePathForTest, "part-0");
 
         final RecoverableFsDataOutputStream stream = writer.open(path);
@@ -169,11 +180,13 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
 
         final RecoverableFsDataOutputStream recoveredStream = writer.recover(recoverable);
         recoveredStream.closeForCommit().commit();
+        });
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testResumeWithWrongOffset() throws Exception {
-        // this is a rather unrealistic scenario, but it is to trigger
+        assertThrows(IOException.class, () -> {
+                    // this is a rather unrealistic scenario, but it is to trigger
         // truncation of the file and try to resume with missing data.
 
         final RecoverableWriter writer = getFileSystem().createRecoverableWriter();
@@ -194,5 +207,6 @@ public class HadoopS3RecoverableWriterExceptionITCase extends TestLogger {
         // this should throw an exception
         final RecoverableFsDataOutputStream newRecoveredStream = writer.recover(recoverable2);
         newRecoveredStream.closeForCommit().commit();
+        });
     }
 }

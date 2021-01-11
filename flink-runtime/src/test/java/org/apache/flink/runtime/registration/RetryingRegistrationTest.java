@@ -27,7 +27,10 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.invocation.InvocationOnMock;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +41,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
@@ -176,8 +179,8 @@ public class RetryingRegistrationTest extends TestLogger {
             long duration = System.currentTimeMillis() - start;
 
             assertTrue(
-                    "The registration should have failed the first time. Thus the duration should be longer than at least a single error delay.",
-                    duration > TestRetryingRegistration.DELAY_ON_ERROR);
+                    duration > TestRetryingRegistration.DELAY_ON_ERROR,
+                    "The registration should have failed the first time. Thus the duration should be longer than at least a single error delay.");
 
             // validate correct invocation and result
             assertEquals(testId, success.f1.getCorrelationId());
@@ -187,7 +190,8 @@ public class RetryingRegistrationTest extends TestLogger {
         }
     }
 
-    @Test(timeout = 10000)
+    @Test
+    @Timeout(10)
     public void testRetriesOnTimeouts() throws Exception {
         final String testId = "rien ne va plus";
         final String testEndpointAddress = "<test-address>";
@@ -233,7 +237,7 @@ public class RetryingRegistrationTest extends TestLogger {
             assertEquals(leaderId, testGateway.getInvocations().take().leaderId());
 
             // validate that some retry-delay / back-off behavior happened
-            assertTrue("retries did not properly back off", elapsedMillis >= 3 * initialTimeout);
+            assertTrue(elapsedMillis >= 3 * initialTimeout, "retries did not properly back off");
         } finally {
             testGateway.stop();
         }
@@ -276,10 +280,10 @@ public class RetryingRegistrationTest extends TestLogger {
 
             // validate that some retry-delay / back-off behavior happened
             assertTrue(
-                    "retries did not properly back off",
                     elapsedMillis
                             >= 2 * TestRetryingRegistration.INITIAL_TIMEOUT
-                                    + TestRetryingRegistration.DELAY_ON_DECLINE);
+                                    + TestRetryingRegistration.DELAY_ON_DECLINE,
+                    "retries did not properly back off");
         } finally {
             testGateway.stop();
         }
@@ -320,8 +324,8 @@ public class RetryingRegistrationTest extends TestLogger {
 
         // validate that some retry-delay / back-off behavior happened
         assertTrue(
-                "retries did not properly back off",
-                elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR);
+                elapsedMillis >= TestRetryingRegistration.DELAY_ON_ERROR,
+                "retries did not properly back off");
     }
 
     @Test

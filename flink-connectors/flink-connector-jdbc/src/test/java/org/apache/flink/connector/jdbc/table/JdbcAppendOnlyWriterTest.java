@@ -28,7 +28,15 @@ import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.mockito.Mockito;
 
 import java.io.IOException;
@@ -54,9 +62,10 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
         fieldNames = new String[] {"id", "title", "author", "price", "qty"};
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void testMaxRetry() throws Exception {
-        format =
+        assertThrows(IOException.class, () -> {
+                    format =
                 JdbcBatchingOutputFormat.builder()
                         .setOptions(
                                 JdbcOptions.builder()
@@ -81,6 +90,7 @@ public class JdbcAppendOnlyWriterTest extends JdbcTestBase {
 
         // after retry default times, throws a BatchUpdateException.
         format.flush();
+        });
     }
 
     private void alterTable() throws Exception {

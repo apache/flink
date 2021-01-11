@@ -21,7 +21,15 @@ package org.apache.flink.metrics.graphite;
 import org.apache.flink.metrics.util.MetricReporterTestUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for loading {@link GraphiteReporterFactory}. */
 public class GraphiteReporterFactoryTest extends TestLogger {

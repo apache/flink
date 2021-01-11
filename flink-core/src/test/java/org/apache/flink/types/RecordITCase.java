@@ -23,10 +23,16 @@ import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
@@ -68,7 +74,7 @@ public class RecordITCase extends TestLogger {
                 RecordTest.blackboxTestRecordWithValues(fields, this.rand, this.in, this.out);
             }
         } catch (Throwable t) {
-            Assert.fail("Test failed due to an exception: " + t.getMessage());
+            Assertions.fail("Test failed due to an exception: " + t.getMessage());
         }
     }
 }

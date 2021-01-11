@@ -40,7 +40,10 @@ import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import javax.annotation.Nullable;
 
@@ -59,11 +62,11 @@ import java.util.function.Supplier;
 import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Unit tests for {@link SourceCoordinator}. */
 @SuppressWarnings("serial")
@@ -101,7 +104,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 "The coordinator can only be reset if it was not yet started");
     }
 
-    @Test(timeout = 10000L)
+    @Test
+    @Timeout(10)
     public void testStart() throws Exception {
         sourceCoordinator.start();
         while (!getEnumerator().started()) {
@@ -123,9 +127,9 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         check(
                 () -> {
                     assertEquals(
-                            "2 splits should have been assigned to reader 0",
                             4,
-                            getEnumerator().getUnassignedSplits().size());
+                            getEnumerator().getUnassignedSplits().size(),
+                            "2 splits should have been assigned to reader 0");
                     assertTrue(context.registeredReaders().containsKey(0));
                     assertTrue(getEnumerator().getHandledSourceEvent().isEmpty());
                     verifyAssignment(
@@ -162,9 +166,9 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 (MockSplitEnumerator) restoredCoordinator.getEnumerator();
         SourceCoordinatorContext restoredContext = restoredCoordinator.getContext();
         assertEquals(
-                "2 splits should have been assigned to reader 0",
                 4,
-                restoredEnumerator.getUnassignedSplits().size());
+                restoredEnumerator.getUnassignedSplits().size(),
+                "2 splits should have been assigned to reader 0");
         assertTrue(restoredEnumerator.getHandledSourceEvent().isEmpty());
         assertEquals(1, restoredContext.registeredReaders().size());
         assertTrue(restoredContext.registeredReaders().containsKey(0));
@@ -234,14 +238,14 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                 () -> {
                     //
                     assertFalse(
-                            "Reader 0 should have been unregistered.",
-                            context.registeredReaders().containsKey(0));
+                            context.registeredReaders().containsKey(0),
+                            "Reader 0 should have been unregistered.");
                     // The tracker should have reverted all the splits assignment to reader 0.
                     for (Map<Integer, ?> assignment :
                             splitSplitAssignmentTracker.assignmentsByCheckpointId().values()) {
                         assertFalse(
-                                "Assignment in uncompleted checkpoint should have been reverted.",
-                                assignment.containsKey(0));
+                                assignment.containsKey(0),
+                                "Assignment in uncompleted checkpoint should have been reverted.");
                     }
                     assertFalse(
                             splitSplitAssignmentTracker.uncheckpointedAssignments().containsKey(0));

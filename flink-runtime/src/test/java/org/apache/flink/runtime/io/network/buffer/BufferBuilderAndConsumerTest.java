@@ -20,7 +20,15 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
 
@@ -29,10 +37,10 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link BufferBuilder}. */
 public class BufferBuilderAndConsumerTest {
@@ -117,11 +125,15 @@ public class BufferBuilderAndConsumerTest {
         assertContent(bufferConsumer, 42);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void creatingBufferConsumerTwice() {
-        BufferBuilder bufferBuilder = createBufferBuilder();
-        bufferBuilder.createBufferConsumer();
-        bufferBuilder.createBufferConsumer();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    BufferBuilder bufferBuilder = createBufferBuilder();
+                    bufferBuilder.createBufferConsumer();
+                    bufferBuilder.createBufferConsumer();
+                });
     }
 
     @Test

@@ -20,16 +20,20 @@ package org.apache.flink.runtime.entrypoint;
 
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.util.TestLogger;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Properties;
 
-import static org.hamcrest.Matchers.arrayContaining;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasEntry;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for the {@link ClusterConfigurationParserFactory}. */
 public class ClusterConfigurationParserFactoryTest extends TestLogger {
@@ -68,10 +72,14 @@ public class ClusterConfigurationParserFactoryTest extends TestLogger {
         assertThat(clusterConfiguration.getConfigDir(), is(equalTo(configDir)));
     }
 
-    @Test(expected = FlinkParseException.class)
+    @Test
     public void testMissingRequiredArgument() throws FlinkParseException {
-        final String[] args = {};
+        assertThrows(
+                FlinkParseException.class,
+                () -> {
+                    final String[] args = {};
 
-        commandLineParser.parse(args);
+                    commandLineParser.parse(args);
+                });
     }
 }

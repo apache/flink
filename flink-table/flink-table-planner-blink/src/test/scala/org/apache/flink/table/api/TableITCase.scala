@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.utils.TestTableSourceSinks
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, TestLogger}
 
-import org.junit.Assert.{assertEquals, assertNotEquals, assertTrue}
+import org.junit.jupiter.api.Assertions.{assertEquals, assertNotEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

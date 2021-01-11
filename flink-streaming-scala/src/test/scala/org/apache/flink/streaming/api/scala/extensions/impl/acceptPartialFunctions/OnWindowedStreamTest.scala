@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.apache.flink.streaming.api.scala.extensions.acceptPartialFunctions
 import org.apache.flink.streaming.api.scala.extensions.base.AcceptPFTestBase
 import org.apache.flink.streaming.api.scala.extensions.data.KeyValuePair
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class OnWindowedStreamTest extends AcceptPFTestBase {
 

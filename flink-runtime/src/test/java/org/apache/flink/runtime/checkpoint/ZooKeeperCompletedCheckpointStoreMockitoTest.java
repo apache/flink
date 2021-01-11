@@ -34,7 +34,10 @@ import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.Curator
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.api.ErrorListenerPathable;
 import org.apache.flink.shaded.curator4.org.apache.curator.utils.EnsurePath;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -48,9 +51,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.Executor;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -74,7 +77,8 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
      *
      * <p>We have a timeout in case the ZooKeeper store get's into a deadlock/livelock situation.
      */
-    @Test(timeout = 50000)
+    @Test
+    @Timeout(50)
     public void testCheckpointRecovery() throws Exception {
         final JobID jobID = new JobID();
         final long checkpoint1Id = 1L;
@@ -223,7 +227,8 @@ public class ZooKeeperCompletedCheckpointStoreMockitoTest extends TestLogger {
      *
      * <p>We have a timeout in case the ZooKeeper store get's into a deadlock/livelock situation.
      */
-    @Test(timeout = 50000)
+    @Test
+    @Timeout(50)
     public void testCheckpointRecoveryPreferCheckpoint() throws Exception {
         final JobID jobID = new JobID();
         final long checkpoint1Id = 1L;

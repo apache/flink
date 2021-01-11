@@ -64,20 +64,26 @@ class PushLimitIntoLegacyTableSourceScanRuleTest extends TableTestBase {
     util.tableEnv.executeSql(ddl)
   }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testLimitWithNegativeOffset(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
-  }
+        assertThrows[SqlParserException] {
+                util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 10 OFFSET -1")
+        }
+    }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testNegativeLimitWithoutOffset(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1")
-  }
+        assertThrows[SqlParserException] {
+                util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT -1")
+        }
+    }
 
-  @Test(expected = classOf[SqlParserException])
+  @Test
   def testMysqlLimit(): Unit = {
-    util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
-  }
+        assertThrows[SqlParserException] {
+                util.verifyRelPlan("SELECT a, c FROM LimitTable LIMIT 1, 10")
+        }
+    }
 
   @Test
   def testCanPushdownLimitWithoutOffset(): Unit = {

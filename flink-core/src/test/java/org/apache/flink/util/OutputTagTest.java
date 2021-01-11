@@ -20,28 +20,44 @@ package org.apache.flink.util;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link OutputTag}. */
 public class OutputTagTest {
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullRejected() {
-        new OutputTag<Integer>(null);
+        assertThrows(NullPointerException.class, () -> {
+                    new OutputTag<Integer>(null);
+        });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testNullRejectedWithTypeInfo() {
-        new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
+        assertThrows(NullPointerException.class, () -> {
+                    new OutputTag<>(null, BasicTypeInfo.INT_TYPE_INFO);
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyStringRejected() {
-        new OutputTag<Integer>("");
+        assertThrows(IllegalArgumentException.class, () -> {
+                    new OutputTag<Integer>("");
+        });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testEmptyStringRejectedWithTypeInfo() {
-        new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
+        assertThrows(IllegalArgumentException.class, () -> {
+                    new OutputTag<>("", BasicTypeInfo.INT_TYPE_INFO);
+        });
     }
 }

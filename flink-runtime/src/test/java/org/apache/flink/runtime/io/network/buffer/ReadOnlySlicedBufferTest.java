@@ -27,17 +27,25 @@ import org.apache.flink.runtime.io.network.netty.NettyBufferPool;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ReadOnlySlicedNetworkBuffer}. */
 public class ReadOnlySlicedBufferTest {
@@ -66,14 +74,22 @@ public class ReadOnlySlicedBufferTest {
         assertEquals(eventBuffer.isBuffer(), eventBuffer.readOnlySlice(1, 2).isBuffer());
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testSetDataTypeThrows1() {
-        buffer.readOnlySlice().setDataType(Buffer.DataType.EVENT_BUFFER);
+        assertThrows(
+                ReadOnlyBufferException.class,
+                () -> {
+                    buffer.readOnlySlice().setDataType(Buffer.DataType.EVENT_BUFFER);
+                });
     }
 
-    @Test(expected = ReadOnlyBufferException.class)
+    @Test
     public void testSetDataTypeThrows2() {
-        buffer.readOnlySlice(1, 2).setDataType(Buffer.DataType.EVENT_BUFFER);
+        assertThrows(
+                ReadOnlyBufferException.class,
+                () -> {
+                    buffer.readOnlySlice(1, 2).setDataType(Buffer.DataType.EVENT_BUFFER);
+                });
     }
 
     @Test

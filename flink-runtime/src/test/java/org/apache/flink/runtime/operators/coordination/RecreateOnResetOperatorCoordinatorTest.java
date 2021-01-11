@@ -21,7 +21,11 @@ package org.apache.flink.runtime.operators.coordination;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,10 +34,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unit tests for {@link RecreateOnResetOperatorCoordinator}. */
 public class RecreateOnResetOperatorCoordinatorTest {
@@ -177,7 +181,8 @@ public class RecreateOnResetOperatorCoordinatorTest {
                 completedCheckpointId, internalCoordinatorAfterReset.getLastCheckpointComplete());
     }
 
-    @Test(timeout = 30000L)
+    @Test
+    @Timeout(30)
     public void testConsecutiveResetToCheckpoint() throws Exception {
         final long closingTimeoutMs = Long.MAX_VALUE;
         final int numResets = 1000;

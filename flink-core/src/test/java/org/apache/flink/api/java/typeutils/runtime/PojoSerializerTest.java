@@ -37,8 +37,11 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -48,8 +51,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** A test for the {@link PojoSerializer}. */
 public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.TestUserClass> {
@@ -270,9 +273,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
 
         int tHash = tupleComp.hash(tupleTest);
 
-        Assert.assertTrue(
-                "The hashing for tuples and pojos must be the same, so that they are mixable",
-                pHash == tHash);
+        Assertions.assertTrue(
+                pHash == tHash,
+                "The hashing for tuples and pojos must be the same, so that they are mixable");
 
         Tuple3<Integer, String, Double> multiTupleTest =
                 new Tuple3<Integer, String, Double>(
@@ -289,11 +292,11 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
                         },
                         pType);
         try {
-            Assert.assertTrue(
-                    "Expecting the keys to be compatible", fieldKey.areCompatible(expressKey));
+            Assertions.assertTrue(
+                    fieldKey.areCompatible(expressKey), "Expecting the keys to be compatible");
         } catch (IncompatibleKeysException e) {
             e.printStackTrace();
-            Assert.fail("Keys must be compatible: " + e.getMessage());
+            Assertions.fail("Keys must be compatible: " + e.getMessage());
         }
         TypeComparator<TestUserClass> multiPojoComp =
                 pType.createComparator(
@@ -312,9 +315,9 @@ public class PojoSerializerTest extends SerializerTestBase<PojoSerializerTest.Te
                         new ExecutionConfig());
         int multiTupleHash = multiTupleComp.hash(multiTupleTest);
 
-        Assert.assertTrue(
-                "The hashing for tuples and pojos must be the same, so that they are mixable. Also for those with multiple key fields",
-                multiPojoHash == multiTupleHash);
+        Assertions.assertTrue(
+                multiPojoHash == multiTupleHash,
+                "The hashing for tuples and pojos must be the same, so that they are mixable. Also for those with multiple key fields");
     }
 
     // --------------------------------------------------------------------------------------------

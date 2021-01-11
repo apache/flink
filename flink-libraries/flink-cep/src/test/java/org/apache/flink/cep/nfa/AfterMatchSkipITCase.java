@@ -34,14 +34,22 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
 import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.cep.utils.NFATestUtilities.comparePatterns;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** IT tests covering {@link AfterMatchSkipStrategy}. */
 public class AfterMatchSkipITCase extends TestLogger {
@@ -637,41 +645,55 @@ public class AfterMatchSkipITCase extends TestLogger {
                         Lists.newArrayList(a3, b4)));
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToFirstElementOfMatch() throws Exception {
-        List<StreamRecord<Event>> streamEvents = new ArrayList<>();
+        assertThrows(
+                FlinkRuntimeException.class,
+                () -> {
+                    List<StreamRecord<Event>> streamEvents = new ArrayList<>();
 
-        Event a1 = new Event(1, "a1", 0.0);
+                    Event a1 = new Event(1, "a1", 0.0);
 
-        streamEvents.add(new StreamRecord<Event>(a1));
+                    streamEvents.add(new StreamRecord<Event>(a1));
 
-        Pattern<Event, ?> pattern =
-                Pattern.<Event>begin(
-                                "a", AfterMatchSkipStrategy.skipToFirst("a").throwExceptionOnMiss())
-                        .where(
-                                new SimpleCondition<Event>() {
+                    Pattern<Event, ?> pattern =
+                            Pattern.<Event>begin(
+                                            "a",
+                                            AfterMatchSkipStrategy.skipToFirst("a")
+                                                    .throwExceptionOnMiss())
+                                    .where(
+                                            new SimpleCondition<Event>() {
 
-                                    @Override
-                                    public boolean filter(Event value) throws Exception {
-                                        return value.getName().contains("a");
-                                    }
-                                });
-        NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
+                                                @Override
+                                                public boolean filter(Event value)
+                                                        throws Exception {
+                                                    return value.getName().contains("a");
+                                                }
+                                            });
+                    NFATestHarness nfaTestHarness = NFATestHarness.forPattern(pattern).build();
 
-        List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
+                    List<List<Event>> resultingPatterns = nfaTestHarness.feedRecords(streamEvents);
 
-        // skip to first element of a match should throw exception if they are enabled,
-        // this mode is used in MATCH RECOGNIZE which assumes that skipping to first element
-        // would result in infinite loop. In CEP by default(with exceptions disabled), we use no
-        // skip
-        // strategy in this case.
+                    // skip to first element of a match should throw exception if they are enabled,
+                    // this mode is used in MATCH RECOGNIZE which assumes that skipping to first
+                    // element
+                    // would result in infinite loop. In CEP by default(with exceptions disabled),
+                    // we use no
+                    // skip
+                    // strategy in this case.
+                });
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToFirstNonExistentPosition() throws Exception {
-        MissedSkipTo.compute(AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
+        assertThrows(
+                FlinkRuntimeException.class,
+                () -> {
+                    MissedSkipTo.compute(
+                            AfterMatchSkipStrategy.skipToFirst("b").throwExceptionOnMiss());
 
-        // exception should be thrown
+                    // exception should be thrown
+                });
     }
 
     @Test
@@ -684,11 +706,16 @@ public class AfterMatchSkipITCase extends TestLogger {
                 Collections.singletonList(Lists.newArrayList(MissedSkipTo.a, MissedSkipTo.c)));
     }
 
-    @Test(expected = FlinkRuntimeException.class)
+    @Test
     public void testSkipToLastNonExistentPosition() throws Exception {
-        MissedSkipTo.compute(AfterMatchSkipStrategy.skipToLast("b").throwExceptionOnMiss());
+        assertThrows(
+                FlinkRuntimeException.class,
+                () -> {
+                    MissedSkipTo.compute(
+                            AfterMatchSkipStrategy.skipToLast("b").throwExceptionOnMiss());
 
-        // exception should be thrown
+                    // exception should be thrown
+                });
     }
 
     @Test

@@ -28,7 +28,7 @@ import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.delegation.Parser;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -36,10 +36,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link SqlCommandParser}. */
 public class SqlCommandParserTest {
@@ -404,9 +404,9 @@ public class SqlCommandParserTest {
         SqlCommandCall actualCall = checkFlagAndActualCall.f1;
         assertNotNull(item.expectedCmd);
         assertEquals(
-                "test statement: " + item.sql,
                 new SqlCommandCall(item.expectedCmd, item.expectedOperands),
-                actualCall);
+                actualCall,
+                "test statement: " + item.sql);
 
         String stmtWithComment = "-- comments \n " + item.sql;
         try {

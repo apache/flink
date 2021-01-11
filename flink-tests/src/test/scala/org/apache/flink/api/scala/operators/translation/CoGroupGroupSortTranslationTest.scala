@@ -23,7 +23,7 @@ import org.apache.flink.api.common.operators.base.CoGroupOperatorBase
 import org.apache.flink.api.java.io.DiscardingOutputFormat
 import org.apache.flink.api.scala._
 import org.apache.flink.util.{Collector, TestLogger}
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{Ignore, Test}
 
 class CoGroupGroupSortTranslationTest extends TestLogger {

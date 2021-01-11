@@ -42,7 +42,15 @@ import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -57,7 +65,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 
 /** Tests for {@link KvStateSerializer}. */
@@ -93,37 +101,53 @@ public class KvStateRequestSerializerTest {
     }
 
     /** Tests key and namespace deserialization utils with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testKeyAndNamespaceDeserializationEmpty() throws Exception {
-        KvStateSerializer.deserializeKeyAndNamespace(
-                new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    KvStateSerializer.deserializeKeyAndNamespace(
+                            new byte[] {}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+                });
     }
 
     /** Tests key and namespace deserialization utils with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testKeyAndNamespaceDeserializationTooShort() throws Exception {
-        KvStateSerializer.deserializeKeyAndNamespace(
-                new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    KvStateSerializer.deserializeKeyAndNamespace(
+                            new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+                });
     }
 
     /** Tests key and namespace deserialization utils with too many bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testKeyAndNamespaceDeserializationTooMany1() throws Exception {
-        // Long + null String + 1 byte
-        KvStateSerializer.deserializeKeyAndNamespace(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2},
-                LongSerializer.INSTANCE,
-                StringSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long + null String + 1 byte
+                    KvStateSerializer.deserializeKeyAndNamespace(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2},
+                            LongSerializer.INSTANCE,
+                            StringSerializer.INSTANCE);
+                });
     }
 
     /** Tests key and namespace deserialization utils with too many bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testKeyAndNamespaceDeserializationTooMany2() throws Exception {
-        // Long + null String + 2 bytes
-        KvStateSerializer.deserializeKeyAndNamespace(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2, 2},
-                LongSerializer.INSTANCE,
-                StringSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long + null String + 2 bytes
+                    KvStateSerializer.deserializeKeyAndNamespace(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 42, 0, 2, 2},
+                            LongSerializer.INSTANCE,
+                            StringSerializer.INSTANCE);
+                });
     }
 
     /** Tests value serialization utils. */
@@ -139,32 +163,48 @@ public class KvStateRequestSerializerTest {
     }
 
     /** Tests value deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeValueEmpty() throws Exception {
-        KvStateSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    KvStateSerializer.deserializeValue(new byte[] {}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests value deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeValueTooShort() throws Exception {
-        // 1 byte (incomplete Long)
-        KvStateSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // 1 byte (incomplete Long)
+                    KvStateSerializer.deserializeValue(new byte[] {1}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests value deserialization with too many bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeValueTooMany1() throws Exception {
-        // Long + 1 byte
-        KvStateSerializer.deserializeValue(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long + 1 byte
+                    KvStateSerializer.deserializeValue(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests value deserialization with too many bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeValueTooMany2() throws Exception {
-        // Long + 2 bytes
-        KvStateSerializer.deserializeValue(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long + 2 bytes
+                    KvStateSerializer.deserializeValue(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 2}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests list serialization utils. */
@@ -244,18 +284,26 @@ public class KvStateRequestSerializerTest {
     }
 
     /** Tests list deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeListTooShort1() throws Exception {
-        // 1 byte (incomplete Long)
-        KvStateSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // 1 byte (incomplete Long)
+                    KvStateSerializer.deserializeList(new byte[] {1}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests list deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeListTooShort2() throws Exception {
-        // Long + 1 byte (separator) + 1 byte (incomplete Long)
-        KvStateSerializer.deserializeList(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3}, LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long + 1 byte (separator) + 1 byte (incomplete Long)
+                    KvStateSerializer.deserializeList(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 2, 3}, LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests map serialization utils. */
@@ -384,31 +432,43 @@ public class KvStateRequestSerializerTest {
     }
 
     /** Tests map deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeMapTooShort1() throws Exception {
-        // 1 byte (incomplete Key)
-        KvStateSerializer.deserializeMap(
-                new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // 1 byte (incomplete Key)
+                    KvStateSerializer.deserializeMap(
+                            new byte[] {1}, LongSerializer.INSTANCE, StringSerializer.INSTANCE);
+                });
     }
 
     /** Tests map deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeMapTooShort2() throws Exception {
-        // Long (Key) + 1 byte (incomplete Value)
-        KvStateSerializer.deserializeMap(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0},
-                LongSerializer.INSTANCE,
-                LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long (Key) + 1 byte (incomplete Value)
+                    KvStateSerializer.deserializeMap(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0},
+                            LongSerializer.INSTANCE,
+                            LongSerializer.INSTANCE);
+                });
     }
 
     /** Tests map deserialization with too few bytes. */
-    @Test(expected = IOException.class)
+    @Test
     public void testDeserializeMapTooShort3() throws Exception {
-        // Long (Key1) + Boolean (false) + Long (Value1) + 1 byte (incomplete Key2)
-        KvStateSerializer.deserializeMap(
-                new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
-                LongSerializer.INSTANCE,
-                LongSerializer.INSTANCE);
+        assertThrows(
+                IOException.class,
+                () -> {
+                    // Long (Key1) + Boolean (false) + Long (Value1) + 1 byte (incomplete Key2)
+                    KvStateSerializer.deserializeMap(
+                            new byte[] {1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 3},
+                            LongSerializer.INSTANCE,
+                            LongSerializer.INSTANCE);
+                });
     }
 
     private byte[] randomByteArray(int capacity) {

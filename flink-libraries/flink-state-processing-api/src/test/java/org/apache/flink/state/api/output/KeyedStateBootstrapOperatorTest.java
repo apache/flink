@@ -38,9 +38,15 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.util.Collector;
 
 import org.hamcrest.Matchers;
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 import org.junit.rules.TemporaryFolder;
 
 /** Test writing keyed bootstrap state. */
@@ -149,7 +155,7 @@ public class KeyedStateBootstrapOperatorTest {
 
     private <T> void assertHarnessOutput(
             KeyedOneInputStreamOperatorTestHarness<Long, Long, T> harness, T... output) {
-        Assert.assertThat(
+        MatcherAssert.assertThat(
                 "The output from the operator does not match the expected values",
                 harness.extractOutputValues(),
                 Matchers.containsInAnyOrder(output));

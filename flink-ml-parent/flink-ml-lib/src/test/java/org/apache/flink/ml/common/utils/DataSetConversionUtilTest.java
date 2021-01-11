@@ -28,10 +28,16 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.util.Collections;
@@ -53,7 +59,7 @@ public class DataSetConversionUtilTest {
                         input,
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -72,7 +78,7 @@ public class DataSetConversionUtilTest {
                         new TableSchema(
                                 new String[] {"word"},
                                 new TypeInformation[] {TypeInformation.of(Integer.class)}));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -99,7 +105,7 @@ public class DataSetConversionUtilTest {
                         MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
                         input,
                         new String[] {"word"});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(String.class)}),
@@ -108,7 +114,7 @@ public class DataSetConversionUtilTest {
                 DataSetConversionUtil.fromTable(
                                 MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1)
                         .collect();
-        Assert.assertEquals(Collections.singletonList(Row.of("a")), list);
+        Assertions.assertEquals(Collections.singletonList(Row.of("a")), list);
     }
 
     @Test
@@ -122,7 +128,7 @@ public class DataSetConversionUtilTest {
                         MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
                         input,
                         new String[] {"word"});
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(String.class)}),
@@ -138,7 +144,7 @@ public class DataSetConversionUtilTest {
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)});
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),
@@ -155,7 +161,7 @@ public class DataSetConversionUtilTest {
                                 new String[] {"word"},
                                 new TypeInformation[] {TypeInformation.of(Integer.class)}));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new TableSchema(
                         new String[] {"word"},
                         new TypeInformation[] {TypeInformation.of(Integer.class)}),

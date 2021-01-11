@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * SinkFunction asserting that at least one record was collected.

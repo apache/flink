@@ -50,9 +50,10 @@ class GroupWindowITCase(
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"),
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"))
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testAllEventTimeTumblingWindowOverCount(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[UnsupportedOperationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
@@ -65,7 +66,8 @@ class GroupWindowITCase(
       .groupBy('w)
       .select('int.count)
       .toDataSet[Row]
-  }
+        }
+    }
 
   @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
@@ -217,9 +219,10 @@ class GroupWindowITCase(
   // Sliding windows
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[UnsupportedOperationException])
+  @Test
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
-    val env = ExecutionEnvironment.getExecutionEnvironment
+        assertThrows[UnsupportedOperationException] {
+                val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env, config)
 
     val table = env
@@ -232,7 +235,8 @@ class GroupWindowITCase(
       .groupBy('w)
       .select('int.count)
       .toDataSet[Row]
-  }
+        }
+    }
 
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {

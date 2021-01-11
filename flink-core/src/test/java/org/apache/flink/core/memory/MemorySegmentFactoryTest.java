@@ -17,10 +17,18 @@
 
 package org.apache.flink.core.memory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import static java.lang.System.arraycopy;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 /** {@link MemorySegmentFactory} test. */
 public class MemorySegmentFactoryTest {
@@ -49,13 +57,21 @@ public class MemorySegmentFactoryTest {
         MemorySegmentFactory.wrapCopy(new byte[0], 0, 0);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongStart() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 10, 3);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testWrapCopyWrongEnd() {
-        MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    MemorySegmentFactory.wrapCopy(new byte[] {1, 2, 3}, 0, 10);
+                });
     }
 }

@@ -22,12 +22,17 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.AbstractTestBase;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Iterator;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * This test verifies the behavior of DataStreamUtils.collect().
@@ -48,10 +53,10 @@ public class CollectITCase extends AbstractTestBase {
         long i = 1;
         for (Iterator<Long> it = DataStreamUtils.collect(stream); it.hasNext(); ) {
             long x = it.next();
-            assertEquals("received wrong element", i, x);
+            assertEquals(i, x, "received wrong element");
             i++;
         }
 
-        assertEquals("received wrong number of elements", n + 1, i);
+        assertEquals(n + 1, i, "received wrong number of elements");
     }
 }

@@ -32,9 +32,9 @@ import org.apache.flink.types.Record;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 
@@ -74,7 +74,7 @@ public class SpillingResettableMutableObjectIteratorTest {
         this.ioman = null;
 
         if (!this.memman.verifyEmpty()) {
-            Assert.fail(
+            Assertions.fail(
                     "A memory leak has occurred: Not all memory was properly returned to the memory manager.");
         }
         this.memman.shutdown();
@@ -102,13 +102,13 @@ public class SpillingResettableMutableObjectIteratorTest {
             int count = 0;
             Record target = new Record();
             while ((target = iterator.next(target)) != null) {
-                Assert.assertEquals(
-                        "In initial run, element " + count + " does not match expected value!",
+                Assertions.assertEquals(
                         count++,
-                        target.getField(0, IntValue.class).getValue());
+                        target.getField(0, IntValue.class).getValue(),
+                        "In initial run, element " + count + " does not match expected value!");
             }
-            Assert.assertEquals(
-                    "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
+            Assertions.assertEquals(
+                    NUM_TESTRECORDS, count, "Too few elements were deserialzied in initial run!");
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
                 count = 0;
@@ -116,26 +116,26 @@ public class SpillingResettableMutableObjectIteratorTest {
                 target = new Record();
                 // now we should get the same results
                 while ((target = iterator.next(target)) != null) {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
+                            count++,
+                            target.getField(0, IntValue.class).getValue(),
                             "After reset nr. "
                                     + j
                                     + 1
                                     + " element "
                                     + count
-                                    + " does not match expected value!",
-                            count++,
-                            target.getField(0, IntValue.class).getValue());
+                                    + " does not match expected value!");
                 }
-                Assert.assertEquals(
-                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
+                Assertions.assertEquals(
                         NUM_TESTRECORDS,
-                        count);
+                        count,
+                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!");
             }
             // close the iterator
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 
@@ -159,13 +159,13 @@ public class SpillingResettableMutableObjectIteratorTest {
             int count = 0;
             Record target = new Record();
             while ((target = iterator.next(target)) != null) {
-                Assert.assertEquals(
-                        "In initial run, element " + count + " does not match expected value!",
+                Assertions.assertEquals(
                         count++,
-                        target.getField(0, IntValue.class).getValue());
+                        target.getField(0, IntValue.class).getValue(),
+                        "In initial run, element " + count + " does not match expected value!");
             }
-            Assert.assertEquals(
-                    "Too few elements were deserialzied in initial run!", NUM_TESTRECORDS, count);
+            Assertions.assertEquals(
+                    NUM_TESTRECORDS, count, "Too few elements were deserialzied in initial run!");
             // test resetting the iterator a few times
             for (int j = 0; j < 10; ++j) {
                 count = 0;
@@ -173,26 +173,26 @@ public class SpillingResettableMutableObjectIteratorTest {
                 target = new Record();
                 // now we should get the same results
                 while ((target = iterator.next(target)) != null) {
-                    Assert.assertEquals(
+                    Assertions.assertEquals(
+                            count++,
+                            target.getField(0, IntValue.class).getValue(),
                             "After reset nr. "
                                     + j
                                     + 1
                                     + " element "
                                     + count
-                                    + " does not match expected value!",
-                            count++,
-                            target.getField(0, IntValue.class).getValue());
+                                    + " does not match expected value!");
                 }
-                Assert.assertEquals(
-                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!",
+                Assertions.assertEquals(
                         NUM_TESTRECORDS,
-                        count);
+                        count,
+                        "Too few elements were deserialzied after reset nr. " + j + 1 + "!");
             }
             // close the iterator
             iterator.close();
         } catch (Exception ex) {
             ex.printStackTrace();
-            Assert.fail("Test encountered an exception.");
+            Assertions.fail("Test encountered an exception.");
         }
     }
 }

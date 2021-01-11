@@ -25,9 +25,10 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mockito;
 
 import java.util.ArrayDeque;
@@ -45,18 +46,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 /** Tests for the {@link LocalBufferPool}. */
+@Timeout(10)
 public class LocalBufferPoolTest extends TestLogger {
 
     private static final int numBuffers = 1024;
@@ -68,8 +71,6 @@ public class LocalBufferPoolTest extends TestLogger {
     private BufferPool localBufferPool;
 
     private static final ExecutorService executor = Executors.newCachedThreadPool();
-
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Before
     public void setupLocalBufferPool() {
@@ -86,7 +87,7 @@ public class LocalBufferPoolTest extends TestLogger {
         }
 
         String msg = "Did not return all buffers to memory segment pool after test.";
-        assertEquals(msg, numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments());
+        assertEquals(numBuffers, networkBufferPool.getNumberOfAvailableMemorySegments(), msg);
         // no other local buffer pools used than the one above, but call just in case
         networkBufferPool.destroyAllBufferPools();
         networkBufferPool.destroy();
@@ -221,11 +222,15 @@ public class LocalBufferPoolTest extends TestLogger {
         assertEquals(numBuffers / 2, localBufferPool.getNumberOfAvailableMemorySegments());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testSetLessThanRequiredNumBuffers() {
-        localBufferPool.setNumBuffers(1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    localBufferPool.setNumBuffers(1);
 
-        localBufferPool.setNumBuffers(0);
+                    localBufferPool.setNumBuffers(0);
+                });
     }
 
     // ------------------------------------------------------------------------

@@ -21,7 +21,7 @@ package org.apache.flink.test.manual;
 import org.apache.flink.types.parser.FieldParserTest;
 
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.reflections.Reflections;
 import org.reflections.scanners.MemberUsageScanner;
 import org.reflections.util.ClasspathHelper;
@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests via reflection that certain methods are not called in Flink.
@@ -125,7 +125,7 @@ public class CheckForbiddenMethodsUsage {
         for (ForbiddenCall forbiddenCall : forbiddenCalls) {
             final Set<Member> methodUsages = forbiddenCall.getUsages(reflections);
             methodUsages.removeAll(forbiddenCall.getExclusions());
-            assertEquals("Unexpected calls: " + methodUsages, 0, methodUsages.size());
+            assertEquals(0, methodUsages.size(), "Unexpected calls: " + methodUsages);
         }
     }
 }

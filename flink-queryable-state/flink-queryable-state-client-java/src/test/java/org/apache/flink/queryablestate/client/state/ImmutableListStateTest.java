@@ -26,14 +26,22 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests the {@link ImmutableListState}. */
 public class ImmutableListStateTest {
@@ -56,26 +64,34 @@ public class ImmutableListStateTest {
         listState = ImmutableListState.createState(listStateDesc, serInit);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testUpdate() throws Exception {
-        List<Long> list = getStateContents();
-        assertEquals(1L, list.size());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    List<Long> list = getStateContents();
+                    assertEquals(1L, list.size());
 
-        long element = list.get(0);
-        assertEquals(42L, element);
+                    long element = list.get(0);
+                    assertEquals(42L, element);
 
-        listState.add(54L);
+                    listState.add(54L);
+                });
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testClear() throws Exception {
-        List<Long> list = getStateContents();
-        assertEquals(1L, list.size());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    List<Long> list = getStateContents();
+                    assertEquals(1L, list.size());
 
-        long element = list.get(0);
-        assertEquals(42L, element);
+                    long element = list.get(0);
+                    assertEquals(42L, element);
 
-        listState.clear();
+                    listState.clear();
+                });
     }
 
     /** Copied from HeapListState.getSerializedValue(Object, Object). */

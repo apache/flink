@@ -30,9 +30,10 @@ import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.proto.ProtoParquetReader;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,17 +43,16 @@ import java.util.List;
 
 import static com.google.protobuf.Message.Builder;
 import static org.apache.flink.formats.parquet.protobuf.SimpleRecord.SimpleProtoRecord;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
  * with Parquet.
  */
+@Timeout(20)
 public class ParquetProtoStreamingFileSinkITCase extends AbstractTestBase {
-
-    @Rule public final Timeout timeoutPerTest = Timeout.seconds(20);
 
     @Test
     public void testParquetProtoWriters() throws Exception {

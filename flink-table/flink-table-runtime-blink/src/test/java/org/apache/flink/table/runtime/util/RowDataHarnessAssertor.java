@@ -25,8 +25,6 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Assert;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,7 +32,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Utils for working with the various window test harnesses. */
 public class RowDataHarnessAssertor {
@@ -124,7 +122,7 @@ public class RowDataHarnessAssertor {
             Arrays.sort(sortedActual, comparator);
         }
 
-        Assert.assertArrayEquals(message, sortedExpected, sortedActual);
+        Assertions.assertArrayEquals(sortedExpected, sortedActual, message);
     }
 
     private static class StringComparator implements Comparator<GenericRowData> {

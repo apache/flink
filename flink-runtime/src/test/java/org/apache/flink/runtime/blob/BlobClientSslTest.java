@@ -26,7 +26,15 @@ import org.apache.flink.runtime.net.SSLUtilsTest;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -111,31 +119,39 @@ public class BlobClientSslTest extends BlobClientTest {
     }
 
     /** Verify ssl client to non-ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLClientFailure() throws Exception {
-        // SSL client connected to non-ssl server
+        assertThrows(IOException.class, () -> {
+                    // SSL client connected to non-ssl server
         uploadJarFile(blobServer, sslClientConfig);
+        });
     }
 
     /** Verify ssl client to non-ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLClientFailure2() throws Exception {
-        // SSL client connected to non-ssl server
+        assertThrows(IOException.class, () -> {
+                    // SSL client connected to non-ssl server
         uploadJarFile(blobNonSslServer, sslClientConfig);
+        });
     }
 
     /** Verify non-ssl client to ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLServerFailure() throws Exception {
-        // Non-SSL client connected to ssl server
+        assertThrows(IOException.class, () -> {
+                    // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, clientConfig);
+        });
     }
 
     /** Verify non-ssl client to ssl server failure. */
-    @Test(expected = IOException.class)
+    @Test
     public void testSSLServerFailure2() throws Exception {
-        // Non-SSL client connected to ssl server
+        assertThrows(IOException.class, () -> {
+                    // Non-SSL client connected to ssl server
         uploadJarFile(blobSslServer, nonSslClientConfig);
+        });
     }
 
     /** Verify non-ssl connection sanity. */

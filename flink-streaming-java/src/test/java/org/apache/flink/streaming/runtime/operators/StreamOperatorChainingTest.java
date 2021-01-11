@@ -42,8 +42,15 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -114,7 +121,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        Assertions.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 
@@ -243,7 +250,7 @@ public class StreamOperatorChainingTest {
         // be build our own StreamTask and OperatorChain
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
-        Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
+        Assertions.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 2);
 
         JobVertex chainedVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 

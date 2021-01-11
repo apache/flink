@@ -21,12 +21,11 @@ package org.apache.flink.table.planner.codegen
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
-
-import org.junit.{Assert, Test}
+import org.junit.jupiter.api.{Assertions, Test}
 
 /**
-  * Test for [[HashCodeGenerator]].
-  */
+ * Test for [[HashCodeGenerator]].
+ */
 class HashCodeGeneratorTest {
 
   private val classLoader = Thread.currentThread().getContextClassLoader
@@ -48,8 +47,8 @@ class HashCodeGeneratorTest {
     ).newInstance(classLoader)
 
     val row = GenericRowData.of(ji(5), jl(8), Array[Byte](1, 5, 6))
-    Assert.assertEquals(637, hashFunc1.hashCode(row))
-    Assert.assertEquals(136516167, hashFunc2.hashCode(row))
+    Assertions.assertEquals(637, hashFunc1.hashCode(row))
+    Assertions.assertEquals(136516167, hashFunc2.hashCode(row))
   }
 
   def ji(i: Int): Integer = {

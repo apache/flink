@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.webmonitor.history;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -32,23 +33,28 @@ import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationFeature;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.apache.commons.io.IOUtils;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -62,13 +68,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -77,7 +77,7 @@ import java.util.stream.Stream;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the HistoryServer. */
 @RunWith(Parameterized.class)
@@ -151,7 +151,7 @@ public class HistoryServerTest extends TestLogger {
             hs.start();
             String baseUrl = "http://localhost:" + hs.getWebPort();
 
-            Assert.assertEquals(0, getJobsOverview(baseUrl).getJobs().size());
+            Assertions.assertEquals(0, getJobsOverview(baseUrl).getJobs().size());
 
             for (int x = 0; x < numJobs; x++) {
                 runJob();
@@ -160,7 +160,8 @@ public class HistoryServerTest extends TestLogger {
             waitForArchivesCreation(numJobs + numLegacyJobs);
 
             assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+            Assertions.assertEquals(
+                    numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
 
             // checks whether the dashboard configuration contains all expected fields
             getDashboardConfiguration(baseUrl);
@@ -223,7 +224,7 @@ public class HistoryServerTest extends TestLogger {
             String baseUrl = "http://localhost:" + hs.getWebPort();
             assertTrue(numArchivesCreatedInitially.await(10L, TimeUnit.SECONDS));
             assertTrue(numArchivesDeletedInitially.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
 
             for (int j = numArchivesBeforeHsStarted;
@@ -235,7 +236,7 @@ public class HistoryServerTest extends TestLogger {
             }
             assertTrue(numArchivesCreatedTotal.await(10L, TimeUnit.SECONDS));
             assertTrue(numArchivesDeletedTotal.await(10L, TimeUnit.SECONDS));
-            Assert.assertEquals(
+            Assertions.assertEquals(
                     new HashSet<>(expectedJobIdsToKeep), getIdsFromJobOverview(baseUrl));
         } finally {
             hs.stop();
@@ -249,14 +250,22 @@ public class HistoryServerTest extends TestLogger {
                 .collect(Collectors.toSet());
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfHistorySizeLimitIsZero() throws Exception {
-        startHistoryServerWithSizeLimit(0);
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    startHistoryServerWithSizeLimit(0);
+                });
     }
 
-    @Test(expected = IllegalConfigurationException.class)
+    @Test
     public void testFailIfHistorySizeLimitIsLessThanMinusOne() throws Exception {
-        startHistoryServerWithSizeLimit(-2);
+        assertThrows(
+                IllegalConfigurationException.class,
+                () -> {
+                    startHistoryServerWithSizeLimit(-2);
+                });
     }
 
     private void startHistoryServerWithSizeLimit(int maxHistorySize)
@@ -315,7 +324,7 @@ public class HistoryServerTest extends TestLogger {
             assertTrue(numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS));
 
             Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
-            Assert.assertEquals(numJobs, jobs.size());
+            Assertions.assertEquals(numJobs, jobs.size());
 
             String jobIdToDelete =
                     jobs.stream()
@@ -334,8 +343,8 @@ public class HistoryServerTest extends TestLogger {
 
             // check that archive is still/no longer present in hs
             Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
-            Assert.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
-            Assert.assertEquals(
+            Assertions.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
+            Assertions.assertEquals(
                     1 - numExpiredJobs,
                     jobsAfterDeletion.stream()
                             .map(JobDetails::getJobId)

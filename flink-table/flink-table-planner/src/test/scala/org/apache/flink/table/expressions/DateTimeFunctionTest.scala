@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
 import org.joda.time.{DateTime, DateTimeZone}
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.sql.Timestamp
 

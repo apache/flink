@@ -23,7 +23,15 @@ import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.types.Row;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -61,9 +69,11 @@ public class CsvTest extends DescriptorTestBase {
     private static final Descriptor MINIMAL_DESCRIPTOR_WITH_DERIVED_SCHEMA =
             new Csv().deriveSchema();
 
-    @Test(expected = ValidationException.class)
+    @Test
     public void testInvalidAllowComments() {
-        addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
+        assertThrows(ValidationException.class, () -> {
+                    addPropertyAndVerify(CUSTOM_DESCRIPTOR_WITH_SCHEMA, "format.allow-comments", "DDD");
+        });
     }
 
     // --------------------------------------------------------------------------------------------

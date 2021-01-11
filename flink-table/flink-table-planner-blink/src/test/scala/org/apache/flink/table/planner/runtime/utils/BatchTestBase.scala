@@ -45,7 +45,7 @@ import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
 import org.apache.flink.table.runtime.util.RowDataTestUtil
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.{After, Assert, Before}
 
 import _root_.java.lang.{Iterable => JIterable}
@@ -139,7 +139,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkFunc(result).foreach { results =>
       val plan = explainLogical(table)
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match for query:
            |  $sqlQuery
@@ -155,7 +155,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
     checkFunc(result).foreach { results =>
       val plan = explainLogical(table)
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match:
            |$results
@@ -284,7 +284,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     val result = executeQuery(table)
 
     checkEmpty(result).foreach { results =>
-      Assert.fail(
+      Assertions.fail(
         s"""
            |Results do not match for query:
            |$results
@@ -459,9 +459,7 @@ object BatchTestBase {
   }
 
   def binaryRow(types: Array[LogicalType], fields: Any*): BinaryRowData = {
-    assertEquals(
-      "Filed count inconsistent with type information",
-      fields.length,
+    assertEquals(      fields.length,
       types.length)
     val row = new BinaryRowData(fields.length)
     val writer = new BinaryRowWriter(row)
@@ -476,14 +474,13 @@ object BatchTestBase {
 
   def compareResult[T](expectedStrings: Array[String],
       result: Array[T],
-      sort: Boolean,
-      asTuples: Boolean = false): Unit = {
+      sort: Boolean,      asTuples: Boolean = false): Unit = {
     val resultStringsBuffer: ArrayBuffer[String] = new ArrayBuffer[String](result.length)
     result.foreach { v =>
       v match {
         case t0: Tuple if asTuples =>
           val first: Any = t0.getField(0)
-          val bld: StringBuilder = new StringBuilder(if (first == null) "null" else first.toString)
+          val bld: StringBuilder = new StringBuilder(if (first == null,       "Filed count inconsistent with type information") "null" else first.toString)
           (1 until t0.getArity).foreach {
             idx =>
               val next = t0.getField(idx)

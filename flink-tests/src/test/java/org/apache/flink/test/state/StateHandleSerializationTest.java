@@ -19,16 +19,15 @@
 package org.apache.flink.test.state;
 
 import org.apache.flink.runtime.state.StateObject;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Set;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * This test validates that all subclasses of {@link StateObject} have a proper serial version UID.
@@ -59,9 +58,9 @@ public class StateHandleSerializationTest {
         // all non-interface types must have a serial version UID
         if (!clazz.isInterface()) {
             assertFalse(
+                    clazz.isAnonymousClass(),
                     "Anonymous state handle classes have problematic serialization behavior: "
-                            + clazz,
-                    clazz.isAnonymousClass());
+                            + clazz);
 
             try {
                 Field versionUidField = clazz.getDeclaredField("serialVersionUID");

@@ -23,14 +23,22 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link Transformation}. */
 public class TransformationTest extends TestLogger {
@@ -57,25 +65,44 @@ public class TransformationTest extends TestLogger {
                 contains(ManagedMemoryUseCase.STATE_BACKEND));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailWrongScope() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.PYTHON, 123);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                            ManagedMemoryUseCase.PYTHON, 123);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailZeroWeight() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase.OPERATOR, 0);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                            ManagedMemoryUseCase.OPERATOR, 0);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemoryOperatorScopeUseCaseFailNegativeWeight() {
-        transformation.declareManagedMemoryUseCaseAtOperatorScope(
-                ManagedMemoryUseCase.OPERATOR, -1);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    transformation.declareManagedMemoryUseCaseAtOperatorScope(
+                            ManagedMemoryUseCase.OPERATOR, -1);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testDeclareManagedMemorySlotScopeUseCaseFailWrongScope() {
-        transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.OPERATOR);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    transformation.declareManagedMemoryUseCaseAtSlotScope(
+                            ManagedMemoryUseCase.OPERATOR);
+                });
     }
 
     /** A test implementation of {@link Transformation}. */

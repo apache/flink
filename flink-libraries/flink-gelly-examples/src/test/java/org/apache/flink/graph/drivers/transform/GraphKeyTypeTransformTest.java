@@ -53,8 +53,16 @@ import org.apache.flink.types.LongValue;
 import org.apache.flink.types.ShortValue;
 import org.apache.flink.types.StringValue;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link GraphKeyTypeTransform}. */
 public class GraphKeyTypeTransformTest {
@@ -73,29 +81,39 @@ public class GraphKeyTypeTransformTest {
     public void testToByteValue() throws Exception {
         TranslateFunction<LongValue, ByteValue> translator = new LongValueToUnsignedByteValue();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ByteValue((byte) 0), translator.translate(new LongValue(0L), byteValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ByteValue(Byte.MIN_VALUE),
                 translator.translate(new LongValue(Byte.MAX_VALUE + 1), byteValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ByteValue((byte) -1),
                 translator.translate(
                         new LongValue(LongValueToUnsignedByteValue.MAX_VERTEX_COUNT - 1),
                         byteValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedByteValue()
-                .translate(new LongValue(LongValueToUnsignedByteValue.MAX_VERTEX_COUNT), byteValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedByteValue()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedByteValue.MAX_VERTEX_COUNT),
+                                    byteValue);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedByteValue().translate(new LongValue(-1), byteValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedByteValue().translate(new LongValue(-1), byteValue);
+                });
     }
 
     @Test
@@ -103,15 +121,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<ByteValue, LongValueWithProperHashCode> translator =
                 new UnsignedByteValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(new ByteValue((byte) 0), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Byte.MAX_VALUE + 1),
                 translator.translate(new ByteValue(Byte.MIN_VALUE), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedByteValue.MAX_VERTEX_COUNT - 1),
                 translator.translate(new ByteValue((byte) -1), longValueWithProperHashCode));
     }
@@ -122,27 +140,36 @@ public class GraphKeyTypeTransformTest {
     public void testToByte() throws Exception {
         TranslateFunction<LongValue, Byte> translator = new LongValueToUnsignedByte();
 
-        Assert.assertEquals(Byte.valueOf((byte) 0), translator.translate(new LongValue(0L), null));
+        Assertions.assertEquals(Byte.valueOf((byte) 0), translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Byte.valueOf(Byte.MIN_VALUE),
                 translator.translate(new LongValue((long) Byte.MAX_VALUE + 1), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Byte.valueOf((byte) -1),
                 translator.translate(
                         new LongValue(LongValueToUnsignedByte.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedByte()
-                .translate(new LongValue(LongValueToUnsignedByte.MAX_VERTEX_COUNT), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedByte()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedByte.MAX_VERTEX_COUNT), null);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToByteLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedByte().translate(new LongValue(-1), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedByte().translate(new LongValue(-1), null);
+                });
     }
 
     @Test
@@ -150,15 +177,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<Byte, LongValueWithProperHashCode> translator =
                 new UnsignedByteToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate((byte) 0, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Byte.MAX_VALUE + 1),
                 translator.translate(Byte.MIN_VALUE, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedByte.MAX_VERTEX_COUNT - 1),
                 translator.translate((byte) -1, longValueWithProperHashCode));
     }
@@ -169,30 +196,39 @@ public class GraphKeyTypeTransformTest {
     public void testToShortValue() throws Exception {
         TranslateFunction<LongValue, ShortValue> translator = new LongValueToUnsignedShortValue();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ShortValue((short) 0), translator.translate(new LongValue(0L), shortValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ShortValue(Short.MIN_VALUE),
                 translator.translate(new LongValue((long) Short.MAX_VALUE + 1), shortValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new ShortValue((short) -1),
                 translator.translate(
                         new LongValue(LongValueToUnsignedShortValue.MAX_VERTEX_COUNT - 1),
                         shortValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedShortValue()
-                .translate(
-                        new LongValue(LongValueToUnsignedShortValue.MAX_VERTEX_COUNT), shortValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedShortValue()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedShortValue.MAX_VERTEX_COUNT),
+                                    shortValue);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedShortValue().translate(new LongValue(-1), shortValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedShortValue().translate(new LongValue(-1), shortValue);
+                });
     }
 
     @Test
@@ -200,15 +236,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<ShortValue, LongValueWithProperHashCode> translator =
                 new UnsignedShortValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(new ShortValue((short) 0), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Short.MAX_VALUE + 1),
                 translator.translate(new ShortValue(Short.MIN_VALUE), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedShortValue.MAX_VERTEX_COUNT - 1),
                 translator.translate(new ShortValue((short) -1), longValueWithProperHashCode));
     }
@@ -219,28 +255,37 @@ public class GraphKeyTypeTransformTest {
     public void testToShort() throws Exception {
         TranslateFunction<LongValue, Short> translator = new LongValueToUnsignedShort();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Short.valueOf((short) 0), translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Short.valueOf(Short.MIN_VALUE),
                 translator.translate(new LongValue((long) Short.MAX_VALUE + 1), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Short.valueOf((short) -1),
                 translator.translate(
                         new LongValue(LongValueToUnsignedShort.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedShort()
-                .translate(new LongValue(LongValueToUnsignedShort.MAX_VERTEX_COUNT), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedShort()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedShort.MAX_VERTEX_COUNT), null);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToShortLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedShort().translate(new LongValue(-1), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedShort().translate(new LongValue(-1), null);
+                });
     }
 
     @Test
@@ -248,15 +293,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<Short, LongValueWithProperHashCode> translator =
                 new UnsignedShortToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate((short) 0, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Short.MAX_VALUE + 1),
                 translator.translate(Short.MIN_VALUE, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedShort.MAX_VERTEX_COUNT - 1),
                 translator.translate((short) -1, longValueWithProperHashCode));
     }
@@ -267,24 +312,34 @@ public class GraphKeyTypeTransformTest {
     public void testToCharValue() throws Exception {
         TranslateFunction<LongValue, CharValue> translator = new LongValueToCharValue();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new CharValue((char) 0), translator.translate(new LongValue(0L), charValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new CharValue(Character.MAX_VALUE),
                 translator.translate(
                         new LongValue(LongValueToCharValue.MAX_VERTEX_COUNT - 1), charValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharValueUpperOutOfRange() throws Exception {
-        new LongValueToCharValue()
-                .translate(new LongValue(LongValueToCharValue.MAX_VERTEX_COUNT), charValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToCharValue()
+                            .translate(
+                                    new LongValue(LongValueToCharValue.MAX_VERTEX_COUNT),
+                                    charValue);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharValueLowerOutOfRange() throws Exception {
-        new LongValueToCharValue().translate(new LongValue(-1), charValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToCharValue().translate(new LongValue(-1), charValue);
+                });
     }
 
     // Character
@@ -293,22 +348,31 @@ public class GraphKeyTypeTransformTest {
     public void testToCharacter() throws Exception {
         TranslateFunction<LongValue, Character> translator = new LongValueToChar();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Character.valueOf((char) 0), translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Character.valueOf(Character.MAX_VALUE),
                 translator.translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharacterUpperOutOfRange() throws Exception {
-        new LongValueToChar().translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToChar()
+                            .translate(new LongValue(LongValueToChar.MAX_VERTEX_COUNT), null);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToCharacterLowerOutOfRange() throws Exception {
-        new LongValueToChar().translate(new LongValue(-1), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToChar().translate(new LongValue(-1), null);
+                });
     }
 
     // Integer
@@ -317,27 +381,36 @@ public class GraphKeyTypeTransformTest {
     public void testToInt() throws Exception {
         TranslateFunction<LongValue, Integer> translator = new LongValueToUnsignedInt();
 
-        Assert.assertEquals(Integer.valueOf(0), translator.translate(new LongValue(0L), null));
+        Assertions.assertEquals(Integer.valueOf(0), translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Integer.valueOf(Integer.MIN_VALUE),
                 translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Integer.valueOf(-1),
                 translator.translate(
                         new LongValue(LongValueToUnsignedInt.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToIntUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedInt()
-                .translate(new LongValue(LongValueToUnsignedInt.MAX_VERTEX_COUNT), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedInt()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedInt.MAX_VERTEX_COUNT), null);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToIntLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedInt().translate(new LongValue(-1), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedInt().translate(new LongValue(-1), null);
+                });
     }
 
     @Test
@@ -345,15 +418,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<Integer, LongValueWithProperHashCode> translator =
                 new UnsignedIntToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(0, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode((long) Integer.MAX_VALUE + 1),
                 translator.translate(Integer.MIN_VALUE, longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedInt.MAX_VERTEX_COUNT - 1),
                 translator.translate(-1, longValueWithProperHashCode));
     }
@@ -365,15 +438,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<LongValue, LongValueWithProperHashCode> translator =
                 new LongValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(new LongValue(0), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MIN_VALUE),
                 translator.translate(new LongValue(Long.MIN_VALUE), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MAX_VALUE),
                 translator.translate(new LongValue(Long.MAX_VALUE), longValueWithProperHashCode));
     }
@@ -384,13 +457,13 @@ public class GraphKeyTypeTransformTest {
     public void testLongValueToLongTranslation() throws Exception {
         TranslateFunction<LongValue, Long> translator = new LongValueToLong();
 
-        Assert.assertEquals(Long.valueOf(0L), translator.translate(new LongValue(0L), null));
+        Assertions.assertEquals(Long.valueOf(0L), translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Long.valueOf(Long.MIN_VALUE),
                 translator.translate(new LongValue(Long.MIN_VALUE), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Long.valueOf(Long.MAX_VALUE),
                 translator.translate(new LongValue(Long.MAX_VALUE), null));
     }
@@ -401,31 +474,40 @@ public class GraphKeyTypeTransformTest {
     public void testToFloatValue() throws Exception {
         TranslateFunction<LongValue, FloatValue> translator = new LongValueToUnsignedFloatValue();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new FloatValue(Float.intBitsToFloat(0)),
                 translator.translate(new LongValue(0L), floatValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new FloatValue(Float.intBitsToFloat(Integer.MIN_VALUE)),
                 translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), floatValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new FloatValue(Float.intBitsToFloat(-1)),
                 translator.translate(
                         new LongValue(LongValueToUnsignedFloatValue.MAX_VERTEX_COUNT - 1),
                         floatValue));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatValueUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedFloatValue()
-                .translate(
-                        new LongValue(LongValueToUnsignedFloatValue.MAX_VERTEX_COUNT), floatValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedFloatValue()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedFloatValue.MAX_VERTEX_COUNT),
+                                    floatValue);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatValueLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedFloatValue().translate(new LongValue(-1), floatValue);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedFloatValue().translate(new LongValue(-1), floatValue);
+                });
     }
 
     @Test
@@ -433,18 +515,18 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<FloatValue, LongValueWithProperHashCode> translator =
                 new UnsignedFloatValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(
                         new FloatValue(Float.intBitsToFloat(0)), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode((long) Integer.MAX_VALUE + 1),
                 translator.translate(
                         new FloatValue(Float.intBitsToFloat(Integer.MIN_VALUE)),
                         longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedFloatValue.MAX_VERTEX_COUNT - 1),
                 translator.translate(
                         new FloatValue(Float.intBitsToFloat(-1)), longValueWithProperHashCode));
@@ -456,29 +538,38 @@ public class GraphKeyTypeTransformTest {
     public void testToFloat() throws Exception {
         TranslateFunction<LongValue, Float> translator = new LongValueToUnsignedFloat();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Float.valueOf(Float.intBitsToFloat(0)),
                 translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Float.valueOf(Float.intBitsToFloat(Integer.MIN_VALUE)),
                 translator.translate(new LongValue((long) Integer.MAX_VALUE + 1), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Float.valueOf(Float.intBitsToFloat(-1)),
                 translator.translate(
                         new LongValue(LongValueToUnsignedFloat.MAX_VERTEX_COUNT - 1), null));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatUpperOutOfRange() throws Exception {
-        new LongValueToUnsignedFloat()
-                .translate(new LongValue(LongValueToUnsignedFloat.MAX_VERTEX_COUNT), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedFloat()
+                            .translate(
+                                    new LongValue(LongValueToUnsignedFloat.MAX_VERTEX_COUNT), null);
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testToFloatLowerOutOfRange() throws Exception {
-        new LongValueToUnsignedFloat().translate(new LongValue(-1), null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new LongValueToUnsignedFloat().translate(new LongValue(-1), null);
+                });
     }
 
     @Test
@@ -486,16 +577,16 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<Float, LongValueWithProperHashCode> translator =
                 new UnsignedFloatToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(Float.intBitsToFloat(0), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode((long) Integer.MAX_VALUE + 1),
                 translator.translate(
                         Float.intBitsToFloat(Integer.MIN_VALUE), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(LongValueToUnsignedFloat.MAX_VERTEX_COUNT - 1),
                 translator.translate(Float.intBitsToFloat(-1), longValueWithProperHashCode));
     }
@@ -506,15 +597,15 @@ public class GraphKeyTypeTransformTest {
     public void testToDoubleValue() throws Exception {
         TranslateFunction<LongValue, DoubleValue> translator = new LongValueToDoubleValue();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new DoubleValue(Double.longBitsToDouble(0L)),
                 translator.translate(new LongValue(0L), doubleValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new DoubleValue(Double.longBitsToDouble(Long.MIN_VALUE)),
                 translator.translate(new LongValue(Long.MIN_VALUE), doubleValue));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new DoubleValue(Double.longBitsToDouble(Long.MAX_VALUE)),
                 translator.translate(new LongValue(Long.MAX_VALUE), doubleValue));
     }
@@ -524,18 +615,18 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<DoubleValue, LongValueWithProperHashCode> translator =
                 new DoubleValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(
                         new DoubleValue(Double.longBitsToDouble(0L)), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MIN_VALUE),
                 translator.translate(
                         new DoubleValue(Double.longBitsToDouble(Long.MIN_VALUE)),
                         longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MAX_VALUE),
                 translator.translate(
                         new DoubleValue(Double.longBitsToDouble(Long.MAX_VALUE)),
@@ -548,15 +639,15 @@ public class GraphKeyTypeTransformTest {
     public void testToDouble() throws Exception {
         TranslateFunction<LongValue, Double> translator = new LongValueToDouble();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Double.valueOf(Double.longBitsToDouble(0L)),
                 translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Double.valueOf(Double.longBitsToDouble(Long.MIN_VALUE)),
                 translator.translate(new LongValue(Long.MIN_VALUE), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 Double.valueOf(Double.longBitsToDouble(Long.MAX_VALUE)),
                 translator.translate(new LongValue(Long.MAX_VALUE), null));
     }
@@ -566,16 +657,16 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<Double, LongValueWithProperHashCode> translator =
                 new DoubleToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(Double.longBitsToDouble(0L), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MIN_VALUE),
                 translator.translate(
                         Double.longBitsToDouble(Long.MIN_VALUE), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MAX_VALUE),
                 translator.translate(
                         Double.longBitsToDouble(Long.MAX_VALUE), longValueWithProperHashCode));
@@ -588,16 +679,16 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<StringValue, LongValueWithProperHashCode> translator =
                 new StringValueToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate(new StringValue("0"), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MIN_VALUE),
                 translator.translate(
                         new StringValue("-9223372036854775808"), longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MAX_VALUE),
                 translator.translate(
                         new StringValue("9223372036854775807"), longValueWithProperHashCode));
@@ -609,12 +700,12 @@ public class GraphKeyTypeTransformTest {
     public void testLongValueToStringTranslation() throws Exception {
         TranslateFunction<LongValue, String> translator = new LongValueToString();
 
-        Assert.assertEquals("0", translator.translate(new LongValue(0L), null));
+        Assertions.assertEquals("0", translator.translate(new LongValue(0L), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "-9223372036854775808", translator.translate(new LongValue(Long.MIN_VALUE), null));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 "9223372036854775807", translator.translate(new LongValue(Long.MAX_VALUE), null));
     }
 
@@ -623,15 +714,15 @@ public class GraphKeyTypeTransformTest {
         TranslateFunction<String, LongValueWithProperHashCode> translator =
                 new StringToLongValueWithProperHashCode();
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(0L),
                 translator.translate("0", longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MIN_VALUE),
                 translator.translate("-9223372036854775808", longValueWithProperHashCode));
 
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 new LongValueWithProperHashCode(Long.MAX_VALUE),
                 translator.translate("9223372036854775807", longValueWithProperHashCode));
     }

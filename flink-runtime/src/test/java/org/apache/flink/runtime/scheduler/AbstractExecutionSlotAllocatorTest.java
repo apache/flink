@@ -23,12 +23,18 @@ import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,10 +43,8 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorTestUtils.createSchedulingRequirements;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.hasSize;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link AbstractExecutionSlotAllocator}. */
 public class AbstractExecutionSlotAllocatorTest extends TestLogger {
@@ -66,15 +70,20 @@ public class AbstractExecutionSlotAllocatorTest extends TestLogger {
         assertThat(assignments.get(0).getLogicalSlotFuture().isCancelled(), is(true));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testValidateSchedulingRequirements() {
-        final ExecutionVertexID executionVertexId = new ExecutionVertexID(new JobVertexID(), 0);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    final ExecutionVertexID executionVertexId =
+                            new ExecutionVertexID(new JobVertexID(), 0);
 
-        final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
-                createSchedulingRequirements(executionVertexId);
-        executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
+                    final List<ExecutionVertexSchedulingRequirements> schedulingRequirements =
+                            createSchedulingRequirements(executionVertexId);
+                    executionSlotAllocator.allocateSlotsFor(schedulingRequirements);
 
-        executionSlotAllocator.validateSchedulingRequirements(schedulingRequirements);
+                    executionSlotAllocator.validateSchedulingRequirements(schedulingRequirements);
+                });
     }
 
     @Test

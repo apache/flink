@@ -18,7 +18,7 @@
 
 package org.apache.flink.test.testdata;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -362,20 +362,20 @@ public class KMeansData {
         final String[] should = expectedResults.split("\n");
         final String[] is = (String[]) resultLines.toArray(new String[resultLines.size()]);
 
-        Assert.assertEquals("Wrong number of result lines.", should.length, is.length);
+        Assertions.assertEquals(should.length, is.length, "Wrong number of result lines.");
 
         for (int i = 0; i < should.length; i++) {
             StringTokenizer shouldRecord = new StringTokenizer(should[i], "|");
             StringTokenizer isRecord = new StringTokenizer(is[i], "|");
 
-            Assert.assertEquals(
-                    "Records don't match.", shouldRecord.countTokens(), isRecord.countTokens());
+            Assertions.assertEquals(
+                    shouldRecord.countTokens(), isRecord.countTokens(), "Records don't match.");
 
             // first token is ID
             String shouldToken = shouldRecord.nextToken();
             String isToken = isRecord.nextToken();
 
-            Assert.assertEquals("Records don't match.", shouldToken, isToken);
+            Assertions.assertEquals(shouldToken, isToken, "Records don't match.");
 
             while (shouldRecord.hasMoreTokens()) {
                 shouldToken = shouldRecord.nextToken();
@@ -384,14 +384,14 @@ public class KMeansData {
                 double shouldDouble = Double.parseDouble(shouldToken);
                 double isDouble = Double.parseDouble(isToken);
 
-                Assert.assertTrue(
+                Assertions.assertTrue(
+                        shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble,
                         "Value "
                                 + isDouble
                                 + " is out of range of "
                                 + shouldDouble
                                 + " +/- "
-                                + maxDelta,
-                        shouldDouble - maxDelta <= isDouble && shouldDouble + maxDelta >= isDouble);
+                                + maxDelta);
             }
         }
     }

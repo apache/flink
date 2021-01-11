@@ -21,18 +21,30 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.runtime.rest.messages.ConversionException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JarIdPathParameter}. */
 public class JarIdPathParameterTest extends TestLogger {
 
     private JarIdPathParameter jarIdPathParameter = new JarIdPathParameter();
 
-    @Test(expected = ConversionException.class)
+    @Test
     public void testJarIdWithParentDir() throws Exception {
-        jarIdPathParameter.convertFromString("../../test.jar");
+        assertThrows(
+                ConversionException.class,
+                () -> {
+                    jarIdPathParameter.convertFromString("../../test.jar");
+                });
     }
 
     @Test

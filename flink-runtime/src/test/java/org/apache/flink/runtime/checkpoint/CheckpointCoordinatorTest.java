@@ -62,10 +62,12 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.verification.VerificationMode;
 
@@ -100,12 +102,12 @@ import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUt
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -1244,7 +1246,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             // triggers cancelling
             manuallyTriggeredScheduledExecutor.triggerScheduledTasks();
-            assertTrue("Checkpoint was not canceled by the timeout", checkpoint.isDisposed());
+            assertTrue(checkpoint.isDisposed(), "Checkpoint was not canceled by the timeout");
             assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
             assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
 
@@ -2070,11 +2072,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         CompletableFuture<CompletedCheckpoint> savepoint0 =
                 checkpointCoordinator.triggerSavepoint(savepointDir);
-        assertFalse("Did not trigger savepoint", savepoint0.isDone());
+        assertFalse(savepoint0.isDone(), "Did not trigger savepoint");
 
         CompletableFuture<CompletedCheckpoint> savepoint1 =
                 checkpointCoordinator.triggerSavepoint(savepointDir);
-        assertFalse("Did not trigger savepoint", savepoint1.isDone());
+        assertFalse(savepoint1.isDone(), "Did not trigger savepoint");
     }
 
     /** Tests that the externalized checkpoint configuration is respected. */
@@ -2143,7 +2145,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
                             KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
                                     maxParallelism, parallelism, i));
             if (!range.contains(i)) {
-                Assert.fail("Could not find expected key-group " + i + " in range " + range);
+                Assertions.fail("Could not find expected key-group " + i + " in range " + range);
             }
         }
     }
@@ -2216,7 +2218,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         int expectedTotalPartitions = 0;
         for (List<OperatorStateHandle> previousParallelOpInstanceState :
                 previousParallelOpInstanceStates) {
-            Assert.assertEquals(1, previousParallelOpInstanceState.size());
+            Assertions.assertEquals(1, previousParallelOpInstanceState.size());
 
             for (OperatorStateHandle psh : previousParallelOpInstanceState) {
                 Map<String, OperatorStateHandle.StateMetaInfo> offsMap =
@@ -2318,11 +2320,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // possible.
         if (oldParallelism != newParallelism) {
             int maxLoadDiff = maxCount - minCount;
-            Assert.assertTrue(
-                    "Difference in partition load is > 1 : " + maxLoadDiff, maxLoadDiff <= 1);
+            Assertions.assertTrue(
+                    maxLoadDiff <= 1, "Difference in partition load is > 1 : " + maxLoadDiff);
         }
-        Assert.assertEquals(expectedTotalPartitions, actualTotalPartitions);
-        Assert.assertEquals(expected, actual);
+        Assertions.assertEquals(expectedTotalPartitions, actualTotalPartitions);
+        Assertions.assertEquals(expected, actual);
     }
 
     /** Tests that the pending checkpoint stats callbacks are created. */
@@ -2807,8 +2809,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     public CompletableFuture<Integer> triggerCheckpoint(
                             long checkpointId, long timestamp, Executor executor) throws Exception {
                         assertTrue(
-                                "The coordinator checkpoint should have finished.",
-                                coordCheckpointDone.get());
+                                coordCheckpointDone.get(),
+                                "The coordinator checkpoint should have finished.");
                         // Acknowledge the checkpoint in the master hooks so the task snapshots
                         // complete before
                         // the master state snapshot completes.
@@ -3000,8 +3002,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                     public CompletableFuture<Integer> triggerCheckpoint(
                             long checkpointId, long timestamp, Executor executor) throws Exception {
                         assertTrue(
-                                "The coordinator checkpoint should have finished.",
-                                coordCheckpointDone.get());
+                                coordCheckpointDone.get(),
+                                "The coordinator checkpoint should have finished.");
                         // Acknowledge the checkpoint in the master hooks so the task snapshots
                         // complete before
                         // the master state snapshot completes.

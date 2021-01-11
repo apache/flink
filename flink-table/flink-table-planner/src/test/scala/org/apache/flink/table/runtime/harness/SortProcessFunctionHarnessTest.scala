@@ -36,7 +36,7 @@ import org.apache.flink.table.runtime.harness.SortProcessFunctionHarnessTest.Tup
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Row
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SortProcessFunctionHarnessTest {
   

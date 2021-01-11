@@ -18,7 +18,7 @@
 
 package org.apache.flink.core.testutils;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
@@ -69,6 +69,14 @@ public class CommonTestUtils {
         } catch (ClassNotFoundException e) {
             throw new IOException(e);
         }
+    }
+
+    public static void assertEquals(String str, Object o1, Object o2) {
+        Assertions.assertEquals(o1, o2, str);
+    }
+
+    public static void assertEquals(String str, int o1, int o2) {
+        Assertions.assertEquals(o1, o2, str);
     }
 
     /**
@@ -178,7 +186,7 @@ public class CommonTestUtils {
             String msg, Class<? extends Exception> expected, Callable<?> code) {
         try {
             Object result = code.call();
-            Assert.fail("Previous method call should have failed but it returned: " + result);
+            Assertions.fail("Previous method call should have failed but it returned: " + result);
         } catch (Exception e) {
             assertThat(e, instanceOf(expected));
             assertThat(e.getMessage(), containsString(msg));

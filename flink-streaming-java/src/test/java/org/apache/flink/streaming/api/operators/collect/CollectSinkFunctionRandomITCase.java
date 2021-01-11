@@ -28,8 +28,14 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.hamcrest.CoreMatchers;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -124,7 +130,7 @@ public class CollectSinkFunctionRandomITCase extends TestLogger {
     private void assertResultsEqualAfterSort(List<Integer> expected, List<Integer> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
-        Assert.assertThat(actual, CoreMatchers.is(expected));
+        MatcherAssert.assertThat(actual, CoreMatchers.is(expected));
     }
 
     /**

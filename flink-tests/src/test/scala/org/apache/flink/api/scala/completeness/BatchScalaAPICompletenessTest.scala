@@ -22,7 +22,7 @@ import java.lang.reflect.Method
 import org.apache.flink.api.java.operators._
 import org.apache.flink.api.java.{DataSet => JavaDataSet}
 import org.apache.flink.api.scala._
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import scala.language.existentials
 

@@ -20,23 +20,14 @@ package org.apache.flink.table.planner.utils;
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
-import org.junit.Assert;
 import org.junit.ComparisonFailure;
-import org.w3c.dom.CDATASection;
-import org.w3c.dom.Comment;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.w3c.dom.Text;
+import org.w3c.dom.*;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -434,7 +425,7 @@ public class DiffRepository {
                 // for largish snippets
                 String expected2Canonical = expected2.replace(Util.LINE_SEPARATOR, "\n");
                 String actualCanonical = actual.replace(Util.LINE_SEPARATOR, "\n");
-                Assert.assertEquals(tag, expected2Canonical, actualCanonical);
+                Assertions.assertEquals(tag, expected2Canonical, actualCanonical);
             } catch (ComparisonFailure e) {
                 amend(testCaseName, expected, actual);
                 throw e;

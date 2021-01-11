@@ -38,7 +38,7 @@ import org.apache.flink.util.TestLogger
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}

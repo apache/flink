@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions._
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 import java.lang.{Boolean => JBoolean}
 import java.sql.{Date, Time, Timestamp}

@@ -26,16 +26,20 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
-
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.*;
 
 /** Tests for {@link ProcTimeMiniBatchDeduplicateKeepLastRowFunction}. */
 public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
@@ -72,7 +76,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         testHarness.processElement(insertRecord("book", 1L, 10));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        Assertions.assertTrue(testHarness.getOutput().isEmpty());
 
         testHarness.processElement(insertRecord("book", 1L, 13));
 
@@ -101,7 +105,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         testHarness.processElement(insertRecord("book", 1L, 10));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        Assertions.assertTrue(testHarness.getOutput().isEmpty());
 
         testHarness.processElement(insertRecord("book", 1L, 13));
 
@@ -130,7 +134,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         testHarness.processElement(insertRecord("book", 1L, 10));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        Assertions.assertTrue(testHarness.getOutput().isEmpty());
 
         testHarness.processElement(insertRecord("book", 1L, 13));
 
@@ -164,7 +168,7 @@ public class ProcTimeMiniBatchDeduplicateKeepLastRowFunctionTest
         testHarness.processElement(insertRecord("book", 1L, 10));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        Assert.assertTrue(testHarness.getOutput().isEmpty());
+        Assertions.assertTrue(testHarness.getOutput().isEmpty());
         testHarness.processElement(insertRecord("book", 1L, 13));
 
         testHarness.setStateTtlProcessingTime(30);

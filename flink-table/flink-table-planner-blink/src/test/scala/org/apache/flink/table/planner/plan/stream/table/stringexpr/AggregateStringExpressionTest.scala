@@ -23,7 +23,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.planner.utils.{CountAggFunction, CountMinMax, TableTestBase}
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AggregateStringExpressionTest extends TableTestBase {
 

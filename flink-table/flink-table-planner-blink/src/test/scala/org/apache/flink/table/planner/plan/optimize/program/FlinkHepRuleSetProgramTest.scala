@@ -22,8 +22,8 @@ package org.apache.flink.table.planner.plan.optimize.program
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets
-import org.junit.Assert.{assertFalse, assertTrue}
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.{assertFalse, assertTrue}
+import org.junit.jupiter.api.Test
 
 /**
   * Tests for [[FlinkHepRuleSetProgram]].
@@ -45,20 +45,26 @@ class FlinkHepRuleSetProgramTest {
       .build()
   }
 
-  @Test(expected = classOf[IllegalArgumentException])
+  @Test
   def testMatchLimitLessThan1(): Unit = {
-    FlinkHepRuleSetProgramBuilder.newBuilder.setMatchLimit(0)
-  }
+        assertThrows[IllegalArgumentException] {
+                FlinkHepRuleSetProgramBuilder.newBuilder.setMatchLimit(0)
+        }
+    }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testNullHepMatchOrder(): Unit = {
-    FlinkHepRuleSetProgramBuilder.newBuilder.setHepMatchOrder(null)
-  }
+        assertThrows[NullPointerException] {
+                FlinkHepRuleSetProgramBuilder.newBuilder.setHepMatchOrder(null)
+        }
+    }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testNullHepRulesExecutionType(): Unit = {
-    FlinkHepRuleSetProgramBuilder.newBuilder.setHepRulesExecutionType(null)
-  }
+        assertThrows[NullPointerException] {
+                FlinkHepRuleSetProgramBuilder.newBuilder.setHepRulesExecutionType(null)
+        }
+    }
 
   @Test
   def testRuleOperations(): Unit = {
@@ -97,8 +103,10 @@ class FlinkHepRuleSetProgramTest {
     assertTrue(program.contains(CoreRules.JOIN_SUB_QUERY_TO_CORRELATE))
   }
 
-  @Test(expected = classOf[NullPointerException])
+  @Test
   def testNullRuleSets(): Unit = {
-    FlinkHepRuleSetProgramBuilder.newBuilder.add(null)
-  }
+        assertThrows[NullPointerException] {
+                FlinkHepRuleSetProgramBuilder.newBuilder.add(null)
+        }
+    }
 }

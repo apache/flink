@@ -25,7 +25,15 @@ import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -36,9 +44,9 @@ import java.util.Queue;
 import java.util.Random;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for writing and reading {@link PartitionedFile} with {@link PartitionedFileWriter} and
@@ -161,47 +169,66 @@ public class PartitionedFileWriteReadTest {
         return new NetworkBuffer(MemorySegmentFactory.wrap(data), (buf) -> {}, dataType, dataSize);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testNotWriteDataOfTheSameSubpartitionTogether() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
-        try {
-            MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    PartitionedFileWriter partitionedFileWriter = createPartitionedFileWriter(2);
+                    try {
+                        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
 
-            NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer1, 1);
+                        NetworkBuffer buffer1 = new NetworkBuffer(segment, (buf) -> {});
+                        partitionedFileWriter.writeBuffer(buffer1, 1);
 
-            NetworkBuffer buffer2 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer2, 0);
+                        NetworkBuffer buffer2 = new NetworkBuffer(segment, (buf) -> {});
+                        partitionedFileWriter.writeBuffer(buffer2, 0);
 
-            NetworkBuffer buffer3 = new NetworkBuffer(segment, (buf) -> {});
-            partitionedFileWriter.writeBuffer(buffer3, 1);
-        } finally {
-            partitionedFileWriter.finish();
-        }
+                        NetworkBuffer buffer3 = new NetworkBuffer(segment, (buf) -> {});
+                        partitionedFileWriter.writeBuffer(buffer3, 1);
+                    } finally {
+                        partitionedFileWriter.finish();
+                    }
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testWriteFinishedPartitionedFile() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    PartitionedFileWriter partitionedFileWriter =
+                            createAndFinishPartitionedFileWriter();
 
-        MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
-        NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
+                    MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(1024);
+                    NetworkBuffer buffer = new NetworkBuffer(segment, (buf) -> {});
 
-        partitionedFileWriter.writeBuffer(buffer, 0);
+                    partitionedFileWriter.writeBuffer(buffer, 0);
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testFinishPartitionedFileWriterTwice() throws Exception {
-        PartitionedFileWriter partitionedFileWriter = createAndFinishPartitionedFileWriter();
-        partitionedFileWriter.finish();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    PartitionedFileWriter partitionedFileWriter =
+                            createAndFinishPartitionedFileWriter();
+                    partitionedFileWriter.finish();
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void testReadClosedPartitionedFile() throws Exception {
-        PartitionedFileReader partitionedFileReader = createAndClosePartitionedFiledReader();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    PartitionedFileReader partitionedFileReader =
+                            createAndClosePartitionedFiledReader();
 
-        MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
-        partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE);
+                    MemorySegment target = MemorySegmentFactory.allocateUnpooledSegment(1024);
+                    partitionedFileReader.readBuffer(target, FreeingBufferRecycler.INSTANCE);
+                });
     }
 
     @Test

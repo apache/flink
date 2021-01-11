@@ -31,13 +31,15 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.DataInputStream;
@@ -46,9 +48,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for distributing files with {@link org.apache.flink.api.common.cache.DistributedCache} via
@@ -138,7 +138,8 @@ public class DistributedCacheDfsTest extends TestLogger {
      * RestClusterClient#submitJob(JobGraph)} to submit a job to an existing session. This test will
      * cover this cases.
      */
-    @Test(timeout = 30000)
+    @Test
+    @Timeout(30)
     public void testSubmittingJobViaRestClusterClient() throws Exception {
         RestClusterClient<String> restClusterClient =
                 new RestClusterClient<>(

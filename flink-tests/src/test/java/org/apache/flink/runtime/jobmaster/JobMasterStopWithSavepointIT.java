@@ -45,7 +45,8 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assume;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
@@ -69,8 +70,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * ITCases testing the stop with savepoint functionality. This includes checking both SUSPEND and
@@ -96,13 +97,15 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 
     private JobGraph jobGraph;
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void terminateWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
             throws Exception {
         stopWithSavepointNormalExecutionHelper(true);
@@ -127,12 +130,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheTerminate() throws Exception {
         throwingExceptionOnCallbackWithoutRestartsHelper(true);
     }
@@ -155,13 +160,15 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
         assertThat(getJobStatus(), equalTo(JobStatus.FAILED));
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInSuspend()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(false);
     }
 
-    @Test(timeout = 5000)
+    @Test
+    @Timeout(5)
     public void throwingExceptionOnCallbackWithRestartsShouldSimplyRestartInTerminate()
             throws Exception {
         throwingExceptionOnCallbackWithRestartsHelper(true);
@@ -228,10 +235,10 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
             }
             String exceptionMessage = checkpointExceptionOptional.get().getMessage();
             assertTrue(
-                    "Stop with savepoint failed because of another cause " + exceptionMessage,
                     exceptionMessage.contains("Failed to trigger savepoint")
                             && exceptionMessage.contains(
-                                    CheckpointFailureReason.EXCEPTION.message()));
+                                    CheckpointFailureReason.EXCEPTION.message()),
+                    "Stop with savepoint failed because of another cause " + exceptionMessage);
         }
 
         final JobStatus jobStatus =

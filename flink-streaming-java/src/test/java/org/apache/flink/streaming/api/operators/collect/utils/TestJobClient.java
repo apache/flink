@@ -29,7 +29,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequestHandle
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.util.OptionalFailure;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import javax.annotation.Nullable;
 
@@ -105,7 +105,7 @@ public class TestJobClient implements JobClient, CoordinationRequestGateway {
             throw new RuntimeException("Job terminated");
         }
 
-        Assert.assertEquals(this.operatorId, operatorId);
+        Assertions.assertEquals(this.operatorId, operatorId);
         CoordinationResponse response;
         try {
             response = handler.handleCoordinationRequest(request).get();

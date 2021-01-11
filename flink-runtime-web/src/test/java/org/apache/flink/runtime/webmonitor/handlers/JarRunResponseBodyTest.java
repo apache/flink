@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.handlers;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.RestResponseMarshallingTestBase;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link JarRunResponseBody}. */
 public class JarRunResponseBodyTest extends RestResponseMarshallingTestBase<JarRunResponseBody> {

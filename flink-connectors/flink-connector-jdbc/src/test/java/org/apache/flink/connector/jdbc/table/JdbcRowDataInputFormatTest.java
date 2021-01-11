@@ -35,9 +35,17 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
@@ -103,40 +111,52 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidDriver() throws IOException {
-        inputFormat =
-                JdbcRowDataInputFormat.builder()
-                        .setDrivername("org.apache.derby.jdbc.idontexist")
-                        .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                        .setQuery(SELECT_ALL_BOOKS)
-                        .setRowConverter(dialect.getRowConverter(rowType))
-                        .build();
-        inputFormat.openInputFormat();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    inputFormat =
+                            JdbcRowDataInputFormat.builder()
+                                    .setDrivername("org.apache.derby.jdbc.idontexist")
+                                    .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                    .setQuery(SELECT_ALL_BOOKS)
+                                    .setRowConverter(dialect.getRowConverter(rowType))
+                                    .build();
+                    inputFormat.openInputFormat();
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidURL() throws IOException {
-        inputFormat =
-                JdbcRowDataInputFormat.builder()
-                        .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
-                        .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
-                        .setQuery(SELECT_ALL_BOOKS)
-                        .setRowConverter(dialect.getRowConverter(rowType))
-                        .build();
-        inputFormat.openInputFormat();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    inputFormat =
+                            JdbcRowDataInputFormat.builder()
+                                    .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                    .setDBUrl("jdbc:der:iamanerror:mory:ebookshop")
+                                    .setQuery(SELECT_ALL_BOOKS)
+                                    .setRowConverter(dialect.getRowConverter(rowType))
+                                    .build();
+                    inputFormat.openInputFormat();
+                });
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidQuery() throws IOException {
-        inputFormat =
-                JdbcRowDataInputFormat.builder()
-                        .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
-                        .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                        .setQuery("iamnotsql")
-                        .setRowConverter(dialect.getRowConverter(rowType))
-                        .build();
-        inputFormat.openInputFormat();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    inputFormat =
+                            JdbcRowDataInputFormat.builder()
+                                    .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                    .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                    .setQuery("iamnotsql")
+                                    .setRowConverter(dialect.getRowConverter(rowType))
+                                    .build();
+                    inputFormat.openInputFormat();
+                });
     }
 
     @Test
@@ -163,15 +183,19 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
                         .build();
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidFetchSize() {
-        inputFormat =
-                JdbcRowDataInputFormat.builder()
-                        .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
-                        .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
-                        .setQuery(SELECT_ALL_BOOKS)
-                        .setFetchSize(-7)
-                        .build();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    inputFormat =
+                            JdbcRowDataInputFormat.builder()
+                                    .setDrivername(DERBY_EBOOKSHOP_DB.getDriverClass())
+                                    .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                                    .setQuery(SELECT_ALL_BOOKS)
+                                    .setFetchSize(-7)
+                                    .build();
+                });
     }
 
     @Test
@@ -197,7 +221,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
                         .setRowConverter(dialect.getRowConverter(rowType))
                         .build();
         // this query does not exploit parallelism
-        Assert.assertEquals(1, inputFormat.createInputSplits(1).length);
+        Assertions.assertEquals(1, inputFormat.createInputSplits(1).length);
         inputFormat.openInputFormat();
         inputFormat.open(null);
         RowData row = new GenericRowData(5);
@@ -211,7 +235,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         }
         inputFormat.close();
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        Assertions.assertEquals(TEST_DATA.length, recordCount);
     }
 
     @Test
@@ -234,7 +258,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every id)
-        Assert.assertEquals(TEST_DATA.length, splits.length);
+        Assertions.assertEquals(TEST_DATA.length, splits.length);
         int recordCount = 0;
         RowData row = new GenericRowData(5);
         for (InputSplit split : splits) {
@@ -249,7 +273,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             inputFormat.close();
         }
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        Assertions.assertEquals(TEST_DATA.length, recordCount);
     }
 
     @Test
@@ -273,7 +297,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // assert that a single split was generated
-        Assert.assertEquals(1, splits.length);
+        Assertions.assertEquals(1, splits.length);
         int recordCount = 0;
         RowData row = new GenericRowData(5);
         for (InputSplit split : splits) {
@@ -288,7 +312,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             inputFormat.close();
         }
         inputFormat.closeInputFormat();
-        Assert.assertEquals(TEST_DATA.length, recordCount);
+        Assertions.assertEquals(TEST_DATA.length, recordCount);
     }
 
     @Test
@@ -311,7 +335,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         inputFormat.openInputFormat();
         InputSplit[] splits = inputFormat.createInputSplits(1);
         // this query exploit parallelism (1 split for every queryParameters row)
-        Assert.assertEquals(queryParameters.length, splits.length);
+        Assertions.assertEquals(queryParameters.length, splits.length);
 
         verifySplit(splits[0], TEST_DATA[3].id);
         verifySplit(splits[1], TEST_DATA[0].id + TEST_DATA[1].id);
@@ -335,7 +359,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
             sum += id;
         }
 
-        Assert.assertEquals(expectedIDSum, sum);
+        Assertions.assertEquals(expectedIDSum, sum);
     }
 
     @Test
@@ -352,7 +376,7 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
         try {
             inputFormat.openInputFormat();
             inputFormat.open(null);
-            Assert.assertTrue(inputFormat.reachedEnd());
+            Assertions.assertTrue(inputFormat.reachedEnd());
         } finally {
             inputFormat.close();
             inputFormat.closeInputFormat();
@@ -360,15 +384,15 @@ public class JdbcRowDataInputFormatTest extends JdbcDataTestBase {
     }
 
     private static void assertEquals(JdbcTestFixture.TestEntry expected, RowData actual) {
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.id, actual.isNullAt(0) ? null : Integer.valueOf(actual.getInt(0)));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.title, actual.isNullAt(1) ? null : actual.getString(1).toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.author, actual.isNullAt(2) ? null : actual.getString(2).toString());
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.price, actual.isNullAt(3) ? null : Double.valueOf(actual.getDouble(3)));
-        Assert.assertEquals(
+        Assertions.assertEquals(
                 expected.qty, actual.isNullAt(4) ? null : Integer.valueOf(actual.getInt(4)));
     }
 }

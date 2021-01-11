@@ -30,8 +30,8 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase,
 import java.time.Duration
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class ModifiedMonotonicityTest extends TableTestBase {
 

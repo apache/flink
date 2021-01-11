@@ -32,8 +32,15 @@ import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -70,7 +77,7 @@ public class WrappingFunctionSnapshotRestoreTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        Assert.assertTrue(innerTestFun.wasRestored);
+        Assertions.assertTrue(innerTestFun.wasRestored);
         testHarness.close();
     }
 
@@ -102,7 +109,7 @@ public class WrappingFunctionSnapshotRestoreTest {
         testHarness.initializeState(snapshot);
         testHarness.open();
 
-        Assert.assertTrue(innerTestFun.wasRestored);
+        Assertions.assertTrue(innerTestFun.wasRestored);
         testHarness.close();
     }
 
@@ -150,8 +157,8 @@ public class WrappingFunctionSnapshotRestoreTest {
             if (context.isRestored()) {
                 Iterator<Integer> integers = serializableListState.get().iterator();
                 int act = integers.next();
-                Assert.assertEquals(42, act);
-                Assert.assertFalse(integers.hasNext());
+                Assertions.assertEquals(42, act);
+                Assertions.assertFalse(integers.hasNext());
                 wasRestored = true;
             }
         }
@@ -180,9 +187,9 @@ public class WrappingFunctionSnapshotRestoreTest {
 
         @Override
         public void restoreState(List<Integer> state) throws Exception {
-            Assert.assertEquals(1, state.size());
+            Assertions.assertEquals(1, state.size());
             int val = state.get(0);
-            Assert.assertEquals(42, val);
+            Assertions.assertEquals(42, val);
             wasRestored = true;
         }
 

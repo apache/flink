@@ -25,10 +25,12 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for {@link RowTimeRangeBoundedPrecedingFunction}. */
 public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
@@ -49,7 +51,7 @@ public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowT
         AbstractKeyedStateBackend stateBackend =
                 (AbstractKeyedStateBackend) operator.getKeyedStateBackend();
 
-        assertEquals("Initial state is not empty", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0, "Initial state is not empty");
 
         // put some records
         testHarness.processElement(insertRecord("key", 1L, 100L));
@@ -62,7 +64,7 @@ public class RowTimeRangeBoundedPrecedingFunctionTest extends RowTimeOverWindowT
         testHarness.processWatermark(new Watermark(4000L));
         // at this moment the function should have cleaned up states
 
-        assertEquals("State has not been cleaned up", 0, stateBackend.numKeyValueStateEntries());
+        assertEquals(0, "State has not been cleaned up");
     }
 
     @Test

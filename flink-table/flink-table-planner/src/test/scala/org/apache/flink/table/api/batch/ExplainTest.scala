@@ -29,7 +29,7 @@ import org.apache.flink.table.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.utils.TableTestUtil.{batchTableNode, readFromResource, replaceStageId}
 import org.apache.flink.test.util.MultipleProgramsTestBase
 
-import org.junit.Assert.assertEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit._
 
 class ExplainTest

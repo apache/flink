@@ -76,10 +76,11 @@ class RewriteCoalesceRuleTest extends TableTestBase {
     util.verifyRelPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test
   // TODO remove expected exception after [FLINK-12371] merged
   def testCalcite864_1(): Unit = {
-    val sqlQuery =
+        assertThrows[CodeGenException] {
+                val sqlQuery =
       """
         |select *
         |    from scott_emp as e
@@ -91,12 +92,14 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |      where d2.deptno = d.deptno)
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
-  @Test(expected = classOf[CodeGenException])
+  @Test
   // TODO remove expected exception after [FLINK-12371] merged
   def testCalcite864_3(): Unit = {
-    val sqlQuery =
+        assertThrows[CodeGenException] {
+                val sqlQuery =
       """
         |select *
         |    from scott_emp as e
@@ -107,7 +110,8 @@ class RewriteCoalesceRuleTest extends TableTestBase {
         |      where d2.deptno = d.deptno)
       """.stripMargin
     util.verifyRelPlan(sqlQuery)
-  }
+        }
+    }
 
   @Test
   def testNaturalJoinWithPredicates(): Unit = {

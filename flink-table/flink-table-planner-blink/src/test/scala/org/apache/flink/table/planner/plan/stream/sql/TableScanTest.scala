@@ -24,7 +24,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.Func0
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.MockedLookupTableSource
 import org.apache.flink.table.planner.utils.TableTestBase
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class TableScanTest extends TableTestBase {
 

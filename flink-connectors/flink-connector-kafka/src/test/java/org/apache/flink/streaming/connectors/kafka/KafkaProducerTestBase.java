@@ -46,7 +46,9 @@ import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Preconditions;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -58,8 +60,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import static org.apache.flink.test.util.TestUtils.tryExecute;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Abstract test base for all Kafka producer tests. */
 @SuppressWarnings("serial")
@@ -499,7 +501,7 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
         public Integer map(Tuple2<Long, String> value) throws Exception {
             int partition = value.f0.intValue() % numPartitions;
             if (ourPartition != -1) {
-                assertEquals("inconsistent partitioning", ourPartition, partition);
+                assertEquals(ourPartition, partition, "inconsistent partitioning");
             } else {
                 ourPartition = partition;
             }

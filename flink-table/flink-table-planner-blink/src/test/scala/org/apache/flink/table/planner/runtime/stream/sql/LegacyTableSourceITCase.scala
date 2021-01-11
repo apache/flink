@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData
 import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestLegacyFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableSourceFactory, TestLegacyProjectableTableSource, TestStreamTableSource, TestTableSourceSinks}
 import org.apache.flink.types.Row
 
-import org.junit.Assert._
-import org.junit.Test
+import org.junit.jupiter.api.Assertions._
+import org.junit.jupiter.api.Test
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 

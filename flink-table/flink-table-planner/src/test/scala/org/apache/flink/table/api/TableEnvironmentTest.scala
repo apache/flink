@@ -29,8 +29,8 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATO
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class TableEnvironmentTest extends TableTestBase {
 

@@ -22,8 +22,6 @@ import org.apache.flink.cep.Event;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
-import org.junit.Assert;
-
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -39,7 +37,7 @@ public class NFATestUtilities {
     }
 
     public static void comparePatterns(List<List<Event>> actual, List<List<Event>> expected) {
-        Assert.assertEquals(expected.size(), actual.size());
+        Assertions.assertEquals(expected.size(), actual.size());
 
         for (List<Event> p : actual) {
             Collections.sort(p, new EventComparator());
@@ -51,7 +49,7 @@ public class NFATestUtilities {
 
         Collections.sort(actual, new ListEventComparator());
         Collections.sort(expected, new ListEventComparator());
-        Assert.assertArrayEquals(expected.toArray(), actual.toArray());
+        Assertions.assertArrayEquals(expected.toArray(), actual.toArray());
     }
 
     private static class ListEventComparator implements Comparator<List<Event>> {

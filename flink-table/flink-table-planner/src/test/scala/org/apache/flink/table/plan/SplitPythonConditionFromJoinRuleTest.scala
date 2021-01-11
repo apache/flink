@@ -24,7 +24,7 @@ import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.Pytho
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class SplitPythonConditionFromJoinRuleTest extends TableTestBase {
 

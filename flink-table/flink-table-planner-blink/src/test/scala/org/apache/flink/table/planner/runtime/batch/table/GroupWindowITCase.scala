@@ -45,9 +45,10 @@ class GroupWindowITCase extends BatchTestBase {
     (16L, 4, 4d, 4f, new BigDecimal("4"), "Hello world"),
     (8L, 3, 3d, 3f, new BigDecimal("3"), "Hello world"))
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeTumblingWindowOverCount(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(tEnv, data,
+        assertThrows[TableException] {
+                val table = BatchTableEnvUtil.fromCollection(tEnv, data,
       "long, int, double, float, bigdec, string")
 
     // Count tumbling non-grouping window on event-time are currently not supported
@@ -56,11 +57,13 @@ class GroupWindowITCase extends BatchTestBase {
       .groupBy('w)
       .select('int.count)
     executeQuery(result)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(tEnv, data,
+        assertThrows[TableException] {
+                val table = BatchTableEnvUtil.fromCollection(tEnv, data,
       "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -75,7 +78,8 @@ class GroupWindowITCase extends BatchTestBase {
       "Hello world,7,2,4,3,3,7.0,2,4.0,3.0,3.5,7.0,2,4.0,3.0,3.5,7,2,4,3,3.5\n"
     val results = executeQuery(windowedTable)
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
+        }
+    }
 
   @Test
   def testEventTimeTumblingGroupWindowOverTime(): Unit = {
@@ -118,9 +122,10 @@ class GroupWindowITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testEventTimeSessionGroupWindow(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(
+        assertThrows[TableException] {
+                val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
     val windowedTable = table
       .window(Session withGap 7.milli on 'long as 'w)
@@ -136,11 +141,13 @@ class GroupWindowITCase extends BatchTestBase {
       "Hello,3,1970-01-01 00:00:00.003,1970-01-01 00:00:00.014,1970-01-01 00:00:00.013\n" +
       "Hi,1,1970-01-01 00:00:00.001,1970-01-01 00:00:00.008,1970-01-01 00:00:00.007"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
+        }
+    }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeSessionGroupWindow(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(
+        assertThrows[TableException] {
+                val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -155,7 +162,8 @@ class GroupWindowITCase extends BatchTestBase {
       "2,1970-01-01 00:00:00.007,1970-01-01 00:00:00.010,1970-01-01 00:00:00.009\n" +
       "1,1970-01-01 00:00:00.016,1970-01-01 00:00:00.018,1970-01-01 00:00:00.017"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
-  }
+        }
+    }
 
   @Test
   def testMultiGroupWindow(): Unit = {
@@ -186,9 +194,10 @@ class GroupWindowITCase extends BatchTestBase {
   // Sliding windows
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
-    val table = BatchTableEnvUtil.fromCollection(
+        assertThrows[TableException] {
+                val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     // Count sliding group window on event-time are currently not supported
@@ -198,7 +207,8 @@ class GroupWindowITCase extends BatchTestBase {
       .select('int.count)
 
     executeQuery(windowedTable)
-  }
+        }
+    }
 
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {

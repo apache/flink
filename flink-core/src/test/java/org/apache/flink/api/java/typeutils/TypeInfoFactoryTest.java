@@ -28,7 +28,15 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -39,8 +47,8 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.DOUBLE_TYPE_INF
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.FLOAT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for extracting {@link org.apache.flink.api.common.typeinfo.TypeInformation} from types
@@ -129,16 +137,24 @@ public class TypeInfoFactoryTest {
         assertEquals(BOOLEAN_TYPE_INFO, mtti.getField1());
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testMissingTypeInfo() {
-        MapFunction f = new MyFaultyMapper();
-        TypeExtractor.getMapReturnTypes(f, INT_TYPE_INFO);
+        assertThrows(
+                InvalidTypesException.class,
+                () -> {
+                    MapFunction f = new MyFaultyMapper();
+                    TypeExtractor.getMapReturnTypes(f, INT_TYPE_INFO);
+                });
     }
 
-    @Test(expected = InvalidTypesException.class)
+    @Test
     public void testMissingTypeInference() {
-        MapFunction f = new MyFaultyMapper2();
-        TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
+        assertThrows(
+                InvalidTypesException.class,
+                () -> {
+                    MapFunction f = new MyFaultyMapper2();
+                    TypeExtractor.getMapReturnTypes(f, new MyFaultyTypeInfo());
+                });
     }
 
     // --------------------------------------------------------------------------------------------

@@ -62,7 +62,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 
 import java.io.File;
 import java.io.IOException;
@@ -368,9 +368,9 @@ public class StreamTaskTestHarness<OUT> {
         if (this.memorySize > 0) {
             MemoryManager memMan = this.mockEnv.getMemoryManager();
             if (memMan != null) {
-                Assert.assertTrue(
-                        "Memory Manager managed memory was not completely freed.",
-                        memMan.verifyEmpty());
+                Assertions.assertTrue(
+                        memMan.verifyEmpty(),
+                        "Memory Manager managed memory was not completely freed.");
                 memMan.shutdown();
             }
         }

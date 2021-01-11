@@ -19,9 +19,9 @@ package org.apache.flink.streaming.api.windowing.deltafunction;
 
 import org.apache.flink.streaming.api.functions.windowing.delta.CosineDistance;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link CosineDistance}. */
 public class CosineDistanceTest {
@@ -48,13 +48,13 @@ public class CosineDistanceTest {
 
         for (int i = 0; i < testdata.length; i++) {
             assertEquals(
+                    referenceSolutions[i],
+                    new CosineDistance().getDelta(testdata[i][0], testdata[i][1]),
+                    0.000001,
                     "Wrong result for inputs "
                             + arrayToString(testdata[i][0])
                             + " and "
-                            + arrayToString(testdata[i][0]),
-                    referenceSolutions[i],
-                    new CosineDistance().getDelta(testdata[i][0], testdata[i][1]),
-                    0.000001);
+                            + arrayToString(testdata[i][0]));
         }
     }
 

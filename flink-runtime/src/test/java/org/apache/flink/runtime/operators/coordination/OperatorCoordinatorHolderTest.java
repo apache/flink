@@ -29,7 +29,7 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -44,14 +44,14 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * A test that ensures the before/after conditions around event sending and checkpoint are met.
@@ -305,17 +305,17 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
 
         holder.handleEventFromOperator(1, new TestOperatorEvent());
         assertEquals(
-                "The global failure should be the same instance because the context"
-                        + "should only take the first request from the coordinator to fail the job.",
                 firstGlobalFailure,
-                globalFailure);
+                globalFailure,
+                "The global failure should be the same instance because the context"
+                        + "should only take the first request from the coordinator to fail the job.");
 
         holder.resetToCheckpoint(0L, new byte[0]);
         holder.handleEventFromOperator(1, new TestOperatorEvent());
         assertNotEquals(
-                "The new failures should be propagated after the coordinator " + "is reset.",
                 firstGlobalFailure,
-                globalFailure);
+                globalFailure,
+                "The new failures should be propagated after the coordinator " + "is reset.");
         // Reset global failure to null to make the after method check happy.
         globalFailure = null;
     }

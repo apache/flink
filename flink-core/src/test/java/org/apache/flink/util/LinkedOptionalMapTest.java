@@ -20,7 +20,15 @@ package org.apache.flink.util;
 
 import org.apache.flink.util.LinkedOptionalMap.MergeResult;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
 
@@ -29,9 +37,9 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test {@link LinkedOptionalMap}. */
 public class LinkedOptionalMapTest {
@@ -127,22 +135,30 @@ public class LinkedOptionalMapTest {
         assertThat(first.keyNames(), contains("a", "b", "c", "d"));
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingValueThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
-        map.put("a", String.class, null);
+                    map.put("a", String.class, null);
 
-        map.unwrapOptionals();
+                    map.unwrapOptionals();
+                });
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test
     public void unwrapOptionalsWithMissingKeyThrows() {
-        LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
+        assertThrows(
+                IllegalStateException.class,
+                () -> {
+                    LinkedOptionalMap<Class<?>, String> map = new LinkedOptionalMap<>();
 
-        map.put("a", null, "blabla");
+                    map.put("a", null, "blabla");
 
-        map.unwrapOptionals();
+                    map.unwrapOptionals();
+                });
     }
 
     @Test

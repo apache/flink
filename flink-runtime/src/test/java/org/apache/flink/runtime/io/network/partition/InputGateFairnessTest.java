@@ -36,7 +36,9 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.util.function.SupplierWithException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,10 +51,10 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests verifying fairness in input gates. */
 public class InputGateFairnessTest {
@@ -385,8 +387,8 @@ public class InputGateFairnessTest {
         public Optional<BufferOrEvent> getNext() throws IOException, InterruptedException {
             synchronized (channelsWithData) {
                 assertTrue(
-                        "too many input channels",
-                        channelsWithData.size() <= getNumberOfInputChannels());
+                        channelsWithData.size() <= getNumberOfInputChannels(),
+                        "too many input channels");
                 ensureUnique(channelsWithData.asUnmodifiableCollection());
             }
 
@@ -403,7 +405,7 @@ public class InputGateFairnessTest {
             }
 
             assertTrue(
-                    "found duplicate input channels", uniquenessChecker.size() == channels.size());
+                    uniquenessChecker.size() == channels.size(), "found duplicate input channels");
             uniquenessChecker.clear();
         }
     }

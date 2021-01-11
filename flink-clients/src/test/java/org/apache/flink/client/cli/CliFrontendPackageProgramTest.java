@@ -32,10 +32,18 @@ import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.cli.CommandLine;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileNotFoundException;
 import java.net.URL;
@@ -45,10 +53,9 @@ import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_CLASSLOA
 import static org.apache.flink.client.cli.CliFrontendTestUtils.TEST_JAR_MAIN_CLASS;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getNonJarFilePath;
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -131,8 +138,8 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
+        Assertions.assertArrayEquals(reducedArguments, prog.getArguments());
+        Assertions.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
     }
 
     @Test
@@ -162,8 +169,8 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
+        Assertions.assertArrayEquals(reducedArguments, prog.getArguments());
+        Assertions.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
     }
 
     @Test
@@ -192,13 +199,17 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 
         PackagedProgram prog = frontend.buildProgram(programOptions);
 
-        Assert.assertArrayEquals(reducedArguments, prog.getArguments());
-        Assert.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
+        Assertions.assertArrayEquals(reducedArguments, prog.getArguments());
+        Assertions.assertEquals(TEST_JAR_MAIN_CLASS, prog.getMainClassName());
     }
 
-    @Test(expected = CliArgsException.class)
+    @Test
     public void testNoJarNoArgumentsAtAll() throws Exception {
-        frontend.run(new String[0]);
+        assertThrows(
+                CliArgsException.class,
+                () -> {
+                    frontend.run(new String[0]);
+                });
     }
 
     @Test
@@ -347,7 +358,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
                 e.printStackTrace();
                 fail("Program didn't throw ClassNotFoundException");
             }
-            assertTrue("Classloader was not called", callme[0]);
+            assertTrue(callme[0], "Classloader was not called");
         }
     }
 }

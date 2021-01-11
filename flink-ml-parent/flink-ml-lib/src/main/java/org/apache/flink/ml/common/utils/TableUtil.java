@@ -21,11 +21,10 @@ package org.apache.flink.ml.common.utils;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
-
-import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -181,7 +180,7 @@ public class TableUtil {
      * Check whether <code>selectedCols</code> exist or not, if not exist, throw exception.
      *
      * @param tableCols a string array among which to find the target selectedCols.
-     * @param selectedCols the selectedCols to assert.
+     * @param selectedCols the selectedCols to Assertions.
      */
     public static void assertSelectedColExist(String[] tableCols, String... selectedCols) {
         if (null != selectedCols) {
@@ -200,7 +199,7 @@ public class TableUtil {
      * exception.
      *
      * @param tableSchema TableSchema
-     * @param selectedCols the selectedCols to assert.
+     * @param selectedCols the selectedCols to Assertions.
      */
     public static void assertNumericalCols(TableSchema tableSchema, String... selectedCols) {
         if (selectedCols != null && selectedCols.length != 0) {
@@ -219,7 +218,7 @@ public class TableUtil {
      * Check whether colTypes of the <code>selectedCols</code> is string, if not, throw exception.
      *
      * @param tableSchema TableSchema
-     * @param selectedCols the selectedCol to assert.
+     * @param selectedCols the selectedCol to Assertions.
      */
     public static void assertStringCols(TableSchema tableSchema, String... selectedCols) {
         if (selectedCols != null && selectedCols.length != 0) {
@@ -238,7 +237,7 @@ public class TableUtil {
      * Check whether colTypes of the <code>selectedCols</code> is vector, if not, throw exception.
      *
      * @param tableSchema TableSchema
-     * @param selectedCols the selectedCol to assert.
+     * @param selectedCols the selectedCol to Assertions.
      * @see #isVector(TypeInformation)
      */
     public static void assertVectorCols(TableSchema tableSchema, String... selectedCols) {

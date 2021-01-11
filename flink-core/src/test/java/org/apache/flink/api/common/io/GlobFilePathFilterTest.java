@@ -22,13 +22,21 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.OperatingSystem;
 
 import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.Collections;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GlobFilePathFilterTest {
     @Test
@@ -151,14 +159,22 @@ public class GlobFilePathFilterTest {
         assertFalse(matcher.filterPath(new Path("a/b/c")));
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testIncluePatternIsNull() {
-        new GlobFilePathFilter(null, Collections.<String>emptyList());
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    new GlobFilePathFilter(null, Collections.<String>emptyList());
+                });
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test
     public void testExcludePatternIsNull() {
-        new GlobFilePathFilter(Collections.singletonList("**"), null);
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    new GlobFilePathFilter(Collections.singletonList("**"), null);
+                });
     }
 
     @Test

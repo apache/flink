@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** {@link DataTypeFactory} mock for testing purposes. */
 public class DataTypeFactoryMock implements DataTypeFactory {

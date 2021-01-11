@@ -128,7 +128,7 @@ under the License.
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
-		<junit.version>4.12</junit.version>
+		<junit.version>5.7.0</junit.version>
 		<mockito.version>2.21.0</mockito.version>
 		<powermock.version>2.0.4</powermock.version>
 		<hamcrest.version>1.3</hamcrest.version>
@@ -184,9 +184,18 @@ under the License.
 		<!-- test dependencies -->
 
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<type>jar</type>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-migrationsupport</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.junit.vintage</groupId>
+			<artifactId>junit-vintage-engine</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -547,9 +556,24 @@ under the License.
 
 			<!-- For dependency convergence -->
 			<dependency>
-				<groupId>junit</groupId>
-				<artifactId>junit</artifactId>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter</artifactId>
 				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-migrationsupport</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+
+			<dependency>
+				<groupId>org.junit.vintage</groupId>
+				<artifactId>junit-vintage-engine</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
 			</dependency>
 
 			<!-- Make sure we use a consistent commons-cli version throughout the project -->
@@ -1922,7 +1946,9 @@ under the License.
 							<dependency>org.apache.logging.log4j:log4j-1.2-api</dependency>
 							<!-- test dependencies; defined in root pom for brevity -->
 							<dependency>org.apache.flink:flink-test-utils-junit</dependency>
-							<dependency>junit:junit</dependency>
+							<dependency>org.junit.jupiter:junit-jupiter</dependency>
+							<dependency>org.junit.jupiter:junit-jupiter-engine</dependency>
+							<dependency>org.junit.jupiter:junit-vintage-engine</dependency>
 							<dependency>org.mockito:mockito-core</dependency>
 							<dependency>org.powermock:powermock-api-mockito2</dependency>
 							<dependency>org.powermock:powermock-module-junit4</dependency>

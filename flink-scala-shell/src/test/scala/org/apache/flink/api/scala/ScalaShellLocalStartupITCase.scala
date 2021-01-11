@@ -99,16 +99,16 @@ class ScalaShellLocalStartupITCase extends TestLogger {
     val output: String = baos.toString
     System.setOut(oldOut)
 
-    Assert.assertTrue(output.contains("IntCounter: 2"))
-    Assert.assertTrue(output.contains("foobar"))
-    Assert.assertTrue(output.contains("barfoo"))
+    Assertions.assertTrue(output.contains("IntCounter: 2"))
+    Assertions.assertTrue(output.contains("foobar"))
+    Assertions.assertTrue(output.contains("barfoo"))
 
-    Assert.assertTrue(output.contains("foobarStream"))
-    Assert.assertTrue(output.contains("barfooStream"))
+    Assertions.assertTrue(output.contains("foobarStream"))
+    Assertions.assertTrue(output.contains("barfooStream"))
 
-    Assert.assertFalse(output.contains("failed"))
-    Assert.assertFalse(output.contains("Error"))
-    Assert.assertFalse(output.contains("ERROR"))
-    Assert.assertFalse(output.contains("Exception"))
+    Assertions.assertFalse(output.contains("failed"))
+    Assertions.assertFalse(output.contains("Error"))
+    Assertions.assertFalse(output.contains("ERROR"))
+    Assertions.assertFalse(output.contains("Exception"))
   }
 }

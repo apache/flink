@@ -25,7 +25,7 @@ import org.apache.flink.util.ShutdownHookUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,9 +33,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /** Tests the logic of {@link FileChannelManagerImpl}. */
 public class FileChannelManagerImplTest extends TestLogger {
@@ -92,7 +92,7 @@ public class FileChannelManagerImplTest extends TestLogger {
                     Runtime.getRuntime()
                             .exec("kill " + fileChannelManagerTestProcess.getProcessId());
             kill.waitFor();
-            assertEquals("Failed to send SIG_TERM to process", 0, kill.exitValue());
+            assertEquals(0, "Failed to send SIG_TERM to process");
 
             Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
             while (fileChannelManagerTestProcess.isAlive() && deadline.hasTimeLeft()) {
@@ -100,16 +100,16 @@ public class FileChannelManagerImplTest extends TestLogger {
             }
 
             assertFalse(
+                    fileChannelManagerTestProcess.isAlive(),
                     "The file channel manager test process does not terminate in time, its output is: \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileChannelManagerTestProcess.isAlive());
+                            + fileChannelManagerTestProcess.getProcessOutput());
 
             // Checks if the directories are cleared.
             assertFalse(
+                    fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX),
                     "The file channel manager test process does not remove the tmp shuffle directories after termination, "
                             + "its output is \n"
-                            + fileChannelManagerTestProcess.getProcessOutput(),
-                    fileOrDirExists(fileChannelDir, DIR_NAME_PREFIX));
+                            + fileChannelManagerTestProcess.getProcessOutput());
         } finally {
             fileChannelManagerTestProcess.destroy();
         }

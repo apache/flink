@@ -45,9 +45,9 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.tuple.Tuple9;
 
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link FieldsFromTuple}. */
 public class FieldsFromTupleTest {
@@ -117,9 +117,9 @@ public class FieldsFromTupleTest {
     }
 
     private void arrayEqualityCheck(double[] array1, double[] array2) {
-        assertEquals("The result arrays must have the same length", array1.length, array2.length);
+        assertEquals(array1.length, array2.length, "The result arrays must have the same length");
         for (int i = 0; i < array1.length; i++) {
-            assertEquals("Unequal fields at position " + i, array1[i], array2[i], 0d);
+            assertEquals(array1[i], array2[i], 0d, "Unequal fields at position " + i);
         }
     }
 

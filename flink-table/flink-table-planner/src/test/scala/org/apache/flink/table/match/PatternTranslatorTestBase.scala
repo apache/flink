@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
 
-import org.junit.Assert._
+import org.junit.jupiter.api.Assertions._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
 import org.mockito.Mockito.{mock, when}

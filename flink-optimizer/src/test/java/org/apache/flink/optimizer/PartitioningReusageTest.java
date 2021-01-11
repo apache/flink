@@ -35,11 +35,10 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.SinkPlanNode;
 import org.apache.flink.optimizer.util.CompilerTestBase;
 import org.apache.flink.util.Collector;
+import org.junit.jupiter.api.Test;
 
-import org.junit.Test;
-
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("serial")
 public class PartitioningReusageTest extends CompilerTestBase {
@@ -843,11 +842,11 @@ public class PartitioningReusageTest extends CompilerTestBase {
             FieldList pFields2 = inProps2.getPartitioningFields();
 
             assertTrue(
+                    pFields1.size() == pFields2.size(),
                     "Inputs are not the same number of fields. Input 1: "
                             + pFields1
                             + ", Input 2: "
-                            + pFields2,
-                    pFields1.size() == pFields2.size());
+                            + pFields2);
 
             FieldList reqPFields1 = join.getKeysForInput1();
             FieldList reqPFields2 = join.getKeysForInput2();
@@ -906,11 +905,11 @@ public class PartitioningReusageTest extends CompilerTestBase {
             FieldList pFields2 = inProps2.getPartitioningFields();
 
             assertTrue(
+                    pFields1.size() == pFields2.size(),
                     "Inputs are not the same number of fields. Input 1: "
                             + pFields1
                             + ", Input 2: "
-                            + pFields2,
-                    pFields1.size() == pFields2.size());
+                            + pFields2);
 
             FieldList reqPFields1 = coGroup.getKeysForInput1();
             FieldList reqPFields2 = coGroup.getKeysForInput2();

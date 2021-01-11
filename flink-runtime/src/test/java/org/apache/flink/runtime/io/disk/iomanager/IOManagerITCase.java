@@ -27,11 +27,17 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.TestLogger;
-
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.EOFException;
 import java.io.File;
@@ -66,9 +72,7 @@ public class IOManagerITCase extends TestLogger {
     public void afterTest() throws Exception {
         ioManager.close();
 
-        Assert.assertTrue(
-                "Not all memory was returned to the memory manager in the test.",
-                memoryManager.verifyEmpty());
+        Assertions.assertTrue(                memoryManager.verifyEmpty(),                "Not all memory was returned to the memory manager in the test.");
         memoryManager.shutdown();
         memoryManager = null;
     }
@@ -145,23 +149,17 @@ public class IOManagerITCase extends TestLogger {
                     try {
                         intValue = Integer.parseInt(val.value);
                     } catch (NumberFormatException nfex) {
-                        Assert.fail(
+                        Assertions.fail(
                                 "Invalid value read from reader. Valid decimal number expected.");
                     }
-                    Assert.assertEquals(
-                            "Written and read values do not match during sequential read.",
-                            nextVal,
-                            intValue);
+                    Assertions.assertEquals(                            nextVal,                            intValue,                             "Written and read values do not match during sequential read.");
                     nextVal++;
                 }
             } catch (EOFException eofex) {
                 // expected
             }
 
-            Assert.assertEquals(
-                    "NUmber of written numbers differs from number of read numbers.",
-                    writingCounters[i],
-                    nextVal);
+            Assertions.assertEquals(                    writingCounters[i],                    nextVal,                     "NUmber of written numbers differs from number of read numbers.");
 
             this.memoryManager.release(in.close());
         }
@@ -189,15 +187,12 @@ public class IOManagerITCase extends TestLogger {
                         try {
                             intValue = Integer.parseInt(val.value);
                         } catch (NumberFormatException nfex) {
-                            Assert.fail(
+                            Assertions.fail(
                                     "Invalid value read from reader. Valid decimal number expected.");
                             return;
                         }
 
-                        Assert.assertEquals(
-                                "Written and read values do not match.",
-                                readingCounters[channel]++,
-                                intValue);
+                        Assertions.assertEquals(                                readingCounters[channel]++,                                intValue,                                 "Written and read values do not match.");
 
                         break;
                     } catch (EOFException eofex) {
@@ -222,7 +217,7 @@ public class IOManagerITCase extends TestLogger {
         // check that files are deleted
         for (int i = 0; i < NUM_CHANNELS; i++) {
             File f = new File(ids[i].getPath());
-            Assert.assertFalse("Channel file has not been deleted.", f.exists());
+            Assertions.assertFalse(f.exists(), "Channel file has not been deleted.");
         }
     }
 

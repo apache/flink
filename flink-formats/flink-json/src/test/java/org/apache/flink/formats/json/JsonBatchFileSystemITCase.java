@@ -23,10 +23,16 @@ import org.apache.flink.table.planner.runtime.batch.sql.BatchFileSystemITCaseBas
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FileUtils;
-
-import org.junit.Assert;
 import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,7 +94,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         TableResult result = tEnv().executeSql("select * from bigdata_source");
         List<String> elements = new ArrayList<>();
         result.collect().forEachRemaining(r -> elements.add((String) r.getField(1)));
-        Assert.assertEquals(numRecords, elements.size());
+        Assertions.assertEquals(numRecords, elements.size());
         elements.sort(String::compareTo);
 
         List<String> expected = new ArrayList<>();
@@ -97,7 +103,7 @@ public class JsonBatchFileSystemITCase extends BatchFileSystemITCaseBase {
         }
         expected.sort(String::compareTo);
 
-        Assert.assertEquals(expected, elements);
+        Assertions.assertEquals(expected, elements);
     }
 
     private static File generateTestData(int numRecords) throws IOException {

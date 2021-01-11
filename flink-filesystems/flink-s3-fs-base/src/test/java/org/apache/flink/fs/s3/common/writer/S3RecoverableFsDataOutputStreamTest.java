@@ -26,33 +26,29 @@ import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionWithException;
-
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Timeout;
+import static org.hamcrest.MatcherAssert.assertThat;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.hamcrest.MatcherAssert;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.SplittableRandom;
-import java.util.UUID;
+import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -248,10 +244,14 @@ public class S3RecoverableFsDataOutputStreamTest {
         streamUnderTest.closeForCommit().commit();
     }
 
-    @Test(expected = IOException.class)
+    @Test
     public void closeForCommitOnClosedStreamShouldFail() throws IOException {
-        streamUnderTest.closeForCommit().commit();
-        streamUnderTest.closeForCommit().commit();
+        assertThrows(
+                IOException.class,
+                () -> {
+                    streamUnderTest.closeForCommit().commit();
+                    streamUnderTest.closeForCommit().commit();
+                });
     }
 
     // ------------------------------------------------------------------------------------------------------------
@@ -318,7 +318,7 @@ public class S3RecoverableFsDataOutputStreamTest {
         long bytesRead =
                 new FileInputStream(inputFile)
                         .read(content, 0, MathUtils.checkedDownCast(inputFile.length()));
-        Assert.assertEquals(file.getPos(), bytesRead);
+        Assertions.assertEquals(file.getPos(), bytesRead);
         return content;
     }
 
