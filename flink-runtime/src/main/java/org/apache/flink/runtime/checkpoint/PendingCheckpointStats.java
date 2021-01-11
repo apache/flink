@@ -106,9 +106,40 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
             int totalSubtaskCount,
             Map<JobVertexID, TaskStateStats> taskStats,
             CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback) {
+        this(
+                checkpointId,
+                triggerTimestamp,
+                props,
+                totalSubtaskCount,
+                0,
+                taskStats,
+                trackerCallback,
+                0,
+                0,
+                0,
+                null);
+    }
+
+    PendingCheckpointStats(
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            int totalSubtaskCount,
+            int acknowledgedSubtaskCount,
+            Map<JobVertexID, TaskStateStats> taskStats,
+            CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback,
+            long currentStateSize,
+            long processedData,
+            long persistedData,
+            @Nullable SubtaskStateStats latestAcknowledgedSubtask) {
 
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
         this.trackerCallback = checkNotNull(trackerCallback);
+        this.currentStateSize = currentStateSize;
+        this.currentPersistedData = processedData;
+        this.currentPersistedData = persistedData;
+        this.latestAcknowledgedSubtask = latestAcknowledgedSubtask;
+        this.currentNumAcknowledgedSubtasks = acknowledgedSubtaskCount;
     }
 
     @Override
