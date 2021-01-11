@@ -21,7 +21,6 @@ package org.apache.flink.connectors.test.kafka;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.test.common.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connectors.test.common.environment.TestEnvironment;
-import org.apache.flink.connectors.test.common.environment.TestEnvironmentConfigs;
 import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.source.ControllableSource;
 import org.apache.flink.connectors.test.common.testsuites.BasicTestSuite;
@@ -49,17 +48,23 @@ public class KafkaConnectorIntegratedTestCase {
 
         // Configure Flink test environment
         TestEnvironment miniClusterTestEnvironment = new MiniClusterTestEnvironment();
-        Configuration config = miniClusterTestEnvironment.getConfiguration();
-        config.set(TestEnvironmentConfigs.RMI_HOST, "localhost");
+
+        // Create required test configurations
+        Configuration config = new Configuration();
+        config.set(BasicTestSuite.TestConfiguration.RMI_HOST, "localhost");
         config.set(
-                TestEnvironmentConfigs.RMI_POTENTIAL_PORTS,
+                BasicTestSuite.TestConfiguration.RMI_POTENTIAL_PORTS,
                 String.valueOf(ControllableSource.RMI_PORT));
-        config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
-        config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
-        config.set(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
-        config.set(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_VALIDATION, "/tmp/record.txt");
+        config.set(BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
+        config.set(BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
+        config.set(
+                BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION,
+                "/tmp/record.txt");
+        config.set(
+                BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                "/tmp/record.txt");
 
         // Run test case in test suite
-        BasicTestSuite.testBasicFunctionality(externalContext, miniClusterTestEnvironment);
+        BasicTestSuite.testBasicFunctionality(externalContext, miniClusterTestEnvironment, config);
     }
 }

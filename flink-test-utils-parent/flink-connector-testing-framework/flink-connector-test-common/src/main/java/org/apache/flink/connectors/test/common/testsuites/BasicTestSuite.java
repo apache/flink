@@ -21,8 +21,10 @@ package org.apache.flink.connectors.test.common.testsuites;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.test.common.environment.TestEnvironment;
-import org.apache.flink.connectors.test.common.environment.TestEnvironmentConfigs;
 import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.external.SourceJobTerminationPattern;
 import org.apache.flink.connectors.test.common.sink.SimpleFileSink;
@@ -47,7 +49,7 @@ import java.util.stream.Collectors;
 import static org.junit.Assert.assertTrue;
 
 /** A basic test suite for testing basic functionality of connectors. */
-public class BasicTestSuite {
+public class BasicTestSuite extends TestSuiteBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(BasicTestSuite.class);
 
@@ -68,12 +70,12 @@ public class BasicTestSuite {
      * include:
      *
      * <ul>
-     *   <li>{@link TestEnvironmentConfigs#RECORD_FILE_PATH_FOR_JOB}
-     *   <li>{@link TestEnvironmentConfigs#OUTPUT_FILE_PATH_FOR_JOB}
-     *   <li>{@link TestEnvironmentConfigs#RECORD_FILE_PATH_FOR_VALIDATION}
-     *   <li>{@link TestEnvironmentConfigs#RECORD_FILE_PATH_FOR_VALIDATION}
-     *   <li>{@link TestEnvironmentConfigs#RMI_HOST}
-     *   <li>{@link TestEnvironmentConfigs#RMI_POTENTIAL_PORTS}
+     *   <li>{@link TestConfiguration#RECORD_FILE_PATH_FOR_JOB}
+     *   <li>{@link TestConfiguration#OUTPUT_FILE_PATH_FOR_JOB}
+     *   <li>{@link TestConfiguration#RECORD_FILE_PATH_FOR_VALIDATION}
+     *   <li>{@link TestConfiguration#OUTPUT_FILE_PATH_FOR_VALIDATION}
+     *   <li>{@link TestConfiguration#RMI_HOST}
+     *   <li>{@link TestConfiguration#RMI_POTENTIAL_PORTS}
      * </ul>
      *
      * <p>Check description of these configurations for more details.
@@ -83,19 +85,28 @@ public class BasicTestSuite {
      * @throws Exception if anything wrong happens in the test
      */
     public static void testBasicFunctionality(
-            ExternalContext<String> externalContext, TestEnvironment testEnv) throws Exception {
+            ExternalContext<String> externalContext,
+            TestEnvironment testEnv,
+            Configuration testConf)
+            throws Exception {
 
         LOG.info("🧪 Running test: testBasicFunctionality");
+
+        validateRequiredConfigs(
+                testConf,
+                TestConfiguration.RECORD_FILE_PATH_FOR_JOB,
+                TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB,
+                TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION,
+                TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                TestConfiguration.RMI_HOST,
+                TestConfiguration.RMI_POTENTIAL_PORTS);
 
         /* --------------------- Job for producing test data to external system ----------------------------- */
         // Construct job: Controllable -> Tested sink
         LOG.info("Start constructing sink job");
         StreamExecutionEnvironment sinkJobEnv = testEnv.createExecutionEnvironment();
         sinkJobEnv.setParallelism(1);
-        File recordFile =
-                new File(
-                        testEnv.getConfiguration()
-                                .getString(TestEnvironmentConfigs.RECORD_FILE_PATH_FOR_JOB));
+        File recordFile = new File(testConf.getString(TestConfiguration.RECORD_FILE_PATH_FOR_JOB));
         ControllableSource controllableSource =
                 new ControllableSource(recordFile.getAbsolutePath(), "END");
         sinkJobEnv
@@ -114,10 +125,7 @@ public class BasicTestSuite {
 
         // Detect remote instance of ControllableSource
         List<Integer> potentialRMIPorts =
-                Arrays.stream(
-                                testEnv.getConfiguration()
-                                        .get(TestEnvironmentConfigs.RMI_POTENTIAL_PORTS)
-                                        .split(","))
+                Arrays.stream(testConf.get(TestConfiguration.RMI_POTENTIAL_PORTS).split(","))
                         .map(Integer::parseInt)
                         .collect(Collectors.toList());
         SourceController sourceController = new SourceController(potentialRMIPorts);
@@ -156,10 +164,7 @@ public class BasicTestSuite {
                 == SourceJobTerminationPattern.END_MARK_FILTERING) {
             sourceJobEnv.setRestartStrategy(RestartStrategies.noRestart());
         }
-        File outputFile =
-                new File(
-                        testEnv.getConfiguration()
-                                .getString(TestEnvironmentConfigs.OUTPUT_FILE_PATH_FOR_JOB));
+        File outputFile = new File(testConf.getString(TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB));
         DataStream<String> stream = sourceJobEnv.addSource(externalContext.createSource());
         switch (externalContext.sourceJobTerminationPattern()) {
                 // Add a map function for filtering end mark
@@ -205,16 +210,66 @@ public class BasicTestSuite {
         assertTrue(
                 DatasetHelper.isSame(
                         new File(
-                                testEnv.getConfiguration()
-                                        .getString(
-                                                TestEnvironmentConfigs
-                                                        .OUTPUT_FILE_PATH_FOR_VALIDATION)),
+                                testConf.getString(
+                                        TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION)),
                         new File(
-                                testEnv.getConfiguration()
-                                        .getString(
-                                                TestEnvironmentConfigs
-                                                        .RECORD_FILE_PATH_FOR_VALIDATION))));
+                                testConf.getString(
+                                        TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION))));
 
         LOG.info("✅ Test testBasicFunctionality passed");
+    }
+
+    // ------------------------------------ Test Configurations -----------------------------------
+
+    public static class TestConfiguration {
+        public static final ConfigOption<String> RECORD_FILE_PATH_FOR_JOB =
+                ConfigOptions.key("controllable.source.record.file.path.job")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription(
+                                "File path of the record file for ControllableSource in the Flink job. "
+                                        + "For FlinkContainer, this is usually a file in the workspace INSIDE the container; "
+                                        + "For other local environments, this should be a local path accessible by Flink. ");
+
+        public static final ConfigOption<String> RECORD_FILE_PATH_FOR_VALIDATION =
+                ConfigOptions.key("controllable.source.record.file.path.validation")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription(
+                                "File path of the record file framework validation. "
+                                        + "For FlinkContainer, this is usually the record file in the workspace OUTSIDE the container; "
+                                        + "For other local environments, this should be a local path accessible by framework. ");
+
+        public static final ConfigOption<String> OUTPUT_FILE_PATH_FOR_JOB =
+                ConfigOptions.key("output.file.path.job")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription(
+                                "File path of the record file for record sinking in the Flink job. "
+                                        + "For FlinkContainer, this is usually a file in the workspace INSIDE the container; "
+                                        + "For other local environments, this should be a local path accessible by Flink. ");
+
+        public static final ConfigOption<String> OUTPUT_FILE_PATH_FOR_VALIDATION =
+                ConfigOptions.key("output.file.path.validation")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription(
+                                "File path of the record file for record sinking in the Flink job. "
+                                        + "For FlinkContainer, this is usually the record file in the workspace OUTSIDE the container; "
+                                        + "For other local environments, this should be a local path accessible by framework. ");
+
+        public static final ConfigOption<String> RMI_HOST =
+                ConfigOptions.key("controllable.source.rmi.host")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription("Host of Java RMI for ControllableSource.");
+
+        public static final ConfigOption<String> RMI_POTENTIAL_PORTS =
+                ConfigOptions.key("controllable.source.rmi.potential.ports")
+                        .stringType()
+                        .noDefaultValue()
+                        .withDescription(
+                                "Potential port numbers of Java RMI for ControllableSource. These "
+                                        + "port numbers are wrapped as a comma-separated string, such as '15213,18213,18600'");
     }
 }
