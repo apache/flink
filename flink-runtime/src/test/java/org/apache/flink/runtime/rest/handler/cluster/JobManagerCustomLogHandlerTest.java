@@ -151,16 +151,6 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
     }
 
     @Test
-    public void testGetJobManagerCustomLogsExistingButForbiddenFileWithObfuscatedPath()
-            throws Exception {
-        File actualFile =
-                testInstance.getFile(
-                        createHandlerRequest(String.format("..%%252%s", FORBIDDEN_FILENAME)));
-        assertThat(actualFile, is(notNullValue()));
-        assertFalse(actualFile.exists());
-    }
-
-    @Test
     public void testGetJobManagerCustomLogsValidFilenameWithLongInvalidPath() throws Exception {
         File actualFile =
                 testInstance.getFile(
