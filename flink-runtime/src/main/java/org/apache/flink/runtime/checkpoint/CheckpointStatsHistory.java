@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,8 +52,8 @@ public class CheckpointStatsHistory implements Serializable {
     /** List over all available stats. Only updated on {@link #createSnapshot()}. */
     private final List<AbstractCheckpointStats> checkpointsHistory;
 
-    /** Map of all available stats keyed by their ID. Only updated on {@link #createSnapshot()}. */
-    private final Map<Long, AbstractCheckpointStats> checkpointsById;
+    /** Map of all available stats keyed by their ID. */
+    private final LinkedHashMap<Long, AbstractCheckpointStats> recentCheckpoints;
 
     /** Maximum array size. */
     private final int maxSize;
@@ -121,10 +122,16 @@ public class CheckpointStatsHistory implements Serializable {
         this.maxSize = maxSize;
         this.checkpointsArray = checkpointArray;
         this.checkpointsHistory = checkNotNull(checkpointsHistory);
-        this.checkpointsById = checkNotNull(checkpointsById);
         this.latestCompletedCheckpoint = latestCompletedCheckpoint;
         this.latestFailedCheckpoint = latestFailedCheckpoint;
         this.latestSavepoint = latestSavepoint;
+        this.recentCheckpoints =
+                new LinkedHashMap<Long, AbstractCheckpointStats>(checkpointsById) {
+                    @Override
+                    protected boolean removeEldestEntry(Map.Entry eldest) {
+                        return size() > maxSize;
+                    }
+                };
     }
 
     public List<AbstractCheckpointStats> getCheckpoints() {
@@ -132,7 +139,7 @@ public class CheckpointStatsHistory implements Serializable {
     }
 
     public AbstractCheckpointStats getCheckpointById(long checkpointId) {
-        return checkpointsById.get(checkpointId);
+        return recentCheckpoints.get(checkpointId);
     }
 
     @Nullable
@@ -250,6 +257,7 @@ public class CheckpointStatsHistory implements Serializable {
         }
 
         checkpointsArray[nextPos++] = pending;
+        recentCheckpoints.put(pending.checkpointId, pending);
     }
 
     /**
@@ -300,6 +308,8 @@ public class CheckpointStatsHistory implements Serializable {
         }
 
         long checkpointId = completedOrFailed.getCheckpointId();
+        recentCheckpoints.computeIfPresent(
+                checkpointId, (unusedKey, unusedValue) -> completedOrFailed);
 
         // We start searching from the last inserted position. Since the entries
         // wrap around the array we search until we are at index 0 and then from
