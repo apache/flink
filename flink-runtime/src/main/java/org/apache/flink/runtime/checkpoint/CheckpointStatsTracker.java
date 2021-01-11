@@ -22,6 +22,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 
@@ -249,6 +250,33 @@ public class CheckpointStatsTracker {
             history.replacePendingCheckpointById(failed);
 
             dirty = true;
+        } finally {
+            statsReadWriteLock.unlock();
+        }
+    }
+
+    public void reportIncompleteStats(
+            long checkpointId, ExecutionVertex vertex, CheckpointMetrics metrics) {
+        statsReadWriteLock.lock();
+        try {
+            AbstractCheckpointStats stats = history.getCheckpointById(checkpointId);
+            if (stats instanceof PendingCheckpointStats) {
+                ((PendingCheckpointStats) stats)
+                        .reportSubtaskStats(
+                                vertex.getJobvertexId(),
+                                new SubtaskStateStats(
+                                        vertex.getParallelSubtaskIndex(),
+                                        System.currentTimeMillis(),
+                                        metrics.getTotalBytesPersisted(),
+                                        metrics.getSyncDurationMillis(),
+                                        metrics.getAsyncDurationMillis(),
+                                        metrics.getBytesProcessedDuringAlignment(),
+                                        metrics.getBytesPersistedDuringAlignment(),
+                                        metrics.getAlignmentDurationNanos() / 1_000_000,
+                                        metrics.getCheckpointStartDelayNanos() / 1_000_000,
+                                        metrics.getUnalignedCheckpoint()));
+                dirty = true;
+            }
         } finally {
             statsReadWriteLock.unlock();
         }

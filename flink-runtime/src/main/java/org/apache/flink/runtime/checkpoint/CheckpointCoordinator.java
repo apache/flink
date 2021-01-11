@@ -223,6 +223,7 @@ public class CheckpointCoordinator {
     private boolean isTriggering = false;
 
     private final CheckpointRequestDecider requestDecider;
+    private final LinkedHashMap<ExecutionAttemptID, ExecutionVertex> cachedTasksById;
 
     // --------------------------------------------------------------------------------------------
 
@@ -349,6 +350,15 @@ public class CheckpointCoordinator {
                         this.minPauseBetweenCheckpoints,
                         this.pendingCheckpoints::size,
                         this.checkpointsCleaner::getNumberOfCheckpointsToClean);
+        this.cachedTasksById =
+                new LinkedHashMap<ExecutionAttemptID, ExecutionVertex>(tasksToWaitFor.length) {
+
+                    @Override
+                    protected boolean removeEldestEntry(
+                            Map.Entry<ExecutionAttemptID, ExecutionVertex> eldest) {
+                        return size() > CheckpointCoordinator.this.tasksToWaitFor.length;
+                    }
+                };
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1133,6 +1143,10 @@ public class CheckpointCoordinator {
                         "Received message for discarded but non-removed checkpoint "
                                 + checkpointId);
             } else {
+                reportStats(
+                        message.getCheckpointId(),
+                        message.getTaskExecutionId(),
+                        message.getCheckpointMetrics());
                 boolean wasPendingCheckpoint;
 
                 // message is for an unknown checkpoint, or comes too late (checkpoint disposed)
@@ -1834,6 +1848,14 @@ public class CheckpointCoordinator {
         }
     }
 
+    public void reportStats(long id, ExecutionAttemptID attemptId, CheckpointMetrics metrics)
+            throws CheckpointException {
+        if (statsTracker != null) {
+            getVertex(attemptId)
+                    .ifPresent(ev -> statsTracker.reportIncompleteStats(id, ev, metrics));
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     private final class ScheduledTrigger implements Runnable {
@@ -2103,6 +2125,17 @@ public class CheckpointCoordinator {
 
         /** Coordinators are not restored during this checkpoint restore. */
         SKIP;
+    }
+
+    private Optional<ExecutionVertex> getVertex(ExecutionAttemptID id) throws CheckpointException {
+        if (!cachedTasksById.containsKey(id)) {
+            cachedTasksById.putAll(getAckTasks());
+            if (!cachedTasksById.containsKey(id)) {
+                // the task probably gone after a restart
+                cachedTasksById.put(id, null);
+            }
+        }
+        return Optional.ofNullable(cachedTasksById.get(id));
     }
 
     private void reportToStatsTracker(
