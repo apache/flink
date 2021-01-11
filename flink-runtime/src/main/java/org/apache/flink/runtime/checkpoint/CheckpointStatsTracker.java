@@ -182,7 +182,7 @@ public class CheckpointStatsTracker {
                         triggerTimestamp,
                         props,
                         vertexToDop,
-                        new PendingCheckpointStatsCallback());
+                        PendingCheckpointStatsCallback.proxyFor(this));
 
         statsReadWriteLock.lock();
         try {
@@ -255,24 +255,34 @@ public class CheckpointStatsTracker {
     }
 
     /** Callback for finalization of a pending checkpoint. */
-    class PendingCheckpointStatsCallback {
-
+    interface PendingCheckpointStatsCallback {
         /**
          * Report a completed checkpoint.
          *
          * @param completed The completed checkpoint.
          */
-        void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
-            CheckpointStatsTracker.this.reportCompletedCheckpoint(completed);
-        }
+        void reportCompletedCheckpoint(CompletedCheckpointStats completed);
 
         /**
          * Report a failed checkpoint.
          *
          * @param failed The failed checkpoint.
          */
-        void reportFailedCheckpoint(FailedCheckpointStats failed) {
-            CheckpointStatsTracker.this.reportFailedCheckpoint(failed);
+        void reportFailedCheckpoint(FailedCheckpointStats failed);
+
+        static PendingCheckpointStatsCallback proxyFor(
+                CheckpointStatsTracker checkpointStatsTracker) {
+            return new PendingCheckpointStatsCallback() {
+                @Override
+                public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
+                    checkpointStatsTracker.reportCompletedCheckpoint(completed);
+                }
+
+                @Override
+                public void reportFailedCheckpoint(FailedCheckpointStats failed) {
+                    checkpointStatsTracker.reportFailedCheckpoint(failed);
+                }
+            };
         }
     }
 

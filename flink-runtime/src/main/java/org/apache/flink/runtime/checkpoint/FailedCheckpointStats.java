@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker.PendingCheckpointStatsCallback;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
@@ -29,30 +30,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Statistics for a failed checkpoint.
  *
- * <p>The reported statistics are immutable.
+ * <p>The reported statistics are mutable.
  */
-public class FailedCheckpointStats extends AbstractCheckpointStats {
+public class FailedCheckpointStats extends PendingCheckpointStats {
 
     private static final long serialVersionUID = 8000748529515900106L;
 
-    /** Number of acknowledged tasks. */
-    private final int numAcknowledgedSubtasks;
-
-    /** Total checkpoint state size over all subtasks. */
-    private final long stateSize;
-
-    private final long processedData;
-
-    private final long persistedData;
-
     /** Timestamp when the checkpoint was failed at the coordinator. */
     private final long failureTimestamp;
-
-    /**
-     * The latest acknowledged subtask stats if any subtask was acknowledged before failing the
-     * checkpoint.
-     */
-    @Nullable private final SubtaskStateStats latestAcknowledgedSubtask;
 
     /** Optional failure message. */
     @Nullable private final String failureMsg;
@@ -87,15 +72,20 @@ public class FailedCheckpointStats extends AbstractCheckpointStats {
             @Nullable SubtaskStateStats latestAcknowledgedSubtask,
             @Nullable Throwable cause) {
 
-        super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
+        super(
+                checkpointId,
+                triggerTimestamp,
+                props,
+                totalSubtaskCount,
+                numAcknowledgedSubtasks,
+                taskStats,
+                FAILING_REPORT_CALLBACK,
+                stateSize,
+                processedData,
+                persistedData,
+                latestAcknowledgedSubtask);
         checkArgument(numAcknowledgedSubtasks >= 0, "Negative number of ACKs");
-        this.numAcknowledgedSubtasks = numAcknowledgedSubtasks;
-        checkArgument(stateSize >= 0, "Negative state size");
-        this.stateSize = stateSize;
-        this.processedData = processedData;
-        this.persistedData = persistedData;
         this.failureTimestamp = failureTimestamp;
-        this.latestAcknowledgedSubtask = latestAcknowledgedSubtask;
         this.failureMsg = cause != null ? cause.getMessage() : null;
     }
 
@@ -104,41 +94,11 @@ public class FailedCheckpointStats extends AbstractCheckpointStats {
         return CheckpointStatsStatus.FAILED;
     }
 
-    @Override
-    public int getNumberOfAcknowledgedSubtasks() {
-        return numAcknowledgedSubtasks;
-    }
-
-    @Override
-    public long getStateSize() {
-        return stateSize;
-    }
-
-    @Override
-    public long getProcessedData() {
-        return processedData;
-    }
-
-    @Override
-    public long getPersistedData() {
-        return persistedData;
-    }
-
-    @Override
-    @Nullable
-    public SubtaskStateStats getLatestAcknowledgedSubtaskStats() {
-        return latestAcknowledgedSubtask;
-    }
-
     /** Returns the end to end duration until the checkpoint failure. */
     @Override
     public long getEndToEndDuration() {
         return Math.max(0, failureTimestamp - triggerTimestamp);
     }
-
-    // ------------------------------------------------------------------------
-    // Failed checkpoint specific methods
-    // ------------------------------------------------------------------------
 
     /**
      * Returns the timestamp when this checkpoint failed.
@@ -158,4 +118,19 @@ public class FailedCheckpointStats extends AbstractCheckpointStats {
     public String getFailureMessage() {
         return failureMsg;
     }
+
+    private static final PendingCheckpointStatsCallback FAILING_REPORT_CALLBACK =
+            new PendingCheckpointStatsCallback() {
+                @Override
+                public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
+                    throw new UnsupportedOperationException(
+                            "Failed checkpoint stats can't be completed");
+                }
+
+                @Override
+                public void reportFailedCheckpoint(FailedCheckpointStats failed) {
+                    throw new UnsupportedOperationException(
+                            "Failed checkpoint stats can't be failed");
+                }
+            };
 }
