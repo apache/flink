@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
@@ -83,8 +84,13 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isRow
  * </ul>
  *
  * <p>Any changes here need to be applied to the legacy planner as well.
+ *
+ * @deprecated Use {@link DataTypeFactory#createDataType(TypeInformation)} instead. Note that this
+ *     method will not create legacy types anymore. It fully uses the new type system available only
+ *     in the Blink planner.
  */
 @Internal
+@Deprecated
 public final class LegacyTypeInfoDataTypeConverter {
 
     private static final Map<TypeInformation<?>, DataType> typeInfoDataTypeMap = new HashMap<>();

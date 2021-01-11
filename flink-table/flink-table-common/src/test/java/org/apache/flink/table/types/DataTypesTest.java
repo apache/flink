@@ -63,6 +63,7 @@ import org.junit.runners.Parameterized.Parameters;
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -279,7 +280,12 @@ public class DataTypesTest {
                                         DataTypes.FIELD("name", DataTypes.STRING()),
                                         DataTypes.FIELD(
                                                 "count",
-                                                DataTypes.INT().notNull().bridgedTo(int.class)))));
+                                                DataTypes.INT().notNull().bridgedTo(int.class)))),
+                TestSpec.forUnresolvedDataType(DataTypes.of(Types.ENUM(DayOfWeek.class)))
+                        .expectUnresolvedString("['EnumTypeInfo<java.time.DayOfWeek>']")
+                        .lookupReturns(DataTypes.RAW(new GenericTypeInfo<>(DayOfWeek.class)))
+                        .expectResolvedDataType(
+                                DataTypes.RAW(new GenericTypeInfo<>(DayOfWeek.class))));
     }
 
     @Parameter public TestSpec testSpec;

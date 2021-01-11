@@ -604,7 +604,7 @@ public final class ExtractionUtils {
     // --------------------------------------------------------------------------------------------
 
     /** Result of the extraction in {@link #extractAssigningConstructor(Class, List)}. */
-    static class AssigningConstructor {
+    public static class AssigningConstructor {
         public final Constructor<?> constructor;
         public final List<String> parameterNames;
 
@@ -618,7 +618,7 @@ public final class ExtractionUtils {
      * Checks whether the given constructor takes all of the given fields with matching (possibly
      * primitive) type and name. An assigning constructor can define the order of fields.
      */
-    static @Nullable AssigningConstructor extractAssigningConstructor(
+    public static @Nullable AssigningConstructor extractAssigningConstructor(
             Class<?> clazz, List<Field> fields) {
         AssigningConstructor foundConstructor = null;
         for (Constructor<?> constructor : clazz.getDeclaredConstructors()) {
