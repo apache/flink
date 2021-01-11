@@ -48,6 +48,8 @@ Out of the box, Flink bundles these state backends:
 
 If nothing else is configured, the system will use the HashMapStateBackend.
 
+**NOTE:** Current implementations of state backends are not thread-safety as state access within Flink operator assumes to be single-threaded.
+
 ### The HashMapStateBackend
 
 The *HashMapStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables

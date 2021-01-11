@@ -30,6 +30,11 @@ import java.util.stream.Stream;
 /**
  * A keyed state backend provides methods for managing keyed state.
  *
+ * <h2>Not Thread-Safe</h2>
+ *
+ * State access in keyed state backend dose not require thread safety as each task is executed by
+ * one thread. Current implementations (Heap/RocksDB keyed state backend) are not thread-safe.
+ *
  * @param <K> The key by which state is keyed.
  */
 public interface KeyedStateBackend<K>

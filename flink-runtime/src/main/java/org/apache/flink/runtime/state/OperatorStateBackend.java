@@ -26,6 +26,11 @@ import java.io.Closeable;
 /**
  * Interface that combines both, the user facing {@link OperatorStateStore} interface and the system
  * interface {@link Snapshotable}
+ *
+ * <h2>Not Thread-Safe</h2>
+ *
+ * State access in operator state backend does not require thread safety as each task is executed by
+ * one thread. Current implementation (Default operator state backend) is not thread-safe.
  */
 public interface OperatorStateBackend
         extends OperatorStateStore,

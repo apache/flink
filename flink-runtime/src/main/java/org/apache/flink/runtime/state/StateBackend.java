@@ -71,10 +71,10 @@ import java.util.Collection;
  * structures. That way, the State Backend can be very lightweight (contain only configurations)
  * which makes it easier to be serializable.
  *
- * <h2>Thread Safety</h2>
+ * <h2>Thread Safety when Creating Keyed-/Operator State Backend</h2>
  *
- * <p>State backend implementations have to be thread-safe. Multiple threads may be creating
- * keyed-/operator state backends concurrently.
+ * Please ensure implementations of this class guarantee thread-safety when creating keyed-/operator
+ * state backends as multiple threads may create them concurrently.
  */
 @PublicEvolving
 public interface StateBackend extends java.io.Serializable {

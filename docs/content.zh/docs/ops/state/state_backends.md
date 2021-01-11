@@ -49,6 +49,7 @@ Flink 内置了以下这些开箱即用的 state backends ：
 
 如果不设置，默认使用 HashMapStateBackend。
 
+**NOTE:** 由于Flink operator内对状态的访问都是单线程的，所以目前state backends的实现都不是线程安全的。
 
 <a name="the-hashmapstatebackend"></a>
 
