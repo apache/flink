@@ -27,10 +27,10 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@code CoLocationConstraint} stores the ID of {@link CoLocationGroup} and a ID referring to the
- * actual subtask (i.e. {@link ExecutionVertex}). In co-location groups, the different subtasks of
- * different {@link JobVertex} instances need to be executed on the same slot. This is realized by
- * creating a special shared slot that holds these tasks.
+ * A {@code CoLocationConstraint} stores the ID of {@link CoLocationGroup} and an ID referring to
+ * the actual subtask (i.e. {@link ExecutionVertex}). In co-location groups, the different subtasks
+ * of different {@link JobVertex} instances need to be executed on the same slot. This is realized
+ * by creating a special shared slot that holds these tasks.
  */
 public class CoLocationConstraint {
 
