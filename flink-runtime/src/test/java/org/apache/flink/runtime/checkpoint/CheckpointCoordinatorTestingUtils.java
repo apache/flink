@@ -679,7 +679,7 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
-        public CheckpointCoordinatorBuilder setTasks(ExecutionVertex[] tasks) {
+        public CheckpointCoordinatorBuilder setTasks(ExecutionVertex... tasks) {
             this.tasksToTrigger = tasks;
             this.tasksToWaitFor = tasks;
             this.tasksToCommitTo = tasks;

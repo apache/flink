@@ -1107,6 +1107,7 @@ Metrics related to data exchange between task executors using netty network comm
 </table>
 
 ### Checkpointing
+Note that for failed checkpoints, metrics are updated on a best efforts basis and may be not accurate.
 <table class="table table-bordered">
   <thead>
     <tr>

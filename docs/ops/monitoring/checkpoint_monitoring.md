@@ -52,6 +52,8 @@ The overview tabs lists the following statistics. Note that these statistics don
 
 The checkpoint history keeps statistics about recently triggered checkpoints, including those that are currently in progress.
 
+Note that for failed checkpoints, metrics are updated on a best efforts basis and may be not accurate.
+
 <center>
   <img src="{% link /fig/checkpoint_monitoring-history.png %}" width="700px" alt="Checkpoint Monitoring: History">
 </center>
