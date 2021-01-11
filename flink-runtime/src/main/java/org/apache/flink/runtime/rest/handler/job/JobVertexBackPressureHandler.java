@@ -107,11 +107,15 @@ public class JobVertexBackPressureHandler
             int subtaskIndex = entry.getKey();
             ComponentMetricStore subtaskMetricStore = entry.getValue();
             double backPressureRatio = getBackPressureRatio(subtaskMetricStore);
+            double idleRatio = getIdleRatio(subtaskMetricStore);
+            double busyRatio = getBusyRatio(subtaskMetricStore);
             result.add(
                     new SubtaskBackPressureInfo(
                             subtaskIndex,
                             getBackPressureLevel(backPressureRatio),
-                            backPressureRatio));
+                            backPressureRatio,
+                            idleRatio,
+                            busyRatio));
         }
         result.sort(Comparator.comparingInt(SubtaskBackPressureInfo::getSubtask));
         return result;
@@ -119,14 +123,26 @@ public class JobVertexBackPressureHandler
 
     private double getMaxBackPressureRatio(List<SubtaskBackPressureInfo> subtaskBackPressureInfos) {
         return subtaskBackPressureInfos.stream()
-                .mapToDouble(backPressureInfo -> backPressureInfo.getRatio())
+                .mapToDouble(backPressureInfo -> backPressureInfo.getBackPressuredRatio())
                 .max()
                 .getAsDouble();
     }
 
     private double getBackPressureRatio(ComponentMetricStore metricStore) {
-        return Double.valueOf(metricStore.getMetric(MetricNames.TASK_BACK_PRESSURED_TIME, "0"))
-                / 1_000;
+        return getMsPerSecondMetricAsRatio(metricStore, MetricNames.TASK_BACK_PRESSURED_TIME);
+    }
+
+    private double getIdleRatio(ComponentMetricStore metricStore) {
+        return getMsPerSecondMetricAsRatio(metricStore, MetricNames.TASK_IDLE_TIME);
+    }
+
+    private double getBusyRatio(ComponentMetricStore metricStore) {
+        return getMsPerSecondMetricAsRatio(metricStore, MetricNames.TASK_BUSY_TIME);
+    }
+
+    private double getMsPerSecondMetricAsRatio(
+            ComponentMetricStore metricStore, String metricName) {
+        return Double.valueOf(metricStore.getMetric(metricName, "0")) / 1_000;
     }
 
     /**

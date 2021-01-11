@@ -984,10 +984,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1081,10 +1081,10 @@
                   "type" : "integer"
                 },
                 "processed_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "persisted_data" : {
-                   "type" : "integer"
+                  "type" : "integer"
                 },
                 "num_subtasks" : {
                   "type" : "integer"
@@ -1296,10 +1296,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"
@@ -1397,10 +1397,10 @@
           "type" : "integer"
         },
         "processed_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "persisted_data" : {
-           "type" : "integer"
+          "type" : "integer"
         },
         "num_subtasks" : {
           "type" : "integer"
@@ -2048,6 +2048,12 @@
                 "enum" : [ "ok", "low", "high" ]
               },
               "ratio" : {
+                "type" : "number"
+              },
+              "idleRatio" : {
+                "type" : "number"
+              },
+              "busyRatio" : {
                 "type" : "number"
               }
             }

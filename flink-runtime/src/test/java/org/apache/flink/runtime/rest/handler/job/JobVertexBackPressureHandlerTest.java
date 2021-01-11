@@ -32,6 +32,7 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo;
+import org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.SubtaskBackPressureInfo;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureInfo.VertexBackPressureStatus;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
@@ -80,6 +81,8 @@ public class JobVertexBackPressureHandlerTest {
                         TEST_JOB_VERTEX_ID.toString(),
                         0);
         dumps.add(new GaugeDump(task0, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_IDLE_TIME, "0"));
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_BUSY_TIME, "0"));
 
         TaskQueryScopeInfo task1 =
                 new TaskQueryScopeInfo(
@@ -87,6 +90,8 @@ public class JobVertexBackPressureHandlerTest {
                         TEST_JOB_VERTEX_ID.toString(),
                         1);
         dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_IDLE_TIME, "100"));
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_BUSY_TIME, "900"));
 
         // missing task2
 
@@ -96,6 +101,8 @@ public class JobVertexBackPressureHandlerTest {
                         TEST_JOB_VERTEX_ID.toString(),
                         3);
         dumps.add(new GaugeDump(task3, MetricNames.TASK_BACK_PRESSURED_TIME, "100"));
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_IDLE_TIME, "200"));
+        dumps.add(new GaugeDump(task3, MetricNames.TASK_BUSY_TIME, "700"));
 
         return dumps;
     }
@@ -158,21 +165,31 @@ public class JobVertexBackPressureHandlerTest {
 
         assertThat(
                 jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(JobVertexBackPressureInfo.SubtaskBackPressureInfo::getRatio)
+                        .map(SubtaskBackPressureInfo::getBackPressuredRatio)
                         .collect(Collectors.toList()),
                 contains(1.0, 0.5, 0.1));
 
         assertThat(
                 jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(
-                                JobVertexBackPressureInfo.SubtaskBackPressureInfo
-                                        ::getBackpressureLevel)
+                        .map(SubtaskBackPressureInfo::getIdleRatio)
+                        .collect(Collectors.toList()),
+                contains(0.0, 0.1, 0.2));
+
+        assertThat(
+                jobVertexBackPressureInfo.getSubtasks().stream()
+                        .map(SubtaskBackPressureInfo::getBusyRatio)
+                        .collect(Collectors.toList()),
+                contains(0.0, 0.9, 0.7));
+
+        assertThat(
+                jobVertexBackPressureInfo.getSubtasks().stream()
+                        .map(SubtaskBackPressureInfo::getBackpressureLevel)
                         .collect(Collectors.toList()),
                 contains(HIGH, LOW, OK));
 
         assertThat(
                 jobVertexBackPressureInfo.getSubtasks().stream()
-                        .map(JobVertexBackPressureInfo.SubtaskBackPressureInfo::getSubtask)
+                        .map(SubtaskBackPressureInfo::getSubtask)
                         .collect(Collectors.toList()),
                 contains(0, 1, 3));
     }
