@@ -21,6 +21,9 @@ package org.apache.flink.connectors.test.common.utils;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
 
+import java.time.Duration;
+import java.util.concurrent.TimeoutException;
+
 /** Helper components for checking Flink job status. */
 public class FlinkJobStatusHelper {
 
@@ -30,10 +33,18 @@ public class FlinkJobStatusHelper {
      * @param client Client of the job
      * @param expectedStatus Expected job status
      */
-    public static void waitForJobStatus(JobClient client, JobStatus expectedStatus) {
+    public static void waitForJobStatus(
+            JobClient client, JobStatus expectedStatus, Duration timeout) {
+        long deadline = System.currentTimeMillis() + timeout.toMillis();
+
         JobStatus status = null;
         try {
             while (status == null || !status.equals(expectedStatus)) {
+                if (isTimeout(deadline)) {
+                    throw new TimeoutException(
+                            String.format(
+                                    "Timeout waiting for job entering %s status", expectedStatus));
+                }
                 status = client.getJobStatus().get();
                 if (status.isTerminalState()) {
                     break;
@@ -45,14 +56,23 @@ public class FlinkJobStatusHelper {
 
         // If the job is entering an unexpected terminal status
         if (status.isTerminalState() && !status.equals(expectedStatus)) {
-            if (status.equals(JobStatus.FAILED)) {
+            try {
+                // Exception will be exposed here if job failed
+                client.getJobExecutionResult().get();
+            } catch (Exception e) {
                 throw new IllegalStateException(
-                        "Job has entered "
-                                + status
-                                + " state, "
-                                + "but expecting "
-                                + expectedStatus);
+                        String.format(
+                                "Job has entered %s state, but expecting %s",
+                                status, expectedStatus),
+                        e);
             }
+            throw new IllegalStateException(
+                    String.format(
+                            "Job has entered %s state, but expecting %s", status, expectedStatus));
         }
+    }
+
+    private static boolean isTimeout(long deadline) {
+        return System.currentTimeMillis() > deadline;
     }
 }

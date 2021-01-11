@@ -47,7 +47,9 @@ public class FlinkJarHelper {
             LOG.debug("Searching JAR in {} with module name {}", targetDir, moduleName);
             for (File file : Objects.requireNonNull(targetDir.listFiles())) {
                 String filename = file.getName();
-                if (filename.startsWith(moduleName) && !filename.endsWith("-tests.jar") && filename.endsWith(".jar")) {
+                if (filename.startsWith(moduleName)
+                        && !filename.endsWith("-tests.jar")
+                        && filename.endsWith(".jar")) {
                     jobJar = file;
                 }
             }

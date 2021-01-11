@@ -113,7 +113,7 @@ public class KafkaContainerizedExternalSystem
         // Make sure kafka container is bound with Flink containers
         if (flink == null) {
             LOG.warn(
-                    "Kafka container is not bounded with Flink containers. This will lead to "
+                    "Kafka container is not bound with Flink containers. This will lead to "
                             + "network isolation between Kafka and Flink");
         }
 

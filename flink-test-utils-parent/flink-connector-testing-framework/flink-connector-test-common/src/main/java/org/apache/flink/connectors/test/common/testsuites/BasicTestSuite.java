@@ -37,6 +37,7 @@ import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,7 +122,8 @@ public class BasicTestSuite extends TestSuiteBase {
         LOG.info("Job has been submitted with ID {}", sinkJobClient.getJobID());
 
         // Wait until job is running
-        FlinkJobStatusHelper.waitForJobStatus(sinkJobClient, JobStatus.RUNNING);
+        FlinkJobStatusHelper.waitForJobStatus(
+                sinkJobClient, JobStatus.RUNNING, Duration.ofSeconds(30));
 
         // Detect remote instance of ControllableSource
         List<Integer> potentialRMIPorts =
@@ -148,7 +150,8 @@ public class BasicTestSuite extends TestSuiteBase {
 
         LOG.info("Wait for sink job finishing...");
         // Wait for job finishing
-        FlinkJobStatusHelper.waitForJobStatus(sinkJobClient, JobStatus.FINISHED);
+        FlinkJobStatusHelper.waitForJobStatus(
+                sinkJobClient, JobStatus.FINISHED, Duration.ofSeconds(30));
         LOG.info("Sink job has finished");
 
         /* --------------------- Job for consuming test data back from external system --------------------- */
@@ -199,9 +202,22 @@ public class BasicTestSuite extends TestSuiteBase {
         if (externalContext
                 .sourceJobTerminationPattern()
                 .equals(SourceJobTerminationPattern.END_MARK_FILTERING)) {
-            FlinkJobStatusHelper.waitForJobStatus(sourceJobClient, JobStatus.FAILED);
+            FlinkJobStatusHelper.waitForJobStatus(
+                    sourceJobClient, JobStatus.FAILED, Duration.ofSeconds(30));
+            // Only SuccessException will pass the case
+            try {
+                sourceJobClient.getJobExecutionResult().get();
+            } catch (Exception e) {
+                if (!(ExceptionUtils.getRootCause(e) instanceof SuccessException)) {
+                    throw new IllegalStateException(
+                            "Unknown exception occurs during the job execution. Only SuccessException can pass the test.",
+                            e);
+                }
+            }
+
         } else {
-            FlinkJobStatusHelper.waitForJobStatus(sourceJobClient, JobStatus.FINISHED);
+            FlinkJobStatusHelper.waitForJobStatus(
+                    sourceJobClient, JobStatus.FINISHED, Duration.ofSeconds(30));
         }
         LOG.info("Source job has finished");
 
@@ -221,6 +237,7 @@ public class BasicTestSuite extends TestSuiteBase {
 
     // ------------------------------------ Test Configurations -----------------------------------
 
+    /** Configuration of the test suite. */
     public static class TestConfiguration {
         public static final ConfigOption<String> RECORD_FILE_PATH_FOR_JOB =
                 ConfigOptions.key("controllable.source.record.file.path.job")
