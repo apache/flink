@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.BigIntSerializer;
@@ -54,7 +55,10 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.runtime.typeutils.serializers.python.BigDecSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
+import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -75,6 +79,10 @@ public class PythonTypeUtils {
 
             if (typeInformation instanceof PrimitiveArrayTypeInfo) {
                 return buildPrimitiveArrayTypeProto((PrimitiveArrayTypeInfo) typeInformation);
+            }
+
+            if (typeInformation instanceof SqlTimeTypeInfo) {
+                return buildSqlTimeTypeProto((SqlTimeTypeInfo) typeInformation);
             }
 
             if (typeInformation instanceof RowTypeInfo) {
@@ -160,6 +168,30 @@ public class PythonTypeUtils {
                         String.format(
                                 "The BasicTypeInfo: %s is not supported in PyFlink currently.",
                                 basicTypeInfo.toString()));
+            }
+
+            return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
+        }
+
+        private static FlinkFnApi.TypeInfo buildSqlTimeTypeProto(SqlTimeTypeInfo sqlTimeTypeInfo) {
+            FlinkFnApi.TypeInfo.TypeName typeName = null;
+            if (sqlTimeTypeInfo.equals(SqlTimeTypeInfo.DATE)) {
+                typeName = FlinkFnApi.TypeInfo.TypeName.SQL_DATE;
+            }
+
+            if (sqlTimeTypeInfo.equals(SqlTimeTypeInfo.TIME)) {
+                typeName = FlinkFnApi.TypeInfo.TypeName.SQL_TIME;
+            }
+
+            if (sqlTimeTypeInfo.equals(SqlTimeTypeInfo.TIMESTAMP)) {
+                typeName = FlinkFnApi.TypeInfo.TypeName.SQL_TIMESTAMP;
+            }
+
+            if (typeName == null) {
+                throw new UnsupportedOperationException(
+                        String.format(
+                                "The SqlTimeTypeInfo: %s is not supported in PyFlink currently.",
+                                sqlTimeTypeInfo.toString()));
             }
 
             return FlinkFnApi.TypeInfo.newBuilder().setTypeName(typeName).build();
@@ -397,6 +429,13 @@ public class PythonTypeUtils {
             typeInfoToSerialzerMap.put(
                     PrimitiveArrayTypeInfo.INT_PRIMITIVE_ARRAY_TYPE_INFO.getTypeClass(),
                     IntPrimitiveArraySerializer.INSTANCE);
+
+            typeInfoToSerialzerMap.put(
+                    SqlTimeTypeInfo.DATE.getTypeClass(), DateSerializer.INSTANCE);
+            typeInfoToSerialzerMap.put(
+                    SqlTimeTypeInfo.TIME.getTypeClass(), TimeSerializer.INSTANCE);
+            typeInfoToSerialzerMap.put(
+                    SqlTimeTypeInfo.TIMESTAMP.getTypeClass(), new TimestampSerializer(3));
         }
 
         @SuppressWarnings("unchecked")

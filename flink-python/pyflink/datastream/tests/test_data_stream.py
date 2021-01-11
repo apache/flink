@@ -650,6 +650,23 @@ class DataStreamTests(PyFlinkTestCase):
         expected.sort()
         self.assertEqual(expected, results)
 
+    def test_sql_timestamp_type_info(self):
+        ds = self.env.from_collection([(datetime.date(2021, 1, 9),
+                                        datetime.time(12, 0, 0),
+                                        datetime.datetime(2021, 1, 9, 12, 0, 0, 11000))],
+                                      type_info=Types.ROW([Types.SQL_DATE(),
+                                                           Types.SQL_TIME(),
+                                                           Types.SQL_TIMESTAMP()]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.SQL_DATE(),
+                                                   Types.SQL_TIME(),
+                                                   Types.SQL_TIMESTAMP()]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test sql timestamp type info")
+        results = self.test_sink.get_results()
+        expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
+        self.assertEqual(expected, results)
+
     def test_timestamp_assigner_and_watermark_strategy(self):
         self.env.set_parallelism(1)
         self.env.get_config().set_auto_watermark_interval(2000)
