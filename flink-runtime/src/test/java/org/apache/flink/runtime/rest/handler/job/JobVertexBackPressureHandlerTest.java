@@ -74,19 +74,21 @@ public class JobVertexBackPressureHandlerTest {
 
     private static Collection<MetricDump> getMetricDumps() {
         Collection<MetricDump> dumps = new ArrayList<>();
+        TaskQueryScopeInfo task0 =
+                new TaskQueryScopeInfo(
+                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
+                        TEST_JOB_VERTEX_ID.toString(),
+                        0);
+        dumps.add(new GaugeDump(task0, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
+
         TaskQueryScopeInfo task1 =
                 new TaskQueryScopeInfo(
                         TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
                         TEST_JOB_VERTEX_ID.toString(),
                         1);
-        dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "1000"));
+        dumps.add(new GaugeDump(task1, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
 
-        TaskQueryScopeInfo task2 =
-                new TaskQueryScopeInfo(
-                        TEST_JOB_ID_BACK_PRESSURE_STATS_AVAILABLE.toString(),
-                        TEST_JOB_VERTEX_ID.toString(),
-                        2);
-        dumps.add(new GaugeDump(task2, MetricNames.TASK_BACK_PRESSURED_TIME, "500"));
+        // missing task2
 
         TaskQueryScopeInfo task3 =
                 new TaskQueryScopeInfo(
@@ -172,7 +174,7 @@ public class JobVertexBackPressureHandlerTest {
                 jobVertexBackPressureInfo.getSubtasks().stream()
                         .map(JobVertexBackPressureInfo.SubtaskBackPressureInfo::getSubtask)
                         .collect(Collectors.toList()),
-                contains(0, 1, 2));
+                contains(0, 1, 3));
     }
 
     @Test

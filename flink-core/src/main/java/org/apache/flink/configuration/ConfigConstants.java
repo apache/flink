@@ -767,38 +767,22 @@ public final class ConfigConstants {
     public static final String JOB_MANAGER_WEB_CHECKPOINTS_HISTORY_SIZE =
             "jobmanager.web.checkpoints.history";
 
-    /**
-     * Time after which cached stats are cleaned up if not accessed.
-     *
-     * @deprecated Use {@link WebOptions#BACKPRESSURE_CLEANUP_INTERVAL} instead.
-     */
+    /** @deprecated - no longer used. */
     @Deprecated
     public static final String JOB_MANAGER_WEB_BACK_PRESSURE_CLEAN_UP_INTERVAL =
             "jobmanager.web.backpressure.cleanup-interval";
 
-    /**
-     * Time after which available stats are deprecated and need to be refreshed (by resampling).
-     *
-     * @deprecated Use {@link WebOptions#BACKPRESSURE_REFRESH_INTERVAL} instead.
-     */
+    /** @deprecated - no longer used. */
     @Deprecated
     public static final String JOB_MANAGER_WEB_BACK_PRESSURE_REFRESH_INTERVAL =
             "jobmanager.web.backpressure.refresh-interval";
 
-    /**
-     * Number of samples to take to determine back pressure.
-     *
-     * @deprecated Use {@link WebOptions#BACKPRESSURE_NUM_SAMPLES} instead.
-     */
+    /** @deprecated - no longer used. */
     @Deprecated
     public static final String JOB_MANAGER_WEB_BACK_PRESSURE_NUM_SAMPLES =
             "jobmanager.web.backpressure.num-samples";
 
-    /**
-     * Delay between samples to determine back pressure.
-     *
-     * @deprecated Use {@link WebOptions#BACKPRESSURE_DELAY} instead.
-     */
+    /** @deprecated - no longer used. */
     @Deprecated
     public static final String JOB_MANAGER_WEB_BACK_PRESSURE_DELAY =
             "jobmanager.web.backpressure.delay-between-samples";

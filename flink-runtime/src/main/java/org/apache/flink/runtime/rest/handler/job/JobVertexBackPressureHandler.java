@@ -41,7 +41,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -90,35 +90,36 @@ public class JobVertexBackPressureHandler
     }
 
     private JobVertexBackPressureInfo createJobVertexBackPressureInfo(
-            Collection<ComponentMetricStore> allSubtaskMetricStores) {
-
+            Map<Integer, ComponentMetricStore> allSubtaskMetricStores) {
+        List<SubtaskBackPressureInfo> subtaskBackPressureInfos =
+                createSubtaskBackPressureInfo(allSubtaskMetricStores);
         return new JobVertexBackPressureInfo(
                 JobVertexBackPressureInfo.VertexBackPressureStatus.OK,
-                getBackPressureLevel(getMaxBackPressureRatio(allSubtaskMetricStores)),
+                getBackPressureLevel(getMaxBackPressureRatio(subtaskBackPressureInfos)),
                 metricFetcher.getLastUpdateTime(),
-                createSubtaskBackPressureInfo(allSubtaskMetricStores));
+                subtaskBackPressureInfos);
     }
 
     private List<SubtaskBackPressureInfo> createSubtaskBackPressureInfo(
-            Collection<ComponentMetricStore> subtaskMetricStores) {
+            Map<Integer, ComponentMetricStore> subtaskMetricStores) {
         List<SubtaskBackPressureInfo> result = new ArrayList<>(subtaskMetricStores.size());
-        int subTaskIndex = 0;
-        for (ComponentMetricStore subtaskMetricStore : subtaskMetricStores) {
+        for (Map.Entry<Integer, ComponentMetricStore> entry : subtaskMetricStores.entrySet()) {
+            int subtaskIndex = entry.getKey();
+            ComponentMetricStore subtaskMetricStore = entry.getValue();
             double backPressureRatio = getBackPressureRatio(subtaskMetricStore);
             result.add(
                     new SubtaskBackPressureInfo(
-                            subTaskIndex,
+                            subtaskIndex,
                             getBackPressureLevel(backPressureRatio),
                             backPressureRatio));
-            subTaskIndex++;
         }
+        result.sort(Comparator.comparingInt(SubtaskBackPressureInfo::getSubtask));
         return result;
     }
 
-    private double getMaxBackPressureRatio(
-            Collection<ComponentMetricStore> allSubtaskMetricStores) {
-        return allSubtaskMetricStores.stream()
-                .mapToDouble(metricStore -> getBackPressureRatio(metricStore))
+    private double getMaxBackPressureRatio(List<SubtaskBackPressureInfo> subtaskBackPressureInfos) {
+        return subtaskBackPressureInfos.stream()
+                .mapToDouble(backPressureInfo -> backPressureInfo.getRatio())
                 .max()
                 .getAsDouble();
     }
