@@ -136,7 +136,7 @@ public class WordCount {
                             // ignore
                         }
                     });
-            // counts.print();
+//            counts.print();
         }
         // execute program
         env.execute("Streaming WordCount");
