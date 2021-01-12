@@ -28,7 +28,7 @@ import org.junit.{Before, Ignore, Test}
 
 // TODO OverWindow on Batch should support to order by non-time attribute
 @Ignore
-class OverWindowITCase extends BatchTestBase {
+class OverAggregateITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {

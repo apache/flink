@@ -38,7 +38,7 @@ import org.junit.runners.Parameterized
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   @Before
   def setupEnv(): Unit = {

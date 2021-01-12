@@ -40,7 +40,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
+class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
 
   @Before
   override def before(): Unit = {
