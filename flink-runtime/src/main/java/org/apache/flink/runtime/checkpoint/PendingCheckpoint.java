@@ -439,7 +439,8 @@ public class PendingCheckpoint implements Checkpoint {
                                 metrics.getBytesPersistedDuringAlignment(),
                                 alignmentDurationMillis,
                                 checkpointStartDelayMillis,
-                                metrics.getUnalignedCheckpoint());
+                                metrics.getUnalignedCheckpoint(),
+                                true);
 
                 statsCallback.reportSubtaskStats(vertex.getJobvertexId(), subtaskStateStats);
             }

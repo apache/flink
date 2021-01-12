@@ -61,6 +61,9 @@ public class SubtaskStateStats implements Serializable {
     /** Is the checkpoint completed as an unaligned checkpoint. */
     private final boolean unalignedCheckpoint;
 
+    /** Is the checkpoint completed by this subtask. */
+    private final boolean completed;
+
     SubtaskStateStats(
             int subtaskIndex,
             long ackTimestamp,
@@ -71,7 +74,8 @@ public class SubtaskStateStats implements Serializable {
             long persistedData,
             long alignmentDuration,
             long checkpointStartDelay,
-            boolean unalignedCheckpoint) {
+            boolean unalignedCheckpoint,
+            boolean completed) {
 
         checkArgument(subtaskIndex >= 0, "Negative subtask index");
         this.subtaskIndex = subtaskIndex;
@@ -85,6 +89,7 @@ public class SubtaskStateStats implements Serializable {
         this.alignmentDuration = alignmentDuration;
         this.checkpointStartDelay = checkpointStartDelay;
         this.unalignedCheckpoint = unalignedCheckpoint;
+        this.completed = completed;
     }
 
     public int getSubtaskIndex() {
@@ -162,5 +167,9 @@ public class SubtaskStateStats implements Serializable {
 
     public boolean getUnalignedCheckpoint() {
         return unalignedCheckpoint;
+    }
+
+    public boolean isCompleted() {
+        return completed;
     }
 }

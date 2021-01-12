@@ -18,12 +18,14 @@
 
 package org.apache.flink.runtime.taskmanager;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 
 /** Responder for checkpoint acknowledge and decline messages in the {@link Task}. */
+@Internal
 public interface CheckpointResponder {
 
     /**
@@ -41,6 +43,20 @@ public interface CheckpointResponder {
             long checkpointId,
             CheckpointMetrics checkpointMetrics,
             TaskStateSnapshot subtaskState);
+
+    /**
+     * Report metrics for the given checkpoint. Can be used upon receiving abortion notification.
+     *
+     * @param jobID Job ID of the running job
+     * @param executionAttemptID Execution attempt ID of the running task
+     * @param checkpointId Meta data for this checkpoint
+     * @param checkpointMetrics Metrics of this checkpoint
+     */
+    void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics);
 
     /**
      * Declines the given checkpoint.

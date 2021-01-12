@@ -122,6 +122,14 @@ public class TaskStateManagerImpl implements TaskStateManager {
                 jobId, executionAttemptID, checkpointId, checkpointMetrics, acknowledgedState);
     }
 
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {
+
+        checkpointResponder.reportCheckpointMetrics(
+                jobId, executionAttemptID, checkpointMetaData.getCheckpointId(), checkpointMetrics);
+    }
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
