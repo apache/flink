@@ -25,8 +25,6 @@ import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.RunnableFuture;
 
@@ -70,9 +68,11 @@ public class StateUtil {
      *
      * @param stateFuture to be discarded
      * @throws Exception if the discard operation failed
+     * @return the size of state before cancellation (if available)
      */
-    public static void discardStateFuture(Future<? extends StateObject> stateFuture)
+    public static long discardStateFuture(Future<? extends StateObject> stateFuture)
             throws Exception {
+        long stateSize = 0;
         if (null != stateFuture) {
             if (!stateFuture.cancel(true)) {
 
@@ -82,18 +82,26 @@ public class StateUtil {
                         ((RunnableFuture<?>) stateFuture).run();
                     }
                     StateObject stateObject = stateFuture.get();
-                    if (null != stateObject) {
+                    if (stateObject != null) {
+                        stateSize = stateObject.getStateSize();
                         stateObject.discardState();
                     }
 
-                } catch (CancellationException | ExecutionException ex) {
+                } catch (Exception ex) {
                     LOG.debug(
                             "Cancelled execution of snapshot future runnable. Cancellation produced the following "
                                     + "exception, which is expected an can be ignored.",
                             ex);
                 }
+            } else if (stateFuture.isDone()) {
+                try {
+                    stateSize = stateFuture.get().getStateSize();
+                } catch (Exception e) {
+                    // ignored
+                }
             }
         }
+        return stateSize;
     }
 
     /**
