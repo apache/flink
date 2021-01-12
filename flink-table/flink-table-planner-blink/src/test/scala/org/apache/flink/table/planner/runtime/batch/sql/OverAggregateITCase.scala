@@ -40,7 +40,7 @@ import java.util.{Collections, Optional}
 import scala.collection.Seq
 import scala.util.Random
 
-class OverWindowITCase extends BatchTestBase {
+class OverAggregateITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
