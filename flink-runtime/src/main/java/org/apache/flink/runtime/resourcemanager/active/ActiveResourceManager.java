@@ -21,7 +21,6 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.metrics.ThresholdMeter;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -260,12 +259,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     public void onError(Throwable exception) {
         onFatalError(exception);
-    }
-
-    public static ThresholdMeter createFailureRater(Configuration configuration) {
-        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
-        Preconditions.checkArgument(rate > 0, "Failure rate should be larger than 0");
-        return new ThresholdMeter(rate, Duration.ofMinutes(1));
     }
 
     // ------------------------------------------------------------------------

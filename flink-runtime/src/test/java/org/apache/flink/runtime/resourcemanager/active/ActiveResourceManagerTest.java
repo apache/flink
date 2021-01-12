@@ -769,7 +769,8 @@ public class ActiveResourceManagerTest extends TestLogger {
                             new ClusterInformation("localhost", 1234),
                             fatalErrorHandler,
                             UnregisteredMetricGroups.createUnregisteredResourceManagerMetricGroup(),
-                            ActiveResourceManager.createFailureRater(configuration),
+                            ActiveResourceManagerFactory.createStartWorkerFailureRater(
+                                    configuration),
                             retryInterval,
                             ForkJoinPool.commonPool());
 
