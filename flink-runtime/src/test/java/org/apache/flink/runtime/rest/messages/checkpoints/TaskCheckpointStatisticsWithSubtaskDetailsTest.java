@@ -65,7 +65,8 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                         new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                 .CheckpointAlignment(2L, 4L, 5L, 3L),
                         42L,
-                        true));
+                        true,
+                        false));
 
         return new TaskCheckpointStatisticsWithSubtaskDetails(
                 4L,

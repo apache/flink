@@ -274,7 +274,8 @@ public class CheckpointStatsTracker {
                                         metrics.getBytesPersistedDuringAlignment(),
                                         metrics.getAlignmentDurationNanos() / 1_000_000,
                                         metrics.getCheckpointStartDelayNanos() / 1_000_000,
-                                        metrics.getUnalignedCheckpoint()));
+                                        metrics.getUnalignedCheckpoint(),
+                                        false));
                 dirty = true;
             }
         } finally {

@@ -61,6 +61,13 @@ public class TestCheckpointResponder implements CheckpointResponder {
     }
 
     @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
+
+    @Override
     public void declineCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,

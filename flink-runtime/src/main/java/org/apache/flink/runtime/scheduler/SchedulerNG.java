@@ -136,6 +136,12 @@ public interface SchedulerNG {
             CheckpointMetrics checkpointMetrics,
             TaskStateSnapshot checkpointState);
 
+    void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics);
+
     void declineCheckpoint(DeclineCheckpoint decline);
 
     CompletableFuture<String> stopWithSavepoint(

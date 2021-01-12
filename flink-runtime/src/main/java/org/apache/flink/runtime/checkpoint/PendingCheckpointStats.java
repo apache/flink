@@ -187,8 +187,10 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         TaskStateStats taskStateStats = taskStats.get(jobVertexId);
 
         if (taskStateStats != null && taskStateStats.reportSubtaskStats(subtask)) {
-            currentNumAcknowledgedSubtasks++;
-            latestAcknowledgedSubtask = subtask;
+            if (subtask.isCompleted()) {
+                currentNumAcknowledgedSubtasks++;
+                latestAcknowledgedSubtask = subtask;
+            }
 
             currentStateSize += subtask.getStateSize();
 

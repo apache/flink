@@ -21,6 +21,7 @@ import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.Environment;
@@ -214,6 +215,19 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 acknowledgedTaskStateSnapshot);
     }
 
+    private void reportAbortedSnapshotStats(long stateSize) {
+        CheckpointMetrics metrics = checkpointMetrics.setTotalBytesPersisted(stateSize).build();
+        LOG.trace(
+                "{} - report failed checkpoint stats: {} {}",
+                taskName,
+                checkpointMetaData.getCheckpointId(),
+                metrics);
+
+        taskEnvironment
+                .getTaskStateManager()
+                .reportIncompleteTaskStateSnapshots(checkpointMetaData, metrics);
+    }
+
     private void handleExecutionException(Exception e) {
 
         boolean didCleanup = false;
@@ -275,7 +289,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
 
             try {
                 final long stateSize = cleanup();
-                LOG.debug("discarded state size: {}", stateSize);
+                reportAbortedSnapshotStats(stateSize);
             } catch (Exception cleanupException) {
                 LOG.warn(
                         "Could not properly clean up the async checkpoint runnable.",

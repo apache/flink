@@ -1016,6 +1016,34 @@ public abstract class SchedulerBase implements SchedulerNG {
     }
 
     @Override
+    public void reportCheckpointMetrics(
+            JobID jobID, ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
+        mainThreadExecutor.assertRunningInMainThread();
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+
+        if (checkpointCoordinator != null) {
+            ioExecutor.execute(
+                    () -> {
+                        try {
+                            checkpointCoordinator.reportStats(id, attemptId, metrics);
+                        } catch (Throwable t) {
+                            log.warn("Error while processing report checkpoint stats message", t);
+                        }
+                    });
+        } else {
+            String errorMessage =
+                    "Received ReportCheckpointStats message for job {} with no CheckpointCoordinator";
+            if (executionGraph.getState() == JobStatus.RUNNING) {
+                log.error(errorMessage, jobGraph.getJobID());
+            } else {
+                log.debug(errorMessage, jobGraph.getJobID());
+            }
+        }
+    }
+
+    @Override
     public void declineCheckpoint(final DeclineCheckpoint decline) {
         mainThreadExecutor.assertRunningInMainThread();
 
