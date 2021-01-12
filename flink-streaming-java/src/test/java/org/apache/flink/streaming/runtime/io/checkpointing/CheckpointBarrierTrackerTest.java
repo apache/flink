@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.streaming.runtime.io.MockInputGate;
 
 import org.junit.After;
 import org.junit.Test;
@@ -51,7 +52,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
+import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedControllerTest.addSequence;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;

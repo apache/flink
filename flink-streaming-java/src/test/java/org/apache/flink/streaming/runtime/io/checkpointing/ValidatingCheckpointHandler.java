@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -37,58 +37,59 @@ import static org.junit.Assert.assertTrue;
 /** The invokable handler used for triggering checkpoint and validation. */
 public class ValidatingCheckpointHandler extends AbstractInvokable {
 
-    protected CheckpointFailureReason failureReason;
-    protected long lastCanceledCheckpointId = -1L;
-    protected long nextExpectedCheckpointId;
-    protected long triggeredCheckpointCounter = 0;
-    protected long abortedCheckpointCounter = 0;
-    protected CompletableFuture<Long> lastAlignmentDurationNanos;
-    protected CompletableFuture<Long> lastBytesProcessedDuringAlignment;
-    protected final List<Long> triggeredCheckpoints = new ArrayList<>();
-    protected final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
+    private CheckpointFailureReason failureReason;
+    private long lastCanceledCheckpointId = -1L;
+    private long abortedCheckpointCounter = 0;
+    private final List<CheckpointOptions> triggeredCheckpointOptions = new ArrayList<>();
 
-    public ValidatingCheckpointHandler() {
+    long nextExpectedCheckpointId;
+    long triggeredCheckpointCounter = 0;
+    CompletableFuture<Long> lastAlignmentDurationNanos;
+    CompletableFuture<Long> lastBytesProcessedDuringAlignment;
+    final List<Long> triggeredCheckpoints = new ArrayList<>();
+
+    ValidatingCheckpointHandler() {
         this(-1);
     }
 
-    public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
+    ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
         super(new DummyEnvironment("test", 1, 0));
         this.nextExpectedCheckpointId = nextExpectedCheckpointId;
     }
 
-    public void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
+    void setNextExpectedCheckpointId(long nextExpectedCheckpointId) {
         this.nextExpectedCheckpointId = nextExpectedCheckpointId;
     }
 
-    public CheckpointFailureReason getCheckpointFailureReason() {
+    CheckpointFailureReason getCheckpointFailureReason() {
         return failureReason;
     }
 
-    public long getLastCanceledCheckpointId() {
+    long getLastCanceledCheckpointId() {
         return lastCanceledCheckpointId;
     }
 
-    public long getTriggeredCheckpointCounter() {
+    long getTriggeredCheckpointCounter() {
         return triggeredCheckpointCounter;
     }
 
-    public long getAbortedCheckpointCounter() {
+    long getAbortedCheckpointCounter() {
         return abortedCheckpointCounter;
     }
 
-    public long getNextExpectedCheckpointId() {
+    long getNextExpectedCheckpointId() {
         return nextExpectedCheckpointId;
     }
 
-    public CompletableFuture<Long> getLastAlignmentDurationNanos() {
+    CompletableFuture<Long> getLastAlignmentDurationNanos() {
         return lastAlignmentDurationNanos;
     }
 
-    public CompletableFuture<Long> getLastBytesProcessedDuringAlignment() {
+    CompletableFuture<Long> getLastBytesProcessedDuringAlignment() {
         return lastBytesProcessedDuringAlignment;
     }
 
-    public List<CheckpointOptions> getTriggeredCheckpointOptions() {
+    List<CheckpointOptions> getTriggeredCheckpointOptions() {
         return triggeredCheckpointOptions;
     }
 
