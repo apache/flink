@@ -665,8 +665,6 @@ class DataStreamTests(PyFlinkTestCase):
         self.env.execute("test sql timestamp type info")
         results = self.test_sink.get_results()
         expected = ['+I[2021-01-09, 12:00:00, 2021-01-09 12:00:00.011]']
-        results.sort()
-        expected.sort()
         self.assertEqual(expected, results)
 
     def test_timestamp_assigner_and_watermark_strategy(self):
