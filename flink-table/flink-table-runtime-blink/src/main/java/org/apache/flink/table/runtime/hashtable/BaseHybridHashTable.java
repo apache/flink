@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.hashtable;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelReaderInputView;
