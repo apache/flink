@@ -27,31 +27,31 @@ public class ThresholdMeter implements Meter {
     private static final double MILLISECONDS_PER_SECOND = 1000.0;
     private final double maxEventsPerInterval;
     private final Duration interval;
-    private final Queue<Long> failureTimestamps;
-    private long eventCounter = 0;
+    private final Queue<Long> eventTimestamps;
+    private long eventCount = 0;
 
     public ThresholdMeter(double maxEventsPerInterval, Duration interval) {
         this.maxEventsPerInterval = maxEventsPerInterval;
         this.interval = interval;
-        this.failureTimestamps = new ArrayDeque<>();
-        if (this.interval.toMillis() == 0) {
+        this.eventTimestamps = new ArrayDeque<>();
+        if (interval.isNegative() || interval.isZero()) {
             throw new IllegalArgumentException("The threshold interval should be larger than 0.");
         }
     }
 
     @Override
     public void markEvent() {
-        failureTimestamps.add(System.currentTimeMillis());
-        eventCounter++;
+        eventTimestamps.add(System.currentTimeMillis());
+        eventCount++;
     }
 
     @Override
     public void markEvent(long n) {
         long timestamp = System.currentTimeMillis();
         for (int i = 0; i < n; i++) {
-            failureTimestamps.add(timestamp);
+            eventTimestamps.add(timestamp);
         }
-        eventCounter = eventCounter + n;
+        eventCount = eventCount + n;
     }
 
     @Override
@@ -61,26 +61,26 @@ public class ThresholdMeter implements Meter {
 
     @Override
     public long getCount() {
-        return eventCounter;
+        return eventCount;
     }
 
     public void checkAgainstThreshold() throws ThresholdExceedException {
         if (getEventCountsRecentInterval() >= maxEventsPerInterval) {
             throw new ThresholdExceedException(
                     String.format(
-                            "Maximum number of events %d is detected during the interval of %d seconds",
-                            getEventCountsRecentInterval(), interval.getSeconds()));
+                            "%d events detected in the recent interval, reaching the threshold %f.",
+                            getEventCountsRecentInterval(), maxEventsPerInterval));
         }
     }
 
     private int getEventCountsRecentInterval() {
         Long currentTimeStamp = System.currentTimeMillis();
-        while (!failureTimestamps.isEmpty()
-                && currentTimeStamp - failureTimestamps.peek() > interval.toMillis()) {
-            failureTimestamps.remove();
+        while (!eventTimestamps.isEmpty()
+                && currentTimeStamp - eventTimestamps.peek() > interval.toMillis()) {
+            eventTimestamps.remove();
         }
 
-        return failureTimestamps.size();
+        return eventTimestamps.size();
     }
 
     /** Exception thrown when a threshold exceeds. */
