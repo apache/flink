@@ -21,7 +21,6 @@ package org.apache.flink.table.types.extraction;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.HintFlag;
 import org.apache.flink.table.api.DataTypes;
@@ -40,7 +39,6 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
-import org.apache.flink.table.types.logical.TypeInformationRawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.types.Row;
@@ -68,6 +66,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
+import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -217,11 +216,7 @@ public class DataTypeExtractorTest {
                                 },
                                 Object[][].class)
                         .lookupExpects(Object.class)
-                        .expectDataType(
-                                DataTypes.ARRAY(
-                                        DataTypes.ARRAY(
-                                                DataTypes.RAW(
-                                                        new GenericTypeInfo<>(Object.class))))),
+                        .expectDataType(DataTypes.ARRAY(DataTypes.ARRAY(dummyRaw(Object.class)))),
                 TestSpec.forType(
                                 "RAW with custom serializer",
                                 new DataTypeHintMock() {
@@ -254,7 +249,7 @@ public class DataTypeExtractorTest {
                                 },
                                 Object.class)
                         .lookupExpects(Integer.class)
-                        .expectDataType(DataTypes.RAW(new GenericTypeInfo<>(Integer.class))),
+                        .expectDataType(dummyRaw(Integer.class)),
                 TestSpec.forType(
                                 "RAW with more specific conversion class",
                                 new DataTypeHintMock() {
@@ -271,8 +266,7 @@ public class DataTypeExtractorTest {
                                 RawTypeSpecific.class)
                         .lookupExpects(RawTypeGeneric.class)
                         .expectDataType(
-                                DataTypes.RAW(new GenericTypeInfo<>(RawTypeGeneric.class))
-                                        .bridgedTo(RawTypeSpecific.class)),
+                                dummyRaw(RawTypeGeneric.class).bridgedTo(RawTypeSpecific.class)),
 
                 // MAP type with type variable magic
                 TestSpec.forGeneric(TableFunction.class, 0, TableFunctionWithMapLevel2.class)
@@ -429,9 +423,7 @@ public class DataTypeExtractorTest {
                                         DataTypes.FIELD(
                                                 "listView",
                                                 ListView.newListViewDataType(
-                                                        DataTypes.RAW(
-                                                                new GenericTypeInfo<>(
-                                                                        Object.class)))))),
+                                                        dummyRaw(Object.class))))),
                 TestSpec.forType(
                                 "Data view with custom extraction for list view",
                                 AccumulatorWithCustomListView.class)
@@ -555,7 +547,7 @@ public class DataTypeExtractorTest {
         }
 
         TestSpec lookupExpects(Class<?> lookupClass) {
-            typeFactory.dataType = Optional.of(DataTypes.RAW(new GenericTypeInfo<>(lookupClass)));
+            typeFactory.dataType = Optional.of(dummyRaw(lookupClass));
             typeFactory.expectedClass = Optional.of(lookupClass);
             return this;
         }
@@ -630,9 +622,7 @@ public class DataTypeExtractorTest {
                                 "simplePojoField",
                                 getSimplePojoDataType(simplePojoClass).getLogicalType()),
                         new StructuredAttribute(
-                                "someObject",
-                                new TypeInformationRawType<>(
-                                        new GenericTypeInfo<>(Object.class)))));
+                                "someObject", dummyRaw(Object.class).getLogicalType())));
         builder.setFinal(true);
         builder.setInstantiable(true);
         final StructuredType structuredType = builder.build();
@@ -641,7 +631,7 @@ public class DataTypeExtractorTest {
                 Arrays.asList(
                         DataTypes.MAP(DataTypes.STRING(), DataTypes.INT()),
                         getSimplePojoDataType(simplePojoClass),
-                        DataTypes.RAW(new GenericTypeInfo<>(Object.class)));
+                        dummyRaw(Object.class));
 
         return new FieldsDataType(structuredType, complexPojoClass, fieldDataTypes);
     }
@@ -704,16 +694,13 @@ public class DataTypeExtractorTest {
                         new StructuredAttribute("integer", new IntType()),
                         new StructuredAttribute(
                                 "reference",
-                                new TypeInformationRawType<>(
-                                        new GenericTypeInfo<>(PojoWithRawSelfReference.class)))));
+                                dummyRaw(PojoWithRawSelfReference.class).getLogicalType())));
         builder.setFinal(true);
         builder.setInstantiable(true);
         final StructuredType structuredType = builder.build();
 
         final List<DataType> fieldDataTypes =
-                Arrays.asList(
-                        DataTypes.INT(),
-                        DataTypes.RAW(new GenericTypeInfo<>(PojoWithRawSelfReference.class)));
+                Arrays.asList(DataTypes.INT(), dummyRaw(PojoWithRawSelfReference.class));
 
         return new FieldsDataType(structuredType, PojoWithRawSelfReference.class, fieldDataTypes);
     }

@@ -21,6 +21,7 @@ package org.apache.flink.table.types
 import org.apache.flink.api.scala.createTypeInformation
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.types.TypeInfoDataTypeConverterTest.TestSpec
+import org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw
 import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter
 
 import org.hamcrest.CoreMatchers.equalTo
@@ -71,10 +72,7 @@ object TypeInfoDataTypeConverterScalaTest {
     TestSpec
       .forType(createTypeInformation[Unit])
       .lookupExpects(classOf[Unit])
-      .expectDataType(
-        DataTypes.RAW(
-          classOf[Unit],
-          TypeInfoDataTypeConverterTest.createDummySerializer[Unit]()))
+      .expectDataType(dummyRaw(classOf[Unit]))
   )
 
   // ----------------------------------------------------------------------------------------------
