@@ -25,13 +25,13 @@ import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
 
-class OverWindowTest extends TableTestBase {
+class OverAggregateTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
   val table: Table = streamUtil.addDataStream[(Int, String, Long)]("MyTable",
     'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
-  def testScalarFunctionsOnOverWindow() = {
+  def testScalarFunctionsOnOverWindow(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
     val plusOne = Func1
 
@@ -47,7 +47,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRowsOver() = {
+  def testProcTimeBoundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -57,7 +57,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeBoundedPartitionedRangeOver() = {
+  def testProcTimeBoundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -68,7 +68,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRangeOver() = {
+  def testProcTimeBoundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding 10.second as 'w)
       .select('a, 'c.count over 'w)
@@ -76,7 +76,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeBoundedNonPartitionedRowsOver() = {
+  def testProcTimeBoundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding 2.rows as 'w)
       .select('c, 'a.count over 'w)
@@ -84,7 +84,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeUnboundedPartitionedRangeOver() = {
+  def testProcTimeUnboundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -100,7 +100,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeUnboundedPartitionedRowsOver() = {
+  def testProcTimeUnboundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -111,7 +111,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRangeOver() = {
+  def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(
         Over orderBy 'proctime preceding UNBOUNDED_RANGE as 'w)
@@ -120,7 +120,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testProcTimeUnboundedNonPartitionedRowsOver() = {
+  def testProcTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'proctime preceding UNBOUNDED_ROW as 'w)
       .select('c, 'a.count over 'w)
@@ -129,7 +129,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRowsOver() = {
+  def testRowTimeBoundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -141,7 +141,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeBoundedPartitionedRangeOver() = {
+  def testRowTimeBoundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -153,7 +153,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRangeOver() = {
+  def testRowTimeBoundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding 10.second as 'w)
       .select('a, 'c.count over 'w)
@@ -162,7 +162,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeBoundedNonPartitionedRowsOver() = {
+  def testRowTimeBoundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding 2.rows as 'w)
       .select('c, 'a.count over 'w)
@@ -171,7 +171,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRangeOver() = {
+  def testRowTimeUnboundedPartitionedRangeOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -189,7 +189,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeUnboundedPartitionedRowsOver() = {
+  def testRowTimeUnboundedPartitionedRowsOver(): Unit = {
     val weightedAvg = new WeightedAvgWithRetract
 
     val result = table
@@ -200,7 +200,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRangeOver() = {
+  def testRowTimeUnboundedNonPartitionedRangeOver(): Unit = {
     val result = table
       .window(
         Over orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
@@ -209,7 +209,7 @@ class OverWindowTest extends TableTestBase {
   }
 
   @Test
-  def testRowTimeUnboundedNonPartitionedRowsOver() = {
+  def testRowTimeUnboundedNonPartitionedRowsOver(): Unit = {
     val result = table
       .window(Over orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
       .select('c, 'a.count over 'w)
