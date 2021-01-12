@@ -103,7 +103,7 @@ public abstract class ActiveResourceManagerFactory<WorkerType extends ResourceID
 
         final ThresholdMeter failureRater = ActiveResourceManager.createFailureRater(configuration);
         final Duration retryInterval =
-                configuration.get(ResourceManagerOptions.WORKER_CREATION_RETRY_INTERVAL);
+                configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
         return new ActiveResourceManager<>(
                 createResourceManagerDriver(
                         configuration, webInterfaceUrl, rpcService.getAddress()),

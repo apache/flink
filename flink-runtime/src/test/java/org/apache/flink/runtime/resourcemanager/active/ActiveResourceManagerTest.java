@@ -496,9 +496,9 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testWorkerCreationIntervalOnWorkerTerminationExceedFailureRate() throws Exception {
         new Context() {
             {
-                flinkConfig.setDouble(ResourceManagerOptions.MAXIMUM_WORKERS_FAILURE_RATE, 1);
+                flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
                 flinkConfig.set(
-                        ResourceManagerOptions.WORKER_CREATION_RETRY_INTERVAL,
+                        ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
                         Duration.ofMillis(WORKER_CREATION_INTERVAL.toMilliseconds()));
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
@@ -575,9 +575,9 @@ public class ActiveResourceManagerTest extends TestLogger {
     public void testWorkerCreationIntervalAfterException() throws Exception {
         new Context() {
             {
-                flinkConfig.setDouble(ResourceManagerOptions.MAXIMUM_WORKERS_FAILURE_RATE, 1);
+                flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
                 flinkConfig.set(
-                        ResourceManagerOptions.WORKER_CREATION_RETRY_INTERVAL,
+                        ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
                         Duration.ofMillis(WORKER_CREATION_INTERVAL.toMilliseconds()));
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
@@ -753,7 +753,7 @@ public class ActiveResourceManagerTest extends TestLogger {
             final MockResourceManagerRuntimeServices rmServices =
                     new MockResourceManagerRuntimeServices(rpcService, TIMEOUT_TIME, slotManager);
             final Duration retryInterval =
-                    configuration.get(ResourceManagerOptions.WORKER_CREATION_RETRY_INTERVAL);
+                    configuration.get(ResourceManagerOptions.START_WORKER_RETRY_INTERVAL);
 
             final ActiveResourceManager<ResourceID> activeResourceManager =
                     new ActiveResourceManager<>(

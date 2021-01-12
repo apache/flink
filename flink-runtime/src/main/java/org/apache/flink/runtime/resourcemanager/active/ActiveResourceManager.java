@@ -283,7 +283,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     }
 
     public static ThresholdMeter createFailureRater(Configuration configuration) {
-        double rate = configuration.getDouble(ResourceManagerOptions.MAXIMUM_WORKERS_FAILURE_RATE);
+        double rate = configuration.getDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE);
         Preconditions.checkArgument(rate > 0, "Failure rate should be larger than 0");
         return new ThresholdMeter(rate, Duration.ofMinutes(1));
     }

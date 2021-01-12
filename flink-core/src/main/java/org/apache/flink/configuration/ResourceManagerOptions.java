@@ -28,6 +28,9 @@ import java.time.Duration;
 @PublicEvolving
 public class ResourceManagerOptions {
 
+    private static final String START_WORKER_RETRY_INTERVAL_KEY =
+            "resourcemanager.start-worker.retry-interval";
+
     /** Timeout for jobs which don't have a job manager as leader assigned. */
     public static final ConfigOption<String> JOB_TIMEOUT =
             ConfigOptions.key("resourcemanager.job.timeout")
@@ -82,35 +85,35 @@ public class ResourceManagerOptions {
                                     + "Note that this feature is available only to the active deployments (native K8s, Yarn and Mesos).");
 
     /**
-     * Defines the maximum number of worker (YARN / Mesos / Kubernetes) failures per minute before
-     * rejecting subsequent worker requests until the failure rate falls below the maximum. It is to
-     * quickly catch external dependency caused workers failure and wait for retry interval before
-     * sending new request. By default, the value is set to 10/min.
+     * The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute
+     * before pausing requesting new workers. Once the threshold is reached, subsequent worker
+     * requests will be postponed to after a configured retry interval ({@link
+     * #START_WORKER_RETRY_INTERVAL}).
      */
-    public static final ConfigOption<Double> MAXIMUM_WORKERS_FAILURE_RATE =
+    public static final ConfigOption<Double> START_WORKER_MAX_FAILURE_RATE =
             ConfigOptions.key("resourcemanager.start-worker.max-failure-rate")
                     .doubleType()
                     .defaultValue(10.0)
                     .withDescription(
-                            "Defines the maximum number of worker (YARN / Mesos) failures per minute before rejecting"
-                                    + " subsequent worker requests until the failure rate falls below the maximum. It is to quickly catch"
-                                    + " external dependency caused workers failure and terminate job accordingly."
-                                    + " By default, the value is set to 10/min.");
+                            "The maximum number of start worker failures (Native Kubernetes / Yarn / Mesos) per minute "
+                                    + "before pausing requesting new workers. Once the threshold is reached, subsequent "
+                                    + "worker requests will be postponed to after a configured retry interval ('"
+                                    + START_WORKER_RETRY_INTERVAL_KEY
+                                    + "').");
 
     /**
-     * Defines the worker creation interval in milliseconds. In case of worker creation failures, we
-     * should wait for an interval before trying to create new workers when the failure rate
-     * exceeds. Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps
-     * the main thread busy.
+     * The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the
+     * max failure rate of starting workers ({@link #START_WORKER_MAX_FAILURE_RATE}) is reached.
      */
-    public static final ConfigOption<Duration> WORKER_CREATION_RETRY_INTERVAL =
-            ConfigOptions.key("resourcemanager.start-worker.retry-interval")
+    public static final ConfigOption<Duration> START_WORKER_RETRY_INTERVAL =
+            ConfigOptions.key(START_WORKER_RETRY_INTERVAL_KEY)
                     .durationType()
                     .defaultValue(Duration.ofSeconds(3))
                     .withDescription(
-                            "Defines the worker creation interval in milliseconds. In case of worker creation failures,"
-                                    + " we should wait for an interval before trying to create new workers when the failure rate exceeds."
-                                    + " Otherwise, ActiveResourceManager will always re-requesting the worker, which keeps the main thread busy.");
+                            "The time to wait before requesting new workers (Native Kubernetes / Yarn / Mesos) once the "
+                                    + "max failure rate of starting workers ('"
+                                    + START_WORKER_MAX_FAILURE_RATE.key()
+                                    + "') is reached.");
 
     /**
      * The timeout for a slot request to be discarded, in milliseconds.
