@@ -35,7 +35,7 @@ import org.junit.runners.Parameterized
 import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
-class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
+class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
 
   val data = List(
     (1L, 1, "Hello"),
