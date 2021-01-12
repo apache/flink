@@ -274,7 +274,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 AsyncCheckpointState.RUNNING, AsyncCheckpointState.DISCARDED)) {
 
             try {
-                cleanup();
+                final long stateSize = cleanup();
+                LOG.debug("discarded state size: {}", stateSize);
             } catch (Exception cleanupException) {
                 LOG.warn(
                         "Could not properly clean up the async checkpoint runnable.",
@@ -289,7 +290,8 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         return checkpointMetaData.getCheckpointId();
     }
 
-    private void cleanup() throws Exception {
+    /** @return discarded state size (if available). */
+    private long cleanup() throws Exception {
         LOG.debug(
                 "Cleanup AsyncCheckpointRunnable for checkpoint {} of {}.",
                 checkpointMetaData.getCheckpointId(),
@@ -298,11 +300,12 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         Exception exception = null;
 
         // clean up ongoing operator snapshot results and non partitioned state handles
+        long stateSize = 0;
         for (OperatorSnapshotFutures operatorSnapshotResult :
                 operatorSnapshotsInProgress.values()) {
             if (operatorSnapshotResult != null) {
                 try {
-                    operatorSnapshotResult.cancel();
+                    stateSize += operatorSnapshotResult.cancel();
                 } catch (Exception cancelException) {
                     exception = ExceptionUtils.firstOrSuppressed(cancelException, exception);
                 }
@@ -312,6 +315,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
         if (null != exception) {
             throw exception;
         }
+        return stateSize;
     }
 
     private void logFailedCleanupAttempt() {
