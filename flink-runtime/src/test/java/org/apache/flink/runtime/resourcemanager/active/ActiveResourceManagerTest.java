@@ -75,7 +75,7 @@ public class ActiveResourceManagerTest extends TestLogger {
 
     private static final long TIMEOUT_SEC = 5L;
     private static final Time TIMEOUT_TIME = Time.seconds(TIMEOUT_SEC);
-    private static final Time WORKER_CREATION_INTERVAL = Time.milliseconds(50);
+    private static final Time TESTING_START_WORKER_INTERVAL = Time.milliseconds(50);
 
     private static final WorkerResourceSpec WORKER_RESOURCE_SPEC = WorkerResourceSpec.ZERO;
 
@@ -493,13 +493,13 @@ public class ActiveResourceManagerTest extends TestLogger {
     }
 
     @Test
-    public void testWorkerCreationIntervalOnWorkerTerminationExceedFailureRate() throws Exception {
+    public void testStartWorkerIntervalOnWorkerTerminationExceedFailureRate() throws Exception {
         new Context() {
             {
                 flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
-                        Duration.ofMillis(WORKER_CREATION_INTERVAL.toMilliseconds()));
+                        Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
 
@@ -553,13 +553,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                             long t2 =
                                     requestWorkerFromDriverFutures
                                             .get(1)
-                                            .get(TIMEOUT_SEC * 5, TimeUnit.SECONDS);
+                                            .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
                             // validate trying creating worker twice, with proper interval
                             assertThat(
                                     (t2 - t1),
                                     greaterThanOrEqualTo(
-                                            WORKER_CREATION_INTERVAL.toMilliseconds()));
+                                            TESTING_START_WORKER_INTERVAL.toMilliseconds()));
                             // second worker registered, verify registration succeed
                             CompletableFuture<RegistrationResponse> registerTaskExecutorFuture =
                                     registerTaskExecutor(tmResourceIds.get(1));
@@ -572,13 +572,13 @@ public class ActiveResourceManagerTest extends TestLogger {
     }
 
     @Test
-    public void testWorkerCreationIntervalAfterException() throws Exception {
+    public void testStartWorkerIntervalOnRequestWorkerFailure() throws Exception {
         new Context() {
             {
                 flinkConfig.setDouble(ResourceManagerOptions.START_WORKER_MAX_FAILURE_RATE, 1);
                 flinkConfig.set(
                         ResourceManagerOptions.START_WORKER_RETRY_INTERVAL,
-                        Duration.ofMillis(WORKER_CREATION_INTERVAL.toMilliseconds()));
+                        Duration.ofMillis(TESTING_START_WORKER_INTERVAL.toMilliseconds()));
 
                 final AtomicInteger requestCount = new AtomicInteger(0);
                 final ResourceID tmResourceId = ResourceID.generate();
@@ -632,13 +632,13 @@ public class ActiveResourceManagerTest extends TestLogger {
                             long t2 =
                                     requestWorkerFromDriverFutures
                                             .get(1)
-                                            .get(TIMEOUT_SEC * 5, TimeUnit.SECONDS);
+                                            .get(TIMEOUT_SEC, TimeUnit.SECONDS);
 
                             // validate trying creating worker twice, with proper interval
                             assertThat(
                                     (t2 - t1),
                                     greaterThanOrEqualTo(
-                                            WORKER_CREATION_INTERVAL.toMilliseconds()));
+                                            TESTING_START_WORKER_INTERVAL.toMilliseconds()));
 
                             // second worker registered, verify registration succeed
                             resourceIdFutures.get(1).complete(tmResourceId);
