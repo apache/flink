@@ -1930,7 +1930,7 @@ class FlinkRelMdHandlerTestBase {
     val temporalTableSource = new TestTemporalTable
     val batchSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, true)
     val batchScan = relBuilder.queryOperation(batchSourceOp).build().asInstanceOf[TableScan]
-    val batchLookupJoin = new BatchExecLookupJoin(
+    val batchLookupJoin = new BatchPhysicalLookupJoin(
       cluster,
       batchPhysicalTraits,
       studentBatchScan,
@@ -1941,7 +1941,7 @@ class FlinkRelMdHandlerTestBase {
     )
     val streamSourceOp = new TableSourceQueryOperation[RowData](temporalTableSource, false)
     val streamScan = relBuilder.queryOperation(streamSourceOp).build().asInstanceOf[TableScan]
-    val streamLookupJoin = new StreamExecLookupJoin(
+    val streamLookupJoin = new StreamPhysicalLookupJoin(
       cluster,
       streamPhysicalTraits,
       studentBatchScan,
