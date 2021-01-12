@@ -42,8 +42,8 @@ public class ExecNodeUtil {
      *
      * <p>TODO: This method can be removed once FLINK-20879 is finished.
      */
-    public static long getMemorySize(TableConfig tableConfig, ConfigOption<String> option) {
-        return MemorySize.parse(tableConfig.getConfiguration().getString(option)).getBytes();
+    public static long getMemorySize(TableConfig tableConfig, ConfigOption<MemorySize> option) {
+        return tableConfig.getConfiguration().get(option).getBytes();
     }
 
     /**
