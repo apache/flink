@@ -203,7 +203,7 @@ public class KubernetesConfigOptions {
                                                     + "Visit %s for the official docker images provided by the Flink project. The Flink project also publishes docker images to %s.",
                                             link("https://hub.docker.com/_/flink?tab=tags", "here"),
                                             link(
-                                                    "https://hub.docker.com/r/apache/flink",
+                                                    "https://hub.docker.com/r/apache/flink/tags",
                                                     "apache/flink DockerHub repository"))
                                     .build());
 
