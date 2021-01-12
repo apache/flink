@@ -189,7 +189,7 @@ class BatchPhysicalSortMergeJoin(
       rightAllKey,
       filterNulls,
       condition,
-      estimateOutputSize(getLeft) < estimateOutputSize(getRight),
+     estimateOutputSize(getLeft) < estimateOutputSize(getRight),
       getInputEdges,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
