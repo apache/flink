@@ -128,6 +128,23 @@ public class PythonConfigUtil {
         firstStream.setSlotSharingGroup(secondStream.getSlotSharingGroup());
     }
 
+    /** Set Python Operator Use Managed Memory. */
+    public static void setManagedMemory(Transformation<?> transformation, Configuration config) {
+        if (config.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
+            setManagedMemory(transformation);
+        }
+    }
+
+    private static void setManagedMemory(Transformation<?> transformation) {
+        List<Transformation<?>> inputTransformations = transformation.getInputs();
+        if (isPythonOperator(transformation)) {
+            transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
+        }
+        for (Transformation inputTransformation : inputTransformations) {
+            setManagedMemory(inputTransformation);
+        }
+    }
+
     /**
      * Generate a {@link StreamGraph} for transformations maintained by current {@link
      * StreamExecutionEnvironment}, and reset the merged env configurations with dependencies to
@@ -153,18 +170,7 @@ public class PythonConfigUtil {
             transformationsField.setAccessible(true);
             for (Transformation transform :
                     (List<Transformation<?>>) transformationsField.get(env)) {
-                if (transform instanceof OneInputTransformation
-                        && isPythonOperator(
-                                ((OneInputTransformation) transform).getOperatorFactory())) {
-                    transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
-                } else if (transform instanceof TwoInputTransformation
-                        && isPythonOperator(
-                                ((TwoInputTransformation) transform).getOperatorFactory())) {
-                    transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
-                } else if (transform instanceof AbstractMultipleInputTransformation
-                        && isPythonOperator(
-                                ((AbstractMultipleInputTransformation) transform)
-                                        .getOperatorFactory())) {
+                if (isPythonOperator(transform)) {
                     transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
                 }
             }
@@ -212,6 +218,20 @@ public class PythonConfigUtil {
                     instanceof AbstractPythonFunctionOperator;
         } else {
             return false;
+        }
+    }
+
+    private static boolean isPythonOperator(Transformation<?> transform) {
+        if (transform instanceof OneInputTransformation
+                && isPythonOperator(((OneInputTransformation) transform).getOperatorFactory())) {
+            return true;
+        } else if (transform instanceof TwoInputTransformation
+                && isPythonOperator(((TwoInputTransformation) transform).getOperatorFactory())) {
+            return true;
+        } else {
+            return transform instanceof AbstractMultipleInputTransformation
+                    && isPythonOperator(
+                            ((AbstractMultipleInputTransformation) transform).getOperatorFactory());
         }
     }
 
