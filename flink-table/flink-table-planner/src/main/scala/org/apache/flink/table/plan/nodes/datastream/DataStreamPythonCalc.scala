@@ -81,8 +81,9 @@ class DataStreamPythonCalc(
       inputSchema.typeInfo).getLogicalType.asInstanceOf[RowType]
     val pythonOperatorOutputRowType = TypeConversions.fromLegacyInfoToDataType(
       pythonOperatorResultTypeInfo).getLogicalType.asInstanceOf[RowType]
+    val config = getMergedConfig(planner.getExecutionEnvironment, planner.getConfig)
     val pythonOperator = getPythonScalarFunctionOperator(
-      getConfig(planner.getExecutionEnvironment, planner.getConfig),
+      config,
       pythonOperatorInputRowType,
       pythonOperatorOutputRowType,
       calcProgram)
@@ -95,7 +96,7 @@ class DataStreamPythonCalc(
       // keep parallelism to ensure order of accumulate and retract messages
       .setParallelism(inputParallelism)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.getTransformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret
