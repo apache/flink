@@ -61,7 +61,8 @@ public class SourceSinkTest extends TestLogger {
 		for (int i = 1; i < ranges.size(); i++) {
 			final Range range = ranges.get(i - 1);
 			final Range currentRange = ranges.get(i);
-			final String message = MessageFormat.format("countOfSubTasks {0} / indexOfSubTasks {1} \n all range {2}",
+			final String message = MessageFormat.format(
+				"countOfSubTasks {0} / indexOfSubTasks {1} \n all range {2}",
 				countOfSubTasks,
 				i,
 				ranges);

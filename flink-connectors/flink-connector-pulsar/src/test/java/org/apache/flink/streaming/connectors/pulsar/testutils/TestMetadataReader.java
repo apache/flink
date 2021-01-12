@@ -48,7 +48,8 @@ public class TestMetadataReader extends PulsarMetadataReader {
 		int indexOfThisSubtask,
 		int numParallelSubtasks,
 		List<Set<TopicRange>> mockGetAllTopicsReturnSequence) throws PulsarClientException {
-		super("http://localhost:8080",
+		super(
+			"http://localhost:8080",
 			new ClientConfigurationData(),
 			"",
 			caseInsensitiveParams,

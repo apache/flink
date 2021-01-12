@@ -236,7 +236,8 @@ public class PulsarMetadataReader implements AutoCloseable {
 						entry.getValue());
 					admin
 						.topics()
-						.createSubscription(entry.getKey().getTopic(),
+						.createSubscription(
+							entry.getKey().getTopic(),
 							subscriptionNameFrom(entry.getKey()),
 							entry.getValue());
 					log.info(

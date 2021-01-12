@@ -181,7 +181,8 @@ public class SimpleSchemaTranslator extends SchemaTranslator {
 				DataType elementType = cdt.getElementDataType();
 				schema = builder
 					.array()
-					.items(sqlType2AvroSchema(elementType,
+					.items(sqlType2AvroSchema(
+						elementType,
 						elementType.getLogicalType().isNullable(),
 						recordName,
 						namespace));
@@ -200,7 +201,8 @@ public class SimpleSchemaTranslator extends SchemaTranslator {
 			}
 			schema = builder
 				.map()
-				.values(sqlType2AvroSchema(valueType,
+				.values(sqlType2AvroSchema(
+					valueType,
 					valueType.getLogicalType().isNullable(),
 					recordName,
 					namespace));
