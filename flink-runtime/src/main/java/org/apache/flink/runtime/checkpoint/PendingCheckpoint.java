@@ -389,8 +389,6 @@ public class PendingCheckpoint implements Checkpoint {
             int subtaskIndex = vertex.getParallelSubtaskIndex();
             long ackTimestamp = System.currentTimeMillis();
 
-            long stateSize = 0L;
-
             if (operatorSubtaskStates != null) {
                 for (OperatorIDPair operatorID : operatorIDs) {
 
@@ -416,7 +414,6 @@ public class PendingCheckpoint implements Checkpoint {
                     }
 
                     operatorState.putState(subtaskIndex, operatorSubtaskState);
-                    stateSize += operatorSubtaskState.getStateSize();
                 }
             }
 
@@ -435,7 +432,7 @@ public class PendingCheckpoint implements Checkpoint {
                         new SubtaskStateStats(
                                 subtaskIndex,
                                 ackTimestamp,
-                                stateSize,
+                                metrics.getTotalBytesPersisted(),
                                 metrics.getSyncDurationMillis(),
                                 metrics.getAsyncDurationMillis(),
                                 metrics.getBytesProcessedDuringAlignment(),

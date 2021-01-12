@@ -194,7 +194,10 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 .getTaskStateManager()
                 .reportTaskStateSnapshots(
                         checkpointMetaData,
-                        checkpointMetrics.build(),
+                        checkpointMetrics
+                                .setTotalBytesPersisted(
+                                        acknowledgedTaskStateSnapshot.getStateSize())
+                                .build(),
                         hasAckState ? acknowledgedTaskStateSnapshot : null,
                         hasLocalState ? localTaskStateSnapshot : null);
 
