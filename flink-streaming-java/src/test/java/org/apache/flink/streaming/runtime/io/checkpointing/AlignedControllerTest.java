@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyCheckpointInvokable;
 import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.streaming.runtime.io.MockInputGate;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -58,7 +59,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.streaming.runtime.io.UnalignedControllerTest.addSequence;
+import static org.apache.flink.streaming.runtime.io.checkpointing.UnalignedControllerTest.addSequence;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
@@ -114,20 +115,20 @@ public class AlignedControllerTest {
         return createCheckpointedInputGate(gate, toNotify);
     }
 
-    protected CheckpointedInputGate createCheckpointedInputGate(
+    private CheckpointedInputGate createCheckpointedInputGate(
             int numberOfChannels, BufferOrEvent[] sequence, AbstractInvokable toNotify)
             throws IOException {
         mockInputGate = new MockInputGate(numberOfChannels, Arrays.asList(sequence));
         return createCheckpointedInputGate(mockInputGate, toNotify);
     }
 
-    protected CheckpointedInputGate createCheckpointedInputGate(
+    private CheckpointedInputGate createCheckpointedInputGate(
             int numberOfChannels, BufferOrEvent[] sequence) throws IOException {
         return createCheckpointedInputGate(
                 numberOfChannels, sequence, new DummyCheckpointInvokable());
     }
 
-    protected CheckpointedInputGate createCheckpointedInputGate(
+    private CheckpointedInputGate createCheckpointedInputGate(
             IndexedInputGate gate, AbstractInvokable toNotify) {
         return new CheckpointedInputGate(
                 gate,

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -960,7 +960,8 @@ public class UnalignedControllerTest {
 
     /** The invokable handler used for triggering checkpoint and validation. */
     static class ValidatingCheckpointHandler
-            extends org.apache.flink.streaming.runtime.io.ValidatingCheckpointHandler {
+            extends org.apache.flink.streaming.runtime.io.checkpointing
+                    .ValidatingCheckpointHandler {
 
         public ValidatingCheckpointHandler(long nextExpectedCheckpointId) {
             super(nextExpectedCheckpointId);

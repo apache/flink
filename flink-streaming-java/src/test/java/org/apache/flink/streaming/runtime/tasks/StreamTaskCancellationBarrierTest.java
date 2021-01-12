@@ -27,8 +27,8 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
-import org.apache.flink.streaming.runtime.io.AlignedControllerTest;
-import org.apache.flink.streaming.runtime.io.AlignedControllerTest.CheckpointExceptionMatcher;
+import org.apache.flink.streaming.runtime.io.checkpointing.AlignedControllerTest;
+import org.apache.flink.streaming.runtime.io.checkpointing.AlignedControllerTest.CheckpointExceptionMatcher;
 
 import org.junit.Rule;
 import org.junit.Test;

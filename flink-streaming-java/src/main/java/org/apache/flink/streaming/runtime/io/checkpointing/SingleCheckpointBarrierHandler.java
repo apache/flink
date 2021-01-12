@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -76,7 +76,7 @@ public class SingleCheckpointBarrierHandler extends CheckpointBarrierHandler {
     private CompletableFuture<Void> allBarriersReceivedFuture = FutureUtils.completedVoidFuture();
 
     @VisibleForTesting
-    static SingleCheckpointBarrierHandler createUnalignedCheckpointBarrierHandler(
+    public static SingleCheckpointBarrierHandler createUnalignedCheckpointBarrierHandler(
             SubtaskCheckpointCoordinator checkpointCoordinator,
             String taskName,
             AbstractInvokable toNotifyOnCheckpoint,

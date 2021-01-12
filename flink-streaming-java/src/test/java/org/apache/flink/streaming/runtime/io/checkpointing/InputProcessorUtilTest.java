@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.io;
+package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -46,7 +46,10 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertTrue;
 
-/** Tests for the behaviors of the {@link InputProcessorUtil}. */
+/**
+ * Tests for the behaviors of the {@link
+ * org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil}.
+ */
 public class InputProcessorUtilTest {
 
     @Test
