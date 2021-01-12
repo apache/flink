@@ -46,7 +46,7 @@ public interface CoLocationGroup {
      *
      * @return The group's members represented by their {@link JobVertexID}s.
      */
-    List<JobVertexID> getVertexIDs();
+    List<JobVertexID> getVertexIds();
 
     /**
      * Returns the {@link CoLocationConstraint} for a specific {@code subTaskIndex}.

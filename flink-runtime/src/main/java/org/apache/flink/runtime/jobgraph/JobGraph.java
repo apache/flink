@@ -331,7 +331,12 @@ public class JobGraph implements Serializable {
         return Collections.unmodifiableSet(slotSharingGroups);
     }
 
-    public Set<CoLocationGroup> getCoLocationGroup() {
+    /**
+     * Returns all {@link CoLocationGroup} instances associated with this {@code JobGraph}.
+     *
+     * @return The associated {@code CoLocationGroup} instances.
+     */
+    public Set<CoLocationGroup> getCoLocationGroups() {
         final Set<CoLocationGroup> coLocationGroups =
                 IterableUtils.toStream(getVertices())
                         .map(JobVertex::getCoLocationGroup)

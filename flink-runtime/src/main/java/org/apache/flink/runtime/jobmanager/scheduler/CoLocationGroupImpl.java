@@ -52,7 +52,7 @@ public class CoLocationGroupImpl implements CoLocationGroup, java.io.Serializabl
     }
 
     @Override
-    public List<JobVertexID> getVertexIDs() {
+    public List<JobVertexID> getVertexIds() {
         return vertices.stream().map(JobVertex::getID).collect(ImmutableList.toImmutableList());
     }
 

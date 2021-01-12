@@ -183,7 +183,7 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
         }
 
         @Override
-        public List<JobVertexID> getVertexIDs() {
+        public List<JobVertexID> getVertexIds() {
             return vertexIDs;
         }
     }

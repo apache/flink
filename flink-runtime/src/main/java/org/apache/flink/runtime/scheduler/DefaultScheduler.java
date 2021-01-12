@@ -600,7 +600,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
         @Override
         public Set<CoLocationGroup> getCoLocationGroups() {
-            return getJobGraph().getCoLocationGroup();
+            return getJobGraph().getCoLocationGroups();
         }
 
         @Override
