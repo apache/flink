@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.rules.physical.common
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.connector.source.LookupTableSource
-import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.common.{CommonPhysicalLegacyTableSourceScan, CommonPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.rules.common.CommonTemporalTableJoinRule
@@ -39,8 +39,8 @@ import scala.collection.JavaConversions._
 
 /**
   * Base implementation for both
-  * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecLookupJoinRule]] and
-  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecLookupJoinRule]].
+  * [[org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalLookupJoinRule]] and
+  * [[org.apache.flink.table.planner.plan.rules.physical.stream.StreamPhysicalLookupJoinRule]].
   */
 trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
 
@@ -112,7 +112,7 @@ trait CommonLookupJoinRule extends CommonTemporalTableJoinRule {
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
     temporalTable: RelOptTable,
-    calcProgram: Option[RexProgram]): CommonLookupJoin
+    calcProgram: Option[RexProgram]): CommonPhysicalLookupJoin
 }
 
 abstract class BaseSnapshotOnTableScanRule(description: String)
