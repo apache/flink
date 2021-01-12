@@ -25,46 +25,95 @@ import org.junit.Test;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.closeTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
-/** Test time stamp based threshold meter. */
+/** Tests for {@link ThresholdMeter}. */
 public class ThresholdMeterTest extends TestLogger {
+    private static final double THRESHOLD_LARGE = 1000.0;
+    private static final double THRESHOLD_SMALL = 5.0;
+    private static final Duration INTERVAL = Duration.ofMillis(50);
+    private static final double ERROR = 1e-6;
 
-    @Test(expected = ThresholdExceedException.class)
-    public void testMaximumFailureCheck() {
-        ThresholdMeter rater = new ThresholdMeter(5, Duration.ofSeconds(10));
+    @Test
+    public void testMarkEvent() {
+        final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
 
-        for (int i = 0; i < 6; i++) {
-            rater.markEvent();
-        }
+        thresholdMeter.markEvent();
+        assertThat(thresholdMeter.getCount(), is(1L));
+        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(1), ERROR));
 
-        assertEquals(6, rater.getCount());
-        rater.checkAgainstThreshold();
-    }
-
-    @Test(expected = ThresholdExceedException.class)
-    public void testRateRecordMultipleEvents() throws InterruptedException {
-        ThresholdMeter rater = new ThresholdMeter(5, Duration.ofMillis(120));
-
-        for (int i = 0; i < 3; i++) {
-            rater.markEvent(2);
-            Thread.sleep(30);
-        }
-
-        assertEquals(6, rater.getCount());
-        rater.checkAgainstThreshold();
+        thresholdMeter.markEvent();
+        assertThat(thresholdMeter.getCount(), is(2L));
+        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(2), ERROR));
     }
 
     @Test
-    public void testMovingRate() throws InterruptedException {
-        ThresholdMeter rater = new ThresholdMeter(5, Duration.ofMillis(120));
+    public void testMarkMultipleEvents() {
+        final ThresholdMeter thresholdMeter = createLargeThresholdMeter();
+        thresholdMeter.markEvent(2);
+        assertThat(thresholdMeter.getCount(), is(2L));
+        assertThat(thresholdMeter.getRate(), closeTo(toPerSecondRate(2), ERROR));
+    }
 
-        for (int i = 0; i < 6; i++) {
-            rater.markEvent();
-            Thread.sleep(30);
+    @Test
+    public void testCheckAgainstThresholdNotExceeded() {
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
+        for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
+            thresholdMeter.markEvent();
+            thresholdMeter.checkAgainstThreshold();
+        }
+    }
+
+    @Test
+    public void testCheckAgainstThreshold() {
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
+
+        // first THRESHOLD_SMALL - 1 events should not exceed threshold
+        for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
+            thresholdMeter.markEvent();
+            thresholdMeter.checkAgainstThreshold();
         }
 
-        assertEquals(6, rater.getCount());
-        rater.checkAgainstThreshold();
+        // the THRESHOLD_SMALL-th event should exceed threshold
+        thresholdMeter.markEvent();
+        try {
+            thresholdMeter.checkAgainstThreshold();
+            fail();
+        } catch (ThresholdExceedException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void testUpdateInterval() throws InterruptedException {
+        final ThresholdMeter thresholdMeter = createSmallThresholdMeter();
+
+        thresholdMeter.markEvent();
+        Thread.sleep(INTERVAL.toMillis() * 2);
+
+        for (int i = 0; i < THRESHOLD_SMALL - 1; ++i) {
+            thresholdMeter.markEvent();
+        }
+
+        assertThat(thresholdMeter.getCount(), is((long) THRESHOLD_SMALL));
+        assertThat(
+                thresholdMeter.getRate(),
+                closeTo(toPerSecondRate((int) (THRESHOLD_SMALL - 1)), ERROR));
+        thresholdMeter.checkAgainstThreshold();
+    }
+
+    private static ThresholdMeter createLargeThresholdMeter() {
+        return new ThresholdMeter(THRESHOLD_LARGE, INTERVAL);
+    }
+
+    private static ThresholdMeter createSmallThresholdMeter() {
+        return new ThresholdMeter(THRESHOLD_SMALL, INTERVAL);
+    }
+
+    private static double toPerSecondRate(int eventsPerInterval) {
+        return eventsPerInterval * 1000.0 / INTERVAL.toMillis();
     }
 }
