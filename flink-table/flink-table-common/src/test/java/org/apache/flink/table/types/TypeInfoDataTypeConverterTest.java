@@ -22,7 +22,6 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.base.VoidSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.api.DataTypes;
@@ -40,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.types.utils.DataTypeFactoryMock.dummyRaw;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -116,7 +116,7 @@ public class TypeInfoDataTypeConverterTest {
                 TestSpec.forType(new QueryableTypeInfo()).expectDataType(DataTypes.BYTES()),
                 TestSpec.forType(Types.ENUM(DayOfWeek.class))
                         .lookupExpects(DayOfWeek.class)
-                        .expectDataType(DataTypes.RAW(DayOfWeek.class, createDummySerializer())));
+                        .expectDataType(dummyRaw(DayOfWeek.class)));
     }
 
     @Parameter public TestSpec testSpec;
@@ -150,7 +150,7 @@ public class TypeInfoDataTypeConverterTest {
         }
 
         TestSpec lookupExpects(Class<?> lookupClass) {
-            typeFactory.dataType = Optional.of(DataTypes.RAW(lookupClass, createDummySerializer()));
+            typeFactory.dataType = Optional.of(dummyRaw(lookupClass));
             typeFactory.expectedClass = Optional.of(lookupClass);
             return this;
         }
@@ -164,11 +164,6 @@ public class TypeInfoDataTypeConverterTest {
         public String toString() {
             return typeInfo + " to " + expectedDataType;
         }
-    }
-
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static <T> TypeSerializer<T> createDummySerializer() {
-        return (TypeSerializer) VoidSerializer.INSTANCE;
     }
 
     // --------------------------------------------------------------------------------------------
