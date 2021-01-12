@@ -51,6 +51,12 @@
             <td>The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. RocksDB has default configuration as '-1'.</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.log.level</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p>Possible values: [DEBUG_LEVEL, INFO_LEVEL, WARN_LEVEL, ERROR_LEVEL, FATAL_LEVEL, HEADER_LEVEL, NUM_INFO_LOG_LEVELS]</td>
+            <td>The specified log level for DB. Candidate log level is DEBUG_LEVEL, INFO_LEVEL, WARN_LEVEL, ERROR_LEVEL, FATAL_LEVEL, HEADER_LEVEL or NUM_INFO_LOG_LEVELS, and Flink choose 'HEADER_LEVEL' as default style. Note: RocksDB logs will not be output to TaskManager logs, and there is no rolling strategy. If the Flink task runs for a long time, it may lead to uncontrolled disk space usage. There is no need to modify the RocksDB log level, unless troubleshooting RocksDB.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.thread.num</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
