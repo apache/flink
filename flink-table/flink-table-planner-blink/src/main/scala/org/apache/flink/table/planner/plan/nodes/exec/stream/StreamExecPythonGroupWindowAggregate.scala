@@ -103,6 +103,7 @@ class StreamExecPythonGroupWindowAggregate(
 
     val inputTransform = inputNode.translateToPlan(planner)
     val (windowAssigner, trigger) = generateWindowAssignerAndTrigger()
+    val mergedConfig = getConfig(planner.getExecEnv, planner.getTableConfig)
     val transform = createPythonStreamWindowGroupOneInputTransformation(
       inputTransform,
       inputNode.getOutputType.asInstanceOf[RowType],
@@ -111,7 +112,7 @@ class StreamExecPythonGroupWindowAggregate(
       windowAssigner,
       trigger,
       emitStrategy.getAllowLateness,
-      getConfig(planner.getExecEnv, planner.getTableConfig))
+      mergedConfig)
 
     if (inputsContainSingleton()) {
       transform.setParallelism(1)
@@ -124,7 +125,7 @@ class StreamExecPythonGroupWindowAggregate(
     transform.setStateKeySelector(selector)
     transform.setStateKeyType(selector.getProducedType)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(mergedConfig)) {
       transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     transform

@@ -76,18 +76,15 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData> {
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
         final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final Configuration config =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> ret =
-                createPythonOneInputTransformation(
-                        inputTransform,
-                        calcProgram,
-                        getDesc(),
-                        CommonPythonUtil.getConfig(planner.getExecEnv(), planner.getTableConfig()));
+                createPythonOneInputTransformation(inputTransform, calcProgram, getDesc(), config);
         if (inputsContainSingleton()) {
             ret.setParallelism(1);
             ret.setMaxParallelism(1);
         }
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
-                planner.getTableConfig().getConfiguration())) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return ret;

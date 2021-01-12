@@ -73,16 +73,15 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
         final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
+        final Configuration config =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
-                createPythonOneInputTransformation(
-                        inputTransform,
-                        CommonPythonUtil.getConfig(planner.getExecEnv(), planner.getTableConfig()));
+                createPythonOneInputTransformation(inputTransform, config);
         if (inputsContainSingleton()) {
             transform.setParallelism(1);
             transform.setMaxParallelism(1);
         }
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(
-                planner.getTableConfig().getConfiguration())) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;

@@ -73,7 +73,7 @@ public class BatchExecPythonGroupAggregate extends CommonExecPythonAggregate
         final RowType inputRowType = (RowType) inputNode.getOutputType();
         final RowType outputRowType = InternalTypeInfo.of(getOutputType()).toRowType();
         Configuration config =
-                CommonPythonUtil.getConfig(planner.getExecEnv(), planner.getTableConfig());
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform, inputRowType, outputRowType, config);

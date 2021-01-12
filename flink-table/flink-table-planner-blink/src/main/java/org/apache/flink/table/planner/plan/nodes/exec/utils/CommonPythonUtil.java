@@ -41,15 +41,14 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /** A utility class used in PyFlink. */
 public class CommonPythonUtil {
     private static final Method convertLiteralToPython;
 
-    private static final String PYTHON_DEPENDENCY_UTILS_CLASS =
-            "org.apache.flink.python.util.PythonDependencyUtils";
+    private static final String PYTHON_CONFIG_UTILS_CLASS =
+            "org.apache.flink.python.util.PythonConfigUtil";
 
     static {
         convertLiteralToPython = loadConvertLiteralToPythonMethod();
@@ -67,26 +66,20 @@ public class CommonPythonUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public static Configuration getConfig(StreamExecutionEnvironment env, TableConfig tableConfig) {
-        Class clazz = loadClass(PYTHON_DEPENDENCY_UTILS_CLASS);
+    public static Configuration getMergedConfig(
+            StreamExecutionEnvironment env, TableConfig tableConfig) {
+        Class clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
         try {
-            StreamExecutionEnvironment readEnv = getRealEnvironment(env);
+            StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
                     clazz.getDeclaredMethod(
-                            "configurePythonDependencies", List.class, Configuration.class);
-            Configuration config =
-                    (Configuration)
-                            method.invoke(
-                                    null,
-                                    readEnv.getCachedFiles(),
-                                    getMergedConfiguration(readEnv, tableConfig));
-            config.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return config;
+                            "getMergedConfig", StreamExecutionEnvironment.class, TableConfig.class);
+            return (Configuration) method.invoke(null, realEnv, tableConfig);
         } catch (NoSuchFieldException
                 | IllegalAccessException
                 | NoSuchMethodException
                 | InvocationTargetException e) {
-            throw new TableException("Method configurePythonDependencies accessed failed.", e);
+            throw new TableException("Method getMergedConfig accessed failed.", e);
         }
     }
 
@@ -172,15 +165,5 @@ public class CommonPythonUtil {
             env = (StreamExecutionEnvironment) realExecEnvField.get(env);
         }
         return env;
-    }
-
-    private static Configuration getMergedConfiguration(
-            StreamExecutionEnvironment env, TableConfig tableConfig)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = StreamExecutionEnvironment.class.getDeclaredMethod("getConfiguration");
-        method.setAccessible(true);
-        Configuration config = new Configuration((Configuration) method.invoke(env));
-        config.addAll(tableConfig.getConfiguration());
-        return config;
     }
 }

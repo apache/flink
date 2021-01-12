@@ -111,9 +111,10 @@ public class StreamExecPythonGroupAggregate extends CommonExecPythonAggregate
                         extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewUtils.DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
+        Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
         final OneInputStreamOperator<RowData, RowData> operator =
                 getPythonAggregateFunctionOperator(
-                        CommonPythonUtil.getConfig(planner.getExecEnv(), tableConfig),
+                        config,
                         inputRowType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         pythonFunctionInfos,
@@ -136,7 +137,7 @@ public class StreamExecPythonGroupAggregate extends CommonExecPythonAggregate
             transform.setMaxParallelism(1);
         }
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(tableConfig.getConfiguration())) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 

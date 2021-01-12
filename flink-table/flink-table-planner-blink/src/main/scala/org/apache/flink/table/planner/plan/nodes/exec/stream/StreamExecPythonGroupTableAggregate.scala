@@ -88,8 +88,9 @@ class StreamExecPythonGroupTableAggregate(
       dataViewSpecs = Array(Array())
     }
 
+    val config = getConfig(planner.getExecEnv, tableConfig)
     val operator = getPythonTableAggregateFunctionOperator(
-      getConfig(planner.getExecEnv, tableConfig),
+      config,
       inputRowType,
       outputType,
       pythonFunctionInfos,
@@ -115,7 +116,7 @@ class StreamExecPythonGroupTableAggregate(
       ret.setMaxParallelism(1)
     }
 
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
 
