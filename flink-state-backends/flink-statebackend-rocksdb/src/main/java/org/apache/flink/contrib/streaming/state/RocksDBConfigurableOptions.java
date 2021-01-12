@@ -23,6 +23,7 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
 import org.rocksdb.CompactionStyle;
+import org.rocksdb.InfoLogLevel;
 
 import java.io.Serializable;
 
@@ -31,6 +32,13 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.rocksdb.CompactionStyle.FIFO;
 import static org.rocksdb.CompactionStyle.LEVEL;
 import static org.rocksdb.CompactionStyle.UNIVERSAL;
+import static org.rocksdb.InfoLogLevel.DEBUG_LEVEL;
+import static org.rocksdb.InfoLogLevel.ERROR_LEVEL;
+import static org.rocksdb.InfoLogLevel.FATAL_LEVEL;
+import static org.rocksdb.InfoLogLevel.HEADER_LEVEL;
+import static org.rocksdb.InfoLogLevel.INFO_LEVEL;
+import static org.rocksdb.InfoLogLevel.NUM_INFO_LOG_LEVELS;
+import static org.rocksdb.InfoLogLevel.WARN_LEVEL;
 
 /**
  * This class contains the configuration options for the {@link DefaultConfigurableOptionsFactory}.
@@ -63,6 +71,26 @@ public class RocksDBConfigurableOptions implements Serializable {
                     .withDescription(
                             "The maximum number of open files (per TaskManager) that can be used by the DB, '-1' means no limit. "
                                     + "RocksDB has default configuration as '-1'.");
+
+    public static final ConfigOption<InfoLogLevel> LOG_LEVEL =
+            key("state.backend.rocksdb.log.level")
+                    .enumType(InfoLogLevel.class)
+                    .noDefaultValue()
+                    .withDescription(
+                            String.format(
+                                    "The specified log level for DB. Candidate log level is %s, %s, %s, %s, %s, %s or %s, "
+                                            + "and Flink choose '%s' as default style. "
+                                            + "Note: RocksDB logs will not be output to TaskManager logs, and there is no rolling strategy. "
+                                            + "If the Flink task runs for a long time, it may lead to uncontrolled disk space usage. "
+                                            + "There is no need to modify the RocksDB log level, unless troubleshooting RocksDB.",
+                                    DEBUG_LEVEL.name(),
+                                    INFO_LEVEL.name(),
+                                    WARN_LEVEL.name(),
+                                    ERROR_LEVEL.name(),
+                                    FATAL_LEVEL.name(),
+                                    HEADER_LEVEL.name(),
+                                    NUM_INFO_LOG_LEVELS.name(),
+                                    HEADER_LEVEL.name()));
 
     // --------------------------------------------------------------------------
     // Provided configurable ColumnFamilyOptions within Flink
