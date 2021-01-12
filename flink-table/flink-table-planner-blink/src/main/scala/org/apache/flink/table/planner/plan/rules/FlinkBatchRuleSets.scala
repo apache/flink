@@ -430,8 +430,8 @@ object FlinkBatchRuleSets {
     BatchPhysicalSortMergeJoinRule.INSTANCE,
     BatchPhysicalNestedLoopJoinRule.INSTANCE,
     BatchExecSingleRowJoinRule.INSTANCE,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
-    BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
+    BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,

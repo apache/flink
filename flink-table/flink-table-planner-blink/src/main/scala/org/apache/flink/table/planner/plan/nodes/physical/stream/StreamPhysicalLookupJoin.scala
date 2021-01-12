@@ -17,11 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.data.RowData
-import org.apache.flink.table.planner.delegation.StreamPlanner
-import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
-import org.apache.flink.table.planner.plan.nodes.exec.LegacyStreamExecNode
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalLookupJoin
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -30,10 +30,12 @@ import org.apache.calcite.rex.RexProgram
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 /**
   * Stream physical RelNode for temporal table join that implemented by lookup.
   */
-class StreamExecLookupJoin(
+class StreamPhysicalLookupJoin(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
@@ -41,7 +43,7 @@ class StreamExecLookupJoin(
     tableCalcProgram: Option[RexProgram],
     joinInfo: JoinInfo,
     joinType: JoinRelType)
-  extends CommonLookupJoin(
+  extends CommonPhysicalLookupJoin(
     cluster,
     traitSet,
     input,
@@ -49,13 +51,12 @@ class StreamExecLookupJoin(
     tableCalcProgram,
     joinInfo,
     joinType)
-  with StreamPhysicalRel
-  with LegacyStreamExecNode[RowData] {
+  with StreamPhysicalRel {
 
   override def requireWatermark: Boolean = false
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecLookupJoin(
+    new StreamPhysicalLookupJoin(
       cluster,
       traitSet,
       inputs.get(0),
@@ -65,21 +66,16 @@ class StreamExecLookupJoin(
       joinType)
   }
 
-  //~ ExecNode methods -----------------------------------------------------------
-
-  override protected def translateToPlanInternal(
-      planner: StreamPlanner): Transformation[RowData] = {
-    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
-      .asInstanceOf[Transformation[RowData]]
-    val transformation = translateToPlanInternal(
-      inputTransformation,
-      planner.getExecEnv,
-      planner.getTableConfig,
-      planner.getRelBuilder)
-    if (inputsContainSingleton()) {
-      transformation.setParallelism(1)
-      transformation.setMaxParallelism(1)
-    }
-    transformation
+  override def translateToExecNode(): ExecNode[_] = {
+    new StreamExecLookupJoin(
+        JoinTypeUtil.getFlinkJoinType(joinType),
+        remainingCondition.orNull,
+        temporalTable,
+        calcOnTemporalTable.orNull,
+        allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
+        ExecEdge.DEFAULT,
+        FlinkTypeFactory.toLogicalRowType(getRowType),
+        getRelDetailedDescription)
   }
+
 }

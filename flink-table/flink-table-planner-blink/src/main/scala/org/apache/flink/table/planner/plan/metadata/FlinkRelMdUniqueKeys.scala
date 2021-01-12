@@ -23,7 +23,7 @@ import org.apache.flink.table.planner._
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WatermarkAssigner, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
+import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -478,7 +478,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
   }
 
   def getUniqueKeys(
-      join: CommonLookupJoin,
+      join: CommonPhysicalLookupJoin,
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
     val left = join.getInput
