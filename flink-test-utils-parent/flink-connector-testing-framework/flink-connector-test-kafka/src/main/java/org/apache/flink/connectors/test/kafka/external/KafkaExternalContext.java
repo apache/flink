@@ -19,12 +19,19 @@
 package org.apache.flink.connectors.test.kafka.external;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializer;
 import org.apache.flink.connectors.test.common.external.ExternalContext;
 import org.apache.flink.connectors.test.common.external.SourceJobTerminationPattern;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+
+import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.util.Properties;
 
@@ -38,34 +45,46 @@ public class KafkaExternalContext implements ExternalContext<String> {
     }
 
     @Override
-    public String jobName() {
+    public String identifier() {
         return "KafkaConnectorTest";
     }
 
     @Override
-    public SourceFunction<String> createSource() {
+    public SourceFunction<String> createSourceFunction() {
         FlinkKafkaConsumer<String> kafkaSource =
                 new FlinkKafkaConsumer<>(
                         KafkaContainerizedExternalSystem.TOPIC,
-                        new SimpleStringSchema() {
-                            @Override
-                            public boolean isEndOfStream(String nextElement) {
-                                return nextElement.equals("END");
-                            }
-                        },
+                        new SimpleStringSchema(),
                         kafkaProperties);
         kafkaSource.setStartFromEarliest();
         return kafkaSource;
     }
 
     @Override
-    public SinkFunction<String> createSink() {
+    public SinkFunction<String> createSinkFunction() {
         return new FlinkKafkaProducer<>(
                 KafkaContainerizedExternalSystem.TOPIC, new SimpleStringSchema(), kafkaProperties);
     }
 
     @Override
     public SourceJobTerminationPattern sourceJobTerminationPattern() {
-        return SourceJobTerminationPattern.DESERIALIZATION_SCHEMA;
+        return SourceJobTerminationPattern.END_MARK_FILTERING;
+    }
+
+    @Override
+    public Source<String, ?, ?> createSource() {
+        return KafkaSource.<String>builder()
+                .setUnbounded(OffsetsInitializer.latest())
+                .setDeserializer(KafkaRecordDeserializer.valueOnly(StringDeserializer.class))
+                .setTopics(KafkaContainerizedExternalSystem.TOPIC)
+                .setBootstrapServers(KafkaContainerizedExternalSystem.ENTRY)
+                .setProperties(kafkaProperties)
+                .build();
+    }
+
+    @Override
+    public Sink<String, ?, ?, ?> createSink() {
+        throw new UnsupportedOperationException(
+                "Kafka connector didn't implement the new sink interface.");
     }
 }

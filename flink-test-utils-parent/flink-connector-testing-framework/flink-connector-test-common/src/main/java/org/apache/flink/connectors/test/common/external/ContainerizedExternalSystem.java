@@ -28,7 +28,7 @@ public abstract class ContainerizedExternalSystem<T extends ContainerizedExterna
     /**
      * Bind this containerized external system with Flink container.
      *
-     * <p>The containerized external system has to be binded with flink containers so that they can
+     * <p>The containerized external system has to be bound with flink containers so that they can
      * access each other through network.
      *
      * @param flink Flink containers

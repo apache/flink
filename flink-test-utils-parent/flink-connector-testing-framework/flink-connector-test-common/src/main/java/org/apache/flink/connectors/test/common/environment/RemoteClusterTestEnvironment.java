@@ -60,9 +60,4 @@ public class RemoteClusterTestEnvironment implements TestEnvironment {
     public StreamExecutionEnvironment createExecutionEnvironment() {
         return StreamExecutionEnvironment.createRemoteEnvironment(host, port, jarPath);
     }
-
-    @Override
-    public Configuration getConfiguration() {
-        return config;
-    }
 }

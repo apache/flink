@@ -28,14 +28,11 @@ import org.apache.flink.connectors.test.common.utils.SuccessException;
  */
 public enum SourceJobTerminationPattern {
 
-    /* Using new source API introduced in FLIP-27 and the source itself is bounded. */
-    BOUNDED_SOURCE,
-
     /**
-     * Using {@link org.apache.flink.api.common.serialization.DeserializationSchema#isEndOfStream}
-     * to stop the source.
+     * The source itself will finally exit and the framework just needs to wait until the job enters
+     * FINISHED status.
      */
-    DESERIALIZATION_SCHEMA,
+    WAIT_UNTIL_FINISHED,
 
     /**
      * Using a record provided by testing framework to mark the end of stream. If this pattern is

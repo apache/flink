@@ -65,7 +65,7 @@ public abstract class AbstractSourceJob extends FlinkJob {
         File outputFile =
                 new File(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt");
 
-        DataStream<String> stream = env.addSource(context.createSource());
+        DataStream<String> stream = env.addSource(context.createSourceFunction());
 
         switch (context.sourceJobTerminationPattern()) {
             case END_MARK_FILTERING:
@@ -80,14 +80,13 @@ public abstract class AbstractSourceJob extends FlinkJob {
                                             return value;
                                         });
                 break;
-            case BOUNDED_SOURCE:
-            case DESERIALIZATION_SCHEMA:
+            case WAIT_UNTIL_FINISHED:
             case FORCE_STOP:
                 break;
             default:
                 throw new IllegalStateException("Unrecognized stop pattern");
         }
         stream.addSink(new SimpleFileSink(outputFile.getAbsolutePath(), false));
-        env.execute(context.jobName() + "-Source");
+        env.execute(context.identifier() + "-Source");
     }
 }

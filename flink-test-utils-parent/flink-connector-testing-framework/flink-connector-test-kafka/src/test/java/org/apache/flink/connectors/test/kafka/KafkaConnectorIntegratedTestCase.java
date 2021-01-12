@@ -51,17 +51,17 @@ public class KafkaConnectorIntegratedTestCase {
 
         // Create required test configurations
         Configuration config = new Configuration();
-        config.set(BasicTestSuite.TestConfiguration.RMI_HOST, "localhost");
+        config.set(BasicTestSuite.TestConfigurations.RMI_HOST, "localhost");
         config.set(
-                BasicTestSuite.TestConfiguration.RMI_POTENTIAL_PORTS,
+                BasicTestSuite.TestConfigurations.RMI_POTENTIAL_PORTS,
                 String.valueOf(ControllableSource.RMI_PORT));
-        config.set(BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
-        config.set(BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
+        config.set(BasicTestSuite.TestConfigurations.RECORD_FILE_PATH_FOR_JOB, "/tmp/record.txt");
+        config.set(BasicTestSuite.TestConfigurations.OUTPUT_FILE_PATH_FOR_JOB, "/tmp/output.txt");
         config.set(
-                BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION,
+                BasicTestSuite.TestConfigurations.RECORD_FILE_PATH_FOR_VALIDATION,
                 "/tmp/record.txt");
         config.set(
-                BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                BasicTestSuite.TestConfigurations.OUTPUT_FILE_PATH_FOR_VALIDATION,
                 "/tmp/record.txt");
 
         // Run test case in test suite

@@ -61,28 +61,28 @@ public class KafkaConnectorE2ETestCase {
 
         // Create required test configurations
         Configuration config = new Configuration();
-        config.set(BasicTestSuite.TestConfiguration.RMI_HOST, "localhost");
+        config.set(BasicTestSuite.TestConfigurations.RMI_HOST, "localhost");
         List<String> potentialPorts =
                 flink.getTaskManagerRMIPorts().stream()
                         .map(Object::toString)
                         .collect(Collectors.toList());
         config.set(
-                BasicTestSuite.TestConfiguration.RMI_POTENTIAL_PORTS,
+                BasicTestSuite.TestConfigurations.RMI_POTENTIAL_PORTS,
                 String.join(",", potentialPorts));
         config.set(
-                BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_JOB,
+                BasicTestSuite.TestConfigurations.RECORD_FILE_PATH_FOR_JOB,
                 Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "record.txt")
                         .toString());
         config.set(
-                BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB,
+                BasicTestSuite.TestConfigurations.OUTPUT_FILE_PATH_FOR_JOB,
                 Paths.get(FlinkContainers.getWorkspaceDirInside().getAbsolutePath(), "output.txt")
                         .toString());
         config.set(
-                BasicTestSuite.TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION,
+                BasicTestSuite.TestConfigurations.RECORD_FILE_PATH_FOR_VALIDATION,
                 Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "record.txt")
                         .toString());
         config.set(
-                BasicTestSuite.TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                BasicTestSuite.TestConfigurations.OUTPUT_FILE_PATH_FOR_VALIDATION,
                 Paths.get(flink.getWorkspaceFolderOutside().getAbsolutePath(), "output.txt")
                         .toString());
 

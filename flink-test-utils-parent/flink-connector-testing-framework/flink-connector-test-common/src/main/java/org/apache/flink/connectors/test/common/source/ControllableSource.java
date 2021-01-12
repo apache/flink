@@ -103,7 +103,6 @@ public class ControllableSource extends AbstractRichFunction
 
     @Override
     public void run(SourceContext<String> ctx) {
-
         // Main loop
         while (isRunning) {
             synchronized (syncLock) {

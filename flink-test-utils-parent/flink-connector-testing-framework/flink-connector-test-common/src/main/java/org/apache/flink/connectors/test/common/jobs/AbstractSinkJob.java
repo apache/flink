@@ -51,7 +51,7 @@ public abstract class AbstractSinkJob extends FlinkJob {
         ControllableSource controllableSource =
                 new ControllableSource(recordFile.getAbsolutePath(), END_MARK);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.addSource(controllableSource).addSink(externalContext.createSink());
-        env.execute(externalContext.jobName() + "-Sink");
+        env.addSource(controllableSource).addSink(externalContext.createSinkFunction());
+        env.execute(externalContext.identifier() + "-Sink");
     }
 }

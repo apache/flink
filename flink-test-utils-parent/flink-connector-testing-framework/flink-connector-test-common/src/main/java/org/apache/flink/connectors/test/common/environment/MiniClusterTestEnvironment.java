@@ -18,21 +18,10 @@
 
 package org.apache.flink.connectors.test.common.environment;
 
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /** Test environment for running jobs on Flink mini-cluster. */
-public class MiniClusterTestEnvironment implements TestEnvironment {
-
-    private final Configuration config;
-
-    public MiniClusterTestEnvironment() {
-        this(new Configuration());
-    }
-
-    public MiniClusterTestEnvironment(Configuration config) {
-        this.config = config;
-    }
+public class MiniClusterTestEnvironment implements TestEnvironment, ClusterControllable {
 
     @Override
     public StreamExecutionEnvironment createExecutionEnvironment() {
@@ -40,7 +29,11 @@ public class MiniClusterTestEnvironment implements TestEnvironment {
     }
 
     @Override
-    public Configuration getConfiguration() {
-        return config;
-    }
+    public void triggerJobManagerFailover() {}
+
+    @Override
+    public void triggerTaskManagerFailover() {}
+
+    @Override
+    public void isolateNetwork() {}
 }

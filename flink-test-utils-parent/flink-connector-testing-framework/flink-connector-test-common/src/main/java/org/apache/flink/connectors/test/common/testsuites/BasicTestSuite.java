@@ -67,22 +67,22 @@ public class BasicTestSuite extends TestSuiteBase {
      *
      * <p>The record and the output file should be identical to pass this test.
      *
-     * <p>In order to use this scenario successfully, configuration of test environment should
-     * include:
+     * <p>In order to use this scenario successfully, configuration of the test should include:
      *
      * <ul>
-     *   <li>{@link TestConfiguration#RECORD_FILE_PATH_FOR_JOB}
-     *   <li>{@link TestConfiguration#OUTPUT_FILE_PATH_FOR_JOB}
-     *   <li>{@link TestConfiguration#RECORD_FILE_PATH_FOR_VALIDATION}
-     *   <li>{@link TestConfiguration#OUTPUT_FILE_PATH_FOR_VALIDATION}
-     *   <li>{@link TestConfiguration#RMI_HOST}
-     *   <li>{@link TestConfiguration#RMI_POTENTIAL_PORTS}
+     *   <li>{@link TestConfigurations#RECORD_FILE_PATH_FOR_JOB}
+     *   <li>{@link TestConfigurations#OUTPUT_FILE_PATH_FOR_JOB}
+     *   <li>{@link TestConfigurations#RECORD_FILE_PATH_FOR_VALIDATION}
+     *   <li>{@link TestConfigurations#OUTPUT_FILE_PATH_FOR_VALIDATION}
+     *   <li>{@link TestConfigurations#RMI_HOST}
+     *   <li>{@link TestConfigurations#RMI_POTENTIAL_PORTS}
      * </ul>
      *
      * <p>Check description of these configurations for more details.
      *
      * @param externalContext External context for the test
      * @param testEnv Execution environment for the test
+     * @param testConf configuration of the test
      * @throws Exception if anything wrong happens in the test
      */
     public static void testBasicFunctionality(
@@ -95,30 +95,30 @@ public class BasicTestSuite extends TestSuiteBase {
 
         validateRequiredConfigs(
                 testConf,
-                TestConfiguration.RECORD_FILE_PATH_FOR_JOB,
-                TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB,
-                TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION,
-                TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION,
-                TestConfiguration.RMI_HOST,
-                TestConfiguration.RMI_POTENTIAL_PORTS);
+                TestConfigurations.RECORD_FILE_PATH_FOR_JOB,
+                TestConfigurations.OUTPUT_FILE_PATH_FOR_JOB,
+                TestConfigurations.RECORD_FILE_PATH_FOR_VALIDATION,
+                TestConfigurations.OUTPUT_FILE_PATH_FOR_VALIDATION,
+                TestConfigurations.RMI_HOST,
+                TestConfigurations.RMI_POTENTIAL_PORTS);
 
         /* --------------------- Job for producing test data to external system ----------------------------- */
         // Construct job: Controllable -> Tested sink
         LOG.info("Start constructing sink job");
         StreamExecutionEnvironment sinkJobEnv = testEnv.createExecutionEnvironment();
         sinkJobEnv.setParallelism(1);
-        File recordFile = new File(testConf.getString(TestConfiguration.RECORD_FILE_PATH_FOR_JOB));
+        File recordFile = new File(testConf.getString(TestConfigurations.RECORD_FILE_PATH_FOR_JOB));
         ControllableSource controllableSource =
                 new ControllableSource(recordFile.getAbsolutePath(), "END");
         sinkJobEnv
                 .addSource(controllableSource)
                 .name("Controllable Source")
-                .addSink(externalContext.createSink())
+                .addSink(externalContext.createSinkFunction())
                 .name("Tested Sink");
 
         // Submit the job to Flink cluster
         LOG.info("Submitting sink job to Flink cluster...");
-        JobClient sinkJobClient = sinkJobEnv.executeAsync(externalContext.jobName() + "-Sink");
+        JobClient sinkJobClient = sinkJobEnv.executeAsync(externalContext.identifier() + "-Sink");
         LOG.info("Job has been submitted with ID {}", sinkJobClient.getJobID());
 
         // Wait until job is running
@@ -127,7 +127,7 @@ public class BasicTestSuite extends TestSuiteBase {
 
         // Detect remote instance of ControllableSource
         List<Integer> potentialRMIPorts =
-                Arrays.stream(testConf.get(TestConfiguration.RMI_POTENTIAL_PORTS).split(","))
+                Arrays.stream(testConf.get(TestConfigurations.RMI_POTENTIAL_PORTS).split(","))
                         .map(Integer::parseInt)
                         .collect(Collectors.toList());
         SourceController sourceController = new SourceController(potentialRMIPorts);
@@ -161,14 +161,13 @@ public class BasicTestSuite extends TestSuiteBase {
         sourceJobEnv.setParallelism(1);
 
         // Since end-mark-filtering pattern will throw a SuccessException for terminating the job,
-        // we should
-        // disable job restarting
+        // we should disable job restarting
         if (externalContext.sourceJobTerminationPattern()
                 == SourceJobTerminationPattern.END_MARK_FILTERING) {
             sourceJobEnv.setRestartStrategy(RestartStrategies.noRestart());
         }
-        File outputFile = new File(testConf.getString(TestConfiguration.OUTPUT_FILE_PATH_FOR_JOB));
-        DataStream<String> stream = sourceJobEnv.addSource(externalContext.createSource());
+        File outputFile = new File(testConf.getString(TestConfigurations.OUTPUT_FILE_PATH_FOR_JOB));
+        DataStream<String> stream = sourceJobEnv.addSource(externalContext.createSourceFunction());
         switch (externalContext.sourceJobTerminationPattern()) {
                 // Add a map function for filtering end mark
             case END_MARK_FILTERING:
@@ -183,8 +182,7 @@ public class BasicTestSuite extends TestSuiteBase {
                                             return value;
                                         });
                 break;
-            case BOUNDED_SOURCE:
-            case DESERIALIZATION_SCHEMA:
+            case WAIT_UNTIL_FINISHED:
             case FORCE_STOP:
                 break;
             default:
@@ -195,7 +193,7 @@ public class BasicTestSuite extends TestSuiteBase {
         // Submit the job to Flink cluster
         LOG.info("Submitting source job to Flink cluster...");
         JobClient sourceJobClient =
-                sourceJobEnv.executeAsync(externalContext.jobName() + "-Source");
+                sourceJobEnv.executeAsync(externalContext.identifier() + "-Source");
         LOG.info("Job has been submitted with ID {}", sourceJobClient.getJobID());
 
         LOG.info("Wait for source job finishing...");
@@ -227,10 +225,10 @@ public class BasicTestSuite extends TestSuiteBase {
                 DatasetHelper.isSame(
                         new File(
                                 testConf.getString(
-                                        TestConfiguration.OUTPUT_FILE_PATH_FOR_VALIDATION)),
+                                        TestConfigurations.OUTPUT_FILE_PATH_FOR_VALIDATION)),
                         new File(
                                 testConf.getString(
-                                        TestConfiguration.RECORD_FILE_PATH_FOR_VALIDATION))));
+                                        TestConfigurations.RECORD_FILE_PATH_FOR_VALIDATION))));
 
         LOG.info("✅ Test testBasicFunctionality passed");
     }
@@ -238,7 +236,7 @@ public class BasicTestSuite extends TestSuiteBase {
     // ------------------------------------ Test Configurations -----------------------------------
 
     /** Configuration of the test suite. */
-    public static class TestConfiguration {
+    public static class TestConfigurations {
         public static final ConfigOption<String> RECORD_FILE_PATH_FOR_JOB =
                 ConfigOptions.key("controllable.source.record.file.path.job")
                         .stringType()

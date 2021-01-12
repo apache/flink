@@ -18,6 +18,8 @@
 
 package org.apache.flink.connectors.test.common.external;
 
+import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
@@ -34,27 +36,25 @@ import java.io.Serializable;
 public interface ExternalContext<T> extends Serializable {
 
     /**
-     * Get the name of the Flink job used for testing.
+     * Identifier of the external system context, usually used for job name generating.
      *
-     * @return Name of the Flink job
+     * @return Identifier of the external system context
      */
-    String jobName();
+    String identifier();
 
     /**
-     * Create a new instance of the source. This will be invoked when the main function of the Flink
-     * job is invoked.
+     * Create a new instance of connector source implemented in {@link SourceFunction}.
      *
-     * @return A new instance of the source
+     * @return A new instance of SourceFunction
      */
-    SourceFunction<T> createSource();
+    SourceFunction<T> createSourceFunction();
 
     /**
-     * Create a new instance of the sink. This will be invoked when the main function of the Flink
-     * job is invoked.
+     * Create a new instance of connector sink implemented in {@link SinkFunction}.
      *
-     * @return A new instance of the sink
+     * @return A new instance of SinkFunction
      */
-    SinkFunction<T> createSink();
+    SinkFunction<T> createSinkFunction();
 
     /**
      * Get the termination pattern of the job. Check {@link SourceJobTerminationPattern} for more
@@ -63,4 +63,18 @@ public interface ExternalContext<T> extends Serializable {
      * @return Termination pattern of the Flink job
      */
     SourceJobTerminationPattern sourceJobTerminationPattern();
+
+    /**
+     * Create a new instance of connector source implemented in {@link Source}.
+     *
+     * @return A new instance of Source
+     */
+    Source<T, ?, ?> createSource();
+
+    /**
+     * Create a new instance of connector sink implemented in {@link Sink}.
+     *
+     * @return A new instance of Sink
+     */
+    Sink<T, ?, ?, ?> createSink();
 }
