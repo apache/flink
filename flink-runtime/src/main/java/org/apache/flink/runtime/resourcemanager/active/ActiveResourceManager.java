@@ -220,7 +220,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void registerMetrics() {
         super.registerMetrics();
-        resourceManagerMetricGroup.meter(MetricNames.WORKER_FAILURE_RATE, startWorkerFailureRater);
+        resourceManagerMetricGroup.meter(
+                MetricNames.START_WORKER_FAILURE_RATE, startWorkerFailureRater);
     }
 
     // ------------------------------------------------------------------------
