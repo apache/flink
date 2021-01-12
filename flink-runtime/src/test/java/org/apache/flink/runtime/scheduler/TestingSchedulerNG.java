@@ -208,6 +208,13 @@ public class TestingSchedulerNG implements SchedulerNG {
         return null;
     }
 
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
+
     public static Builder newBuilder() {
         return new Builder();
     }

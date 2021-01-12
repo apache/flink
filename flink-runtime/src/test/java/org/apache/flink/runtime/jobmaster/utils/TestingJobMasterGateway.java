@@ -435,6 +435,13 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {}
+
+    @Override
     public JobMasterId getFencingToken() {
         return fencingTokenSupplier.get();
     }

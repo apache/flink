@@ -61,10 +61,10 @@ import org.apache.flink.runtime.state.memory.NonPersistentMetadataCheckpointStor
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
-import org.apache.flink.util.function.TriFunctionWithException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -124,6 +124,18 @@ import static org.mockito.Mockito.when;
 
 /** Tests for the checkpoint coordinator. */
 public class CheckpointCoordinatorTest extends TestLogger {
+
+    @Test
+    public void testAbortedCheckpointStatsUpdatedAfterFailure() throws Exception {
+        JobID jobID = new JobID();
+        testReportStatsAfterFailure(
+                jobID,
+                1L,
+                (coordinator, attemptID, metrics) -> {
+                    coordinator.reportStats(1L, attemptID, metrics);
+                    return null;
+                });
+    }
 
     @Test
     public void testCheckpointStatsUpdatedAfterFailure() throws Exception {
@@ -197,17 +209,28 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         assertStatsEqual(
                 checkpointId,
+                lateReportVertex.getJobvertexId(),
+                0,
                 lateReportedMetrics,
                 statsTracker.createSnapshot().getHistory().getCheckpointById(checkpointId));
     }
 
     private void assertStatsEqual(
-            long checkpointId, CheckpointMetrics expected, AbstractCheckpointStats actual) {
+            long checkpointId,
+            JobVertexID jobVertexID,
+            int subtasIdx,
+            CheckpointMetrics expected,
+            AbstractCheckpointStats actual) {
         assertEquals(checkpointId, actual.getCheckpointId());
         assertEquals(CheckpointStatsStatus.FAILED, actual.getStatus());
-        assertEquals(1, actual.getNumberOfAcknowledgedSubtasks());
         assertEquals(expected.getTotalBytesPersisted(), actual.getStateSize());
-        SubtaskStateStats taskStats = actual.getLatestAcknowledgedSubtaskStats();
+        assertEquals(0, actual.getNumberOfAcknowledgedSubtasks());
+        SubtaskStateStats taskStats =
+                actual.getAllTaskStateStats().stream()
+                        .filter(s -> s.getJobVertexId().equals(jobVertexID))
+                        .findAny()
+                        .get()
+                        .getSubtaskStats()[subtasIdx];
         assertEquals(
                 expected.getAlignmentDurationNanos() / 1_000_000, taskStats.getAlignmentDuration());
         assertEquals(expected.getUnalignedCheckpoint(), taskStats.getUnalignedCheckpoint());

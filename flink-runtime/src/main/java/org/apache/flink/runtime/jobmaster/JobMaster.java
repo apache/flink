@@ -512,6 +512,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                 jobID, executionAttemptID, checkpointId, checkpointMetrics, checkpointState);
     }
 
+    @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {
+
+        schedulerNG.reportCheckpointMetrics(
+                jobID, executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
     // TODO: This method needs a leader session ID
     @Override
     public void declineCheckpoint(DeclineCheckpoint decline) {

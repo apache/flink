@@ -49,6 +49,16 @@ public class RpcCheckpointResponder implements CheckpointResponder {
     }
 
     @Override
+    public void reportCheckpointMetrics(
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointMetrics checkpointMetrics) {
+        checkpointCoordinatorGateway.reportCheckpointMetrics(
+                jobID, executionAttemptID, checkpointId, checkpointMetrics);
+    }
+
+    @Override
     public void declineCheckpoint(
             JobID jobID,
             ExecutionAttemptID executionAttemptID,

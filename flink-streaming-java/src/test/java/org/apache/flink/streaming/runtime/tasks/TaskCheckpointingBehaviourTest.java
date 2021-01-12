@@ -264,6 +264,13 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
         }
 
         @Override
+        public void reportCheckpointMetrics(
+                JobID jobID,
+                ExecutionAttemptID executionAttemptID,
+                long checkpointId,
+                CheckpointMetrics checkpointMetrics) {}
+
+        @Override
         public void declineCheckpoint(
                 JobID jobID,
                 ExecutionAttemptID executionAttemptID,

@@ -54,6 +54,10 @@ final class SavepointTaskStateManager implements TaskStateManager {
             @Nullable TaskStateSnapshot acknowledgedState,
             @Nullable TaskStateSnapshot localState) {}
 
+    @Override
+    public void reportIncompleteTaskStateSnapshots(
+            CheckpointMetaData checkpointMetaData, CheckpointMetrics checkpointMetrics) {}
+
     @Nonnull
     @Override
     public PrioritizedOperatorSubtaskState prioritizedOperatorState(OperatorID operatorID) {
