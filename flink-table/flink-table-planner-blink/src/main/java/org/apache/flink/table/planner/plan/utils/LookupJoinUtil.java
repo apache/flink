@@ -19,10 +19,23 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.connector.source.TableFunctionProvider;
+import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
+import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexLiteral;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /** Utilities for lookup joins using {@link LookupTableSource}. */
 @Internal
@@ -57,5 +70,49 @@ public final class LookupJoinUtil {
 
     private LookupJoinUtil() {
         // no instantiation
+    }
+
+    /** Gets LookupFunction from temporal table according to the given lookup keys. */
+    public static UserDefinedFunction getLookupFunction(
+            RelOptTable temporalTable, Collection<Integer> lookupKeys) {
+
+        List<Integer> lookupKeyIndicesInOrder = new ArrayList<>(lookupKeys);
+        lookupKeyIndicesInOrder.sort(Integer::compareTo);
+
+        if (temporalTable instanceof TableSourceTable) {
+            // TODO: support nested lookup keys in the future,
+            //  currently we only support top-level lookup keys
+            int[][] indices =
+                    lookupKeyIndicesInOrder.stream().map(i -> new int[] {i}).toArray(int[][]::new);
+            LookupTableSource tableSource =
+                    (LookupTableSource) ((TableSourceTable) temporalTable).tableSource();
+            LookupRuntimeProviderContext providerContext =
+                    new LookupRuntimeProviderContext(indices);
+            LookupTableSource.LookupRuntimeProvider provider =
+                    tableSource.getLookupRuntimeProvider(providerContext);
+            if (provider instanceof TableFunctionProvider) {
+                return ((TableFunctionProvider) provider).createTableFunction();
+            } else if (provider instanceof AsyncTableFunctionProvider) {
+                return ((AsyncTableFunctionProvider) provider).createAsyncTableFunction();
+            }
+        }
+
+        if (temporalTable instanceof LegacyTableSourceTable) {
+            String[] lookupFieldNamesInOrder =
+                    lookupKeyIndicesInOrder.stream()
+                            .map(temporalTable.getRowType().getFieldNames()::get)
+                            .toArray(String[]::new);
+            LookupableTableSource tableSource =
+                    (LookupableTableSource) ((LegacyTableSourceTable) temporalTable).tableSource();
+            if (tableSource.isAsyncEnabled()) {
+                return tableSource.getAsyncLookupFunction(lookupFieldNamesInOrder);
+            } else {
+                return tableSource.getLookupFunction(lookupFieldNamesInOrder);
+            }
+        }
+        throw new TableException(
+                String.format(
+                        "table %s is neither TableSourceTable not LegacyTableSourceTable",
+                        temporalTable.getQualifiedName()));
     }
 }
