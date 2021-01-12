@@ -23,7 +23,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.metrics.ThresholdMeter;
-import org.apache.flink.metrics.ThresholdMeter.ThresholdExceedException;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
@@ -73,7 +72,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
 
     protected final Configuration flinkConfig;
 
-    private final Time workerCreationRetryInterval;
+    private final Time startWorkerRetryInterval;
 
     private final ResourceManagerDriver<WorkerType> resourceManagerDriver;
 
@@ -86,14 +85,14 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     /** Identifiers and worker resource spec of requested not registered workers. */
     private final Map<ResourceID, WorkerResourceSpec> currentAttemptUnregisteredWorkers;
 
-    private final ThresholdMeter failureRater;
+    private final ThresholdMeter startWorkerFailureRater;
 
     /**
-     * Incompletion of this future indicates that there was a worker creation failure recently and
-     * the resource manager should not retry creating worker until the future become completed
-     * again. It's guaranteed to be modified in main thread.
+     * Incompletion of this future indicates that the max failure rate of start worker is reached
+     * and the resource manager should not retry starting new worker until the future become
+     * completed again. It's guaranteed to be modified in main thread.
      */
-    private CompletableFuture<Void> workerCreationCoolDown;
+    private CompletableFuture<Void> startWorkerCoolDown;
 
     public ActiveResourceManager(
             ResourceManagerDriver<WorkerType> resourceManagerDriver,
@@ -108,7 +107,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             ClusterInformation clusterInformation,
             FatalErrorHandler fatalErrorHandler,
             ResourceManagerMetricGroup resourceManagerMetricGroup,
-            ThresholdMeter failureRater,
+            ThresholdMeter startWorkerFailureRater,
             Duration retryInterval,
             Executor ioExecutor) {
         super(
@@ -130,9 +129,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         this.workerNodeMap = new HashMap<>();
         this.pendingWorkerCounter = new PendingWorkerCounter();
         this.currentAttemptUnregisteredWorkers = new HashMap<>();
-        this.failureRater = checkNotNull(failureRater);
-        this.workerCreationRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
-        this.workerCreationCoolDown = FutureUtils.completedVoidFuture();
+        this.startWorkerFailureRater = checkNotNull(startWorkerFailureRater);
+        this.startWorkerRetryInterval = Time.of(retryInterval.toMillis(), TimeUnit.MILLISECONDS);
+        this.startWorkerCoolDown = FutureUtils.completedVoidFuture();
     }
 
     // ------------------------------------------------------------------------
@@ -222,7 +221,7 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
     @Override
     protected void registerMetrics() {
         super.registerMetrics();
-        resourceManagerMetricGroup.meter(MetricNames.WORKER_FAILURE_RATE, failureRater);
+        resourceManagerMetricGroup.meter(MetricNames.WORKER_FAILURE_RATE, startWorkerFailureRater);
     }
 
     // ------------------------------------------------------------------------
@@ -240,25 +239,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                     "Worker {} recovered from previous attempt.",
                     resourceId.getStringWithMetadata());
         }
-    }
-
-    /**
-     * Record failure number of worker in ResourceManagers. Return whether maximum failure rate is
-     * detected.
-     *
-     * @return whether should acquire new container/worker after the a stop interval
-     */
-    public boolean recordWorkerFailure() {
-        failureRater.markEvent();
-
-        try {
-            failureRater.checkAgainstThreshold();
-        } catch (ThresholdExceedException e) {
-            log.warn(e.getMessage() + " in resource manager failure rater.");
-            return true;
-        }
-
-        return false;
     }
 
     @Override
@@ -303,12 +283,12 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 workerResourceSpec,
                 pendingCount);
 
-        // In case of worker creation failures, we should wait for an interval before
-        // trying to create new workers.
+        // In case of start worker failures, we should wait for an interval before
+        // trying to start new workers.
         // Otherwise, ActiveResourceManager will always re-requesting the worker,
         // which keeps the main thread busy.
         final CompletableFuture<WorkerType> requestResourceFuture =
-                workerCreationCoolDown.thenCompose(
+                startWorkerCoolDown.thenCompose(
                         (ignore) -> resourceManagerDriver.requestResource(taskExecutorProcessSpec));
         FutureUtils.assertNoException(
                 requestResourceFuture.handle(
@@ -365,24 +345,6 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         return true;
     }
 
-    private void tryResetWorkerCreationCoolDown() {
-        if (workerCreationCoolDown.isDone()) {
-            log.info(
-                    "Reaching max start worker failure rate. Will not retry creating worker in {}.",
-                    workerCreationRetryInterval);
-            workerCreationCoolDown = new CompletableFuture<>();
-            scheduleRunAsync(
-                    () -> workerCreationCoolDown.complete(null), workerCreationRetryInterval);
-        }
-    }
-
-    private void recordWorkerFailureAndPauseWorkerCreationIfNeeded() {
-        if (recordWorkerFailure()) {
-            // if exceed failure rate try to slow down
-            tryResetWorkerCreationCoolDown();
-        }
-    }
-
     private void requestWorkerIfRequired() {
         for (Map.Entry<WorkerResourceSpec, Integer> entry : getRequiredResources().entrySet()) {
             final WorkerResourceSpec workerResourceSpec = entry.getKey();
@@ -391,6 +353,40 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
             while (requiredCount > pendingWorkerCounter.getNum(workerResourceSpec)) {
                 requestNewWorker(workerResourceSpec);
             }
+        }
+    }
+
+    private void recordWorkerFailureAndPauseWorkerCreationIfNeeded() {
+        if (recordStartWorkerFailure()) {
+            // if exceed failure rate try to slow down
+            tryResetWorkerCreationCoolDown();
+        }
+    }
+
+    /**
+     * Record failure number of starting worker in ResourceManagers. Return whether maximum failure
+     * rate is reached.
+     *
+     * @return whether max failure rate is reached
+     */
+    private boolean recordStartWorkerFailure() {
+        startWorkerFailureRater.markEvent();
+
+        try {
+            startWorkerFailureRater.checkAgainstThreshold();
+        } catch (ThresholdMeter.ThresholdExceedException e) {
+            log.warn("Reaching max start worker failure rate: {}", e.getMessage());
+            return true;
+        }
+
+        return false;
+    }
+
+    private void tryResetWorkerCreationCoolDown() {
+        if (startWorkerCoolDown.isDone()) {
+            log.info("Will not retry creating worker in {}.", startWorkerRetryInterval);
+            startWorkerCoolDown = new CompletableFuture<>();
+            scheduleRunAsync(() -> startWorkerCoolDown.complete(null), startWorkerRetryInterval);
         }
     }
 
