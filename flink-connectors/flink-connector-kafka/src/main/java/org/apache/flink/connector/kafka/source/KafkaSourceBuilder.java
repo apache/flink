@@ -424,13 +424,11 @@ public class KafkaSourceBuilder<OUT> {
                 true);
 
         // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic partition discovery.
-        if (maybeOverridePartitionDiscovery(
-                KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(),
-                "-1",
-                boundedness == Boundedness.BOUNDED)) {
-            LOG.warn(
-                    "{} property is overridden to -1 because the source is bounded.",
-                    KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS);
+        boolean hasStoppingOffsets = !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
+        boolean hasParitionDiscoverySetting = props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
+        if (boundedness == Boundedness.BOUNDED ||
+                (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
+            props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "-1");
         }
 
         // If the client id prefix is not set, reuse the consumer group id as the client id prefix.
@@ -454,23 +452,6 @@ public class KafkaSourceBuilder<OUT> {
             }
         } else {
             props.setProperty(key, value);
-        }
-        return overridden;
-    }
-
-    private boolean maybeOverridePartitionDiscovery(String key, String value, boolean override) {
-        boolean overridden = false;
-        String userValue = props.getProperty(key);
-        if (override || !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer)) {
-            props.setProperty(key, value);
-            overridden = true;
-        } else {
-            if (userValue == null) {
-                props.setProperty(key,
-                        KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS
-                                .defaultValue()
-                                .toString());
-            }
         }
         return overridden;
     }
