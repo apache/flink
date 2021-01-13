@@ -89,7 +89,8 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
         // Map of registered Key/Value states
         Map<String, StateTable<K, ?, ?>> registeredKVStates = new HashMap<>();
         // Map of registered priority queue set states
-        Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates = new HashMap<>();
+        Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates =
+                new HashMap<>();
         CloseableRegistry cancelStreamRegistryForBackend = new CloseableRegistry();
         HeapSnapshotStrategy<K> snapshotStrategy =
                 initSnapshotStrategy(registeredKVStates, registeredPQStates);
@@ -145,7 +146,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
 
     private HeapSnapshotStrategy<K> initSnapshotStrategy(
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates) {
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates) {
         return new HeapSnapshotStrategy<>(
                 registeredKVStates,
                 registeredPQStates,

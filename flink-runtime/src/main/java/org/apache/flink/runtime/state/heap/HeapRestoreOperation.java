@@ -73,7 +73,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
     private final StateSerializerProvider<K> keySerializerProvider;
     private final ClassLoader userCodeClassLoader;
     private final Map<String, StateTable<K, ?, ?>> registeredKVStates;
-    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates;
+    private final Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates;
     private final CloseableRegistry cancelStreamRegistry;
     private final HeapPriorityQueueSetFactory priorityQueueSetFactory;
     @Nonnull private final KeyGroupRange keyGroupRange;
@@ -86,7 +86,7 @@ public class HeapRestoreOperation<K> implements RestoreOperation<Void> {
             StateSerializerProvider<K> keySerializerProvider,
             ClassLoader userCodeClassLoader,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
-            Map<String, HeapPriorityQueueSnapshotRestoreWrapper> registeredPQStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
             CloseableRegistry cancelStreamRegistry,
             HeapPriorityQueueSetFactory priorityQueueSetFactory,
             @Nonnull KeyGroupRange keyGroupRange,
