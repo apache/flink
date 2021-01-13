@@ -213,8 +213,9 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
         this.compressionBlockSize =
-                (int) conf.get(ExecutionConfigOptions
-                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE).getBytes();
+                (int)
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                .getBytes();
         asyncMergeEnable =
                 conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
 

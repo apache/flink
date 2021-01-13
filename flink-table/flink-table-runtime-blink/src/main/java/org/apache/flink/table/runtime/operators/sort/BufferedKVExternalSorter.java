@@ -109,8 +109,9 @@ public class BufferedKVExternalSorter {
                                 BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
                         : null;
         this.compressionBlockSize =
-                (int) conf.get(ExecutionConfigOptions
-                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE).getBytes();
+                (int)
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
+                                .getBytes();
         this.ioManager = ioManager;
         this.enumerator = this.ioManager.createChannelEnumerator();
         this.channelManager = new SpillChannelManager();
