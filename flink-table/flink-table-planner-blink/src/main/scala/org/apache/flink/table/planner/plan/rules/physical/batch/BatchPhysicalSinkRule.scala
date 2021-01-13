@@ -24,7 +24,7 @@ import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.types.logical.RowType
 
@@ -34,11 +34,11 @@ import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
 
 import scala.collection.JavaConversions._
 
-class BatchExecSinkRule extends ConverterRule(
+class BatchPhysicalSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecSinkRule") {
+    "BatchPhysicalSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
@@ -93,7 +93,7 @@ class BatchExecSinkRule extends ConverterRule(
 
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
-    new BatchExecSink(
+    new BatchPhysicalSink(
       rel.getCluster,
       newTrait,
       newInput,
@@ -103,6 +103,6 @@ class BatchExecSinkRule extends ConverterRule(
   }
 }
 
-object BatchExecSinkRule {
-  val INSTANCE = new BatchExecSinkRule
+object BatchPhysicalSinkRule {
+  val INSTANCE = new BatchPhysicalSinkRule
 }
