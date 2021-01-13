@@ -481,8 +481,7 @@ public class DefaultDeclarativeSlotPoolTest extends TestLogger {
 
         final ResourceProfile largeResourceProfile =
                 ResourceProfile.newBuilder().setManagedMemoryMB(1024).build();
-        final ResourceProfile smallResourceProfile =
-                ResourceProfile.newBuilder().setManagedMemoryMB(512).build();
+        final ResourceProfile smallResourceProfile = ResourceProfile.UNKNOWN;
 
         slotPool.increaseResourceRequirementsBy(
                 ResourceCounter.withResource(largeResourceProfile, 1));

@@ -101,7 +101,7 @@ public class PreviousAllocationSlotSelectionStrategyTest
     @Test
     public void matchPreviousLocationNotAvailableAndSomeOthersBlacklisted() {
         HashSet<AllocationID> blacklisted = new HashSet<>(3);
-        blacklisted.add(aid1);
+        blacklisted.add(aid2);
         blacklisted.add(aid3);
         blacklisted.add(aid4);
         SlotProfile slotProfile =
@@ -114,6 +114,6 @@ public class PreviousAllocationSlotSelectionStrategyTest
         Optional<SlotSelectionStrategy.SlotInfoAndLocality> match = runMatching(slotProfile);
 
         // we expect that the candidate that is not blacklisted is returned
-        Assert.assertEquals(slotInfo2, match.get().getSlotInfo());
+        Assert.assertEquals(slotInfo1, match.get().getSlotInfo());
     }
 }
