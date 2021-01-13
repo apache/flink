@@ -117,7 +117,7 @@ public class ExecutionVertexSchedulingRequirements {
 
         public ExecutionVertexSchedulingRequirements build() {
             checkState(
-                    physicalSlotResourceProfile.isMatching(taskResourceProfile),
+                    physicalSlotResourceProfile.allFieldsNoLessThan(taskResourceProfile),
                     "The physical slot resources must fulfill the task slot requirements");
 
             return new ExecutionVertexSchedulingRequirements(

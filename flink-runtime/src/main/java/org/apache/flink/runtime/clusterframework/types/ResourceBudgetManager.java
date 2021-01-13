@@ -50,7 +50,7 @@ public class ResourceBudgetManager {
 
     public boolean reserve(final ResourceProfile reservation) {
         checkResourceProfileNotNullOrUnknown(reservation);
-        if (!availableBudget.isMatching(reservation)) {
+        if (!availableBudget.allFieldsNoLessThan(reservation)) {
             return false;
         }
 
@@ -61,7 +61,7 @@ public class ResourceBudgetManager {
     public boolean release(final ResourceProfile reservation) {
         checkResourceProfileNotNullOrUnknown(reservation);
         ResourceProfile newAvailableBudget = availableBudget.merge(reservation);
-        if (!totalBudget.isMatching(newAvailableBudget)) {
+        if (!totalBudget.allFieldsNoLessThan(newAvailableBudget)) {
             return false;
         }
 

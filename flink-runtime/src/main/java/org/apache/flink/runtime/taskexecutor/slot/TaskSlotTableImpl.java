@@ -293,7 +293,9 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         // transfer the index to an increasing number not less than the numberSlots.
         int index = requestedIndex < 0 ? nextDynamicSlotIndex() : requestedIndex;
         ResourceProfile effectiveResourceProfile =
-                isDynamicIndex(index) ? resourceProfile : defaultSlotResourceProfile;
+                resourceProfile.equals(ResourceProfile.UNKNOWN)
+                        ? defaultSlotResourceProfile
+                        : resourceProfile;
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {

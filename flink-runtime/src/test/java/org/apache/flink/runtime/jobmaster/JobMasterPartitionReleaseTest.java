@@ -254,7 +254,7 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             Collection<SlotOffer> slotOffers =
                     Collections.singleton(
-                            new SlotOffer(new AllocationID(), 0, ResourceProfile.UNKNOWN));
+                            new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY));
 
             jobMasterGateway
                     .offerSlots(
