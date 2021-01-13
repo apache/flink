@@ -717,6 +717,11 @@ class SynchronousMapRuntimeState(MapState):
         self._internal_state.clear()
 
 
+class StateType(Enum):
+    VALUE_STATE = 0
+    LIST_STATE = 1
+
+
 class RemoteKeyedStateBackend(object):
     """
     A keyed state backend provides methods for managing keyed state.
@@ -751,7 +756,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_list_state(name, element_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, element_coder)
+        internal_bag_state = self._get_internal_bag_state(name, element_coder, StateType.LIST_STATE)
         list_state = SynchronousListRuntimeState(internal_bag_state)
         self._all_states[name] = list_state
         return list_state
@@ -760,7 +765,7 @@ class RemoteKeyedStateBackend(object):
         if name in self._all_states:
             self.validate_value_state(name, value_coder)
             return self._all_states[name]
-        internal_bag_state = self._get_internal_bag_state(name, value_coder)
+        internal_bag_state = self._get_internal_bag_state(name, value_coder, StateType.VALUE_STATE)
         value_state = SynchronousValueRuntimeState(internal_bag_state)
         self._all_states[name] = value_state
         return value_state
@@ -802,12 +807,12 @@ class RemoteKeyedStateBackend(object):
                     state._internal_state._map_value_coder != map_value_coder:
                 raise Exception("State name corrupted: %s" % name)
 
-    def _get_internal_bag_state(self, name, element_coder):
+    def _get_internal_bag_state(self, name, element_coder, state_type: StateType):
         cached_state = self._internal_state_cache.get((name, self._encoded_current_key))
         if cached_state is not None:
             return cached_state
         state_spec = userstate.BagStateSpec(name, element_coder)
-        internal_state = self._create_bag_state(state_spec)
+        internal_state = self._create_bag_state(state_spec, state_type)
         return internal_state
 
     def _get_internal_map_state(self, name, map_key_coder, map_value_coder):
@@ -817,14 +822,14 @@ class RemoteKeyedStateBackend(object):
         internal_map_state = self._create_internal_map_state(name, map_key_coder, map_value_coder)
         return internal_map_state
 
-    def _create_bag_state(self, state_spec: userstate.StateSpec) \
+    def _create_bag_state(self, state_spec: userstate.StateSpec, state_type: StateType) \
             -> userstate.AccumulatingRuntimeState:
         if isinstance(state_spec, userstate.BagStateSpec):
             bag_state = SynchronousBagRuntimeState(
                 self._state_handler,
                 state_key=beam_fn_api_pb2.StateKey(
                     bag_user_state=beam_fn_api_pb2.StateKey.BagUserState(
-                        transform_id="",
+                        transform_id=state_type.name,
                         user_state_id=state_spec.name,
                         key=self._encoded_current_key)),
                 value_coder=state_spec.coder)
@@ -858,9 +863,12 @@ class RemoteKeyedStateBackend(object):
                 # cache old internal state
                 self._internal_state_cache.put(
                     (state_name, encoded_old_key), state_obj._internal_state)
-            if isinstance(state_obj, (SynchronousValueRuntimeState, SynchronousListRuntimeState)):
+            if isinstance(state_obj, SynchronousValueRuntimeState):
                 state_obj._internal_state = self._get_internal_bag_state(
-                    state_name, state_obj._internal_state._value_coder)
+                    state_name, state_obj._internal_state._value_coder, StateType.VALUE_STATE)
+            elif isinstance(state_obj, SynchronousListRuntimeState):
+                state_obj._internal_state = self._get_internal_bag_state(
+                    state_name, state_obj._internal_state._value_coder, StateType.LIST_STATE)
             elif isinstance(state_obj, SynchronousMapRuntimeState):
                 state_obj._internal_state = self._get_internal_map_state(
                     state_name,
