@@ -2338,7 +2338,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CheckpointStatsTracker tracker = mock(CheckpointStatsTracker.class);
         checkpointCoordinator.setCheckpointStatsTracker(tracker);
 
-        when(tracker.reportPendingCheckpoint(anyLong(), anyLong(), any(CheckpointProperties.class)))
+        when(tracker.reportPendingCheckpoint(
+                        anyLong(), anyLong(), any(CheckpointProperties.class), any(Map.class)))
                 .thenReturn(mock(PendingCheckpointStats.class));
 
         // Trigger a checkpoint and verify callback
@@ -2353,7 +2354,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         any(Long.class),
                         eq(
                                 CheckpointProperties.forCheckpoint(
-                                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)));
+                                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)),
+                        any());
     }
 
     /** Tests that the restore callbacks are called if registered. */

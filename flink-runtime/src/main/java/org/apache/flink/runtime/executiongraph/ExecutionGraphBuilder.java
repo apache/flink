@@ -210,7 +210,6 @@ public class ExecutionGraphBuilder {
             CheckpointStatsTracker checkpointStatsTracker =
                     new CheckpointStatsTracker(
                             historySize,
-                            ackVertices,
                             snapshotSettings.getCheckpointCoordinatorConfiguration(),
                             metrics);
 
