@@ -41,7 +41,6 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -118,7 +117,9 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                 createAndSetUpSlotPool(directMainThreadExecutor, null, batchSlotTimeout, clock)) {
 
             SlotPoolUtils.offerSlots(
-                    slotPool, directMainThreadExecutor, Collections.singletonList(resourceProfile));
+                    slotPool,
+                    directMainThreadExecutor,
+                    Arrays.asList(resourceProfile, smallerResourceProfile));
 
             final CompletableFuture<PhysicalSlot> firstSlotFuture =
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
@@ -288,7 +289,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
                     SlotPoolUtils.offerSlots(
                             slotPool,
                             directMainThreadExecutor,
-                            Collections.singletonList(resourceProfile));
+                            Arrays.asList(resourceProfile, smallerResourceProfile));
             final CompletableFuture<PhysicalSlot> firstSlotFuture =
                     SlotPoolUtils.requestNewAllocatedBatchSlot(
                             slotPool, directMainThreadExecutor, resourceProfile);
