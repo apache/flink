@@ -434,7 +434,7 @@ object FlinkBatchRuleSets {
     BatchPhysicalCorrelateRule.INSTANCE,
     BatchPhysicalPythonCorrelateRule.INSTANCE,
     // sink
-    BatchExecSinkRule.INSTANCE,
+    BatchPhysicalSinkRule.INSTANCE,
     BatchExecLegacySinkRule.INSTANCE
   )
 
