@@ -23,9 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
-import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.connector.hbase1.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseTableSource;
 import org.apache.flink.table.api.TableSchema;
@@ -38,7 +36,6 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HConstants;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -50,8 +47,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
+import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConf;
 import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.connector.hbase1.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
@@ -84,20 +81,8 @@ public class HBase1TableFactory
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
-        Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        String hbaseZk = descriptorProperties.getString(CONNECTOR_ZK_QUORUM);
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, hbaseZk);
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-        // add HBase properties
-        properties.forEach(
-                (k, v) -> {
-                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
-                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
-                        hbaseClientConf.set(subKey, v);
-                    }
-                });
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
+
         String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
@@ -108,27 +93,14 @@ public class HBase1TableFactory
     @Override
     public StreamTableSink<Tuple2<Boolean, Row>> createStreamTableSink(
             Map<String, String> properties) {
+
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-        HBaseOptions.Builder hbaseOptionsBuilder = HBaseOptions.builder();
-        hbaseOptionsBuilder.setZkQuorum(descriptorProperties.getString(CONNECTOR_ZK_QUORUM));
-        hbaseOptionsBuilder.setTableName(descriptorProperties.getString(CONNECTOR_TABLE_NAME));
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(hbaseOptionsBuilder::setZkNodeParent);
-        Properties hbaseProperties = new Properties();
-        // add HBase properties
-        properties.forEach(
-                (k, v) -> {
-                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
-                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
-                        hbaseProperties.setProperty(subKey, v);
-                    }
-                });
-        hbaseOptionsBuilder.setHbaseProperties(hbaseProperties);
 
         TableSchema tableSchema =
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
         HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
+
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
         HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
         descriptorProperties
@@ -142,7 +114,10 @@ public class HBase1TableFactory
                 .ifPresent(v -> writeBuilder.setBufferFlushIntervalMillis(v.toMillis()));
 
         return new HBaseUpsertTableSink(
-                hbaseSchema, hbaseOptionsBuilder.build(), writeBuilder.build());
+                descriptorProperties.getString(CONNECTOR_TABLE_NAME),
+                hbaseSchema,
+                hbaseClientConf,
+                writeBuilder.build());
     }
 
     private HBaseTableSchema validateTableSchema(TableSchema schema) {

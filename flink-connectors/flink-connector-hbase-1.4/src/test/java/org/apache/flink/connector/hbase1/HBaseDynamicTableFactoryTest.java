@@ -23,7 +23,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.connector.hbase1.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseDynamicTableSource;
 import org.apache.flink.table.api.TableSchema;
@@ -48,7 +47,6 @@ import org.junit.rules.ExpectedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -182,18 +180,6 @@ public class HBaseDynamicTableFactoryTest {
         assertArrayEquals(
                 new DataType[] {DECIMAL(10, 3), TIMESTAMP(3), DATE(), TIME()},
                 hbaseSchema.getQualifierDataTypes("f4"));
-
-        Properties properties = new Properties();
-        properties.setProperty("hbase.security.authentication", "kerberos");
-        HBaseOptions expectedHBaseOptions =
-                HBaseOptions.builder()
-                        .setTableName("testHBastTable")
-                        .setZkQuorum("localhost:2181")
-                        .setZkNodeParent("/flink")
-                        .setHbaseProperties(properties)
-                        .build();
-        HBaseOptions actualHBaseOptions = hbaseSink.getHBaseOptions();
-        assertEquals(expectedHBaseOptions, actualHBaseOptions);
 
         HBaseWriteOptions expectedWriteOptions =
                 HBaseWriteOptions.builder()

@@ -34,9 +34,6 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 
 import org.apache.hadoop.conf.Configuration;
 
-import java.util.Map;
-import java.util.Properties;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** HBase table source implementation. */
@@ -116,29 +113,5 @@ public abstract class AbstractHBaseDynamicTableSource
     @VisibleForTesting
     public HBaseTableSchema getHBaseTableSchema() {
         return this.hbaseSchema;
-    }
-
-    // get HBase table properties which start with prefix
-    public static Properties getHBaseClientProperties(
-            Map<String, String> tableOptions, String prefix) {
-        final Properties hbaseProperties = new Properties();
-
-        if (containsHBaseClientProperties(tableOptions, prefix)) {
-            tableOptions.keySet().stream()
-                    .filter(key -> key.startsWith(prefix))
-                    .forEach(
-                            key -> {
-                                final String value = tableOptions.get(key);
-                                final String subKey = key.substring((prefix).length());
-                                hbaseProperties.put(subKey, value);
-                            });
-        }
-        return hbaseProperties;
-    }
-
-    /** Returns wether the table options contains HBase client properties or not. 'properties'. */
-    private static boolean containsHBaseClientProperties(
-            Map<String, String> tableOptions, String prefix) {
-        return tableOptions.keySet().stream().anyMatch(k -> k.startsWith(prefix));
     }
 }

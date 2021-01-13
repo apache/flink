@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
-import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase2.source.HBaseTableSource;
@@ -37,7 +36,6 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HConstants;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -50,9 +48,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConf;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
+import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_VERSION_VALUE_223;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_ROWS;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_MAX_SIZE;
@@ -79,16 +79,7 @@ public class HBase2TableFactory
     @Override
     public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
         final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
-        Configuration hbaseClientConf = getHConf(descriptorProperties);
-
-        // add HBase properties
-        properties.forEach(
-                (k, v) -> {
-                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
-                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
-                        hbaseClientConf.set(subKey, v);
-                    }
-                });
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
         String hTableName = descriptorProperties.getString(CONNECTOR_TABLE_NAME);
         TableSchema tableSchema =
@@ -106,15 +97,7 @@ public class HBase2TableFactory
                 TableSchemaUtils.getPhysicalSchema(descriptorProperties.getTableSchema(SCHEMA));
         HBaseTableSchema hbaseSchema = validateTableSchema(tableSchema);
 
-        Configuration hbaseClientConf = getHConf(descriptorProperties);
-        // add HBase properties
-        properties.forEach(
-                (k, v) -> {
-                    if (k.startsWith(CONNECTOR_PROPERTIES)) {
-                        final String subKey = k.substring((CONNECTOR_PROPERTIES + '.').length());
-                        hbaseClientConf.set(subKey, v);
-                    }
-                });
+        Configuration hbaseClientConf = getHBaseConf(descriptorProperties);
 
         HBaseWriteOptions.Builder writeBuilder = HBaseWriteOptions.builder();
         descriptorProperties
@@ -176,6 +159,7 @@ public class HBase2TableFactory
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
         context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_HBASE); // hbase
+        context.put(CONNECTOR_VERSION, hbaseVersion()); // version
         context.put(CONNECTOR_PROPERTY_VERSION, "1"); // backwards compatibility
         return context;
     }
@@ -214,15 +198,7 @@ public class HBase2TableFactory
         return properties;
     }
 
-    private Configuration getHConf(DescriptorProperties descriptorProperties) {
-        Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_QUORUM)
-                .ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
-
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-        return hbaseClientConf;
+    private String hbaseVersion() {
+        return CONNECTOR_VERSION_VALUE_223;
     }
 }

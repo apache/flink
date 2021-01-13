@@ -25,7 +25,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseLookupFunction;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
-import org.apache.flink.connector.hbase1.options.HBaseOptions;
 import org.apache.flink.connector.hbase1.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseTableSource;
 import org.apache.flink.table.api.DataTypes;
@@ -43,7 +42,6 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
 
@@ -203,18 +201,6 @@ public class HBaseTableFactoryTest {
                     Types.BIG_DEC, Types.SQL_TIMESTAMP, Types.SQL_DATE, Types.SQL_TIME
                 },
                 hbaseSchema.getQualifierTypes("f4"));
-
-        Properties hbaseProperties = new Properties();
-        hbaseProperties.setProperty("hbase.security.authentication", "kerberos");
-        HBaseOptions expectedHBaseOptions =
-                HBaseOptions.builder()
-                        .setTableName("testHBastTable")
-                        .setZkQuorum("localhost:2181")
-                        .setZkNodeParent("/flink")
-                        .setHbaseProperties(hbaseProperties)
-                        .build();
-        HBaseOptions actualHBaseOptions = ((HBaseUpsertTableSink) sink).getHBaseOptions();
-        Assert.assertEquals(expectedHBaseOptions, actualHBaseOptions);
 
         HBaseWriteOptions expectedWriteOptions =
                 HBaseWriteOptions.builder()
