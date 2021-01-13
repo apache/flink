@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 
+import static java.util.stream.Collectors.toConcurrentMap;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -59,6 +60,34 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 
     /** Stats of the latest acknowledged subtask. */
     private volatile SubtaskStateStats latestAcknowledgedSubtask;
+
+    /**
+     * Creates a tracker for a {@link PendingCheckpoint}.
+     *
+     * @param checkpointId ID of the checkpoint.
+     * @param triggerTimestamp Timestamp when the checkpoint was triggered.
+     * @param props Checkpoint properties of the checkpoint.
+     * @param taskStats Task stats for each involved operator.
+     * @param trackerCallback Callback for the {@link CheckpointStatsTracker}.
+     */
+    PendingCheckpointStats(
+            long checkpointId,
+            long triggerTimestamp,
+            CheckpointProperties props,
+            Map<JobVertexID, Integer> taskStats,
+            CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback) {
+        this(
+                checkpointId,
+                triggerTimestamp,
+                props,
+                taskStats.values().stream().mapToInt(i -> i).sum(),
+                taskStats.entrySet().stream()
+                        .collect(
+                                toConcurrentMap(
+                                        Map.Entry::getKey,
+                                        e -> new TaskStateStats(e.getKey(), e.getValue()))),
+                trackerCallback);
+    }
 
     /**
      * Creates a tracker for a {@link PendingCheckpoint}.

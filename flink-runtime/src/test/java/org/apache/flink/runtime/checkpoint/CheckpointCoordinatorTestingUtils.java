@@ -494,6 +494,8 @@ public class CheckpointCoordinatorTestingUtils {
             operatorIDPairs.add(OperatorIDPair.generatedIDOnly(operatorID));
         }
         when(jobVertex.getOperatorIDs()).thenReturn(operatorIDPairs);
+        when(jobVertex.getJobVertexId()).thenReturn(jobVertexID);
+        when(jobVertex.getParallelism()).thenReturn(parallelism);
 
         when(vertex.getJobVertex()).thenReturn(jobVertex);
 
