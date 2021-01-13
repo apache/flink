@@ -22,7 +22,6 @@ COMMAND_STANDALONE="standalone-job"
 # Deprecated, should be remove in Flink release 1.13
 COMMAND_NATIVE_KUBERNETES="native-k8s"
 COMMAND_HISTORY_SERVER="history-server"
-COMMAND_DISABLE_JEMALLOC="disable-jemalloc"
 
 args=("$@")
 echo "${args[@]}"
