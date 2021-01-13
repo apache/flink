@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerial
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -50,8 +51,10 @@ public class FullSnapshotAsyncWriter<K>
             checkpointStreamSupplier;
 
     @Nonnull private final FullSnapshotResources<K> snapshotResources;
+    @Nonnull private final CheckpointType checkpointType;
 
     public FullSnapshotAsyncWriter(
+            @Nonnull CheckpointType checkpointType,
             @Nonnull
                     SupplierWithException<CheckpointStreamWithResultProvider, Exception>
                             checkpointStreamSupplier,
@@ -59,6 +62,7 @@ public class FullSnapshotAsyncWriter<K>
 
         this.checkpointStreamSupplier = checkpointStreamSupplier;
         this.snapshotResources = snapshotResources;
+        this.checkpointType = checkpointType;
     }
 
     @Override
@@ -73,9 +77,16 @@ public class FullSnapshotAsyncWriter<K>
         writeSnapshotToOutputStream(checkpointStreamWithResultProvider, keyGroupRangeOffsets);
 
         if (snapshotCloseableRegistry.unregisterCloseable(checkpointStreamWithResultProvider)) {
+            final CheckpointStreamWithResultProvider.KeyedStateHandleFactory stateHandleFactory;
+            if (checkpointType.isSavepoint()) {
+                stateHandleFactory = KeyGroupsSavepointStateHandle::new;
+            } else {
+                stateHandleFactory = KeyGroupsStateHandle::new;
+            }
             return CheckpointStreamWithResultProvider.toKeyedStateHandleSnapshotResult(
                     checkpointStreamWithResultProvider.closeAndFinalizeCheckpointStreamResult(),
-                    keyGroupRangeOffsets);
+                    keyGroupRangeOffsets,
+                    stateHandleFactory);
         } else {
             throw new IOException("Stream is already unregistered/closed.");
         }

@@ -27,7 +27,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -126,14 +128,25 @@ public class CheckpointTestUtils {
                 }
 
                 if (hasKeyedBackend) {
-                    state.setRawKeyedState(
-                            isIncremental && !isSavepoint(basePath)
-                                    ? createDummyIncrementalKeyedStateHandle(random)
-                                    : createDummyKeyGroupStateHandle(random, basePath));
+                    final KeyedStateHandle stateHandle;
+                    if (isSavepoint(basePath)) {
+                        stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
+                    } else if (isIncremental) {
+                        stateHandle = createDummyIncrementalKeyedStateHandle(random);
+                    } else {
+                        stateHandle = createDummyKeyGroupStateHandle(random, null);
+                    }
+                    state.setRawKeyedState(stateHandle);
                 }
 
                 if (hasKeyedStream) {
-                    state.setManagedKeyedState(createDummyKeyGroupStateHandle(random, basePath));
+                    final KeyedStateHandle stateHandle;
+                    if (isSavepoint(basePath)) {
+                        stateHandle = createDummyKeyGroupSavepointStateHandle(random, basePath);
+                    } else {
+                        stateHandle = createDummyKeyGroupStateHandle(random, null);
+                    }
+                    state.setManagedKeyedState(stateHandle);
                 }
 
                 state.setInputChannelState(
@@ -215,6 +228,13 @@ public class CheckpointTestUtils {
         }
 
         return result;
+    }
+
+    public static KeyGroupsStateHandle createDummyKeyGroupSavepointStateHandle(
+            Random rnd, String basePath) {
+        return new KeyGroupsSavepointStateHandle(
+                new KeyGroupRangeOffsets(1, 1, new long[] {rnd.nextInt(1024)}),
+                createDummyStreamStateHandle(rnd, basePath));
     }
 
     public static KeyGroupsStateHandle createDummyKeyGroupStateHandle(Random rnd, String basePath) {
