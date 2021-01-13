@@ -187,6 +187,13 @@ Format Options
       <td>String</td>
       <td>Specify string literal to replace null key when <code>'maxwell-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>
+    <tr>
+      <td><h5>maxwell-json.encode.decimal-as-plain-number</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
+    </tr>
     </tbody>
 </table>
 
