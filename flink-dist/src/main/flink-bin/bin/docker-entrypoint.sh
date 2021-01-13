@@ -30,6 +30,10 @@ bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
 
 # FLINK_HOME is set by the docker image
+if [ -z "${FLINK_HOME}" ]; then
+    echo "FLINK_HOME must be set"
+    exit 1
+fi
 export _FLINK_HOME_DETERMINED=true
 . ${FLINK_HOME}/bin/config.sh
 
