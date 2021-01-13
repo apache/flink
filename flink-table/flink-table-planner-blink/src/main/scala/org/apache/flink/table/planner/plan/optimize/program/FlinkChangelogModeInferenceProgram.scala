@@ -230,7 +230,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // Sort will buffer all inputs, and produce insert-only messages when input is finished
         createNewNode(sort, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case cep: StreamExecMatch =>
+      case cep: StreamPhysicalMatch =>
         // CEP only supports consuming insert-only and producing insert-only changes
         // give a better requester name for exception message
         val children = visitChildren(cep, ModifyKindSetTrait.INSERT_ONLY, "Match Recognize")
@@ -465,7 +465,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(rel, children, requiredTrait)
 
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
-           _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
+           _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
            _: StreamPhysicalOverAggregate | _: StreamExecIntervalJoin |
            _: StreamPhysicalPythonGroupWindowAggregate | _: StreamPhysicalPythonOverAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate
