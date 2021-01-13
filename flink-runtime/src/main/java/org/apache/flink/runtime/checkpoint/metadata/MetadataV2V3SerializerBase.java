@@ -28,6 +28,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsSavepointStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -91,6 +92,7 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte PARTITIONABLE_OPERATOR_STATE_HANDLE = 4;
     private static final byte INCREMENTAL_KEY_GROUPS_HANDLE = 5;
     private static final byte RELATIVE_STREAM_STATE_HANDLE = 6;
+    private static final byte SAVEPOINT_KEY_GROUPS_HANDLE = 7;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -280,7 +282,11 @@ public abstract class MetadataV2V3SerializerBase {
         } else if (stateHandle instanceof KeyGroupsStateHandle) {
             KeyGroupsStateHandle keyGroupsStateHandle = (KeyGroupsStateHandle) stateHandle;
 
-            dos.writeByte(KEY_GROUPS_HANDLE);
+            if (stateHandle instanceof KeyGroupsSavepointStateHandle) {
+                dos.writeByte(SAVEPOINT_KEY_GROUPS_HANDLE);
+            } else {
+                dos.writeByte(KEY_GROUPS_HANDLE);
+            }
             dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(keyGroupsStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
             for (int keyGroup : keyGroupsStateHandle.getKeyGroupRange()) {
@@ -316,8 +322,7 @@ public abstract class MetadataV2V3SerializerBase {
         if (NULL_HANDLE == type) {
 
             return null;
-        } else if (KEY_GROUPS_HANDLE == type) {
-
+        } else if (KEY_GROUPS_HANDLE == type || SAVEPOINT_KEY_GROUPS_HANDLE == type) {
             int startKeyGroup = dis.readInt();
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange =
@@ -329,7 +334,11 @@ public abstract class MetadataV2V3SerializerBase {
             KeyGroupRangeOffsets keyGroupRangeOffsets =
                     new KeyGroupRangeOffsets(keyGroupRange, offsets);
             StreamStateHandle stateHandle = deserializeStreamStateHandle(dis, context);
-            return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+            if (SAVEPOINT_KEY_GROUPS_HANDLE == type) {
+                return new KeyGroupsSavepointStateHandle(keyGroupRangeOffsets, stateHandle);
+            } else {
+                return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
+            }
         } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
 
             long checkpointId = dis.readLong();

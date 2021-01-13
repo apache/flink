@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.CheckpointStreamWithResultProvider;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
@@ -206,7 +207,7 @@ class HeapSnapshotStrategy<K>
                         new KeyGroupRangeOffsets(keyGroupRange, keyGroupRangeOffsets);
                 SnapshotResult<StreamStateHandle> result =
                         streamWithResultProvider.closeAndFinalizeCheckpointStreamResult();
-                return toKeyedStateHandleSnapshotResult(result, kgOffs);
+                return toKeyedStateHandleSnapshotResult(result, kgOffs, KeyGroupsStateHandle::new);
             } else {
                 throw new IOException("Stream already unregistered.");
             }

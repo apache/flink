@@ -27,6 +27,8 @@ import org.apache.flink.runtime.state.BackendBuildingException;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.LocalRecoveryConfig;
+import org.apache.flink.runtime.state.RestoreOperation;
+import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
@@ -104,25 +106,7 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
             stateTableFactory = NestedMapsStateTable::new;
         }
 
-        HeapRestoreOperation<K> restoreOperation =
-                new HeapRestoreOperation<>(
-                        restoreStateHandles,
-                        keySerializerProvider,
-                        userCodeClassLoader,
-                        registeredKVStates,
-                        registeredPQStates,
-                        cancelStreamRegistry,
-                        priorityQueueSetFactory,
-                        keyGroupRange,
-                        numberOfKeyGroups,
-                        stateTableFactory,
-                        keyContext);
-        try {
-            restoreOperation.restore();
-            logger.info("Finished to build heap keyed state-backend.");
-        } catch (Exception e) {
-            throw new BackendBuildingException("Failed when trying to restore heap backend", e);
-        }
+        restoreState(registeredKVStates, registeredPQStates, keyContext, stateTableFactory);
         return new HeapKeyedStateBackend<>(
                 kvStateRegistry,
                 keySerializerProvider.currentSchemaSerializer(),
@@ -142,6 +126,56 @@ public class HeapKeyedStateBackendBuilder<K> extends AbstractKeyedStateBackendBu
                         asynchronousSnapshots ? ASYNCHRONOUS : SYNCHRONOUS),
                 stateTableFactory,
                 keyContext);
+    }
+
+    private void restoreState(
+            Map<String, StateTable<K, ?, ?>> registeredKVStates,
+            Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
+            InternalKeyContext<K> keyContext,
+            StateTableFactory<K> stateTableFactory)
+            throws BackendBuildingException {
+        final RestoreOperation<Void> restoreOperation;
+
+        final KeyedStateHandle firstHandle;
+        if (restoreStateHandles.isEmpty()) {
+            firstHandle = null;
+        } else {
+            firstHandle = restoreStateHandles.iterator().next();
+        }
+        if (firstHandle instanceof SavepointKeyedStateHandle) {
+            restoreOperation =
+                    new HeapSavepointRestoreOperation<>(
+                            restoreStateHandles,
+                            keySerializerProvider,
+                            userCodeClassLoader,
+                            registeredKVStates,
+                            registeredPQStates,
+                            priorityQueueSetFactory,
+                            keyGroupRange,
+                            numberOfKeyGroups,
+                            stateTableFactory,
+                            keyContext);
+        } else {
+            restoreOperation =
+                    new HeapRestoreOperation<>(
+                            restoreStateHandles,
+                            keySerializerProvider,
+                            userCodeClassLoader,
+                            registeredKVStates,
+                            registeredPQStates,
+                            cancelStreamRegistry,
+                            priorityQueueSetFactory,
+                            keyGroupRange,
+                            numberOfKeyGroups,
+                            stateTableFactory,
+                            keyContext);
+        }
+        try {
+            restoreOperation.restore();
+            logger.info("Finished to build heap keyed state-backend.");
+        } catch (Exception e) {
+            throw new BackendBuildingException("Failed when trying to restore heap backend", e);
+        }
     }
 
     private HeapSnapshotStrategy<K> initSnapshotStrategy(
