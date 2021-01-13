@@ -79,7 +79,7 @@ class CommonPhysicalSink (
 
     val notNullEnforcer = tableConfig.getConfiguration
       .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER)
-    val notNullFieldIndices = TableSinkUtils.getNotNullFieldIndices(catalogTable)
+    val notNullFieldIndices = TableSinkUtils.getNotNullFieldIndices(catalogTable.getSchema)
     val fieldNames = catalogTable.getSchema.toPhysicalRowDataType
         .getLogicalType.asInstanceOf[RowType]
         .getFieldNames

@@ -276,8 +276,8 @@ object TableSinkUtils {
   /**
    * Gets the NOT NULL physical field indices on the [[CatalogTable]].
    */
-  def getNotNullFieldIndices(catalogTable: CatalogTable): Array[Int] = {
-    val rowType = catalogTable.getSchema.toPhysicalRowDataType.getLogicalType.asInstanceOf[RowType]
+  def getNotNullFieldIndices(tableSchema: TableSchema): Array[Int] = {
+    val rowType = tableSchema.toPhysicalRowDataType.getLogicalType.asInstanceOf[RowType]
     val fieldTypes = rowType.getFields.map(_.getType).toArray
     fieldTypes.indices.filter { index =>
       !fieldTypes(index).isNullable

@@ -24,7 +24,7 @@ import org.apache.flink.table.filesystem.FileSystemOptions
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSink
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.RelOptRule
@@ -33,11 +33,11 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConversions._
 
-class StreamExecSinkRule extends ConverterRule(
+class StreamPhysicalSinkRule extends ConverterRule(
     classOf[FlinkLogicalSink],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecSinkRule") {
+    "StreamPhysicalSinkRule") {
 
   def convert(rel: RelNode): RelNode = {
     val sinkNode = rel.asInstanceOf[FlinkLogicalSink]
@@ -83,7 +83,7 @@ class StreamExecSinkRule extends ConverterRule(
 
     val newInput = RelOptRule.convert(sinkNode.getInput, requiredTraitSet)
 
-    new StreamExecSink(
+    new StreamPhysicalSink(
       rel.getCluster,
       newTrait,
       newInput,
@@ -93,7 +93,7 @@ class StreamExecSinkRule extends ConverterRule(
   }
 }
 
-object StreamExecSinkRule {
-  val INSTANCE = new StreamExecSinkRule
+object StreamPhysicalSinkRule {
+  val INSTANCE = new StreamPhysicalSinkRule
 }
 
