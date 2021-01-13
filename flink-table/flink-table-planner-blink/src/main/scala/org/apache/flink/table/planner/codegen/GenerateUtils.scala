@@ -518,12 +518,12 @@ object GenerateUtils {
 
     val accessCode =
       s"""
-         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.timestamp());
-         |if ($resultTerm == null) {
-         |  throw new RuntimeException("Rowtime timestamp is null. Please make sure that a " +
-         |    "proper TimestampAssigner is defined and the stream environment uses the EventTime " +
-         |    "time characteristic.");
+         |if (!$contextTerm.element.hasTimestamp()) {
+         |  throw new RuntimeException("Rowtime timestamp is not defined. Please make sure that " +
+         |    "a proper TimestampAssigner is defined and the stream environment " +
+         |    "uses the EventTime time characteristic.");
          |}
+         |$resultTerm = $TIMESTAMP_DATA.fromEpochMillis($contextTerm.timestamp());
          |$nullTerm = false;
        """.stripMargin.trim
 
