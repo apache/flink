@@ -19,6 +19,7 @@ package org.apache.flink.runtime.checkpoint.channel;
 
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter.ChannelStateWriteResult;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
@@ -84,6 +85,7 @@ interface ChannelStateWriteRequest {
                 writer -> {
                     while (iterator.hasNext()) {
                         Buffer buffer = iterator.next();
+                        NetworkActionsLogger.log(ChannelStateWriteRequest.class, name, buffer);
                         try {
                             checkArgument(buffer.isBuffer());
                         } catch (Exception e) {
