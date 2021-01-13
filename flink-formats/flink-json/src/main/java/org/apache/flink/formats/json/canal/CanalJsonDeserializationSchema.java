@@ -34,6 +34,8 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -193,19 +195,18 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
             return;
         }
         try {
-            GenericRowData row = (GenericRowData) jsonDeserializer.deserialize(message);
+            final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
             if (database != null) {
-                String currentDatabase = row.getString(3).toString();
-                if (!database.equals(currentDatabase)) {
+                if (!database.equals(root.get(ReadableMetadata.DATABASE.key).asText())) {
                     return;
                 }
             }
             if (table != null) {
-                String currentTable = row.getString(4).toString();
-                if (!table.equals(currentTable)) {
+                if (!table.equals(root.get(ReadableMetadata.TABLE.key).asText())) {
                     return;
                 }
             }
+            final GenericRowData row = (GenericRowData) jsonDeserializer.convertToRowData(root);
             String type = row.getString(2).toString(); // "type" field
             if (OP_INSERT.equals(type)) {
                 // "data" field is an array of row, contains inserted rows
