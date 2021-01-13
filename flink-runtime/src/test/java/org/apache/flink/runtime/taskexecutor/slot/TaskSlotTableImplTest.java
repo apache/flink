@@ -173,8 +173,14 @@ public class TaskSlotTableImplTest extends TestLogger {
             final JobID jobId = new JobID();
             final AllocationID allocationId = new AllocationID();
 
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT), is(true));
-            assertThat(taskSlotTable.allocateSlot(0, jobId, allocationId, SLOT_TIMEOUT), is(true));
+            assertThat(
+                    taskSlotTable.allocateSlot(
+                            0, jobId, allocationId, ResourceProfile.UNKNOWN, SLOT_TIMEOUT),
+                    is(true));
+            assertThat(
+                    taskSlotTable.allocateSlot(
+                            0, jobId, allocationId, ResourceProfile.UNKNOWN, SLOT_TIMEOUT),
+                    is(true));
 
             assertThat(taskSlotTable.isAllocated(0, jobId, allocationId), is(true));
             assertThat(taskSlotTable.isSlotFree(1), is(true));

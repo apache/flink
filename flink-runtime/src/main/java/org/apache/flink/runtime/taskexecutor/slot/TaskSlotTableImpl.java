@@ -292,10 +292,12 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         // The negative requestIndex indicate that the SlotManger allocate a dynamic slot, we
         // transfer the index to an increasing number not less than the numberSlots.
         int index = requestedIndex < 0 ? nextDynamicSlotIndex() : requestedIndex;
+        ResourceProfile effectiveResourceProfile =
+                isDynamicIndex(index) ? resourceProfile : defaultSlotResourceProfile;
 
         TaskSlot<T> taskSlot = allocatedSlots.get(allocationId);
         if (taskSlot != null) {
-            return isDuplicatedSlot(taskSlot, jobId, resourceProfile, index);
+            return isDuplicatedSlot(taskSlot, jobId, effectiveResourceProfile, index);
         } else if (isIndexAlreadyTaken(index)) {
             LOG.info(
                     "The slot with index {} is already assigned to another allocation with id {}.",
@@ -304,13 +306,11 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             return false;
         }
 
-        resourceProfile = isDynamicIndex(index) ? resourceProfile : defaultSlotResourceProfile;
-
-        if (!budgetManager.reserve(resourceProfile)) {
+        if (!budgetManager.reserve(effectiveResourceProfile)) {
             LOG.info(
                     "Cannot allocate the requested resources. Trying to allocate {}, "
                             + "while the currently remaining available resources are {}, total is {}.",
-                    resourceProfile,
+                    effectiveResourceProfile,
                     budgetManager.getAvailableBudget(),
                     budgetManager.getTotalBudget());
             return false;
@@ -319,7 +319,7 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
         taskSlot =
                 new TaskSlot<>(
                         index,
-                        resourceProfile,
+                        effectiveResourceProfile,
                         memoryPageSize,
                         jobId,
                         allocationId,
