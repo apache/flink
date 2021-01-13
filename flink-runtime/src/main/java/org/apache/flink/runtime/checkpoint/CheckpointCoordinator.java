@@ -79,6 +79,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import static java.util.stream.Collectors.toMap;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -728,12 +729,7 @@ public class CheckpointCoordinator {
                         checkpointStorageLocation,
                         onCompletionPromise);
 
-        if (statsTracker != null) {
-            PendingCheckpointStats callback =
-                    statsTracker.reportPendingCheckpoint(checkpointID, timestamp, props);
-
-            checkpoint.setStatsCallback(callback);
-        }
+        reportToStatsTracker(checkpoint, ackTasks);
 
         synchronized (lock) {
             pendingCheckpoints.put(checkpointID, checkpoint);
@@ -2107,5 +2103,26 @@ public class CheckpointCoordinator {
 
         /** Coordinators are not restored during this checkpoint restore. */
         SKIP;
+    }
+
+    private void reportToStatsTracker(
+            PendingCheckpoint checkpoint, Map<ExecutionAttemptID, ExecutionVertex> tasks) {
+        if (statsTracker == null) {
+            return;
+        }
+        Map<JobVertexID, Integer> vertices =
+                tasks.values().stream()
+                        .map(ExecutionVertex::getJobVertex)
+                        .distinct()
+                        .collect(
+                                toMap(
+                                        ExecutionJobVertex::getJobVertexId,
+                                        ExecutionJobVertex::getParallelism));
+        checkpoint.setStatsCallback(
+                statsTracker.reportPendingCheckpoint(
+                        checkpoint.getCheckpointID(),
+                        checkpoint.getCheckpointTimestamp(),
+                        checkpoint.getProps(),
+                        vertices));
     }
 }
