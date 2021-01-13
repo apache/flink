@@ -47,7 +47,7 @@ function build_image() {
     start_file_server
     local server_pid=$!
 
-    echo "Preparing Dockeriles"
+    echo "Preparing Dockerfiles"
     git clone https://github.com/zentol/flink-docker.git --branch 20915 --single-branch
     cd flink-docker
     ./add-custom.sh -u ${file_server_address}:9999/flink.tgz -n ${image_name}
