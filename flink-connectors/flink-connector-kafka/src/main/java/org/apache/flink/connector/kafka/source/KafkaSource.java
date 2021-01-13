@@ -108,6 +108,15 @@ public class KafkaSource<OUT>
         return new KafkaSourceBuilder<>();
     }
 
+    /**
+     * Returns the props for the Kafka Source.
+     *
+     * @return props for the Kafka Source.
+     */
+    public Properties getProps() {
+        return props;
+    }
+
     @Override
     public Boundedness getBoundedness() {
         return this.boundedness;

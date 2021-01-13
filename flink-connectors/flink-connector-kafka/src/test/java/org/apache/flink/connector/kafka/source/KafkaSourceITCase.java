@@ -82,6 +82,34 @@ public class KafkaSourceITCase {
         executeAndVerify(env, stream);
     }
 
+    @Test
+    public void testParitionDiscoverySetting() throws Exception {
+        KafkaSource<PartitionAndValue> sourceWithBounded =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testParitionDiscoverySetting")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(new TestingKafkaRecordDeserializer())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setBounded(OffsetsInitializer.latest())
+                        .build();
+        KafkaSource<PartitionAndValue> sourceWithUnbounded =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testParitionDiscoverySetting")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(new TestingKafkaRecordDeserializer())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setUnbounded(OffsetsInitializer.latest())
+                        .build();
+        String actualWithBounded = sourceWithBounded.getProps().getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+        String actualWithUnbounded = sourceWithUnbounded.getProps().getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+
+        String expected = "-1";
+        assertEquals(expected, actualWithBounded);
+        assertEquals(expected, actualWithUnbounded);
+    }
+
     // -----------------
 
     private static class PartitionAndValue implements Serializable {
