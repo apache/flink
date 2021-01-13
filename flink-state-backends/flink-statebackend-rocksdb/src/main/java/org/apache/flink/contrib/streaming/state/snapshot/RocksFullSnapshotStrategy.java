@@ -137,7 +137,9 @@ public class RocksFullSnapshotStrategy<K>
                                 checkpointId, checkpointStreamFactory, checkpointOptions);
 
         return new FullSnapshotAsyncWriter<>(
-                checkpointStreamSupplier, fullRocksDBSnapshotResources);
+                checkpointOptions.getCheckpointType(),
+                checkpointStreamSupplier,
+                fullRocksDBSnapshotResources);
     }
 
     @Override
