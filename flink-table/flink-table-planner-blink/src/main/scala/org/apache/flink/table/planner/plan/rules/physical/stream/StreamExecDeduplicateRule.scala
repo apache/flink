@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDeduplicate, StreamPhysicalRank}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDeduplicate, StreamPhysicalRank}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -32,10 +32,10 @@ import org.apache.calcite.rel.{RelCollation, RelNode}
 
 /**
   * Rule that matches [[FlinkLogicalRank]] which is sorted by time attribute and
-  * limits 1 and its rank type is ROW_NUMBER, and converts it to [[StreamExecDeduplicate]].
+  * limits 1 and its rank type is ROW_NUMBER, and converts it to [[StreamPhysicalDeduplicate]].
   *
-  * NOTES: Queries that can be converted to [[StreamExecDeduplicate]] could be converted to
-  * [[StreamPhysicalRank]] too. [[StreamExecDeduplicate]] is more efficient than
+  * NOTES: Queries that can be converted to [[StreamPhysicalDeduplicate]] could be converted to
+  * [[StreamPhysicalRank]] too. [[StreamPhysicalDeduplicate]] is more efficient than
   * [[StreamPhysicalRank]] due to mini-batch and less state access.
   *
   * e.g.
@@ -88,7 +88,7 @@ class StreamExecDeduplicateRule
     val isRowtime = FlinkTypeFactory.isRowtimeIndicatorType(fieldType)
 
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    new StreamExecDeduplicate(
+    new StreamPhysicalDeduplicate(
       rel.getCluster,
       providedTraitSet,
       convInput,
@@ -103,13 +103,13 @@ object StreamExecDeduplicateRule {
   val RANK_INSTANCE = new StreamExecDeduplicateRule
 
   /**
-    * Whether the given rank could be converted to [[StreamExecDeduplicate]].
+    * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
     *
     * Returns true if the given rank is sorted by time attribute and limits 1
     * and its RankFunction is ROW_NUMBER, else false.
     *
     * @param rank The [[FlinkLogicalRank]] node
-    * @return True if the input rank could be converted to [[StreamExecDeduplicate]]
+    * @return True if the input rank could be converted to [[StreamPhysicalDeduplicate]]
     */
   def canConvertToDeduplicate(rank: FlinkLogicalRank): Boolean = {
     val sortCollation = rank.orderKey
