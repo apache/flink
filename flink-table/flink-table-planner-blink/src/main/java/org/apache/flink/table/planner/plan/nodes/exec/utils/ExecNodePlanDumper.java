@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.utils;
 
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink;
-import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -161,7 +160,6 @@ public class ExecNodePlanDumper {
                         boolean isReuseNode = reuseId >= 0;
                         if (node instanceof LegacySink
                                 || node instanceof CommonExecSink
-                                || node instanceof Sink
                                 || (isReuseNode && isFirstVisit)) {
                             if (isReuseNode) {
                                 reuseInfo.setFirstVisited(node, true);
