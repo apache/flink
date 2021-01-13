@@ -487,6 +487,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def addReusableLocalDateTime(): String = {
     val fieldTerm = s"localtimestamp"
 
+    val sessionTimeZone = addReusableSessionTimeZone()
     val timestamp = addReusableTimestamp()
 
     // declaration
@@ -497,7 +498,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       s"""
          |$fieldTerm = $TIMESTAMP_DATA.fromEpochMillis(
          |  $timestamp.getMillisecond() +
-         |  java.util.TimeZone.getDefault().getOffset($timestamp.getMillisecond()));
+         |  $sessionTimeZone.getOffset($timestamp.getMillisecond()));
          |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
