@@ -360,6 +360,13 @@ Flink 提供了 `debezium-avro-confluent` 和 `debezium-json` 两种 format 来�
       <td>String</td>
       <td>当 <code>'debezium-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
     </tr>
+    <tr>
+      <td><h5>debezium-json.encode.decimal-as-plain-number</h5></td>
+      <td>选填</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>将所有 DECIMAL 类型的数据保持原状，不使用科学计数法表示。例：<code>0.000000027</code> 默认会表示为 <code>2.7E-8</code>。当此选项设为 true 时，则会表示为 <code>0.000000027</code>。</td>
+    </tr>
     </tbody>
 </table>
 

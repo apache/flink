@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.apache.flink.formats.json.JsonOptions.ENCODE_DECIMAL_AS_PLAIN_NUMBER;
 import static org.apache.flink.formats.json.JsonOptions.FAIL_ON_MISSING_FIELD;
 import static org.apache.flink.formats.json.JsonOptions.IGNORE_PARSE_ERRORS;
 import static org.apache.flink.formats.json.JsonOptions.MAP_NULL_KEY_LITERAL;
@@ -98,13 +99,20 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         JsonOptions.MapNullKeyMode mapNullKeyMode = JsonOptions.getMapNullKeyMode(formatOptions);
         String mapNullKeyLiteral = formatOptions.get(MAP_NULL_KEY_LITERAL);
 
+        final boolean encodeDecimalAsPlainNumber =
+                formatOptions.get(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+
         return new EncodingFormat<SerializationSchema<RowData>>() {
             @Override
             public SerializationSchema<RowData> createRuntimeEncoder(
                     DynamicTableSink.Context context, DataType consumedDataType) {
                 final RowType rowType = (RowType) consumedDataType.getLogicalType();
                 return new JsonRowDataSerializationSchema(
-                        rowType, timestampOption, mapNullKeyMode, mapNullKeyLiteral);
+                        rowType,
+                        timestampOption,
+                        mapNullKeyMode,
+                        mapNullKeyLiteral,
+                        encodeDecimalAsPlainNumber);
             }
 
             @Override
@@ -132,6 +140,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         options.add(TIMESTAMP_FORMAT);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);
+        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
         return options;
     }
 }

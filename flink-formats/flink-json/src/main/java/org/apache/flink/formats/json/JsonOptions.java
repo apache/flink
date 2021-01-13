@@ -73,6 +73,13 @@ public class JsonOptions {
                                     + " Option ISO-8601 will parse input timestamp in \"yyyy-MM-ddTHH:mm:ss.s{precision}\" format and output timestamp in the same format."
                                     + " Option SQL will parse input timestamp in \"yyyy-MM-dd HH:mm:ss.s{precision}\" format and output timestamp in the same format.");
 
+    public static final ConfigOption<Boolean> ENCODE_DECIMAL_AS_PLAIN_NUMBER =
+            ConfigOptions.key("encode.decimal-as-plain-number")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional flag to specify whether to encode all decimals as plain numbers instead of possible scientific notations, false by default.");
+
     // --------------------------------------------------------------------------------------------
     // Option enumerations
     // --------------------------------------------------------------------------------------------

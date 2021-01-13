@@ -55,13 +55,15 @@ public class MaxwellJsonSerializationSchema implements SerializationSchema<RowDa
             RowType rowType,
             TimestampFormat timestampFormat,
             JsonOptions.MapNullKeyMode mapNullKeyMode,
-            String mapNullKeyLiteral) {
+            String mapNullKeyLiteral,
+            boolean encodeDecimalAsPlainNumber) {
         this.jsonSerializer =
                 new JsonRowDataSerializationSchema(
                         createJsonRowType(fromLogicalToDataType(rowType)),
                         timestampFormat,
                         mapNullKeyMode,
-                        mapNullKeyLiteral);
+                        mapNullKeyLiteral,
+                        encodeDecimalAsPlainNumber);
         this.timestampFormat = timestampFormat;
     }
 

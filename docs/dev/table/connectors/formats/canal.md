@@ -281,6 +281,13 @@ Format Options
       <td>Specify string literal to replace null key when <code>'canal-json.map-null-key.mode'</code> is LITERAL.</td>
     </tr>        
     <tr>
+      <td><h5>canal-json.encode.decimal-as-plain-number</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Encode all decimals as plain numbers instead of possible scientific notations. By default, decimals may be written using scientific notation. For example, <code>0.000000027</code> is encoded as <code>2.7E-8</code> by default, and will be written as <code>0.000000027</code> if set this option to true.</td>
+    </tr>
+    <tr>
       <td><h5>canal-json.database.include</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
