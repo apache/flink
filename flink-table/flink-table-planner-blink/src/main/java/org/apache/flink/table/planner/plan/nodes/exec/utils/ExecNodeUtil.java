@@ -38,15 +38,6 @@ import java.util.stream.Collectors;
 /** An Utility class that helps translating {@link ExecNode} to {@link Transformation}. */
 public class ExecNodeUtil {
     /**
-     * Return bytes size for given option in {@link TableConfig}.
-     *
-     * <p>TODO: This method can be removed once FLINK-20879 is finished.
-     */
-    public static long getMemorySize(TableConfig tableConfig, ConfigOption<MemorySize> option) {
-        return tableConfig.getConfiguration().get(option).getBytes();
-    }
-
-    /**
      * Set memoryBytes to {@link
      * Transformation#declareManagedMemoryUseCaseAtOperatorScope(ManagedMemoryUseCase, int)}.
      */

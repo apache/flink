@@ -103,12 +103,8 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
 
-        long externalBufferMemory =
-                ExecNodeUtil.getMemorySize(
-                        config, ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY);
-        long sortMemory =
-                ExecNodeUtil.getMemorySize(
-                        config, ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY);
+        long externalBufferMemory = config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY).getBytes();
+        long sortMemory = config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         int externalBufferNum = 1;
         if (joinType == FlinkJoinType.FULL) {
             externalBufferNum = 2;
