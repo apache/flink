@@ -26,10 +26,11 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.planner.plan.utils.RankProcessStrategy
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
 
 /**
   * Rule that converts [[FlinkLogicalRank]] with fetch to [[StreamPhysicalRank]].
-  * NOTES: the rank can not be converted to [[StreamExecDeduplicate]].
+  * NOTES: the rank can not be converted to [[StreamPhysicalDeduplicate]].
   */
 class StreamPhysicalRankRule
   extends ConverterRule(
@@ -40,7 +41,7 @@ class StreamPhysicalRankRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    !StreamExecDeduplicateRule.canConvertToDeduplicate(rank)
+    !StreamPhysicalDeduplicateRule.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
