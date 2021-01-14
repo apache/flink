@@ -52,4 +52,30 @@ public class SlotManagerUtilsTest extends TestLogger {
                 SlotManagerUtils.generateDefaultSlotResourceProfile(workerResourceSpec, numSlots),
                 is(resourceProfile));
     }
+
+    @Test
+    public void testCalculateDefaultNumSlots() {
+        final ResourceProfile defaultSlotResource =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(1)
+                        .setTaskOffHeapMemoryMB(2)
+                        .setNetworkMemoryMB(3)
+                        .setManagedMemoryMB(4)
+                        .build();
+        final ResourceProfile totalResource1 = defaultSlotResource.multiply(5);
+        final ResourceProfile totalResource2 =
+                totalResource1.merge(ResourceProfile.newBuilder().setCpuCores(0.1).build());
+
+        assertThat(
+                SlotManagerUtils.calculateDefaultNumSlots(totalResource1, defaultSlotResource),
+                is(5));
+        assertThat(
+                SlotManagerUtils.calculateDefaultNumSlots(totalResource2, defaultSlotResource),
+                is(5));
+        // For ResourceProfile.ANY in test case, return the maximum integer
+        assertThat(
+                SlotManagerUtils.calculateDefaultNumSlots(ResourceProfile.ANY, defaultSlotResource),
+                is(Integer.MAX_VALUE));
+    }
 }
