@@ -102,12 +102,35 @@ public class KafkaSourceITCase {
                         .setStartingOffsets(OffsetsInitializer.earliest())
                         .setUnbounded(OffsetsInitializer.latest())
                         .build();
-        String actualWithBounded = sourceWithBounded.getProps().getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
-        String actualWithUnbounded = sourceWithUnbounded.getProps().getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+        KafkaSource<PartitionAndValue> sourceWithProps =
+                KafkaSource.<PartitionAndValue>builder()
+                        .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                        .setGroupId("testParitionDiscoverySetting")
+                        .setTopics(Arrays.asList(TOPIC1, TOPIC2))
+                        .setDeserializer(new TestingKafkaRecordDeserializer())
+                        .setStartingOffsets(OffsetsInitializer.earliest())
+                        .setUnbounded(OffsetsInitializer.latest())
+                        .setProperty(
+                                KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "60000")
+                        .build();
+        String actualWithBounded =
+                sourceWithBounded
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+        String actualWithUnbounded =
+                sourceWithUnbounded
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
+        String actualWithProps =
+                sourceWithProps
+                        .getProps()
+                        .getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key());
 
-        String expected = "-1";
-        assertEquals(expected, actualWithBounded);
-        assertEquals(expected, actualWithUnbounded);
+        String expectedWithNoProps = "-1";
+        String expectedWithProps = "60000";
+        assertEquals(expectedWithNoProps, actualWithBounded);
+        assertEquals(expectedWithNoProps, actualWithUnbounded);
+        assertEquals(expectedWithProps, actualWithProps);
     }
 
     // -----------------

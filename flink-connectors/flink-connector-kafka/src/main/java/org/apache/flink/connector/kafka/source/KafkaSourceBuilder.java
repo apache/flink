@@ -423,11 +423,14 @@ public class KafkaSourceBuilder<OUT> {
                 startingOffsetsInitializer.getAutoOffsetResetStrategy().name().toLowerCase(),
                 true);
 
-        // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic partition discovery.
-        boolean hasStoppingOffsets = !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
-        boolean hasParitionDiscoverySetting = props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
-        if (boundedness == Boundedness.BOUNDED ||
-                (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
+        // If the source is bounded or stoppingOffsetsInitializer is specified, do not run periodic
+        // partition discovery.
+        boolean hasStoppingOffsets =
+                !(stoppingOffsetsInitializer instanceof NoStoppingOffsetsInitializer);
+        boolean hasParitionDiscoverySetting =
+                props.getProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key()) != null;
+        if (boundedness == Boundedness.BOUNDED
+                || (hasStoppingOffsets && !hasParitionDiscoverySetting)) {
             props.setProperty(KafkaSourceOptions.PARTITION_DISCOVERY_INTERVAL_MS.key(), "-1");
         }
 
