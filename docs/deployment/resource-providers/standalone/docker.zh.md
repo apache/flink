@@ -326,10 +326,10 @@ $ docker build --tag pyflink:latest .
 Flink introduced `jemalloc` as default memory allocator to resolve memory fragmentation problem (please refer to [FLINK-19125](https://issues.apache.org/jira/browse/FLINK-19125)).
 
 You could switch back to use `glibc` as memory allocator to restore the old behavior or if any unexpected memory consumption or problem observed
-(and please report the issue via JIRA or mailing list if you found any), by passing `disable-jemalloc` parameter:
+(and please report the issue via JIRA or mailing list if you found any), by setting the `DISABLE_JEMALLOC` environment variable to `true`.
 
 ```sh
-    $ docker run <jobmanager|standalone-job|taskmanager> disable-jemalloc
+    $ docker run --env DISABLED_JEMALLOC=true <jobmanager|standalone-job|taskmanager> disable-jemalloc
 ```
 
 ### Advanced customization
