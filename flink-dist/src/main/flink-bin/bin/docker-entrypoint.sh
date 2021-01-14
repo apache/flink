@@ -18,6 +18,18 @@
 # limitations under the License.
 ###############################################################################
 
+#######################################
+# This script is called by the Flink docker images when starting a process.
+# It contains docker-specific features, and hard-codes a few options.
+#
+# Globals:
+#   FLINK_HOME                          - (required) path to the Flink home directory
+#   ENABLE_BUILT_IN_PLUGINS             - semi-colon (;) separated list of plugins to enable, e.g., "flink-plugin1.jar;flink-plugin2.jar"
+#   FLINK_PROPERTIES                    - additional flink-conf.yaml entries as a multi-line string
+#   JOB_MANAGER_RPC_ADDRESS             - RPC address of the job manager
+#   TASK_MANAGER_NUMBER_OF_TASK_SLOTS   - number of slots for task executors
+#######################################
+
 COMMAND_STANDALONE="standalone-job"
 # Deprecated, should be remove in Flink release 1.13
 COMMAND_NATIVE_KUBERNETES="native-k8s"
