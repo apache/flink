@@ -104,18 +104,6 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         try {
             return convertToRowData(deserializeToJsonNode(message));
         } catch (Throwable t) {
-            throw new IOException(
-                    format("Failed to deserialize JSON '%s'.", new String(message)), t);
-        }
-    }
-
-    public JsonNode deserializeToJsonNode(@Nullable byte[] message) throws IOException {
-        if (message == null) {
-            return null;
-        }
-        try {
-            return objectMapper.readTree(message);
-        } catch (Throwable t) {
             if (ignoreParseErrors) {
                 return null;
             }
@@ -124,19 +112,12 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
         }
     }
 
-    public RowData convertToRowData(@Nullable JsonNode message) throws IOException {
-        if (message == null) {
-            return null;
-        }
-        try {
-            return (RowData) runtimeConverter.convert(message);
-        } catch (Throwable t) {
-            if (ignoreParseErrors) {
-                return null;
-            }
-            throw new IOException(
-                    format("Failed to convert JSON '%s' to RowData.", message.textValue()), t);
-        }
+    public JsonNode deserializeToJsonNode(byte[] message) throws IOException {
+        return objectMapper.readTree(message);
+    }
+
+    public RowData convertToRowData(JsonNode message) {
+        return (RowData) runtimeConverter.convert(message);
     }
 
     @Override
