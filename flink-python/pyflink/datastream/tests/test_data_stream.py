@@ -15,6 +15,7 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import datetime
 import decimal
 import os
 import uuid
@@ -601,6 +602,23 @@ class DataStreamTests(PyFlinkTestCase):
                     '3,[3.1, 3.2, null],[hello, hi, null]']
         results.sort()
         expected.sort()
+        self.assertEqual(expected, results)
+
+    def test_sql_timestamp_type_info(self):
+        ds = self.env.from_collection([(datetime.date(2021, 1, 9),
+                                        datetime.time(12, 0, 0),
+                                        datetime.datetime(2021, 1, 9, 12, 0, 0, 11000))],
+                                      type_info=Types.ROW([Types.SQL_DATE(),
+                                                           Types.SQL_TIME(),
+                                                           Types.SQL_TIMESTAMP()]))
+
+        ds.map(lambda x: x, output_type=Types.ROW([Types.SQL_DATE(),
+                                                   Types.SQL_TIME(),
+                                                   Types.SQL_TIMESTAMP()]))\
+            .add_sink(self.test_sink)
+        self.env.execute("test sql timestamp type info")
+        results = self.test_sink.get_results()
+        expected = ['2021-01-09,12:00:00,2021-01-09 12:00:00.011']
         self.assertEqual(expected, results)
 
     def test_timestamp_assigner_and_watermark_strategy(self):
