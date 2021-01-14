@@ -24,49 +24,52 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.createTuple2TypeInformation
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.util.RowDataUtil
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{genToExternalConverter, genToExternalConverterWithLegacy}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalConverterWithLegacy
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NO_CODE
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
-import org.apache.flink.table.planner.sinks.TableSinkUtils
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 
 import scala.collection.JavaConverters._
 
 object SinkCodeGenerator {
 
-  /** Code gen a operator to convert internal type rows to external type. **/
-  def generateRowConverterOperator[OUT](
-      ctx: CodeGeneratorContext,
-      config: TableConfig,
-      inputRowType: RowType,
+  def deriveSinkOutputTypeInfo[OUT](
       sink: TableSink[_],
-      withChangeFlag: Boolean,
-      operatorName: String): (CodeGenOperatorFactory[OUT], TypeInformation[OUT]) = {
-
-    val physicalOutputType = TableSinkUtils.inferSinkPhysicalDataType(
-      sink.getConsumedDataType,
-      inputRowType,
-      withChangeFlag)
+      physicalOutputType: DataType,
+      withChangeFlag: Boolean): TypeInformation[OUT] = {
     val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
-
     val outputTypeInfo = if (withChangeFlag) {
       val consumedClass = sink.getConsumedDataType.getConversionClass
       if (consumedClass == classOf[(_, _)]) {
         createTuple2TypeInformation(Types.BOOLEAN, physicalTypeInfo)
       } else if (consumedClass == classOf[JTuple2[_, _]]) {
         new TupleTypeInfo(Types.BOOLEAN, physicalTypeInfo)
+      } else {
+        throw new TableException("This should not happen.")
       }
     } else {
       physicalTypeInfo
     }
+    outputTypeInfo.asInstanceOf[TypeInformation[OUT]]
+  }
 
+  /** Code gen a operator to convert internal type rows to external type. **/
+  def generateRowConverterOperator[OUT](
+      ctx: CodeGeneratorContext,
+      inputRowType: RowType,
+      sink: TableSink[_],
+      physicalOutputType: DataType,
+      withChangeFlag: Boolean,
+      operatorName: String): CodeGenOperatorFactory[OUT] = {
+    val physicalTypeInfo = fromDataTypeToTypeInfo(physicalOutputType)
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     var afterIndexModify = inputTerm
     val fieldIndexProcessCode = physicalTypeInfo match {
@@ -149,6 +152,6 @@ object SinkCodeGenerator {
          |$retractProcessCode
          |""".stripMargin,
       inputRowType)
-    (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
+    new CodeGenOperatorFactory[OUT](generated)
   }
 }
