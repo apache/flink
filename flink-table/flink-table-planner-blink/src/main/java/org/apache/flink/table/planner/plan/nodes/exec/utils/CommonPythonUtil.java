@@ -29,7 +29,6 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
-import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -37,19 +36,17 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /** A utility class used in PyFlink. */
 public class CommonPythonUtil {
     private static final Method convertLiteralToPython;
 
-    private static final String PYTHON_DEPENDENCY_UTILS_CLASS =
-            "org.apache.flink.python.util.PythonDependencyUtils";
+    private static final String PYTHON_CONFIG_UTILS_CLASS =
+            "org.apache.flink.python.util.PythonConfigUtil";
 
     static {
         convertLiteralToPython = loadConvertLiteralToPythonMethod();
@@ -68,25 +65,14 @@ public class CommonPythonUtil {
 
     @SuppressWarnings("unchecked")
     public static Configuration getConfig(StreamExecutionEnvironment env, TableConfig tableConfig) {
-        Class clazz = loadClass(PYTHON_DEPENDENCY_UTILS_CLASS);
+        Class clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
         try {
-            StreamExecutionEnvironment readEnv = getRealEnvironment(env);
             Method method =
                     clazz.getDeclaredMethod(
-                            "configurePythonDependencies", List.class, Configuration.class);
-            Configuration config =
-                    (Configuration)
-                            method.invoke(
-                                    null,
-                                    readEnv.getCachedFiles(),
-                                    getMergedConfiguration(readEnv, tableConfig));
-            config.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return config;
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | NoSuchMethodException
-                | InvocationTargetException e) {
-            throw new TableException("Method configurePythonDependencies accessed failed.", e);
+                            "getConfig", StreamExecutionEnvironment.class, TableConfig.class);
+            return (Configuration) method.invoke(null, env, tableConfig);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            throw new TableException("Method getConfig accessed failed.", e);
         }
     }
 
@@ -161,26 +147,5 @@ public class CommonPythonUtil {
             }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
-    }
-
-    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field realExecEnvField =
-                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
-        realExecEnvField.setAccessible(true);
-        while (env instanceof DummyStreamExecutionEnvironment) {
-            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
-        }
-        return env;
-    }
-
-    private static Configuration getMergedConfiguration(
-            StreamExecutionEnvironment env, TableConfig tableConfig)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Method method = StreamExecutionEnvironment.class.getDeclaredMethod("getConfiguration");
-        method.setAccessible(true);
-        Configuration config = new Configuration((Configuration) method.invoke(env));
-        config.addAll(tableConfig.getConfiguration());
-        return config;
     }
 }

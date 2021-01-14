@@ -44,6 +44,9 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -129,17 +132,21 @@ public class PythonConfigUtil {
     }
 
     /** Set Python Operator Use Managed Memory. */
-    public static void setManagedMemory(Transformation<?> transformation, Configuration config) {
+    public static void setManagedMemory(
+            Transformation<?> transformation,
+            StreamExecutionEnvironment env,
+            TableConfig tableConfig) {
+        Configuration config = getConfig(env, tableConfig);
         if (config.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
             setManagedMemory(transformation);
         }
     }
 
     private static void setManagedMemory(Transformation<?> transformation) {
-        List<Transformation<?>> inputTransformations = transformation.getInputs();
         if (isPythonOperator(transformation)) {
             transformation.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
+        List<Transformation<?>> inputTransformations = transformation.getInputs();
         for (Transformation inputTransformation : inputTransformations) {
             setManagedMemory(inputTransformation);
         }
@@ -222,16 +229,15 @@ public class PythonConfigUtil {
     }
 
     private static boolean isPythonOperator(Transformation<?> transform) {
-        if (transform instanceof OneInputTransformation
-                && isPythonOperator(((OneInputTransformation) transform).getOperatorFactory())) {
-            return true;
-        } else if (transform instanceof TwoInputTransformation
-                && isPythonOperator(((TwoInputTransformation) transform).getOperatorFactory())) {
-            return true;
+        if (transform instanceof OneInputTransformation) {
+            return isPythonOperator(((OneInputTransformation) transform).getOperatorFactory());
+        } else if (transform instanceof TwoInputTransformation) {
+            return isPythonOperator(((TwoInputTransformation) transform).getOperatorFactory());
+        } else if (transform instanceof AbstractMultipleInputTransformation) {
+            return isPythonOperator(
+                    ((AbstractMultipleInputTransformation) transform).getOperatorFactory());
         } else {
-            return transform instanceof AbstractMultipleInputTransformation
-                    && isPythonOperator(
-                            ((AbstractMultipleInputTransformation) transform).getOperatorFactory());
+            return false;
         }
     }
 
@@ -289,5 +295,40 @@ public class PythonConfigUtil {
                                             != Boundedness.BOUNDED);
         }
         return !existsUnboundedSource;
+    }
+
+    public static Configuration getConfig(StreamExecutionEnvironment env, TableConfig tableConfig) {
+        try {
+            StreamExecutionEnvironment readEnv = getRealEnvironment(env);
+            Configuration config =
+                    PythonDependencyUtils.configurePythonDependencies(
+                            readEnv.getCachedFiles(), getMergedConfiguration(readEnv, tableConfig));
+            config.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+            return config;
+        } catch (NoSuchFieldException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | InvocationTargetException e) {
+            throw new TableException("Method getConfig failed.", e);
+        }
+    }
+
+    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
+            throws NoSuchFieldException, IllegalAccessException {
+        Field realExecEnvField =
+                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
+        realExecEnvField.setAccessible(true);
+        while (env instanceof DummyStreamExecutionEnvironment) {
+            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
+        }
+        return env;
+    }
+
+    private static Configuration getMergedConfiguration(
+            StreamExecutionEnvironment env, TableConfig tableConfig)
+            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        Configuration config = getEnvironmentConfig(env);
+        config.addAll(tableConfig.getConfiguration());
+        return config;
     }
 }

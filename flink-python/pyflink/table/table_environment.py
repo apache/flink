@@ -1738,7 +1738,9 @@ class StreamTableEnvironment(TableEnvironment):
         j_data_stream = data_stream._j_data_stream
         get_gateway().jvm \
             .org.apache.flink.python.util.PythonConfigUtil.setManagedMemory(
-            j_data_stream.getTransformation(), self._j_tenv.getConfig().getConfiguration())
+            j_data_stream.getTransformation(),
+            self._get_j_env(),
+            self._j_tenv.getConfig())
         if len(fields) == 0:
             return Table(j_table=self._j_tenv.fromDataStream(j_data_stream), t_env=self)
         elif all(isinstance(f, Expression) for f in fields):
