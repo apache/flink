@@ -109,6 +109,8 @@ public class ExpressionResolver {
 
     private final DataTypeFactory typeFactory;
 
+    private final SqlExpressionResolver sqlExpressionResolver;
+
     private final PostResolverFactory postResolverFactory = new PostResolverFactory();
 
     private final Map<String, LocalReferenceExpression> localReferences;
@@ -120,6 +122,7 @@ public class ExpressionResolver {
             TableReferenceLookup tableLookup,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
+            SqlExpressionResolver sqlExpressionResolver,
             FieldReferenceLookup fieldLookup,
             List<OverWindow> localOverWindows,
             List<LocalReferenceExpression> localReferences) {
@@ -128,6 +131,7 @@ public class ExpressionResolver {
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
         this.functionLookup = Preconditions.checkNotNull(functionLookup);
         this.typeFactory = Preconditions.checkNotNull(typeFactory);
+        this.sqlExpressionResolver = Preconditions.checkNotNull(sqlExpressionResolver);
 
         this.localReferences =
                 localReferences.stream()
@@ -154,9 +158,10 @@ public class ExpressionResolver {
             TableReferenceLookup tableCatalog,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
+            SqlExpressionResolver sqlExpressionResolver,
             QueryOperation... inputs) {
         return new ExpressionResolverBuilder(
-                inputs, config, tableCatalog, functionLookup, typeFactory);
+                inputs, config, tableCatalog, functionLookup, typeFactory, sqlExpressionResolver);
     }
 
     /**
@@ -287,6 +292,10 @@ public class ExpressionResolver {
             return typeFactory;
         }
 
+        public SqlExpressionResolver sqlExpressionResolver() {
+            return sqlExpressionResolver;
+        }
+
         @Override
         public PostResolverFactory postResolutionFactory() {
             return postResolverFactory;
@@ -409,6 +418,7 @@ public class ExpressionResolver {
         private final TableReferenceLookup tableCatalog;
         private final FunctionLookup functionLookup;
         private final DataTypeFactory typeFactory;
+        private final SqlExpressionResolver sqlExpressionResolver;
         private List<OverWindow> logicalOverWindows = new ArrayList<>();
         private List<LocalReferenceExpression> localReferences = new ArrayList<>();
 
@@ -417,12 +427,14 @@ public class ExpressionResolver {
                 TableConfig config,
                 TableReferenceLookup tableCatalog,
                 FunctionLookup functionLookup,
-                DataTypeFactory typeFactory) {
+                DataTypeFactory typeFactory,
+                SqlExpressionResolver sqlExpressionResolver) {
             this.config = config;
             this.queryOperations = Arrays.asList(queryOperations);
             this.tableCatalog = tableCatalog;
             this.functionLookup = functionLookup;
             this.typeFactory = typeFactory;
+            this.sqlExpressionResolver = sqlExpressionResolver;
         }
 
         public ExpressionResolverBuilder withOverWindows(List<OverWindow> windows) {
@@ -442,6 +454,7 @@ public class ExpressionResolver {
                     tableCatalog,
                     functionLookup,
                     typeFactory,
+                    sqlExpressionResolver,
                     new FieldReferenceLookup(queryOperations),
                     logicalOverWindows,
                     localReferences);

@@ -51,7 +51,11 @@ public class CallExpressionResolver {
                                                     throw new TableException(
                                                             "We should not need to lookup any expressions at this point");
                                                 }),
-                                context.getCatalogManager().getDataTypeFactory())
+                                context.getCatalogManager().getDataTypeFactory(),
+                                (sqlExpression, inputSchema) -> {
+                                    throw new TableException(
+                                            "SQL expression parsing is not supported at this location.");
+                                })
                         .build();
     }
 
