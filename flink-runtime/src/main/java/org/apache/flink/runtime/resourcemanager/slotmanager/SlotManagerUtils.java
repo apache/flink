@@ -54,4 +54,15 @@ public class SlotManagerUtils {
             ResourceProfile requirement, ResourceProfile defaultResourceProfile) {
         return requirement.equals(ResourceProfile.UNKNOWN) ? defaultResourceProfile : requirement;
     }
+
+    public static ResourceProfile generateTaskManagerTotalResourceProfile(
+            WorkerResourceSpec workerResourceSpec) {
+        return ResourceProfile.newBuilder()
+                .setCpuCores(workerResourceSpec.getCpuCores())
+                .setTaskHeapMemory(workerResourceSpec.getTaskHeapSize())
+                .setTaskOffHeapMemory(workerResourceSpec.getTaskOffHeapSize())
+                .setManagedMemory(workerResourceSpec.getManagedMemSize())
+                .setNetworkMemory(workerResourceSpec.getNetworkMemSize())
+                .build();
+    }
 }
