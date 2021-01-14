@@ -93,7 +93,7 @@ public class FlinkSecurityManager extends SecurityManager {
         final ClusterOptions.UserSystemExitMode userSystemExitMode =
                 configuration.get(ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT);
 
-        boolean haltOnSystemExit = configuration.get(ClusterOptions.HALT_ON_SYSTEM_EXIT);
+        boolean haltOnSystemExit = configuration.get(ClusterOptions.HALT_ON_FATAL_ERROR);
 
         // If no check is needed, return null so that caller can avoid setting security manager not
         // to incur any runtime cost.
@@ -129,12 +129,12 @@ public class FlinkSecurityManager extends SecurityManager {
                         String.format(
                                 "Could not register security manager due to no permission to "
                                         + "set a SecurityManager. Either update your existing "
-                                        + "SecurityManager to allow the permission or not using "
+                                        + "SecurityManager to allow the permission or do not use "
                                         + "security manager features (e.g., '%s: %s', '%s: %s')",
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.key(),
                                 ClusterOptions.INTERCEPT_USER_SYSTEM_EXIT.defaultValue(),
-                                ClusterOptions.HALT_ON_SYSTEM_EXIT.key(),
-                                ClusterOptions.HALT_ON_SYSTEM_EXIT.defaultValue(),
+                                ClusterOptions.HALT_ON_FATAL_ERROR.key(),
+                                ClusterOptions.HALT_ON_FATAL_ERROR.defaultValue(),
                                 e));
             }
         }
@@ -176,7 +176,7 @@ public class FlinkSecurityManager extends SecurityManager {
                 case LOG:
                     // Add exception trace log to help users to debug where exit came from.
                     LOG.warn(
-                            "Exiting JVM with status {} is monitored, logging and exiting",
+                            "Exiting JVM with status {} is monitored: The system will exit due to this call.",
                             status,
                             new UserSystemExitException());
                     break;

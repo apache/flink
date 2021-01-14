@@ -93,14 +93,14 @@ public class ClusterOptions {
                                     .build());
 
     @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
-    public static final ConfigOption<Boolean> HALT_ON_SYSTEM_EXIT =
-            key("cluster.processes.halt-on-system-exit")
+    public static final ConfigOption<Boolean> HALT_ON_FATAL_ERROR =
+            key("cluster.processes.halt-on-fatal-error")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Whether processes should halt on system exit instead of performing a graceful shutdown. "
+                                            "Whether processes should halt on fatal errors instead of performing a graceful shutdown. "
                                                     + "In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead "
                                                     + "to a JVM deadlock. See %s for details.",
                                             link(
@@ -130,7 +130,7 @@ public class ClusterOptions {
 
     /** The mode of how to handle user code attempting to exit JVM. */
     public enum UserSystemExitMode {
-        DISABLED("No check is enabled, that is allowing exit without any action"),
+        DISABLED("Flink is not monitoring or intercepting calls to System.exit()"),
         LOG("Log exit attempt with stack trace but still allowing exit to be performed"),
         THROW("Throw exception when exit is attempted disallowing JVM termination");
 
