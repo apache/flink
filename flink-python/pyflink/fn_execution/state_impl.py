@@ -91,11 +91,22 @@ class SynchronousValueRuntimeState(ValueState):
         return None
 
     def update(self, value) -> None:
-        self._internal_state.clear()
-        self._internal_state.add(value)
+        self._clear_read_cache()
+        if self._internal_state._added_elements:
+            self._internal_state._added_elements[0] = value
+        else:
+            self._internal_state.add(value)
 
     def clear(self) -> None:
         self._internal_state.clear()
+
+    def _clear_read_cache(self):
+        state_handler = self._internal_state._state_handler
+        state_key = self._internal_state._state_key
+        cache_token = state_handler._get_cache_token(state_key)
+        if cache_token:
+            cache_key = state_handler._convert_to_cache_key(state_key)
+            state_handler._state_cache.clear(cache_key, cache_token)
 
 
 class SynchronousListRuntimeState(ListState):
