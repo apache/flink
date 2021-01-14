@@ -73,7 +73,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -325,6 +324,10 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                 this.numCompletedCheckpoints = numCompletedCheckpoints;
             }
 
+            public int getBaseNumber() {
+                return (int) (nextNumber % increment);
+            }
+
             @Override
             public String splitId() {
                 return String.valueOf(increment);
@@ -379,13 +382,9 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             public void addReader(int subtaskId) {
                 if (context.registeredReaders().size() == context.currentParallelism()
                         && !state.unassignedSplits.isEmpty()) {
-                    int numReaders = context.registeredReaders().size();
-                    Map<Integer, List<LongSplit>> assignment = new HashMap<>();
-                    for (int i = 0; i < state.unassignedSplits.size(); i++) {
-                        assignment
-                                .computeIfAbsent(i % numReaders, t -> new ArrayList<>())
-                                .add(state.unassignedSplits.get(i));
-                    }
+                    Map<Integer, List<LongSplit>> assignment =
+                            state.unassignedSplits.stream()
+                                    .collect(Collectors.groupingBy(LongSplit::getBaseNumber));
                     LOG.info("Assigning splits {}", assignment);
                     context.assignSplits(new SplitsAssignment<>(assignment));
                     state.unassignedSplits.clear();
