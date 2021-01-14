@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
@@ -60,6 +61,7 @@ class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
         this.taskManagerConnection = taskManagerConnection;
     }
 
+    @Override
     public SlotState getState() {
         return state;
     }
@@ -67,6 +69,11 @@ class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
     @Override
     public SlotID getSlotId() {
         return slotId;
+    }
+
+    @Override
+    public AllocationID getAllocationId() {
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -80,6 +87,7 @@ class DeclarativeTaskManagerSlot implements TaskManagerSlotInformation {
     }
 
     @Nullable
+    @Override
     public JobID getJobId() {
         return jobId;
     }
