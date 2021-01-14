@@ -193,12 +193,12 @@ public class HBaseDynamicTableFactoryTest {
         expectedConfiguration.set("hbase.security.authentication", "kerberos");
         Map<String, String> expectedProperties =
                 Lists.newArrayList(expectedConfiguration.iterator()).stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getKey));
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         org.apache.hadoop.conf.Configuration actualConfiguration = hbaseSink.getConfiguration();
         Map<String, String> actualProperties =
                 Lists.newArrayList(actualConfiguration.iterator()).stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getKey));
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         assertEquals(expectedProperties, actualProperties);
 
         // verify tableName
