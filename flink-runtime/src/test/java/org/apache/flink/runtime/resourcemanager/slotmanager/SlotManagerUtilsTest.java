@@ -23,6 +23,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -91,5 +92,29 @@ public class SlotManagerUtilsTest extends TestLogger {
         assertThat(
                 SlotManagerUtils.getEffectiveResourceProfile(concreteRequirement, defaultProfile),
                 is(concreteRequirement));
+    }
+
+    @Test
+    public void testGenerateTaskManagerTotalResourceProfile() {
+        final ResourceProfile resourceProfile =
+                ResourceProfile.newBuilder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(1)
+                        .setTaskOffHeapMemoryMB(2)
+                        .setNetworkMemoryMB(3)
+                        .setManagedMemoryMB(4)
+                        .build();
+        final WorkerResourceSpec workerResourceSpec =
+                new WorkerResourceSpec.Builder()
+                        .setCpuCores(1.0)
+                        .setTaskHeapMemoryMB(1)
+                        .setTaskOffHeapMemoryMB(2)
+                        .setNetworkMemoryMB(3)
+                        .setManagedMemoryMB(4)
+                        .build();
+
+        assertThat(
+                SlotManagerUtils.generateTaskManagerTotalResourceProfile(workerResourceSpec),
+                equalTo(resourceProfile));
     }
 }
