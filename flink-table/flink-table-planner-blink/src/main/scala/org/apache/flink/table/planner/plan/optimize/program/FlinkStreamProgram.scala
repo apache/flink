@@ -37,6 +37,7 @@ object FlinkStreamProgram {
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
   val JOIN_REORDER = "join_reorder"
+  val PROJECT_REWRITE = "project_rewrite"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
@@ -159,6 +160,15 @@ object FlinkStreamProgram {
             .build(), "do join reorder")
           .build())
     }
+
+    // project rewrite
+    chainedProgram.addLast(
+      PROJECT_REWRITE,
+      FlinkHepRuleSetProgramBuilder.newBuilder
+        .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+        .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+        .add(FlinkStreamRuleSets.PROJECT_RULES)
+        .build())
 
     // optimize the logical plan
     chainedProgram.addLast(
