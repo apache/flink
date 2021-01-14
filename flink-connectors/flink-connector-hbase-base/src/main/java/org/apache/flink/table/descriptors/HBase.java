@@ -20,10 +20,14 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 
+import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
 import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL;
@@ -37,6 +41,7 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 @PublicEvolving
 public class HBase extends ConnectorDescriptor {
     private DescriptorProperties properties = new DescriptorProperties();
+    private Map<String, String> hbaseProperties;
 
     public HBase() {
         super(CONNECTOR_TYPE_VALUE_HBASE, 1, false);
@@ -122,8 +127,47 @@ public class HBase extends ConnectorDescriptor {
         return this;
     }
 
+    /**
+     * Sets the configuration properties for HBase Configuration. Resets previously set properties.
+     *
+     * @param properties The configuration properties for HBase Configuration.
+     */
+    public HBase properties(Properties properties) {
+        Preconditions.checkNotNull(properties);
+        if (this.hbaseProperties == null) {
+            this.hbaseProperties = new HashMap<>();
+        }
+        this.hbaseProperties.clear();
+        properties.forEach((k, v) -> this.hbaseProperties.put((String) k, (String) v));
+        return this;
+    }
+
+    /**
+     * Adds a configuration property for HBase Configuration.
+     *
+     * @param key property key for the HBase Configuration
+     * @param value property value for the HBase Configuration
+     */
+    public HBase property(String key, String value) {
+        Preconditions.checkNotNull(key);
+        Preconditions.checkNotNull(value);
+        if (this.hbaseProperties == null) {
+            this.hbaseProperties = new HashMap<>();
+        }
+        hbaseProperties.put(key, value);
+        return this;
+    }
+
     @Override
     protected Map<String, String> toConnectorProperties() {
+        if (this.hbaseProperties != null) {
+            this.hbaseProperties.forEach(
+                    (key, value) -> {
+                        if (!properties.containsKey(CONNECTOR_PROPERTIES + '.' + key)) {
+                            properties.putString(CONNECTOR_PROPERTIES + '.' + key, value);
+                        }
+                    });
+        }
         return properties.asMap();
     }
 }

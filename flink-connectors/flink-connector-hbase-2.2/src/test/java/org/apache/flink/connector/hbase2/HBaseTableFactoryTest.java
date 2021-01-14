@@ -68,6 +68,7 @@ public class HBaseTableFactoryTest {
         tableProperties.put("connector.write.buffer-flush.max-size", "10mb");
         tableProperties.put("connector.write.buffer-flush.max-rows", "1000");
         tableProperties.put("connector.write.buffer-flush.interval", "10s");
+        tableProperties.put("connector.properties.hbase.security.authentication", "kerberos");
 
         DescriptorProperties descriptorProperties = new DescriptorProperties(true);
         descriptorProperties.putTableSchema(SCHEMA, tableSchema);

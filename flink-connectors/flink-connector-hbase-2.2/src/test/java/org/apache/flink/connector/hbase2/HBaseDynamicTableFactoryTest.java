@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
+import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase2.source.HBaseDynamicTableSource;
@@ -40,6 +41,8 @@ import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderCont
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.commons.collections.IteratorUtils;
+import org.apache.hadoop.hbase.HConstants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -180,6 +183,22 @@ public class HBaseDynamicTableFactoryTest {
         assertArrayEquals(
                 new DataType[] {DECIMAL(10, 3), TIMESTAMP(3), DATE(), TIME()},
                 hbaseSchema.getQualifierDataTypes("f4"));
+
+        // verify hadoop Configuration
+        org.apache.hadoop.conf.Configuration expectedConfiguration =
+                HBaseConfigurationUtil.getHBaseConfiguration();
+        expectedConfiguration.set(HConstants.ZOOKEEPER_QUORUM, "localhost:2181");
+        expectedConfiguration.set(HConstants.ZOOKEEPER_ZNODE_PARENT, "/flink");
+        expectedConfiguration.set("hbase.security.authentication", "kerberos");
+
+        org.apache.hadoop.conf.Configuration actualConfiguration = hbaseSink.getConfiguration();
+
+        assertEquals(
+                IteratorUtils.toList(expectedConfiguration.iterator()),
+                IteratorUtils.toList(actualConfiguration.iterator()));
+
+        // verify tableName
+        assertEquals("testHBastTable", hbaseSink.getTableName());
 
         HBaseWriteOptions expectedWriteOptions =
                 HBaseWriteOptions.builder()
@@ -348,6 +367,7 @@ public class HBaseDynamicTableFactoryTest {
         options.put("table-name", "testHBastTable");
         options.put("zookeeper.quorum", "localhost:2181");
         options.put("zookeeper.znode.parent", "/flink");
+        options.put("properties.hbase.security.authentication", "kerberos");
         return options;
     }
 
