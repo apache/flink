@@ -33,4 +33,20 @@ public class SlotManagerUtils {
                 .setNetworkMemory(workerResourceSpec.getNetworkMemSize().divide(numSlotsPerWorker))
                 .build();
     }
+
+    public static int calculateDefaultNumSlots(
+            ResourceProfile totalResourceProfile, ResourceProfile defaultSlotResourceProfile) {
+        // For ResourceProfile.ANY in test case, return the maximum integer
+        if (totalResourceProfile.equals(ResourceProfile.ANY)) {
+            return Integer.MAX_VALUE;
+        }
+
+        int numSlots = 0;
+        ResourceProfile remainResource = totalResourceProfile;
+        while (remainResource.allFieldsNoLessThan(defaultSlotResourceProfile)) {
+            remainResource = remainResource.subtract(defaultSlotResourceProfile);
+            numSlots += 1;
+        }
+        return numSlots;
+    }
 }
