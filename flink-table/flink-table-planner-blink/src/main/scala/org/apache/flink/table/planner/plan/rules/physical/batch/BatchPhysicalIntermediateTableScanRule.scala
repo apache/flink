@@ -20,29 +20,30 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntermediateTableScan
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalIntermediateTableScan
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalIntermediateTableScan]] to [[BatchExecIntermediateTableScan]].
-  */
-class BatchExecIntermediateTableScanRule
+ * Rule that converts [[FlinkLogicalIntermediateTableScan]] to
+ * [[BatchPhysicalIntermediateTableScan]].
+ */
+class BatchPhysicalIntermediateTableScanRule
   extends ConverterRule(
     classOf[FlinkLogicalIntermediateTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.BATCH_PHYSICAL,
-    "BatchExecIntermediateTableScanRule") {
+    "BatchPhysicalIntermediateTableScanRule") {
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalIntermediateTableScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
-    new BatchExecIntermediateTableScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
+    new BatchPhysicalIntermediateTableScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
   }
 }
 
-object BatchExecIntermediateTableScanRule {
-  val INSTANCE: RelOptRule = new BatchExecIntermediateTableScanRule
+object BatchPhysicalIntermediateTableScanRule {
+  val INSTANCE: RelOptRule = new BatchPhysicalIntermediateTableScanRule
 }
