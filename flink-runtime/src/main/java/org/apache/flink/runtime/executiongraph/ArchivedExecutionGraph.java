@@ -373,10 +373,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
         ErrorInfo failureInfo = null;
         if (throwable != null) {
-            Preconditions.checkState(jobStatus == JobStatus.FAILED);
+            Preconditions.checkState(
+                    jobStatus == JobStatus.FAILED || jobStatus == JobStatus.SUSPENDED);
             long failureTime = System.currentTimeMillis();
             failureInfo = new ErrorInfo(throwable, failureTime);
-            timestamps[JobStatus.FAILED.ordinal()] = failureTime;
+            timestamps[jobStatus.ordinal()] = failureTime;
         }
 
         return new ArchivedExecutionGraph(
