@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, LegacyBatchExecNode}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
-import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.planner.sinks.{DataStreamTableSink, TableSinkUtils}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
@@ -81,7 +81,7 @@ class BatchExecLegacySink[T](
           case upsertSink: UpsertStreamTableSink[T] =>
             upsertSink.setIsAppendOnly(true)
             upsertSink.setKeyFields(
-              UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, planner, upsertSink).orNull)
+              UpdatingPlanChecker.getUniqueKeyForUpsertSink(this, upsertSink).orNull)
             translateToTransformation(withChangeFlag = true, planner)
 
           case _ =>
@@ -123,14 +123,19 @@ class BatchExecLegacySink[T](
         if (CodeGenUtils.isInternalClass(resultDataType)) {
           plan
         } else {
-          val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
+          val inputRowType = plan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType
+          val physicalOutputType = TableSinkUtils.inferSinkPhysicalDataType(
+            sink.getConsumedDataType,
+            inputRowType,
+            withChangeFlag)
+          val outputTypeInfo = deriveSinkOutputTypeInfo[T](sink, physicalOutputType, withChangeFlag)
+          val converterOperator = generateRowConverterOperator[T](
             CodeGeneratorContext(config),
-            config,
-            plan.getOutputType.asInstanceOf[InternalTypeInfo[RowData]].toRowType,
+            inputRowType,
             sink,
+            physicalOutputType,
             withChangeFlag,
-            "SinkConversion"
-          )
+            "SinkConversion")
           ExecNodeUtil.createOneInputTransformation(
             plan,
             s"SinkConversionTo${resultDataType.getConversionClass.getSimpleName}",

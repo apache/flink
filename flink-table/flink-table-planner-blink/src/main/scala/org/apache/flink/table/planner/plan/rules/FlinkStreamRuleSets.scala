@@ -445,7 +445,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalPythonCorrelateRule.INSTANCE,
     // sink
     StreamPhysicalSinkRule.INSTANCE,
-    StreamExecLegacySinkRule.INSTANCE
+    StreamPhysicalLegacySinkRule.INSTANCE
   )
 
   /**
