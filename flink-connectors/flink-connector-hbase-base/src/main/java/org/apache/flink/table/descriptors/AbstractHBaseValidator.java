@@ -40,6 +40,7 @@ public abstract class AbstractHBaseValidator extends ConnectorDescriptorValidato
             "connector.write.buffer-flush.max-rows";
     public static final String CONNECTOR_WRITE_BUFFER_FLUSH_INTERVAL =
             "connector.write.buffer-flush.interval";
+    public static final String CONNECTOR_PROPERTIES = "connector.properties";
 
     @Override
     public void validate(DescriptorProperties properties) {
