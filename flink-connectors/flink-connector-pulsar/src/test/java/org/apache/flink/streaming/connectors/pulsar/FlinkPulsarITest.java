@@ -54,13 +54,11 @@ import org.apache.flink.streaming.connectors.pulsar.internal.SimpleSchemaTransla
 import org.apache.flink.streaming.connectors.pulsar.testutils.FailingIdentityMapper;
 import org.apache.flink.streaming.connectors.pulsar.testutils.SingletonStreamSink;
 import org.apache.flink.streaming.connectors.pulsar.testutils.ValidatingExactlyOnceSink;
-import org.apache.flink.streaming.connectors.pulsar.util.DataTypeUtils;
 import org.apache.flink.streaming.connectors.pulsar.util.RowDataUtil;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.FlinkSchema;
 import org.apache.flink.streaming.util.serialization.PulsarDeserializationSchema;
-import org.apache.flink.streaming.util.serialization.PulsarDeserializationSchemaWrapper;
 import org.apache.flink.streaming.util.serialization.PulsarPrimitiveSchema;
 import org.apache.flink.streaming.util.serialization.PulsarSerializationSchema;
 import org.apache.flink.streaming.util.serialization.PulsarSerializationSchemaWrapper;
@@ -309,17 +307,13 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		sourceProp.setProperty(TOPIC_MULTI_OPTION_KEY, StringUtils.join(topics.toArray(), ','));
 		sourceProp.setProperty(USE_EXTEND_FIELD, "true");
 
-		PulsarDeserializationSchema<RowData> pulsarRowDeserializationSchema =
-			PulsarDeserializationSchema.<RowData>builder()
-				.setDataType(intRowWithTopicType())
-				.setValueDeserializer(getJsonRowDataDerSchema((RowType) intRowWithTopicType().getLogicalType()))
-				.build();
-
+		final DeserializationSchema<RowData> jsonRowDataDerSchema = getJsonRowDataDerSchema((RowType) intRowWithTopicType()
+			.getLogicalType());
 		DataStream<RowData> stream1 = env.addSource(
 			new FlinkPulsarSource<RowData>(
 				serviceUrl,
 				adminUrl,
-				pulsarRowDeserializationSchema,
+				PulsarDeserializationSchema.valueOnly(jsonRowDataDerSchema),
 				sourceProp)
 				.setStartFromEarliest());
 
@@ -419,9 +413,7 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 
 		FlinkPulsarSource<SchemaData.Foo> source =
 			new FlinkPulsarSource<>(serviceUrl, adminUrl,
-				new PulsarDeserializationSchemaWrapper(
-					AvroDeser.of(SchemaData.Foo.class),
-					DataTypeUtils.toDataType(SchemaData.Foo.class)),
+				PulsarDeserializationSchema.valueOnly(AvroDeser.of(SchemaData.Foo.class)),
 				sourceProps)
 				.setStartFromEarliest();
 
@@ -459,9 +451,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 
 		FlinkPulsarSource<SchemaData.Foo> source =
 			new FlinkPulsarSource<>(serviceUrl, adminUrl,
-				new PulsarDeserializationSchemaWrapper<>(
-					JsonDeser.of(SchemaData.Foo.class),
-					DataTypeUtils.toDataType(SchemaData.Foo.class)), sourceProps)
+				PulsarDeserializationSchema.valueOnly(JsonDeser.of(SchemaData.Foo.class)),
+				sourceProps)
 				.setStartFromEarliest();
 
 		DataStream<Integer> ds = see.addSource(source)
@@ -685,7 +676,7 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		FlinkPulsarSource<SchemaData.FA> integerFlinkPulsarSource = new FlinkPulsarSource<>(
 			serviceUrl,
 			adminUrl,
-			new PulsarDeserializationSchemaWrapper<SchemaData.FA>(new DeserializationSchema<SchemaData.FA>() {
+			PulsarDeserializationSchema.valueOnly(new DeserializationSchema<SchemaData.FA>() {
 				@Override
 				public SchemaData.FA deserialize(byte[] message) throws IOException {
 					return Schema.JSON(SchemaData.FA.class).decode(message);
@@ -700,7 +691,7 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 				public TypeInformation<SchemaData.FA> getProducedType() {
 					return TypeInformation.of(SchemaData.FA.class);
 				}
-			}, DataTypes.RAW(TypeInformation.of(SchemaData.FA.class))),
+			}),
 			properties).setStartFromEarliest();
 
 		//env.addSource(integerFlinkPulsarSource).addSink(new PrintSinkFunction<>());
@@ -750,7 +741,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		env.setParallelism(1);
 		Properties properties = new Properties();
 		properties.put(TOPIC_SINGLE_OPTION_KEY, topic);
-		FlinkPulsarSource<Integer> integerFlinkPulsarSource = new FlinkPulsarSource<>(serviceUrl,
+		FlinkPulsarSource<Integer> integerFlinkPulsarSource = new FlinkPulsarSource<>(
+			serviceUrl,
 			adminUrl,
 			new PulsarPrimitiveSchema<>(Integer.class),
 			properties).setStartFromEarliest();
@@ -951,7 +943,7 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		env.addSource(new FlinkPulsarSource<String>(
 			serviceUrl,
 			adminUrl,
-			new PulsarDeserializationSchemaWrapper<>(new SimpleStringSchema(), DataTypes.STRING()),
+			PulsarDeserializationSchema.valueOnly(new SimpleStringSchema()),
 			prop).setStartFromEarliest())
 			.addSink(new DiscardingSink<>());
 
@@ -1017,7 +1009,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		prop.setProperty(TOPIC_SINGLE_OPTION_KEY, tp);
 
 		env
-			.addSource(new FlinkPulsarSource<Integer>(serviceUrl,
+			.addSource(new FlinkPulsarSource<Integer>(
+				serviceUrl,
 				adminUrl,
 				new PulsarPrimitiveSchema<>(Integer.class),
 				prop).setStartFromEarliest())
@@ -1167,7 +1160,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 	}
 
 	public static SerializationSchema<RowData> getJsonSerializationSchema(RowType rowType) {
-		return new JsonRowDataSerializationSchema(rowType,
+		return new JsonRowDataSerializationSchema(
+			rowType,
 			TimestampFormat.ISO_8601,
 			JsonOptions.MapNullKeyMode.DROP,
 			"");
@@ -1413,7 +1407,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 		see.setParallelism(numPartitions);
 		see.setRestartStrategy(RestartStrategies.noRestart());
 
-		DataStream<RowData> stream = see.addSource(new RandomizedIntegerRowSeq(tp,
+		DataStream<RowData> stream = see.addSource(new RandomizedIntegerRowSeq(
+			tp,
 			numPartitions,
 			numElements,
 			randomizedOrder));
@@ -1552,7 +1547,8 @@ public class FlinkPulsarITest extends PulsarTestBaseWithFlink {
 				ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
 				clientConfigurationData.setServiceUrl(serviceUrl);
 				StreamSink<String> sink = new StreamSink<>(
-					new FlinkPulsarSinkBase<String>(adminUrl,
+					new FlinkPulsarSinkBase<String>(
+						adminUrl,
 						Optional.of(tp),
 						clientConfigurationData,
 						props,

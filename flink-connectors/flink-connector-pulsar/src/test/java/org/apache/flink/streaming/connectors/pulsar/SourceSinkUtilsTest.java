@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Source unit tests.
  */
-public class SourceSinkTest extends TestLogger {
+public class SourceSinkUtilsTest extends TestLogger {
 
 	@Test
 	public void testDistributeRange() throws InterruptedException {
