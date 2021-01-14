@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.planner.calcite.{FlinkContext, SqlExprToRexConverterFactory}
 import org.apache.flink.table.planner.delegation.BatchPlanner
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLegacySink
+import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.utils.TableConfigUtils
@@ -57,7 +57,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     val optimizedTree = optimizeTree(originTree)
 
     optimizedTree match {
-      case _: BatchPhysicalLegacySink[_] => // ignore
+      case _: LegacySink | _: Sink => // ignore
       case _ =>
         val name = createUniqueIntermediateRelTableName
         val intermediateRelTable =  new IntermediateRelTable(Collections.singletonList(name),
