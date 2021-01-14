@@ -102,4 +102,14 @@ public class HBaseDynamicTableSink implements DynamicTableSink {
     public HBaseWriteOptions getWriteOptions() {
         return writeOptions;
     }
+
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return this.hbaseConf;
+    }
+
+    @VisibleForTesting
+    public String getTableName() {
+        return this.tableName;
+    }
 }

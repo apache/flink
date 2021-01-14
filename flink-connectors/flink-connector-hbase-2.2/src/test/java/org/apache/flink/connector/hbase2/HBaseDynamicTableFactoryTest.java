@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.source.HBaseRowDataLookupFunction;
+import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase2.source.HBaseDynamicTableSource;
@@ -40,6 +41,8 @@ import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderCont
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
 
+import org.apache.commons.compress.utils.Lists;
+import org.apache.hadoop.hbase.HConstants;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -47,6 +50,7 @@ import org.junit.rules.ExpectedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -180,6 +184,25 @@ public class HBaseDynamicTableFactoryTest {
         assertArrayEquals(
                 new DataType[] {DECIMAL(10, 3), TIMESTAMP(3), DATE(), TIME()},
                 hbaseSchema.getQualifierDataTypes("f4"));
+
+        // verify hadoop Configuration
+        org.apache.hadoop.conf.Configuration expectedConfiguration =
+                HBaseConfigurationUtil.getHBaseConfiguration();
+        expectedConfiguration.set(HConstants.ZOOKEEPER_QUORUM, "localhost:2181");
+        expectedConfiguration.set(HConstants.ZOOKEEPER_ZNODE_PARENT, "/flink");
+        expectedConfiguration.set("hbase.security.authentication", "kerberos");
+        Map<String, String> expectedProperties =
+                Lists.newArrayList(expectedConfiguration.iterator()).stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getKey));
+
+        org.apache.hadoop.conf.Configuration actualConfiguration = hbaseSink.getConfiguration();
+        Map<String, String> actualProperties =
+                Lists.newArrayList(actualConfiguration.iterator()).stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getKey));
+        assertEquals(expectedProperties, actualProperties);
+
+        // verify tableName
+        assertEquals("testHBastTable", hbaseSink.getTableName());
 
         HBaseWriteOptions expectedWriteOptions =
                 HBaseWriteOptions.builder()

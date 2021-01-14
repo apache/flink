@@ -27,25 +27,20 @@ import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 
-import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_PROPERTIES;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_NODE_PARENT;
-import static org.apache.flink.table.descriptors.AbstractHBaseValidator.CONNECTOR_ZK_QUORUM;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 
 /** Common Options for HBase. */
 @Internal
-public class HBaseOptions implements Serializable {
+public class HBaseOptions {
 
     public static final ConfigOption<String> TABLE_NAME =
             ConfigOptions.key("table-name")
@@ -174,22 +169,6 @@ public class HBaseOptions implements Serializable {
         }
     }
 
-    public static String getTableName(ReadableConfig tableOptions) {
-        return tableOptions.getOptional(TABLE_NAME).orElse(null);
-    }
-
-    private static String getZookeeperQuorum(ReadableConfig tableOptions) {
-        return tableOptions.getOptional(ZOOKEEPER_QUORUM).orElse(null);
-    }
-
-    private static String getZookeeperNodeParent(ReadableConfig tableOptions) {
-        return tableOptions.get(ZOOKEEPER_ZNODE_PARENT);
-    }
-
-    public static String getNullStringLiteral(ReadableConfig tableOptions) {
-        return tableOptions.get(NULL_STRING_LITERAL);
-    }
-
     public static HBaseWriteOptions getHBaseWriteOptions(ReadableConfig tableOptions) {
         HBaseWriteOptions.Builder builder = HBaseWriteOptions.builder();
         builder.setBufferFlushIntervalMillis(
@@ -204,18 +183,17 @@ public class HBaseOptions implements Serializable {
     /**
      * config HBase Configuration.
      *
-     * @param tableOptions table option
      * @param options properties option
-     * @return
      */
-    public static Configuration getHBaseConfiguration(
-            ReadableConfig tableOptions, Map<String, String> options) {
+    public static Configuration getHBaseConfiguration(Map<String, String> options) {
+        org.apache.flink.configuration.Configuration tableOptions =
+                org.apache.flink.configuration.Configuration.fromMap(options);
         // create default configuration from current runtime env (`hbase-site.xml` in classpath)
         // first,
         Configuration hbaseClientConf = HBaseConfigurationUtil.getHBaseConfiguration();
-        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, getZookeeperQuorum(tableOptions));
+        hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, tableOptions.get(ZOOKEEPER_QUORUM));
         hbaseClientConf.set(
-                HConstants.ZOOKEEPER_ZNODE_PARENT, getZookeeperNodeParent(tableOptions));
+                HConstants.ZOOKEEPER_ZNODE_PARENT, tableOptions.get(ZOOKEEPER_ZNODE_PARENT));
         // add HBase properties
         final Properties properties = getHBaseClientProperties(options);
         properties.forEach((k, v) -> hbaseClientConf.set(k.toString(), v.toString()));
@@ -242,22 +220,5 @@ public class HBaseOptions implements Serializable {
     /** Returns wether the table options contains HBase client properties or not. 'properties'. */
     private static boolean containsHBaseClientProperties(Map<String, String> tableOptions) {
         return tableOptions.keySet().stream().anyMatch(k -> k.startsWith(PROPERTIES_PREFIX));
-    }
-
-    public static Configuration getHBaseConf(DescriptorProperties descriptorProperties) {
-        Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_QUORUM)
-                .ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
-
-        descriptorProperties
-                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
-                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
-
-        // add HBase properties
-        descriptorProperties
-                .getPropertiesWithPrefix(CONNECTOR_PROPERTIES)
-                .forEach(hbaseClientConf::set);
-        return hbaseClientConf;
     }
 }

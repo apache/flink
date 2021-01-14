@@ -47,8 +47,6 @@ import static org.apache.flink.connector.hbase.options.HBaseOptions.ZOOKEEPER_QU
 import static org.apache.flink.connector.hbase.options.HBaseOptions.ZOOKEEPER_ZNODE_PARENT;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConfiguration;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseWriteOptions;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getNullStringLiteral;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getTableName;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.validatePrimaryKey;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.validateTableSinkOptions;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.validateTableSourceOptions;
@@ -74,13 +72,13 @@ public class HBase1DynamicTableFactory
         validatePrimaryKey(tableSchema);
         validateTableSourceOptions(tableOptions);
 
-        String hTableName = getTableName(tableOptions);
-        Configuration hbaseClientConf = getHBaseConfiguration(tableOptions, options);
-        String nullStringLiteral = getNullStringLiteral(tableOptions);
+        String tableName = tableOptions.get(TABLE_NAME);
+        Configuration hbaseClientConf = getHBaseConfiguration(options);
+        String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
         return new HBaseDynamicTableSource(
-                hbaseClientConf, hTableName, hbaseSchema, nullStringLiteral);
+                hbaseClientConf, tableName, hbaseSchema, nullStringLiteral);
     }
 
     @Override
@@ -96,10 +94,10 @@ public class HBase1DynamicTableFactory
         validatePrimaryKey(tableSchema);
         validateTableSinkOptions(tableOptions);
 
-        String tableName = getTableName(tableOptions);
-        Configuration hbaseConf = getHBaseConfiguration(tableOptions, options);
+        String tableName = tableOptions.get(TABLE_NAME);
+        Configuration hbaseConf = getHBaseConfiguration(options);
         HBaseWriteOptions hBaseWriteOptions = getHBaseWriteOptions(tableOptions);
-        String nullStringLiteral = getNullStringLiteral(tableOptions);
+        String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
         HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
 
         return new HBaseDynamicTableSink(

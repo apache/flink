@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
+import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase2.sink.HBaseUpsertTableSink;
 import org.apache.flink.connector.hbase2.source.HBaseTableSource;
@@ -36,6 +37,7 @@ import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HConstants;
 
 import java.sql.Date;
 import java.sql.Time;
@@ -48,7 +50,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConf;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_PROPERTIES;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TABLE_NAME;
 import static org.apache.flink.connector.hbase2.HBaseValidator.CONNECTOR_TYPE_VALUE_HBASE;
@@ -200,5 +201,22 @@ public class HBase2TableFactory
 
     private String hbaseVersion() {
         return CONNECTOR_VERSION_VALUE_223;
+    }
+
+    public static Configuration getHBaseConf(DescriptorProperties descriptorProperties) {
+        Configuration hbaseClientConf = HBaseConfigurationUtil.createHBaseConf();
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_QUORUM)
+                .ifPresent(zkQ -> hbaseClientConf.set(HConstants.ZOOKEEPER_QUORUM, zkQ));
+
+        descriptorProperties
+                .getOptionalString(CONNECTOR_ZK_NODE_PARENT)
+                .ifPresent(v -> hbaseClientConf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, v));
+
+        // add HBase properties
+        descriptorProperties
+                .getPropertiesWithPrefix(CONNECTOR_PROPERTIES)
+                .forEach(hbaseClientConf::set);
+        return hbaseClientConf;
     }
 }
