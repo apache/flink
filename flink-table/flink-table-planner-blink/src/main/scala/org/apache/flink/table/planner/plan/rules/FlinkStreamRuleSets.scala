@@ -416,7 +416,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalTemporalSortRule.INSTANCE,
     // rank
     StreamPhysicalRankRule.INSTANCE,
-    StreamExecDeduplicateRule.RANK_INSTANCE,
+    StreamPhysicalDeduplicateRule.RANK_INSTANCE,
     // expand
     StreamPhysicalExpandRule.INSTANCE,
     // group agg
