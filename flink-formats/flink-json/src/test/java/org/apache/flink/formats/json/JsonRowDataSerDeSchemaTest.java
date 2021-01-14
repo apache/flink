@@ -432,13 +432,8 @@ public class JsonRowDataSerDeSchemaTest {
 
         // fail on missing field
         deserializationSchema =
-                deserializationSchema =
-                        new JsonRowDataDeserializationSchema(
-                                schema,
-                                InternalTypeInfo.of(schema),
-                                true,
-                                false,
-                                TimestampFormat.ISO_8601);
+                new JsonRowDataDeserializationSchema(
+                        schema, InternalTypeInfo.of(schema), true, false, TimestampFormat.ISO_8601);
 
         String errorMessage = "Failed to deserialize JSON '{\"id\":123123123}'.";
         try {
