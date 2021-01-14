@@ -99,6 +99,7 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 
@@ -979,95 +980,56 @@ public abstract class SchedulerBase implements SchedulerNG {
             final long checkpointId,
             final CheckpointMetrics checkpointMetrics,
             final TaskStateSnapshot checkpointState) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-        final AcknowledgeCheckpoint ackMessage =
-                new AcknowledgeCheckpoint(
-                        jobID,
-                        executionAttemptID,
-                        checkpointId,
-                        checkpointMetrics,
-                        checkpointState);
-
-        final String taskManagerLocationInfo = retrieveTaskManagerLocation(executionAttemptID);
-
-        if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            checkpointCoordinator.receiveAcknowledgeMessage(
-                                    ackMessage, taskManagerLocationInfo);
-                        } catch (Throwable t) {
-                            log.warn(
-                                    "Error while processing checkpoint acknowledgement message", t);
-                        }
-                    });
-        } else {
-            String errorMessage =
-                    "Received AcknowledgeCheckpoint message for job {} with no CheckpointCoordinator";
-            if (executionGraph.getState() == JobStatus.RUNNING) {
-                log.error(errorMessage, jobGraph.getJobID());
-            } else {
-                log.debug(errorMessage, jobGraph.getJobID());
-            }
-        }
+        processCheckpointCoordinatorMessage(
+                "AcknowledgeCheckpoint",
+                coordinator ->
+                        coordinator.receiveAcknowledgeMessage(
+                                new AcknowledgeCheckpoint(
+                                        jobID,
+                                        executionAttemptID,
+                                        checkpointId,
+                                        checkpointMetrics,
+                                        checkpointState),
+                                retrieveTaskManagerLocation(executionAttemptID)));
     }
 
     @Override
     public void reportCheckpointMetrics(
             JobID jobID, ExecutionAttemptID attemptId, long id, CheckpointMetrics metrics) {
-        mainThreadExecutor.assertRunningInMainThread();
-
-        final CheckpointCoordinator checkpointCoordinator =
-                executionGraph.getCheckpointCoordinator();
-
-        if (checkpointCoordinator != null) {
-            ioExecutor.execute(
-                    () -> {
-                        try {
-                            checkpointCoordinator.reportStats(id, attemptId, metrics);
-                        } catch (Throwable t) {
-                            log.warn("Error while processing report checkpoint stats message", t);
-                        }
-                    });
-        } else {
-            String errorMessage =
-                    "Received ReportCheckpointStats message for job {} with no CheckpointCoordinator";
-            if (executionGraph.getState() == JobStatus.RUNNING) {
-                log.error(errorMessage, jobGraph.getJobID());
-            } else {
-                log.debug(errorMessage, jobGraph.getJobID());
-            }
-        }
+        processCheckpointCoordinatorMessage(
+                "ReportCheckpointStats",
+                coordinator -> coordinator.reportStats(id, attemptId, metrics));
     }
 
     @Override
     public void declineCheckpoint(final DeclineCheckpoint decline) {
+        processCheckpointCoordinatorMessage(
+                "DeclineCheckpoint",
+                coordinator ->
+                        coordinator.receiveDeclineMessage(
+                                decline,
+                                retrieveTaskManagerLocation(decline.getTaskExecutionId())));
+    }
+
+    private void processCheckpointCoordinatorMessage(
+            String messageType, ThrowingConsumer<CheckpointCoordinator, Exception> process) {
         mainThreadExecutor.assertRunningInMainThread();
 
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
-        final String taskManagerLocationInfo =
-                retrieveTaskManagerLocation(decline.getTaskExecutionId());
 
         if (checkpointCoordinator != null) {
             ioExecutor.execute(
                     () -> {
                         try {
-                            checkpointCoordinator.receiveDeclineMessage(
-                                    decline, taskManagerLocationInfo);
-                        } catch (Exception e) {
-                            log.error(
-                                    "Error in CheckpointCoordinator while processing {}",
-                                    decline,
-                                    e);
+                            process.accept(checkpointCoordinator);
+                        } catch (Exception t) {
+                            log.warn("Error while processing " + messageType + " message", t);
                         }
                     });
         } else {
             String errorMessage =
-                    "Received DeclineCheckpoint message for job {} with no CheckpointCoordinator";
+                    "Received " + messageType + " message for job {} with no CheckpointCoordinator";
             if (executionGraph.getState() == JobStatus.RUNNING) {
                 log.error(errorMessage, jobGraph.getJobID());
             } else {
