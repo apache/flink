@@ -636,7 +636,7 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT> extends RichS
         public String toString() {
             return "TransactionHolder{"
                     + "handle="
-                    + handle
+                    + (handle == null ? null : handle.getClass().getName() + "@" + handle.hashCode())
                     + ", transactionStartTime="
                     + transactionStartTime
                     + '}';
