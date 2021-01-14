@@ -23,6 +23,7 @@ import org.apache.calcite.rex.RexNode;
 import javax.annotation.Nullable;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.SortedSet;
 
 /**
@@ -102,8 +103,8 @@ public class MatchSpec {
         return orderKeys;
     }
 
-    public RexNode getInterval() {
-        return interval;
+    public Optional<RexNode> getInterval() {
+        return Optional.ofNullable(interval);
     }
 
     @Override

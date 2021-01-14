@@ -76,7 +76,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
-/** Stream {@link ExecNode} which matches along with LogicalMatch. */
+/** Stream {@link ExecNode} which matches along with MATCH_RECOGNIZE. */
 public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 
     private final MatchSpec matchSpec;
@@ -179,7 +179,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
 
     private void checkOrderKeys(RowType inputRowType) {
         SortSpec orderKeys = matchSpec.getOrderKeys();
-        if (orderKeys.getFieldIndices().length == 0) {
+        if (orderKeys.getFieldSize() == 0) {
             throw new TableException("You must specify either rowtime or proctime for order by.");
         }
 
@@ -250,8 +250,8 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
                 new PatternVisitor(config, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
-        if (matchSpec.getInterval() != null) {
-            Time interval = translateTimeBound(matchSpec.getInterval());
+        if (matchSpec.getInterval().isPresent()) {
+            Time interval = translateTimeBound(matchSpec.getInterval().get());
             cepPattern = matchSpec.getPattern().accept(patternVisitor).within(interval);
         } else {
             cepPattern = matchSpec.getPattern().accept(patternVisitor);
@@ -267,8 +267,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData> implements StreamExec
             }
         }
         throw new TableException(
-                "Only constant intervals with millisecond resolution "
-                        + "are supported as time constraints of patterns.");
+                "Only constant intervals with millisecond resolution are supported as time constraints of patterns.");
     }
 
     /** The visitor to traverse the pattern RexNode. */
