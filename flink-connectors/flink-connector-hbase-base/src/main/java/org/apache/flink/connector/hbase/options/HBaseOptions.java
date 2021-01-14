@@ -26,14 +26,12 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.ValidationException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
@@ -132,41 +130,6 @@ public class HBaseOptions {
                                                 + "column families and qualifiers are defined as ROW type.");
                             }
                         });
-    }
-
-    /**
-     * Options for validate HBase source table , The reason for separate source and sink is to
-     * facilitate future expansion of parameters.
-     *
-     * @param tableOptions
-     */
-    public static void validateTableSourceOptions(ReadableConfig tableOptions) {
-        validateTableName(tableOptions);
-        validateZookeeperQuorum(tableOptions);
-    }
-
-    /**
-     * Options for validate HBase sink table.
-     *
-     * @param tableOptions
-     */
-    public static void validateTableSinkOptions(ReadableConfig tableOptions) {
-        validateTableName(tableOptions);
-        validateZookeeperQuorum(tableOptions);
-    }
-
-    private static void validateTableName(ReadableConfig tableOptions) {
-        Optional<String> tableName = tableOptions.getOptional(TABLE_NAME);
-        if (!tableName.isPresent()) {
-            throw new ValidationException("Option 'table-name' must be set.");
-        }
-    }
-
-    private static void validateZookeeperQuorum(ReadableConfig tableOptions) {
-        Optional<String> zookeeperQuorum = tableOptions.getOptional(ZOOKEEPER_QUORUM);
-        if (!zookeeperQuorum.isPresent()) {
-            throw new ValidationException("Option 'zookeeper.quorum' must be set.");
-        }
     }
 
     public static HBaseWriteOptions getHBaseWriteOptions(ReadableConfig tableOptions) {

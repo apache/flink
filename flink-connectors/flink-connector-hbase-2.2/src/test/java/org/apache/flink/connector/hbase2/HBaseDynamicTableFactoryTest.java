@@ -41,7 +41,7 @@ import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderCont
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.apache.commons.compress.utils.Lists;
+import org.apache.commons.collections.IteratorUtils;
 import org.apache.hadoop.hbase.HConstants;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,7 +50,6 @@ import org.junit.rules.ExpectedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -191,15 +190,12 @@ public class HBaseDynamicTableFactoryTest {
         expectedConfiguration.set(HConstants.ZOOKEEPER_QUORUM, "localhost:2181");
         expectedConfiguration.set(HConstants.ZOOKEEPER_ZNODE_PARENT, "/flink");
         expectedConfiguration.set("hbase.security.authentication", "kerberos");
-        Map<String, String> expectedProperties =
-                Lists.newArrayList(expectedConfiguration.iterator()).stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         org.apache.hadoop.conf.Configuration actualConfiguration = hbaseSink.getConfiguration();
-        Map<String, String> actualProperties =
-                Lists.newArrayList(actualConfiguration.iterator()).stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        assertEquals(expectedProperties, actualProperties);
+
+        assertEquals(
+                IteratorUtils.toList(expectedConfiguration.iterator()),
+                IteratorUtils.toList(actualConfiguration.iterator()));
 
         // verify tableName
         assertEquals("testHBastTable", hbaseSink.getTableName());

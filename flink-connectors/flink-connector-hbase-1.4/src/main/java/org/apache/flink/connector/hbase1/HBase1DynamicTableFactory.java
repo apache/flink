@@ -48,8 +48,6 @@ import static org.apache.flink.connector.hbase.options.HBaseOptions.ZOOKEEPER_ZN
 import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConfiguration;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseWriteOptions;
 import static org.apache.flink.connector.hbase.options.HBaseOptions.validatePrimaryKey;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.validateTableSinkOptions;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.validateTableSourceOptions;
 import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
@@ -70,7 +68,6 @@ public class HBase1DynamicTableFactory
         Map<String, String> options = context.getCatalogTable().getOptions();
 
         validatePrimaryKey(tableSchema);
-        validateTableSourceOptions(tableOptions);
 
         String tableName = tableOptions.get(TABLE_NAME);
         Configuration hbaseClientConf = getHBaseConfiguration(options);
@@ -92,7 +89,6 @@ public class HBase1DynamicTableFactory
         Map<String, String> options = context.getCatalogTable().getOptions();
 
         validatePrimaryKey(tableSchema);
-        validateTableSinkOptions(tableOptions);
 
         String tableName = tableOptions.get(TABLE_NAME);
         Configuration hbaseConf = getHBaseConfiguration(options);
