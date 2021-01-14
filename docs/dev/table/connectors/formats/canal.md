@@ -292,14 +292,14 @@ Format Options
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Only read changelog rows which match the specific database (by comparing the "database" meta field in the Canal record).</td>
+      <td>Only read changelog rows which match the specific database (by regular matching the "database" meta field in the Canal record).</td>
     </tr>
     <tr>
       <td><h5>canal-json.table.include</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Only read changelog rows which match the specific table (by comparing the "table" meta field in the Canal record).</td>
+      <td>Only read changelog rows which match the specific table (by regular matching the "table" meta field in the Canal record).</td>
     </tr>
     </tbody>
 </table>

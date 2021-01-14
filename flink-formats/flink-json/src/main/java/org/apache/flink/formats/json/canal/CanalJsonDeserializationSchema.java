@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
@@ -197,12 +198,12 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         try {
             final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
             if (database != null) {
-                if (!database.equals(root.get(ReadableMetadata.DATABASE.key).asText())) {
+                if (!Pattern.matches(database, root.get(ReadableMetadata.DATABASE.key).asText())) {
                     return;
                 }
             }
             if (table != null) {
-                if (!table.equals(root.get(ReadableMetadata.TABLE.key).asText())) {
+                if (!Pattern.matches(table, root.get(ReadableMetadata.TABLE.key).asText())) {
                     return;
                 }
             }

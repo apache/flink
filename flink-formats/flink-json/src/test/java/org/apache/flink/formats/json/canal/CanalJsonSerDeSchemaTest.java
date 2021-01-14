@@ -75,8 +75,8 @@ public class CanalJsonSerDeSchemaTest {
                                 PHYSICAL_DATA_TYPE,
                                 Collections.emptyList(),
                                 InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
-                        .setDatabase("mydb")
-                        .setTable("product")
+                        .setDatabase("^my.*")
+                        .setTable("^prod.*")
                         .build();
         runTest(lines, deserializationSchema);
     }

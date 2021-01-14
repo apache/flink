@@ -290,14 +290,14 @@ Format 参数
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>仅读取指定数据库的 changelog 记录（通过对比 Canal 记录中的 "database" 元数据字段）</td>
+      <td>仅读取指定数据库的 changelog 记录（通过正则匹配 Canal 记录中的 "database" 元数据字段）</td>
     </tr>
     <tr>
       <td><h5>canal-json.table.include</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>仅读取指定表的 changelog 记录（通过对比 Canal 记录中的 "table" 元数据字段）。</td>
+      <td>仅读取指定表的 changelog 记录（通过正则匹配 Canal 记录中的 "table" 元数据字段）。</td>
     </tr>
     </tbody>
 </table>
