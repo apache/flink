@@ -79,6 +79,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.common.base.Charsets;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -648,6 +649,9 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
 
         private final ByteArrayWrapper reuseByteArrayWrapper = new ByteArrayWrapper(new byte[0]);
 
+        /** Let StateRequestHandler for user state only use a single cache token. */
+        private final BeamFnApi.ProcessBundleRequest.CacheToken cacheToken;
+
         SimpleStateRequestHandler(
                 KeyedStateBackend keyedStateBackend,
                 TypeSerializer keySerializer,
@@ -676,6 +680,12 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                                 "The value of '%s' must be greater than 0!",
                                 PythonOptions.MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE.key()));
             }
+            cacheToken = createCacheToken();
+        }
+
+        @Override
+        public Iterable<BeamFnApi.ProcessBundleRequest.CacheToken> getCacheTokens() {
+            return Collections.singleton(cacheToken);
         }
 
         @Override
@@ -1090,6 +1100,17 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                             VoidNamespace.INSTANCE,
                             VoidNamespaceSerializer.INSTANCE,
                             mapStateDescriptor);
+        }
+
+        private BeamFnApi.ProcessBundleRequest.CacheToken createCacheToken() {
+            ByteString token =
+                    ByteString.copyFrom(UUID.randomUUID().toString().getBytes(Charsets.UTF_8));
+            return BeamFnApi.ProcessBundleRequest.CacheToken.newBuilder()
+                    .setUserState(
+                            BeamFnApi.ProcessBundleRequest.CacheToken.UserState
+                                    .getDefaultInstance())
+                    .setToken(token)
+                    .build();
         }
     }
 }
