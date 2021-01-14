@@ -20,29 +20,30 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntermediateTableScan
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecIntermediateTableScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntermediateTableScan
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 
 /**
-  * Rule that converts [[FlinkLogicalIntermediateTableScan]] to [[StreamExecIntermediateTableScan]].
-  */
-class StreamExecIntermediateTableScanRule
+ * Rule that converts [[FlinkLogicalIntermediateTableScan]] to
+ * [[StreamPhysicalIntermediateTableScan]].
+ */
+class StreamPhysicalIntermediateTableScanRule
   extends ConverterRule(
     classOf[FlinkLogicalIntermediateTableScan],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecIntermediateTableScanRule") {
+    "StreamPhysicalIntermediateTableScanRule") {
 
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalIntermediateTableScan]
     val newTrait = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    new StreamExecIntermediateTableScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
+    new StreamPhysicalIntermediateTableScan(rel.getCluster, newTrait, scan.getTable, rel.getRowType)
   }
 }
 
-object StreamExecIntermediateTableScanRule {
-  val INSTANCE: RelOptRule = new StreamExecIntermediateTableScanRule
+object StreamPhysicalIntermediateTableScanRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalIntermediateTableScanRule
 }
