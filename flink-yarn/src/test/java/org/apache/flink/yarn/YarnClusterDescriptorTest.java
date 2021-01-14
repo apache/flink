@@ -683,8 +683,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
     public void testDisableSystemClassPathIncludeUserJarAndWithIllegalShipDirectoryName()
             throws IOException {
         final Configuration configuration = new Configuration();
-        configuration.setString(
-                CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+        configuration.set(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED);
 
         final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptor(configuration);
