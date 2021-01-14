@@ -102,12 +102,8 @@ public class JsonRowDataDeserializationSchema implements DeserializationSchema<R
             return null;
         }
         try {
-            final JsonNode root = objectMapper.readTree(message);
-            return (RowData) runtimeConverter.convert(root);
+            return convertToRowData(deserializeToJsonNode(message));
         } catch (Throwable t) {
-            if (ignoreParseErrors) {
-                return null;
-            }
             throw new IOException(
                     format("Failed to deserialize JSON '%s'.", new String(message)), t);
         }
