@@ -83,7 +83,8 @@ public class ResourceManagerHATest extends TestLogger {
                                 1,
                                 ResourceManagerOptions.MAX_SLOT_NUM.defaultValue(),
                                 ResourceManagerOptions.REDUNDANT_TASK_MANAGER_NUM.defaultValue()),
-                        ClusterOptions.isDeclarativeResourceManagementEnabled(configuration));
+                        ClusterOptions.isDeclarativeResourceManagementEnabled(configuration),
+                        ClusterOptions.isFineGrainedResourceManagementEnabled(configuration));
         ResourceManagerRuntimeServices resourceManagerRuntimeServices =
                 ResourceManagerRuntimeServices.fromConfiguration(
                         resourceManagerRuntimeServicesConfiguration,
