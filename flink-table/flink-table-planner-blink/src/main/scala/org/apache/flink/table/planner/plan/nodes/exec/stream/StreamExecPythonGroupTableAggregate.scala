@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, KeySelectorUtil}
 import org.apache.flink.table.planner.typeutils.DataViewUtils.DataViewSpec
@@ -56,7 +56,7 @@ class StreamExecPythonGroupTableAggregate(
     description: String)
   extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
   with StreamExecNode[RowData]
-  with CommonExecPythonAggregate
+  with CommonPythonAggregate
   with Logging {
 
   override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {

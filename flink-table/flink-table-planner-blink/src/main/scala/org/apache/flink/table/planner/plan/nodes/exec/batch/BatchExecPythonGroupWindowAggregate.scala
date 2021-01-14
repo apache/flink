@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.{PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupWindowAggregate.ARROW_PYTHON_GROUP_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
@@ -60,7 +60,7 @@ class BatchExecPythonGroupWindowAggregate(
     description: String)
   extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
   with BatchExecNode[RowData]
-  with CommonExecPythonAggregate {
+  with CommonPythonAggregate {
 
   override protected def translateToPlanInternal(planner: PlannerBase): Transformation[RowData] = {
     val inputNode = getInputNodes.get(0).asInstanceOf[ExecNode[RowData]]

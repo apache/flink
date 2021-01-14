@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions.python.PythonFunctionInfo
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupAggregate.ARROW_PYTHON_AGGREGATE_FUNCTION_OPERATOR_NAME
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonAggregate
+import org.apache.flink.table.planner.plan.nodes.exec.common.CommonPythonAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode, ExecNodeBase}
 import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -53,7 +53,7 @@ class BatchExecPythonGroupAggregate(
     description: String)
   extends ExecNodeBase[RowData](Collections.singletonList(inputEdge), outputType, description)
   with BatchExecNode[RowData]
-  with CommonExecPythonAggregate
+  with CommonPythonAggregate
   with Logging {
 
   override protected def translateToPlanInternal(

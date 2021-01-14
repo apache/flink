@@ -37,7 +37,10 @@ import org.apache.calcite.rel.core.AggregateCall
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-trait CommonExecPythonAggregate extends CommonPythonBase {
+/**
+  * This trait will be removed when all Python Aggregate Nodes has been port to Java.
+  */
+trait CommonPythonAggregate extends CommonPythonBase {
 
   /**
     * For batch execution we extract the PythonFunctionInfo from AggregateCall.

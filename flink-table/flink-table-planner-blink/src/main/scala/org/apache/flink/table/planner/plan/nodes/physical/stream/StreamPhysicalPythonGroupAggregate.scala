@@ -80,7 +80,7 @@ class StreamPhysicalPythonGroupAggregate(
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupAggregate(
       grouping,
-      aggCalls,
+      aggCalls.toArray,
       aggCallNeedRetractions,
       generateUpdateBefore,
       needRetraction,
