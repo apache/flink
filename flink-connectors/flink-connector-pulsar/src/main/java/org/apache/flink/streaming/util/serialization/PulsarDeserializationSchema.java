@@ -38,12 +38,6 @@ import java.io.Serializable;
 @PublicEvolving
 public interface PulsarDeserializationSchema<T> extends PulsarContextAware<T>, Serializable {
 
-	static <V> PulsarDeserializationSchemaBuilder<V> builder() {
-		return new PulsarDeserializationSchemaBuilder<>();
-	}
-
-	;
-
 	/**
 	 * Wraps a Flink {@link DeserializationSchema} to a {@link PulsarDeserializationSchema}.
 	 *
@@ -61,12 +55,7 @@ public interface PulsarDeserializationSchema<T> extends PulsarContextAware<T>, S
 
 			@Override
 			public V deserialize(Message<V> message) throws IOException {
-				return valueDeserializer.deserialize(message.getData());
-			}
-
-			@Override
-			public void deserialize(Message<V> message, Collector<V> collector) throws IOException {
-				valueDeserializer.deserialize(message.getData(), collector);
+				return message.getValue();
 			}
 
 			@Override
@@ -84,8 +73,6 @@ public interface PulsarDeserializationSchema<T> extends PulsarContextAware<T>, S
 	default void open(DeserializationSchema.InitializationContext context) throws Exception {
 	}
 
-	;
-
 	/**
 	 * Method to decide whether the element signals the end of the stream. If
 	 * true is returned the element won't be emitted.
@@ -95,8 +82,6 @@ public interface PulsarDeserializationSchema<T> extends PulsarContextAware<T>, S
 	 * @return True, if the element signals end of stream, false otherwise.
 	 */
 	boolean isEndOfStream(T nextElement);
-
-	;
 
 	/**
 	 * Deserializes the Pulsar message.
