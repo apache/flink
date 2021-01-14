@@ -301,7 +301,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // DataStream, TableSource and Values only support producing insert-only messages
         createNewNode(rel, List(), ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case scan: StreamExecIntermediateTableScan =>
+      case scan: StreamPhysicalIntermediateTableScan =>
         val providedTrait = new ModifyKindSetTrait(scan.intermediateTable.modifyKindSet)
         createNewNode(scan, List(), providedTrait, requiredTrait, requester)
 
@@ -639,7 +639,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
            _: StreamPhysicalValues =>
         createNewNode(rel, Some(List()), UpdateKindTrait.NONE)
 
-      case scan: StreamExecIntermediateTableScan =>
+      case scan: StreamPhysicalIntermediateTableScan =>
         val providedTrait = if (scan.intermediateTable.isUpdateBeforeRequired) {
           // we can't drop UPDATE_BEFORE if it is required by other parent blocks
           UpdateKindTrait.BEFORE_AND_AFTER

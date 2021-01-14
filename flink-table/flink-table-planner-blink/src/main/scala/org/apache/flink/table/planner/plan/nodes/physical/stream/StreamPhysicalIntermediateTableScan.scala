@@ -28,9 +28,9 @@ import org.apache.calcite.rel.`type`.RelDataType
 import java.util
 
 /**
-  * Stream physical TableScan that wraps [[IntermediateRelTable]]
-  */
-class StreamExecIntermediateTableScan(
+ * Stream physical TableScan that wraps [[IntermediateRelTable]]
+ */
+class StreamPhysicalIntermediateTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
@@ -43,6 +43,6 @@ class StreamExecIntermediateTableScan(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
-    new StreamExecIntermediateTableScan(cluster, traitSet, getTable, outputRowType)
+    new StreamPhysicalIntermediateTableScan(cluster, traitSet, getTable, outputRowType)
   }
 }

@@ -401,7 +401,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalDataStreamScanRule.INSTANCE,
     StreamPhysicalTableSourceScanRule.INSTANCE,
     StreamPhysicalLegacyTableSourceScanRule.INSTANCE,
-    StreamExecIntermediateTableScanRule.INSTANCE,
+    StreamPhysicalIntermediateTableScanRule.INSTANCE,
     StreamPhysicalWatermarkAssignerRule.INSTANCE,
     StreamPhysicalValuesRule.INSTANCE,
     // calc
