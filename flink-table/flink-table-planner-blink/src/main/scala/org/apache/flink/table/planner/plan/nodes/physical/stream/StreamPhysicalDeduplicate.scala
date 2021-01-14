@@ -33,8 +33,6 @@ import java.util
  * Stream physical RelNode which deduplicate on keys and keeps only first row or last row.
  * This node is an optimization of [[StreamPhysicalRank]] for some special cases.
  * Compared to [[StreamPhysicalRank]], this node could use mini-batch and access less state.
- * <p>NOTES: only supports sort on proctime now, sort on rowtime will not translated into
- * StreamExecDeduplicate node.
  */
 class StreamPhysicalDeduplicate(
     cluster: RelOptCluster,

@@ -45,7 +45,6 @@ import org.apache.flink.table.runtime.operators.deduplicate.RowTimeDeduplicateFu
 import org.apache.flink.table.runtime.operators.deduplicate.RowTimeMiniBatchDeduplicateFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
-import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -55,9 +54,6 @@ import java.util.Collections;
  * Stream {@link ExecNode} which deduplicate on keys and keeps only first row or last row. This node
  * is an optimization of {@link StreamExecRank} for some special cases. Compared to {@link
  * StreamExecRank}, this node could use mini-batch and access less state.
- *
- * <p>NOTES: only supports sort on proctime now, sort on rowtime will not translated into
- * StreamExecDeduplicate node.
  */
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData> {
@@ -87,7 +83,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             boolean keepLastRow,
             boolean generateUpdateBefore,
             ExecEdge inputEdge,
-            LogicalType outputType,
+            RowType outputType,
             String description) {
         super(Collections.singletonList(inputEdge), outputType, description);
         this.uniqueKeys = uniqueKeys;
@@ -227,8 +223,9 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> createDeduplicateOperator() {
             int rowtimeIndex = -1;
             for (int i = 0; i < inputRowType.getFieldCount(); ++i) {
-                if (rowtimeIndex < 0 && TypeCheckUtils.isRowTime(inputRowType.getTypeAt(i))) {
+                if (TypeCheckUtils.isRowTime(inputRowType.getTypeAt(i))) {
                     rowtimeIndex = i;
+                    break;
                 }
             }
             Preconditions.checkArgument(rowtimeIndex >= 0);

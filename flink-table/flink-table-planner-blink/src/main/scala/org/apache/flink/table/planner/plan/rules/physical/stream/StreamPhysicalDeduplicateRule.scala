@@ -55,16 +55,16 @@ import org.apache.calcite.rel.{RelCollation, RelNode}
   * ) WHERE row_num <= 1
   * }}} will be converted to StreamExecDeduplicate which keeps last row in rowtime.
   */
-class StreamExecDeduplicateRule
+class StreamPhysicalDeduplicateRule
   extends ConverterRule(
     classOf[FlinkLogicalRank],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecDeduplicateRule") {
+    "StreamPhysicalDeduplicateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val rank: FlinkLogicalRank = call.rel(0)
-    StreamExecDeduplicateRule.canConvertToDeduplicate(rank)
+    StreamPhysicalDeduplicateRule.canConvertToDeduplicate(rank)
   }
 
   override def convert(rel: RelNode): RelNode = {
@@ -98,9 +98,9 @@ class StreamExecDeduplicateRule
   }
 }
 
-object StreamExecDeduplicateRule {
+object StreamPhysicalDeduplicateRule {
 
-  val RANK_INSTANCE = new StreamExecDeduplicateRule
+  val RANK_INSTANCE = new StreamPhysicalDeduplicateRule
 
   /**
     * Whether the given rank could be converted to [[StreamPhysicalDeduplicate]].
@@ -119,14 +119,14 @@ object StreamExecDeduplicateRule {
 
     val isLimit1 = rankRange match {
       case rankRange: ConstantRankRange =>
-        rankRange.getRankStart() == 1 && rankRange.getRankEnd() == 1
+        rankRange.getRankStart == 1 && rankRange.getRankEnd == 1
       case _ => false
     }
 
     val inputRowType = rank.getInput.getRowType
-    val isSortOnProctime = sortOnTimeAttribute(sortCollation, inputRowType)
+    val isSortOnTimeAttribute = sortOnTimeAttribute(sortCollation, inputRowType)
 
-    !rank.outputRankNumber && isLimit1 && isSortOnProctime && isRowNumberType
+    !rank.outputRankNumber && isLimit1 && isSortOnTimeAttribute && isRowNumberType
   }
 
   private def sortOnTimeAttribute(
