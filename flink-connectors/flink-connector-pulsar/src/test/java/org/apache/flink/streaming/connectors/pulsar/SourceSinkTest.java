@@ -40,8 +40,8 @@ public class SourceSinkTest extends TestLogger {
 
 	@Test
 	public void testDistributeRange() throws InterruptedException {
-		List<CompletableFuture<Void>> futureList = new ArrayList<>(1999);
-		for (int countOfSubTasks = 1; countOfSubTasks < 2000; countOfSubTasks++) {
+		List<CompletableFuture<Void>> futureList = new ArrayList<>(99);
+		for (int countOfSubTasks = 1; countOfSubTasks < 100; countOfSubTasks++) {
 			final int count = countOfSubTasks;
 			futureList.add(CompletableFuture.runAsync(() -> testRange(count)));
 		}
