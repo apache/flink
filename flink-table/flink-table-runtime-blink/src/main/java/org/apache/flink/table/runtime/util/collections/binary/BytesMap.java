@@ -94,7 +94,8 @@ public abstract class BytesMap<K, V> {
             MemoryManager memoryManager,
             long memorySize,
             TypeSerializer<K> keySerializer) {
-        this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, memorySize);
+        int maxPages = (int) (memorySize / memoryManager.getPageSize());
+        this.memoryPool = new LazyMemorySegmentPool(owner, memoryManager, maxPages);
         this.segmentSize = memoryPool.pageSize();
         this.reservedNumBuffers = (int) (memorySize / segmentSize);
         this.numBucketsPerSegment = segmentSize / BUCKET_SIZE;
