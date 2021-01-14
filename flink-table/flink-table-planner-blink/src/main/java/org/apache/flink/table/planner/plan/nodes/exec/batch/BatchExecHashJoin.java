@@ -216,7 +216,10 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
                                     keyType));
         }
 
-        long managedMemory = config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY).getBytes();
+        long managedMemory =
+                config.getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY)
+                        .getBytes();
 
         TwoInputTransformation<RowData, RowData, RowData> transform =
                 ExecNodeUtil.createTwoInputTransformation(

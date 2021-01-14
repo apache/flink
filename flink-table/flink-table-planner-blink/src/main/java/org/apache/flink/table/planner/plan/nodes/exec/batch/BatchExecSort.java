@@ -66,10 +66,10 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
                 new SortOperator(
                         codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
                         codeGen.generateRecordComparator("BatchExecSortComparator"));
-        long sortMemory = config
-                .getConfiguration()
-                .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-                .getBytes();
+        long sortMemory =
+                config.getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
+                        .getBytes();
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,

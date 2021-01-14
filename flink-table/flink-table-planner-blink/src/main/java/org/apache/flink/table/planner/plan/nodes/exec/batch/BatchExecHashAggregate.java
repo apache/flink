@@ -108,7 +108,10 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
                             isFinal,
                             "NoGrouping");
         } else {
-            managedMemory = config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY).getBytes();
+            managedMemory =
+                    config.getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+                            .getBytes();
             generatedOperator =
                     new HashAggCodeGenerator(
                                     ctx,
