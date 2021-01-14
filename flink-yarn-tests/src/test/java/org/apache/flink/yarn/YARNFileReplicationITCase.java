@@ -141,8 +141,7 @@ public class YARNFileReplicationITCase extends YarnTestBase {
         configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(768));
         configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.parse("1g"));
         configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-        configuration.setString(
-                CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED.toString());
+        configuration.set(CLASSPATH_INCLUDE_USER_JAR, YarnConfigOptions.UserJarInclusion.DISABLED);
 
         return configuration;
     }

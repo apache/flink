@@ -123,9 +123,7 @@ public class YarnEntrypointUtils {
 
     public static Optional<File> getUsrLibDir(final Configuration configuration) {
         final YarnConfigOptions.UserJarInclusion userJarInclusion =
-                configuration.getEnum(
-                        YarnConfigOptions.UserJarInclusion.class,
-                        YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
+                configuration.get(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
         final Optional<File> userLibDir = tryFindUserLibDirectory();
 
         checkState(

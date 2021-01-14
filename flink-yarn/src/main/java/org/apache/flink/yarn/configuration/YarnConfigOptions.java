@@ -29,6 +29,10 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.DISABLED;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.FIRST;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.LAST;
+import static org.apache.flink.yarn.configuration.YarnConfigOptions.UserJarInclusion.ORDER;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -40,28 +44,33 @@ public class YarnConfigOptions {
     /** The vcores used by YARN application master. */
     public static final ConfigOption<Integer> APP_MASTER_VCORES =
             key("yarn.appmaster.vcores")
+                    .intType()
                     .defaultValue(1)
                     .withDescription(
                             "The number of virtual cores (vcores) used by YARN application master.");
 
     /**
      * Defines whether user-jars are included in the system class path for per-job-clusters as well
-     * as their positioning in the path. They can be positioned at the beginning ("FIRST"), at the
-     * end ("LAST"), or be positioned based on their name ("ORDER"). "DISABLED" means the user-jars
-     * are excluded from the system class path.
+     * as their positioning in the path. They can be positioned at the beginning (FIRST), at the end
+     * (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are
+     * excluded from the system class path.
      */
-    public static final ConfigOption<String> CLASSPATH_INCLUDE_USER_JAR =
+    public static final ConfigOption<UserJarInclusion> CLASSPATH_INCLUDE_USER_JAR =
             key("yarn.per-job-cluster.include-user-jar")
-                    .defaultValue("ORDER")
+                    .enumType(UserJarInclusion.class)
+                    .defaultValue(ORDER)
                     .withDescription(
-                            "Defines whether user-jars are included in the system class path for per-job-clusters as"
-                                    + " well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the"
-                                    + " end (\"LAST\"), or be positioned based on their name (\"ORDER\"). \"DISABLED\" means the user-jars"
-                                    + " are excluded from the system class path.");
+                            String.format(
+                                    "Defines whether user-jars are included in the system class path for per-job-clusters as"
+                                            + " well as their positioning in the path. They can be positioned at the beginning (%s), at the"
+                                            + " end (%s), or be positioned based on their name (%s). %s means the user-jars"
+                                            + " are excluded from the system class path.",
+                                    FIRST.name(), LAST.name(), ORDER.name(), DISABLED.name()));
 
     /** The vcores exposed by YARN. */
     public static final ConfigOption<Integer> VCORES =
             key("yarn.containers.vcores")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             Description.builder()
@@ -101,6 +110,7 @@ public class YarnConfigOptions {
     /** The config parameter defining the attemptFailuresValidityInterval of Yarn application. */
     public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
             key("yarn.application-attempt-failures-validity-interval")
+                    .longType()
                     .defaultValue(10000L)
                     .withDescription(
                             Description.builder()
@@ -117,6 +127,7 @@ public class YarnConfigOptions {
     /** The heartbeat interval between the Application Master and the YARN Resource Manager. */
     public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
             key("yarn.heartbeat.interval")
+                    .intType()
                     .defaultValue(5)
                     .withDeprecatedKeys("yarn.heartbeat-delay")
                     .withDescription(
@@ -128,6 +139,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
             key("yarn.heartbeat.container-request-interval")
+                    .intType()
                     .defaultValue(500)
                     .withDescription(
                             new Description.DescriptionBuilder()
@@ -153,6 +165,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<String> PROPERTIES_FILE_LOCATION =
             key("yarn.properties-file.location")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "When a Flink job is submitted to YARN, the JobManager’s host and the number of available"
@@ -168,6 +181,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<String> APPLICATION_MASTER_PORT =
             key("yarn.application-master.port")
+                    .stringType()
                     .defaultValue("0")
                     .withDescription(
                             "With this configuration option, users can specify a port, a range of ports or a list of ports"
@@ -189,6 +203,7 @@ public class YarnConfigOptions {
      */
     public static final ConfigOption<Integer> APPLICATION_PRIORITY =
             key("yarn.application.priority")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription(
                             "A non-negative integer indicating the priority for submitting a Flink YARN application. It"
@@ -215,6 +230,7 @@ public class YarnConfigOptions {
     /** A comma-separated list of strings to use as YARN application tags. */
     public static final ConfigOption<String> APPLICATION_TAGS =
             key("yarn.tags")
+                    .stringType()
                     .defaultValue("")
                     .withDescription(
                             "A comma-separated list of tags to apply to the Flink YARN application.");
