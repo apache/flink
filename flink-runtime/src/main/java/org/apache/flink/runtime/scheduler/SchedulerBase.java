@@ -204,11 +204,11 @@ public abstract class SchedulerBase implements SchedulerNG {
                         jobGraph,
                         jobMasterConfiguration,
                         userCodeLoader,
-                        checkpointRecoveryFactory,
+                        checkNotNull(checkpointRecoveryFactory),
                         log);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
-                        jobGraph, checkpointRecoveryFactory);
+                        jobGraph, checkNotNull(checkpointRecoveryFactory));
 
         this.executionGraph =
                 createAndRestoreExecutionGraph(
