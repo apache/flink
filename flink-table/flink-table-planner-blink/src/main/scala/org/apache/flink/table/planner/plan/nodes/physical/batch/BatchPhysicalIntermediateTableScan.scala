@@ -26,9 +26,9 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 
 /**
-  * Batch physical TableScan that wraps [[IntermediateRelTable]]
-  */
-class BatchExecIntermediateTableScan(
+ * Batch physical TableScan that wraps [[IntermediateRelTable]]
+ */
+class BatchPhysicalIntermediateTableScan(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     table: RelOptTable,
@@ -39,6 +39,6 @@ class BatchExecIntermediateTableScan(
   override def deriveRowType(): RelDataType = outputRowType
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new BatchExecIntermediateTableScan(cluster, traitSet, getTable, getRowType)
+    new BatchPhysicalIntermediateTableScan(cluster, traitSet, getTable, getRowType)
   }
 }
