@@ -36,7 +36,6 @@ COMMAND_NATIVE_KUBERNETES="native-k8s"
 COMMAND_HISTORY_SERVER="history-server"
 
 args=("$@")
-echo "${args[@]}"
 
 bin=`dirname "$0"`
 bin=`cd "$bin"; pwd`
@@ -106,8 +105,6 @@ prepare_job_manager_start() {
     fi
     envsubst < "${CONF_FILE}" > "${CONF_FILE}.tmp" && mv "${CONF_FILE}.tmp" "${CONF_FILE}"
 }
-
-echo "${args[@]}"
 
 if [ "$1" = "help" ]; then
     printf "Usage: $(basename "$0") (jobmanager|${COMMAND_STANDALONE}|taskmanager|${COMMAND_HISTORY_SERVER}) [${COMMAND_DISABLE_JEMALLOC}]\n"
