@@ -47,6 +47,10 @@ class PlannerExpressionConverter private
     translateCall(unresolvedCall.getFunctionDefinition, unresolvedCall.getChildren.asScala)
   }
 
+  override def visit(other: ResolvedExpression): PlannerExpression = {
+    throw new TableException("Unsupported resolved expression:" + other)
+  }
+
   private def translateCall(
       func: FunctionDefinition,
       children: Seq[Expression])

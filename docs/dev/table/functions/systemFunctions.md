@@ -5636,6 +5636,21 @@ STRING.sha2(INT)
     <tr>
       <td>
 {% highlight java %}
+callSql(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>A call to a SQL expression.</p>
+        <p>The given string is parsed and translated into a Table API expression during planning. Only
+        the translated expression is evaluated during runtime.</p>
+        <p>Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+        table-valued functions are not supported. Sub-queries are also not allowed.</p>
+        <p>Example: <code>table.select(callSql("UPPER(myColumn)").substring(3))</code></p>
+      </td>
+    </tr>
+    <tr>
+      <td>
+{% highlight java %}
 ANY.as(NAME1, NAME2, ...)
 {% endhighlight %}
       </td>
@@ -5658,6 +5673,21 @@ ANY.as(NAME1, NAME2, ...)
   </thead>
 
   <tbody>
+    <tr>
+      <td>
+{% highlight scala %}
+callSql(STRING)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>A call to a SQL expression.</p>
+        <p>The given string is parsed and translated into an Table API expression during planning. Only
+        the translated expression is evaluated during runtime.</p>
+        <p>Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+        table-valued functions are not supported. Sub-queries are also not allowed.</p>
+        <p>Example: <code>table.select(callSql("UPPER(myColumn)").substring(3))</code></p>
+      </td>
+    </tr>
     <tr>
       <td>
 {% highlight scala %}

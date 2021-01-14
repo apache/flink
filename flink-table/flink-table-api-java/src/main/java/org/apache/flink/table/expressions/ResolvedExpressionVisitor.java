@@ -34,6 +34,8 @@ public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<
             return visit((TableReferenceExpression) other);
         } else if (other instanceof LocalReferenceExpression) {
             return visit((LocalReferenceExpression) other);
+        } else if (other instanceof ResolvedExpression) {
+            return visit((ResolvedExpression) other);
         }
         throw new TableException("Unexpected unresolved expression received: " + other);
     }
@@ -41,4 +43,7 @@ public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<
     public abstract R visit(TableReferenceExpression tableReference);
 
     public abstract R visit(LocalReferenceExpression localReference);
+
+    /** For resolved expressions created by the planner. */
+    public abstract R visit(ResolvedExpression other);
 }

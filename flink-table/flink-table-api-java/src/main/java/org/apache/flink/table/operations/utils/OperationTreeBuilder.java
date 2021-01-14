@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LookupCallResolver;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -86,6 +87,7 @@ public final class OperationTreeBuilder {
     private final DataTypeFactory typeFactory;
     private final TableReferenceLookup tableReferenceLookup;
     private final LookupCallResolver lookupResolver;
+    private final SqlExpressionResolver sqlExpressionResolver;
 
     /** Utility classes for constructing a validated operation of certain type. */
     private final ProjectionOperationFactory projectionOperationFactory;
@@ -102,6 +104,7 @@ public final class OperationTreeBuilder {
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
+            SqlExpressionResolver sqlExpressionResolver,
             ProjectionOperationFactory projectionOperationFactory,
             SortOperationFactory sortOperationFactory,
             CalculatedTableFactory calculatedTableFactory,
@@ -113,6 +116,7 @@ public final class OperationTreeBuilder {
         this.functionCatalog = functionLookup;
         this.typeFactory = typeFactory;
         this.tableReferenceLookup = tableReferenceLookup;
+        this.sqlExpressionResolver = sqlExpressionResolver;
         this.projectionOperationFactory = projectionOperationFactory;
         this.sortOperationFactory = sortOperationFactory;
         this.calculatedTableFactory = calculatedTableFactory;
@@ -128,12 +132,14 @@ public final class OperationTreeBuilder {
             FunctionLookup functionCatalog,
             DataTypeFactory typeFactory,
             TableReferenceLookup tableReferenceLookup,
+            SqlExpressionResolver sqlExpressionResolver,
             boolean isStreamingMode) {
         return new OperationTreeBuilder(
                 config,
                 functionCatalog,
                 typeFactory,
                 tableReferenceLookup,
+                sqlExpressionResolver,
                 new ProjectionOperationFactory(),
                 new SortOperationFactory(),
                 new CalculatedTableFactory(),
@@ -185,7 +191,12 @@ public final class OperationTreeBuilder {
 
         ExpressionResolver resolver =
                 ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                                config,
+                                tableReferenceLookup,
+                                functionCatalog,
+                                typeFactory,
+                                sqlExpressionResolver,
+                                child)
                         .withOverWindows(overWindows)
                         .build();
         List<ResolvedExpression> projections = resolver.resolve(projectList);
@@ -257,7 +268,12 @@ public final class OperationTreeBuilder {
 
         ExpressionResolver resolverWithWindowReferences =
                 ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                                config,
+                                tableReferenceLookup,
+                                functionCatalog,
+                                typeFactory,
+                                sqlExpressionResolver,
+                                child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -312,7 +328,12 @@ public final class OperationTreeBuilder {
                 aggregateOperationFactory.createResolvedWindow(window, resolver);
         ExpressionResolver resolverWithWindowReferences =
                 ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                                config,
+                                tableReferenceLookup,
+                                functionCatalog,
+                                typeFactory,
+                                sqlExpressionResolver,
+                                child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -366,6 +387,7 @@ public final class OperationTreeBuilder {
                                 tableReferenceLookup,
                                 functionCatalog,
                                 typeFactory,
+                                sqlExpressionResolver,
                                 left,
                                 right)
                         .build();
@@ -398,6 +420,7 @@ public final class OperationTreeBuilder {
                                 tableReferenceLookup,
                                 functionCatalog,
                                 typeFactory,
+                                sqlExpressionResolver,
                                 tableOperation)
                         .build();
 
@@ -606,7 +629,11 @@ public final class OperationTreeBuilder {
 
         ExpressionResolver resolver =
                 ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory)
+                                config,
+                                tableReferenceLookup,
+                                functionCatalog,
+                                typeFactory,
+                                sqlExpressionResolver)
                         .build();
 
         return valuesOperationFactory.create(
@@ -776,7 +803,12 @@ public final class OperationTreeBuilder {
 
         ExpressionResolver resolverWithWindowReferences =
                 ExpressionResolver.resolverFor(
-                                config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                                config,
+                                tableReferenceLookup,
+                                functionCatalog,
+                                typeFactory,
+                                sqlExpressionResolver,
+                                child)
                         .withLocalReferences(
                                 localRef(
                                         resolvedWindow.getAlias(),
@@ -876,7 +908,12 @@ public final class OperationTreeBuilder {
 
     private ExpressionResolver getResolver(QueryOperation child) {
         return ExpressionResolver.resolverFor(
-                        config, tableReferenceLookup, functionCatalog, typeFactory, child)
+                        config,
+                        tableReferenceLookup,
+                        functionCatalog,
+                        typeFactory,
+                        sqlExpressionResolver,
+                        child)
                 .build();
     }
 

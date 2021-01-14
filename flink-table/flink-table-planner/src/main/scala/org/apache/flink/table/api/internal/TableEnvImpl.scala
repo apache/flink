@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.catalog.exceptions.{TableNotExistException => _, _}
 import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSinkFactoryContextImpl}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, _}
@@ -40,6 +41,7 @@ import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQuer
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
 import org.apache.flink.table.sinks.{BatchSelectTableSink, BatchTableSink, OutputFormatTableSink, OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.types.{AbstractDataType, DataType}
 import org.apache.flink.table.util.JavaScalaConversionUtil
 import org.apache.flink.table.utils.PrintUtils
@@ -107,6 +109,13 @@ abstract class TableEnvImpl(
     }),
     catalogManager.getDataTypeFactory,
     tableLookup,
+    new SqlExpressionResolver {
+      override def resolveExpression(sqlExpression: String, inputSchema: TableSchema)
+        : ResolvedExpression = {
+            throw new UnsupportedOperationException(
+              "SQL expression parsing is only supported in the Blink planner.")
+      }
+    },
     isStreamingMode)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =

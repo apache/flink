@@ -188,6 +188,11 @@ final class ProjectionOperationFactory {
         }
 
         @Override
+        public ResolvedExpression visit(ResolvedExpression other) {
+            return postResolverFactory.as(other, getUniqueName());
+        }
+
+        @Override
         protected ResolvedExpression defaultMethod(ResolvedExpression expression) {
             return expression;
         }
