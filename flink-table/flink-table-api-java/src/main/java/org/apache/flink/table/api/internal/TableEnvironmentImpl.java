@@ -241,6 +241,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 return Optional.empty();
                             }
                         },
+                        (sqlExpression, inputSchema) -> {
+                            try {
+                                return parser.parseSqlExpression(sqlExpression, inputSchema);
+                            } catch (Throwable t) {
+                                throw new ValidationException(
+                                        String.format("Invalid SQL expression: %s", sqlExpression),
+                                        t);
+                            }
+                        },
                         isStreamingMode);
     }
 

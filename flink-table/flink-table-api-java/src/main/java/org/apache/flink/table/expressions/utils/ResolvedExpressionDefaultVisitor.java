@@ -65,5 +65,10 @@ public abstract class ResolvedExpressionDefaultVisitor<T> extends ResolvedExpres
         return defaultMethod(typeLiteral);
     }
 
+    @Override
+    public T visit(ResolvedExpression other) {
+        return defaultMethod(other);
+    }
+
     protected abstract T defaultMethod(ResolvedExpression expression);
 }

@@ -592,7 +592,7 @@ class Expression(Generic[T]):
 
         e.g. col("nullable_column").if_null(5) returns never null.
         """
-        return _binary_op("if_null")(self, null_replacement)
+        return _binary_op("ifNull")(self, null_replacement)
 
     @property
     def is_null(self) -> 'Expression[bool]':

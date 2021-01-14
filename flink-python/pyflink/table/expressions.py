@@ -29,7 +29,7 @@ __all__ = ['if_then_else', 'lit', 'col', 'range_', 'and_', 'or_', 'UNBOUNDED_ROW
            'current_timestamp', 'local_time', 'local_timestamp', 'temporal_overlaps',
            'date_format', 'timestamp_diff', 'array', 'row', 'map_', 'row_interval', 'pi', 'e',
            'rand', 'rand_integer', 'atan2', 'negative', 'concat', 'concat_ws', 'uuid', 'null_of',
-           'log', 'with_columns', 'without_columns', 'call']
+           'log', 'with_columns', 'without_columns', 'call', 'call_sql']
 
 
 def _leaf_op(op_name: str) -> Expression:
@@ -571,6 +571,21 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
         to_jarray(gateway.jvm.Object,
                   [get_function_definition(f),
                    to_jarray(gateway.jvm.Object, [_get_java_expression(arg) for arg in args])])))
+
+
+def call_sql(sql_expression: str) -> Expression:
+    """
+    A call to a SQL expression.
+
+    The given string is parsed and translated into a Table API expression during planning. Only
+    the translated expression is evaluated during runtime.
+
+    Note: Currently, calls are limited to simple scalar expressions. Calls to aggregate or
+    table-valued functions are not supported. Sub-queries are also not allowed.
+
+    :param sql_expression: SQL expression to be translated
+    """
+    return _unary_op("callSql", sql_expression)
 
 
 _add_version_doc()

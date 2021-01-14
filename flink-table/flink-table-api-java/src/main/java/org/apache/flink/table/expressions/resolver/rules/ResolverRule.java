@@ -24,8 +24,10 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
 import org.apache.flink.table.expressions.resolver.LocalOverWindow;
+import org.apache.flink.table.expressions.resolver.SqlExpressionResolver;
 import org.apache.flink.table.expressions.resolver.lookups.FieldReferenceLookup;
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -69,6 +71,9 @@ public interface ResolverRule {
 
         /** Access to {@link DataTypeFactory}. */
         DataTypeFactory typeFactory();
+
+        /** Translates a SQL expression to {@link ResolvedExpression}. */
+        SqlExpressionResolver sqlExpressionResolver();
 
         /**
          * Enables the creation of resolved expressions for transformations after the actual
