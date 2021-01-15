@@ -28,6 +28,7 @@ import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.python.BuiltInPythonAggregateFunction;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.Count1AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.CountAggFunction;
@@ -45,6 +46,8 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.Sum0AggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction;
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction;
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.utils.AggregateInfo;
@@ -58,11 +61,14 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.sql.SqlAggFunction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
@@ -119,6 +125,44 @@ public abstract class CommonExecPythonAggregate extends ExecNodeBase<RowData> {
         return Tuple2.of(
                 pythonAggregateFunctionInfoList.toArray(new PythonAggregateFunctionInfo[0]),
                 dataViewSpecList.toArray(new DataViewUtils.DataViewSpec[0][0]));
+    }
+
+    protected Tuple2<int[], PythonFunctionInfo[]>
+            extractPythonAggregateFunctionInfosFromAggregateCall(AggregateCall[] aggCalls) {
+        Map<Integer, Integer> inputNodes = new LinkedHashMap<>();
+        List<PythonFunctionInfo> pythonFunctionInfos = new ArrayList<>();
+        for (AggregateCall aggregateCall : aggCalls) {
+            List<Integer> inputs = new ArrayList<>();
+            List<Integer> argList = aggregateCall.getArgList();
+            for (Integer arg : argList) {
+                if (inputNodes.containsKey(arg)) {
+                    inputs.add(inputNodes.get(arg));
+                } else {
+                    Integer inputOffset = inputNodes.size();
+                    inputs.add(inputOffset);
+                    inputNodes.put(arg, inputOffset);
+                }
+            }
+            PythonFunction pythonFunction = null;
+            SqlAggFunction aggregateFunction = aggregateCall.getAggregation();
+            if (aggregateFunction instanceof AggSqlFunction) {
+                pythonFunction =
+                        (PythonFunction) ((AggSqlFunction) aggregateFunction).aggregateFunction();
+            } else if (aggregateFunction instanceof BridgingSqlAggFunction) {
+                pythonFunction =
+                        (PythonFunction)
+                                ((BridgingSqlAggFunction) aggregateFunction).getDefinition();
+            }
+            PythonFunctionInfo pythonFunctionInfo =
+                    new PythonAggregateFunctionInfo(
+                            pythonFunction,
+                            inputs.toArray(),
+                            aggregateCall.filterArg,
+                            aggregateCall.isDistinct());
+            pythonFunctionInfos.add(pythonFunctionInfo);
+        }
+        int[] udafInputOffsets = inputNodes.keySet().stream().mapToInt(i -> i).toArray();
+        return Tuple2.of(udafInputOffsets, pythonFunctionInfos.toArray(new PythonFunctionInfo[0]));
     }
 
     private DataViewUtils.DataViewSpec[] extractDataViewSpecs(int index, DataType accType) {
