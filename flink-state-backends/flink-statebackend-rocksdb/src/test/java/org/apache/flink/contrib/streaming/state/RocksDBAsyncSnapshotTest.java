@@ -28,6 +28,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -197,7 +198,7 @@ public class RocksDBAsyncSnapshotTest extends TestLogger {
                             JobID jobID,
                             ExecutionAttemptID executionAttemptID,
                             long checkpointId,
-                            Throwable cause) {}
+                            CheckpointException checkpointException) {}
                 };
 
         JobID jobID = new JobID();
