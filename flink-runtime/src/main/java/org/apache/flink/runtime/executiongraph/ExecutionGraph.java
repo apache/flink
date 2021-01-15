@@ -229,12 +229,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
     private final CompletableFuture<JobStatus> terminationFuture = new CompletableFuture<>();
 
     /**
-     * On each global recovery, this version is incremented. The version breaks conflicts between
-     * concurrent restart attempts by local failover strategies.
-     */
-    private long globalModVersion;
-
-    /**
      * The exception that caused the job to fail. This is set to the first root exception that was
      * not recoverable and triggered job failure.
      */
@@ -333,8 +327,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
         this.kvStateLocationRegistry =
                 new KvStateLocationRegistry(jobInformation.getJobId(), getAllVertices());
-
-        this.globalModVersion = 1L;
 
         this.maxPriorAttemptsHistoryLength = maxPriorAttemptsHistoryLength;
 
@@ -799,7 +791,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
                             1,
                             maxPriorAttemptsHistoryLength,
                             rpcTimeout,
-                            globalModVersion,
                             createTimestamp);
 
             ejv.connectToPredecessors(this.intermediateResults);
@@ -854,8 +845,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
                     || current == JobStatus.RESTARTING) {
                 if (transitionState(current, JobStatus.CANCELLING)) {
 
-                    // make sure no concurrent local actions interfere with the cancellation
-                    final long globalVersionForRestart = incrementGlobalModVersion();
+                    incrementRestarts();
 
                     final CompletableFuture<Void> ongoingSchedulingFuture = schedulingFuture;
 
@@ -881,7 +871,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
                                     // trigger
                                     // restarts, so we need to pass a proper restart global version
                                     // here
-                                    allVerticesInTerminalState(globalVersionForRestart);
+                                    allVerticesInTerminalState();
                                 }
                             });
 
@@ -937,8 +927,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
         } else if (transitionState(state, JobStatus.SUSPENDED, suspensionCause)) {
             initFailureCause(suspensionCause);
 
-            // make sure no concurrent local actions interfere with the cancellation
-            incrementGlobalModVersion();
+            incrementRestarts();
 
             // cancel ongoing scheduling action
             if (schedulingFuture != null) {
@@ -1043,15 +1032,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
         }
     }
 
-    /**
-     * Gets the current global modification version of the ExecutionGraph. The global modification
-     * version is incremented with each global action (cancel/fail/restart) and is used to
-     * disambiguate concurrent modifications between local and global failover actions.
-     */
-    public long getGlobalModVersion() {
-        return globalModVersion;
-    }
-
     // ------------------------------------------------------------------------
     //  State Transitions
     // ------------------------------------------------------------------------
@@ -1090,11 +1070,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
         } else {
             return false;
         }
-    }
-
-    private long incrementGlobalModVersion() {
-        incrementRestarts();
-        return ++globalModVersion;
     }
 
     public void incrementRestarts() {
@@ -1154,7 +1129,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
      * This method is a callback during cancellation/failover and called when all tasks have reached
      * a terminal state (cancelled/failed/finished).
      */
-    private void allVerticesInTerminalState(long expectedGlobalVersionForRestart) {
+    private void allVerticesInTerminalState() {
 
         assertRunningInJobMasterMainThread();
 

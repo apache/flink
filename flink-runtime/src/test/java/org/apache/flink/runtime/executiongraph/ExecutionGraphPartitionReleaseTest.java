@@ -232,7 +232,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
                     final Execution operator2Execution =
                             getCurrentExecution(operator2Vertex, executionGraph);
                     // reset o2
-                    operator2Execution.getVertex().resetForNewExecution(0L, 1L);
+                    operator2Execution.getVertex().resetForNewExecution(0L);
                     assertThat(releasedPartitions, empty());
                 });
 
