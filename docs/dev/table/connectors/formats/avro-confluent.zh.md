@@ -90,21 +90,21 @@ Format 参数
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>指定要使用的格式，这里应该是 <code>'avro-confluent'</code>.</td>
+      <td>指定要使用的格式，这里应该是 <code>'avro-confluent'</code>。</td>
     </tr>
     <tr>
       <td><h5>avro-confluent.schema-registry.url</h5></td>
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的URL </td>
+      <td>用于获取/注册 schemas 的 Confluent Schema Registry 的URL。</td>
     </tr>
     <tr>
       <td><h5>avro-confluent.schema-registry.subject</h5></td>
-      <td>sink 必选</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Confluent Schema Registry主题，用于在序列化期间注册此格式使用的 schema </td>
+      <td>Confluent Schema Registry 主题，用于在序列化期间注册此格式使用的 schema。默认 kafka 和 upsert-kafka 连接器会使用 "&lt;topic_name&gt;-value" 或者 "&lt;topic_name&gt;-key" 作为 subject 名字。但是对于其他连接器（如 filesystem）则在当做 sink 使用时需要显式指定 subject 名字。</td>
     </tr>
     </tbody>
 </table>

@@ -57,6 +57,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.PRO
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.autoCompleteSchemaRegistrySubject;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createKeyFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getKafkaProperties;
@@ -131,9 +132,11 @@ public class UpsertKafkaDynamicTableFactory
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        FactoryUtil.TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        this, autoCompleteSchemaRegistrySubject(context));
 
-        ReadableConfig tableOptions = helper.getOptions();
+        final ReadableConfig tableOptions = helper.getOptions();
 
         EncodingFormat<SerializationSchema<RowData>> keyEncodingFormat =
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT);

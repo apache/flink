@@ -285,10 +285,10 @@ Use format `debezium-avro-confluent` to interpret Debezium Avro messages and for
     </tr>
     <tr>
       <td><h5>debezium-avro-confluent.schema-registry.subject</h5></td>
-      <td>required by sink</td>
+      <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization.</td>
+      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, kafka connector use "&lt;topic_name&gt;-value" as the default subject name when debezium-avro-confluent is used as the value format. But for other connectors (e.g. filesystem), the subject option is required when used as sink.</td>
     </tr>
     </tbody>
 </table>

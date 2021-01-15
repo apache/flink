@@ -74,6 +74,7 @@ import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOP
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.TOPIC_PATTERN;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FIELDS_INCLUDE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.VALUE_FORMAT;
+import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.autoCompleteSchemaRegistrySubject;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createKeyFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.createValueFormatProjection;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaOptions.getFlinkKafkaPartitioner;
@@ -186,7 +187,9 @@ public class KafkaDynamicTableFactory
 
     @Override
     public DynamicTableSink createDynamicTableSink(Context context) {
-        final TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
+        final TableFactoryHelper helper =
+                FactoryUtil.createTableFactoryHelper(
+                        this, autoCompleteSchemaRegistrySubject(context));
 
         final ReadableConfig tableOptions = helper.getOptions();
 
