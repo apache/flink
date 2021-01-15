@@ -23,25 +23,26 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
-import java.util.Optional;
 
 /** {@link BatchExecNode} for temporal table join that implemented by lookup. */
 public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchExecNode<RowData> {
     public BatchExecLookupJoin(
             FlinkJoinType joinType,
-            Optional<RexNode> joinCondition,
+            @Nullable RexNode joinCondition,
             RelOptTable temporalTable,
-            Optional<RexProgram> calcOnTemporalTable,
+            @Nullable RexProgram calcOnTemporalTable,
             Map<Integer, LookupJoinUtil.LookupKey> lookupKeys,
             ExecEdge inputEdge,
-            LogicalType outputType,
+            RowType outputType,
             String description) {
         super(
                 joinType,

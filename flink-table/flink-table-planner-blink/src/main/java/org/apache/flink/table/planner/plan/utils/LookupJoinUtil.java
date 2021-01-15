@@ -91,9 +91,9 @@ public final class LookupJoinUtil {
             LookupTableSource.LookupRuntimeProvider provider =
                     tableSource.getLookupRuntimeProvider(providerContext);
             if (provider instanceof TableFunctionProvider) {
-                return ((TableFunctionProvider) provider).createTableFunction();
+                return ((TableFunctionProvider<?>) provider).createTableFunction();
             } else if (provider instanceof AsyncTableFunctionProvider) {
-                return ((AsyncTableFunctionProvider) provider).createAsyncTableFunction();
+                return ((AsyncTableFunctionProvider<?>) provider).createAsyncTableFunction();
             }
         }
 
@@ -102,8 +102,10 @@ public final class LookupJoinUtil {
                     lookupKeyIndicesInOrder.stream()
                             .map(temporalTable.getRowType().getFieldNames()::get)
                             .toArray(String[]::new);
-            LookupableTableSource tableSource =
-                    (LookupableTableSource) ((LegacyTableSourceTable) temporalTable).tableSource();
+            LegacyTableSourceTable<?> legacyTableSourceTable =
+                    (LegacyTableSourceTable<?>) temporalTable;
+            LookupableTableSource<?> tableSource =
+                    (LookupableTableSource<?>) legacyTableSourceTable.tableSource();
             if (tableSource.isAsyncEnabled()) {
                 return tableSource.getAsyncLookupFunction(lookupFieldNamesInOrder);
             } else {
