@@ -147,11 +147,6 @@ public class TestingFlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public void handleException(Exception e) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public KubernetesWatch watchPodsAndDoCallback(
             Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler) {
         return watchPodsAndDoCallbackFunction.apply(labels, podCallbackHandler);
