@@ -74,7 +74,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData> {
         final ExecNode<RowData> inputNode = (ExecNode<RowData>) getInputNodes().get(0);
         final Transformation<RowData> inputTransform = inputNode.translateToPlan(planner);
         final Configuration config =
-                CommonPythonUtil.getConfig(planner.getExecEnv(), planner.getTableConfig());
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(inputTransform, config);
         if (inputsContainSingleton()) {

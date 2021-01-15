@@ -64,15 +64,16 @@ public class CommonPythonUtil {
     }
 
     @SuppressWarnings("unchecked")
-    public static Configuration getConfig(StreamExecutionEnvironment env, TableConfig tableConfig) {
+    public static Configuration getMergedConfig(
+            StreamExecutionEnvironment env, TableConfig tableConfig) {
         Class clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
         try {
             Method method =
                     clazz.getDeclaredMethod(
-                            "getConfig", StreamExecutionEnvironment.class, TableConfig.class);
+                            "getMergedConfig", StreamExecutionEnvironment.class, TableConfig.class);
             return (Configuration) method.invoke(null, env, tableConfig);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-            throw new TableException("Method getConfig accessed failed.", e);
+            throw new TableException("Method getMergedConfig accessed failed.", e);
         }
     }
 

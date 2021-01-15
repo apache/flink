@@ -111,7 +111,7 @@ public class StreamExecPythonGroupAggregate extends CommonExecPythonAggregate
                         extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewUtils.DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
-        Configuration config = CommonPythonUtil.getConfig(planner.getExecEnv(), tableConfig);
+        Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
         final OneInputStreamOperator<RowData, RowData> operator =
                 getPythonAggregateFunctionOperator(
                         config,

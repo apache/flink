@@ -18,8 +18,11 @@
 package org.apache.flink.python.util;
 
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.PipelineOptions;
@@ -136,7 +139,7 @@ public class PythonConfigUtil {
             Transformation<?> transformation,
             StreamExecutionEnvironment env,
             TableConfig tableConfig) {
-        Configuration config = getConfig(env, tableConfig);
+        Configuration config = getMergedConfig(env, tableConfig);
         if (config.getBoolean(PythonOptions.USE_MANAGED_MEMORY)) {
             setManagedMemory(transformation);
         }
@@ -297,19 +300,41 @@ public class PythonConfigUtil {
         return !existsUnboundedSource;
     }
 
-    public static Configuration getConfig(StreamExecutionEnvironment env, TableConfig tableConfig) {
+    public static Configuration getMergedConfig(
+            StreamExecutionEnvironment env, TableConfig tableConfig) {
         try {
             StreamExecutionEnvironment readEnv = getRealEnvironment(env);
-            Configuration config =
+            Configuration config = getEnvironmentConfig(readEnv);
+            config.addAll(tableConfig.getConfiguration());
+            Configuration mergedConfig =
                     PythonDependencyUtils.configurePythonDependencies(
-                            readEnv.getCachedFiles(), getMergedConfiguration(readEnv, tableConfig));
-            config.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
-            return config;
+                            readEnv.getCachedFiles(), config);
+            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+            return mergedConfig;
         } catch (NoSuchFieldException
                 | IllegalAccessException
                 | NoSuchMethodException
                 | InvocationTargetException e) {
-            throw new TableException("Method getConfig failed.", e);
+            throw new TableException("Method getMergedConfig failed.", e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Configuration getMergedConfig(ExecutionEnvironment env, TableConfig tableConfig) {
+        try {
+            Field field = ExecutionEnvironment.class.getDeclaredField("cacheFile");
+            field.setAccessible(true);
+            Configuration config = new Configuration(env.getConfiguration());
+            config.addAll(tableConfig.getConfiguration());
+            Configuration mergedConfig =
+                    PythonDependencyUtils.configurePythonDependencies(
+                            (List<Tuple2<String, DistributedCache.DistributedCacheEntry>>)
+                                    field.get(env),
+                            config);
+            mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
+            return mergedConfig;
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new TableException("Method getMergedConfig failed.", e);
         }
     }
 
@@ -322,13 +347,5 @@ public class PythonConfigUtil {
             env = (StreamExecutionEnvironment) realExecEnvField.get(env);
         }
         return env;
-    }
-
-    private static Configuration getMergedConfiguration(
-            StreamExecutionEnvironment env, TableConfig tableConfig)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        Configuration config = getEnvironmentConfig(env);
-        config.addAll(tableConfig.getConfiguration());
-        return config;
     }
 }
