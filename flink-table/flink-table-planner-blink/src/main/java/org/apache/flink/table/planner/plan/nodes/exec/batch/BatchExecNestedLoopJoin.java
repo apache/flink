@@ -99,9 +99,9 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         long manageMem = 0;
         if (!singleRowJoin) {
             manageMem =
-                    ExecNodeUtil.getMemorySize(
-                            config,
-                            ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY);
+                    config.getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                            .getBytes();
         }
 
         TwoInputTransformation<RowData, RowData, RowData> transform =
