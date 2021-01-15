@@ -152,8 +152,8 @@ class BatchPhysicalPythonGroupAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecPythonGroupAggregate(
       grouping,
-      auxGrouping,
-      aggCalls,
+      grouping ++ auxGrouping,
+      aggCalls.toArray,
       ExecEdge.builder().damBehavior(ExecEdge.DamBehavior.END_INPUT).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
