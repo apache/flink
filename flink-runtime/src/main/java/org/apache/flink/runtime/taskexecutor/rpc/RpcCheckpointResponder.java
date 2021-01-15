@@ -64,18 +64,10 @@ public class RpcCheckpointResponder implements CheckpointResponder {
             JobID jobID,
             ExecutionAttemptID executionAttemptID,
             long checkpointId,
-            Throwable cause) {
+            CheckpointException checkpointException) {
 
-        // TODO the passed parameter 'cause' is actually always instance of CheckpointException,
-        //  we should change the interfaces to narrow all declined checkpoint's throwable to
-        // CheckpointException.
-        Preconditions.checkArgument(
-                cause instanceof CheckpointException,
-                "The given cause is "
-                        + cause.getClass()
-                        + " instead of expected CheckpointException.");
         checkpointCoordinatorGateway.declineCheckpoint(
                 new DeclineCheckpoint(
-                        jobID, executionAttemptID, checkpointId, (CheckpointException) cause));
+                        jobID, executionAttemptID, checkpointId, checkpointException));
     }
 }

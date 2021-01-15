@@ -20,6 +20,7 @@ package org.apache.flink.runtime.taskmanager;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -64,8 +65,11 @@ public interface CheckpointResponder {
      * @param jobID Job ID of the running job
      * @param executionAttemptID Execution attempt ID of the running task
      * @param checkpointId The ID of the declined checkpoint
-     * @param cause The optional cause why the checkpoint was declined
+     * @param checkpointException The exception why the checkpoint was declined
      */
     void declineCheckpoint(
-            JobID jobID, ExecutionAttemptID executionAttemptID, long checkpointId, Throwable cause);
+            JobID jobID,
+            ExecutionAttemptID executionAttemptID,
+            long checkpointId,
+            CheckpointException checkpointException);
 }

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.io.network.api.writer.NonRecordWriter;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -105,7 +106,7 @@ public class StreamTaskExecutionDecorationTest {
         decorator = new CountingStreamTaskActionExecutor();
         task =
                 new StreamTask<Object, StreamOperator<Object>>(
-                        new StreamTaskTest.DeclineDummyEnvironment(),
+                        new DeclineDummyEnvironment(),
                         null,
                         FatalExitExceptionHandler.INSTANCE,
                         decorator,
@@ -158,5 +159,15 @@ public class StreamTaskExecutionDecorationTest {
             calls.incrementAndGet();
             return callable.call();
         }
+    }
+
+    private static final class DeclineDummyEnvironment extends DummyEnvironment {
+
+        DeclineDummyEnvironment() {
+            super("test", 1, 0);
+        }
+
+        @Override
+        public void declineCheckpoint(long checkpointId, CheckpointException cause) {}
     }
 }
