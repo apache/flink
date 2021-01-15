@@ -21,7 +21,7 @@ package org.apache.flink.connectors.hive.util;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 
-/** Utils to create HiveConf. */
+/** Utils to create HiveConf, see FLINK-20913 for more information. */
 public class HiveConfUtils {
 
     /**
