@@ -264,13 +264,13 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 
         final JobGraph jobGraph = new JobGraph(new JobID(), "test job", vertices);
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, mainThreadExecutor.getMainThreadExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setPartitionTracker(partitionTracker)
                         .build();
 
-        scheduler.initialize(mainThreadExecutor.getMainThreadExecutor());
         mainThreadExecutor.execute(scheduler::startScheduling);
 
         return scheduler;

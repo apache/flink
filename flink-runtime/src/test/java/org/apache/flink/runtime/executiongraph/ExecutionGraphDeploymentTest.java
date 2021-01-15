@@ -468,7 +468,8 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(graph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                graph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
@@ -476,8 +477,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
                         .setFutureExecutor(directExecutor)
                         .setBlobWriter(blobWriter)
                         .build();
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
@@ -528,7 +527,9 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
         // execution graph that executes actions synchronously
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(v1, v2))
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                new JobGraph(v1, v2),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory())
                         .setFutureExecutor(executorService)
@@ -537,8 +538,6 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         checkJobOffloaded(eg);
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         // schedule, this triggers mock deployment
         scheduler.startScheduling();
@@ -615,15 +614,14 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
         final TestingPhysicalSlotProvider physicalSlotProvider =
                 TestingPhysicalSlotProvider.createWithoutImmediatePhysicalSlotCreation();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         physicalSlotProvider))
                         .setFutureExecutor(new DirectScheduledExecutorService())
                         .build();
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
-
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         scheduler.startScheduling();
 

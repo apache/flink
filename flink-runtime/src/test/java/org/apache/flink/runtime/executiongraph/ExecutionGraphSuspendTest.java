@@ -228,13 +228,14 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         final ManuallyTriggeredScheduledExecutor taskRestartExecutor =
                 new ManuallyTriggeredScheduledExecutor();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph())
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                new JobGraph(),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setRestartBackoffTimeStrategy(
                                 new TestRestartBackoffTimeStrategy(true, Long.MAX_VALUE))
                         .setDelayExecutor(taskRestartExecutor)
                         .build();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -311,14 +312,15 @@ public class ExecutionGraphSuspendTest extends TestLogger {
         vertex.setParallelism(parallelism);
 
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(new JobGraph(vertex))
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                new JobGraph(vertex),
+                                ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider
                                                 .createWithLimitedAmountOfPhysicalSlots(
                                                         parallelism, gateway)))
                         .build();
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         return scheduler;
     }
 }

@@ -105,7 +105,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(
                                             slotPool, taskManagerLocation))
@@ -140,7 +140,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testCancelWhileFailing() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -173,7 +173,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailWhileCanceling() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph())
+                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraph(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
@@ -219,7 +219,7 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                    SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(
                                             slotPool, new LocalTaskManagerLocation(), 2))
@@ -276,7 +276,8 @@ public class ExecutionGraphRestartTest extends TestLogger {
     public void testFailExecutionAfterCancel() throws Exception {
         try (SlotPool slotPool = createSlotPoolImpl()) {
             SchedulerBase scheduler =
-                    SchedulerTestingUtils.newSchedulerBuilder(createJobGraphToCancel())
+                    SchedulerTestingUtils.newSchedulerBuilder(
+                                    createJobGraphToCancel(), mainThreadExecutor)
                             .setExecutionSlotAllocatorFactory(
                                     createExecutionSlotAllocatorFactory(
                                             slotPool, new LocalTaskManagerLocation(), 2))
@@ -310,7 +311,6 @@ public class ExecutionGraphRestartTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     private static void startScheduling(SchedulerBase scheduler) throws Exception {
-        scheduler.initialize(mainThreadExecutor);
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.CREATED));
         scheduler.startScheduling();
         assertThat(scheduler.getExecutionGraph().getState(), is(JobStatus.RUNNING));

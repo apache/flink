@@ -354,10 +354,9 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
                         shuffleMaster,
                         partitionTracker,
                         executionDeploymentTracker,
-                        initializationTimestamp);
-
-        scheduler.initialize(getMainThreadExecutor());
-        scheduler.registerJobStatusListener(jobStatusListener);
+                        initializationTimestamp,
+                        getMainThreadExecutor(),
+                        jobStatusListener);
 
         return scheduler;
     }

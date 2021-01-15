@@ -73,7 +73,8 @@ public class ExecutionGraphCoLocationRestartTest {
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                         TestingPhysicalSlotProvider.create(
@@ -91,8 +92,6 @@ public class ExecutionGraphCoLocationRestartTest {
         final ExecutionGraph eg = scheduler.getExecutionGraph();
 
         // enable the queued scheduling for the slot pool
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-
         assertEquals(JobStatus.CREATED, eg.getState());
 
         scheduler.startScheduling();

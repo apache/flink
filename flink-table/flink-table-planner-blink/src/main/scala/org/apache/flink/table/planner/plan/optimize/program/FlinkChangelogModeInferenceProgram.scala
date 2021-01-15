@@ -152,7 +152,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         // ignore required trait from context, because sink is the true root
         sink.copy(sinkTrait, children).asInstanceOf[StreamPhysicalRel]
 
-      case deduplicate: StreamExecDeduplicate =>
+      case deduplicate: StreamPhysicalDeduplicate =>
         // deduplicate only support insert only as input
         val children = visitChildren(deduplicate, ModifyKindSetTrait.INSERT_ONLY)
         val providedTrait = if (!deduplicate.keepLastRow && !deduplicate.isRowtime) {
@@ -465,7 +465,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         createNewNode(rel, children, requiredTrait)
 
       case _: StreamPhysicalGroupWindowAggregate | _: StreamPhysicalGroupWindowTableAggregate |
-           _: StreamExecDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
+           _: StreamPhysicalDeduplicate | _: StreamPhysicalTemporalSort | _: StreamExecMatch |
            _: StreamPhysicalOverAggregate | _: StreamExecIntervalJoin |
            _: StreamPhysicalPythonGroupWindowAggregate | _: StreamPhysicalPythonOverAggregate =>
         // WindowAggregate, WindowTableAggregate, Deduplicate, TemporalSort, CEP, OverAggregate

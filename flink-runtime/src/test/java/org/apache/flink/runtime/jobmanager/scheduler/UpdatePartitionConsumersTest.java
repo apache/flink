@@ -123,11 +123,11 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                 new SimpleAckingTaskManagerGateway();
 
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+                SchedulerTestingUtils.newSchedulerBuilder(
+                                jobGraph, ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .setExecutionSlotAllocatorFactory(
                                 new TestExecutionSlotAllocatorFactory(taskManagerGateway))
                         .build();
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
         final ExecutionVertex ev1 =
                 scheduler.getExecutionVertex(new ExecutionVertexID(v1.getID(), 0));

@@ -241,10 +241,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
     @Test
     public void testSendCancelAndReceiveFail() throws Exception {
         final SchedulerBase scheduler =
-                SchedulerTestingUtils.createScheduler(new JobGraph(createNoOpVertex(10)));
+                SchedulerTestingUtils.createScheduler(
+                        new JobGraph(createNoOpVertex(10)),
+                        ComponentMainThreadExecutorServiceAdapter.forMainThread());
         final ExecutionGraph graph = scheduler.getExecutionGraph();
 
-        scheduler.initialize(ComponentMainThreadExecutorServiceAdapter.forMainThread());
         scheduler.startScheduling();
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(graph);

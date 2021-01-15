@@ -206,7 +206,7 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
-      rel: StreamExecDeduplicate,
+      rel: StreamPhysicalDeduplicate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput)) {
       val mono = new RelModifiedMonotonicity(

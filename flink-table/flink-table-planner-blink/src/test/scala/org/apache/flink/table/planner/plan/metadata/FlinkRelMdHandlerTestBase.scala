@@ -660,7 +660,7 @@ class FlinkRelMdHandlerTestBase {
     val hash1 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
     val streamExchange1 = new StreamPhysicalExchange(
       cluster, scan.getTraitSet.replace(hash1), scan, hash1)
-    val firstRow = new StreamExecDeduplicate(
+    val firstRow = new StreamPhysicalDeduplicate(
       cluster,
       streamPhysicalTraits,
       streamExchange1,
@@ -689,7 +689,7 @@ class FlinkRelMdHandlerTestBase {
     val hash12 = FlinkRelDistribution.hash(Array(1, 2), requireStrict = true)
     val streamExchange2 = new BatchPhysicalExchange(cluster,
       scan.getTraitSet.replace(hash12), scan, hash12)
-    val lastRow = new StreamExecDeduplicate(
+    val lastRow = new StreamPhysicalDeduplicate(
       cluster,
       streamPhysicalTraits,
       streamExchange2,

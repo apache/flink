@@ -24,11 +24,9 @@ import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
-import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
@@ -69,12 +67,6 @@ public class TestingSchedulerNG implements SchedulerNG {
         this.suspendConsumer = suspendConsumer;
         this.triggerSavepointFunction = triggerSavepointFunction;
     }
-
-    @Override
-    public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {}
-
-    @Override
-    public void registerJobStatusListener(JobStatusListener jobStatusListener) {}
 
     @Override
     public void startScheduling() {

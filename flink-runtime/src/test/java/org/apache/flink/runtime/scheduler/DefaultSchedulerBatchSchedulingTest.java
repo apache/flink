@@ -120,12 +120,17 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
             final PhysicalSlotProvider slotProvider =
                     new PhysicalSlotProviderImpl(
                             LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
-            final SchedulerNG scheduler = createScheduler(jobGraph, slotProvider, batchSlotTimeout);
-
             final GloballyTerminalJobStatusListener jobStatusListener =
                     new GloballyTerminalJobStatusListener();
-            scheduler.registerJobStatusListener(jobStatusListener);
-            startScheduling(scheduler, mainThreadExecutor);
+            final SchedulerNG scheduler =
+                    createScheduler(
+                            jobGraph,
+                            mainThreadExecutor,
+                            slotProvider,
+                            batchSlotTimeout,
+                            jobStatusListener);
+
+            CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
 
             // wait until the batch slot timeout has been reached
             Thread.sleep(batchSlotTimeout.toMilliseconds());
@@ -172,12 +177,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                 .join();
     }
 
-    private void startScheduling(
-            SchedulerNG scheduler, ComponentMainThreadExecutor mainThreadExecutor) {
-        scheduler.initialize(mainThreadExecutor);
-        CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
-    }
-
     private SlotPoolImpl createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
@@ -212,12 +211,17 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
     }
 
     private SchedulerNG createScheduler(
-            JobGraph jobGraph, PhysicalSlotProvider physicalSlotProvider, Time slotRequestTimeout)
+            JobGraph jobGraph,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            PhysicalSlotProvider physicalSlotProvider,
+            Time slotRequestTimeout,
+            JobStatusListener jobStatusListener)
             throws Exception {
-        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph)
+        return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setExecutionSlotAllocatorFactory(
                         SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
                                 physicalSlotProvider, slotRequestTimeout))
+                .setJobStatusListener(jobStatusListener)
                 .build();
     }
 }

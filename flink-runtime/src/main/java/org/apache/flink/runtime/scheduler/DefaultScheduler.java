@@ -32,6 +32,7 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.executiongraph.failover.flip1.ExecutionFailureHandler;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategy;
@@ -99,8 +100,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final Set<ExecutionVertexID> verticesWaitingForRestart;
 
-    private final Consumer<ComponentMainThreadExecutor> startUpAction;
-
     DefaultScheduler(
             final Logger log,
             final JobGraph jobGraph,
@@ -123,7 +122,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         super(
@@ -141,7 +142,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 partitionTracker,
                 executionVertexVersioner,
                 executionDeploymentTracker,
-                initializationTimestamp);
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener);
 
         this.log = log;
 
@@ -169,18 +172,12 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                         .createInstance(new DefaultExecutionSlotAllocationContext());
 
         this.verticesWaitingForRestart = new HashSet<>();
-        this.startUpAction = startUpAction;
+        startUpAction.accept(mainThreadExecutor);
     }
 
     // ------------------------------------------------------------------------
     // SchedulerNG
     // ------------------------------------------------------------------------
-
-    @Override
-    public void initialize(ComponentMainThreadExecutor mainThreadExecutor) {
-        super.initialize(mainThreadExecutor);
-        startUpAction.accept(mainThreadExecutor);
-    }
 
     @Override
     protected long getNumberOfRestarts() {

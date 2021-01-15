@@ -146,8 +146,6 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final ClassLoader userCodeLoader;
 
-    private final CheckpointRecoveryFactory checkpointRecoveryFactory;
-
     private final CompletedCheckpointStore completedCheckpointStore;
 
     private final CheckpointsCleaner checkpointsCleaner;
@@ -164,10 +162,7 @@ public abstract class SchedulerBase implements SchedulerNG {
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
-    private ComponentMainThreadExecutor mainThreadExecutor =
-            new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
-                    "SchedulerBase is not initialized with proper main thread executor. "
-                            + "Call to SchedulerBase.setMainThreadExecutor(...) required.");
+    private final ComponentMainThreadExecutor mainThreadExecutor;
 
     public SchedulerBase(
             final Logger log,
@@ -184,7 +179,9 @@ public abstract class SchedulerBase implements SchedulerNG {
             final JobMasterPartitionTracker partitionTracker,
             final ExecutionVertexVersioner executionVertexVersioner,
             final ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener)
             throws Exception {
 
         this.log = checkNotNull(log);
@@ -193,12 +190,12 @@ public abstract class SchedulerBase implements SchedulerNG {
         this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
         this.futureExecutor = checkNotNull(futureExecutor);
         this.userCodeLoader = checkNotNull(userCodeLoader);
-        this.checkpointRecoveryFactory = checkNotNull(checkpointRecoveryFactory);
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
         this.blobWriter = checkNotNull(blobWriter);
         this.jobManagerJobMetricGroup = checkNotNull(jobManagerJobMetricGroup);
         this.executionVertexVersioner = checkNotNull(executionVertexVersioner);
+        this.mainThreadExecutor = mainThreadExecutor;
 
         this.checkpointsCleaner = new CheckpointsCleaner();
         this.completedCheckpointStore =
@@ -221,7 +218,9 @@ public abstract class SchedulerBase implements SchedulerNG {
                         checkNotNull(shuffleMaster),
                         checkNotNull(partitionTracker),
                         checkNotNull(executionDeploymentTracker),
-                        initializationTimestamp);
+                        initializationTimestamp,
+                        mainThreadExecutor,
+                        jobStatusListener);
 
         registerShutDownCheckpointServicesOnExecutionGraphTermination(executionGraph);
 
@@ -233,7 +232,7 @@ public abstract class SchedulerBase implements SchedulerNG {
         inputsLocationsRetriever =
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 
-        this.coordinatorMap = createCoordinatorMap();
+        this.coordinatorMap = createCoordinatorMap(this.mainThreadExecutor);
     }
 
     private void registerShutDownCheckpointServicesOnExecutionGraphTermination(
@@ -275,7 +274,9 @@ public abstract class SchedulerBase implements SchedulerNG {
             ShuffleMaster<?> shuffleMaster,
             JobMasterPartitionTracker partitionTracker,
             ExecutionDeploymentTracker executionDeploymentTracker,
-            long initializationTimestamp)
+            long initializationTimestamp,
+            ComponentMainThreadExecutor mainThreadExecutor,
+            JobStatusListener jobStatusListener)
             throws Exception {
 
         ExecutionGraph newExecutionGraph =
@@ -302,6 +303,11 @@ public abstract class SchedulerBase implements SchedulerNG {
                         newExecutionGraph, jobGraph.getSavepointRestoreSettings());
             }
         }
+
+        newExecutionGraph.setInternalTaskFailuresListener(
+                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
+        newExecutionGraph.registerJobStatusListener(jobStatusListener);
+        newExecutionGraph.start(mainThreadExecutor);
 
         return newExecutionGraph;
     }
@@ -596,20 +602,6 @@ public abstract class SchedulerBase implements SchedulerNG {
     // ------------------------------------------------------------------------
     // SchedulerNG
     // ------------------------------------------------------------------------
-
-    @Override
-    public void initialize(final ComponentMainThreadExecutor mainThreadExecutor) {
-        this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
-        initializeOperatorCoordinators(mainThreadExecutor);
-        executionGraph.setInternalTaskFailuresListener(
-                new UpdateSchedulerNgOnInternalFailuresListener(this, jobGraph.getJobID()));
-        executionGraph.start(mainThreadExecutor);
-    }
-
-    @Override
-    public void registerJobStatusListener(final JobStatusListener jobStatusListener) {
-        executionGraph.registerJobStatusListener(jobStatusListener);
-    }
 
     @Override
     public final void startScheduling() {
@@ -1218,12 +1210,6 @@ public abstract class SchedulerBase implements SchedulerNG {
         }
     }
 
-    private void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
-        for (OperatorCoordinatorHolder coordinatorHolder : getAllCoordinators()) {
-            coordinatorHolder.lazyInitialize(this, mainThreadExecutor);
-        }
-    }
-
     private void startAllOperatorCoordinators() {
         final Collection<OperatorCoordinatorHolder> coordinators = getAllCoordinators();
         try {
@@ -1245,10 +1231,12 @@ public abstract class SchedulerBase implements SchedulerNG {
         return coordinatorMap.values();
     }
 
-    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap() {
+    private Map<OperatorID, OperatorCoordinatorHolder> createCoordinatorMap(
+            ComponentMainThreadExecutor mainThreadExecutor) {
         Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap = new HashMap<>();
         for (ExecutionJobVertex vertex : executionGraph.getAllVertices().values()) {
             for (OperatorCoordinatorHolder holder : vertex.getOperatorCoordinators()) {
+                holder.lazyInitialize(this, mainThreadExecutor);
                 coordinatorMap.put(holder.operatorId(), holder);
             }
         }
