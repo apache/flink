@@ -81,9 +81,8 @@ public class AsyncCheckpointRunnableTest {
         runnable.run();
 
         if (isTaskRunning.get()) {
-            Assert.assertTrue(environment.getCause() instanceof CheckpointException);
             Assert.assertSame(
-                    ((CheckpointException) environment.getCause()).getCheckpointFailureReason(),
+                    (environment.getCause()).getCheckpointFailureReason(),
                     CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION);
         } else {
             Assert.assertNull(environment.getCause());
@@ -92,7 +91,7 @@ public class AsyncCheckpointRunnableTest {
 
     private static class TestEnvironment extends StreamMockEnvironment {
 
-        Throwable cause = null;
+        CheckpointException cause = null;
 
         TestEnvironment() {
             this(
@@ -124,11 +123,11 @@ public class AsyncCheckpointRunnableTest {
         }
 
         @Override
-        public void declineCheckpoint(long checkpointId, Throwable cause) {
-            this.cause = cause;
+        public void declineCheckpoint(long checkpointId, CheckpointException checkpointException) {
+            this.cause = checkpointException;
         }
 
-        Throwable getCause() {
+        CheckpointException getCause() {
             return cause;
         }
     }

@@ -30,6 +30,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
@@ -551,7 +552,7 @@ public class StreamTaskTest extends TestLogger {
 
     @Test
     public void testDecliningCheckpointStreamOperator() throws Exception {
-        DeclineDummyEnvironment declineDummyEnvironment = new DeclineDummyEnvironment();
+        DummyEnvironment dummyEnvironment = new DummyEnvironment();
 
         // mock the returned snapshots
         OperatorSnapshotFutures operatorSnapshotResult1 = mock(OperatorSnapshotFutures.class);
@@ -563,7 +564,7 @@ public class StreamTaskTest extends TestLogger {
                 runTask(
                         () ->
                                 createMockStreamTask(
-                                        declineDummyEnvironment,
+                                        dummyEnvironment,
                                         operatorChain(
                                                 streamOperatorWithSnapshotException(testException),
                                                 streamOperatorWithSnapshot(operatorSnapshotResult1),
@@ -2158,39 +2159,13 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void declineCheckpoint(long checkpointId, Throwable cause) {
+        public void declineCheckpoint(long checkpointId, CheckpointException cause) {
             throw failingCause;
         }
 
         @Override
         public void failExternally(Throwable cause) {
             throw failingCause;
-        }
-    }
-
-    static final class DeclineDummyEnvironment extends DummyEnvironment {
-
-        private long lastDeclinedCheckpointId;
-        private Throwable lastDeclinedCheckpointCause;
-
-        DeclineDummyEnvironment() {
-            super("test", 1, 0);
-            this.lastDeclinedCheckpointId = Long.MIN_VALUE;
-            this.lastDeclinedCheckpointCause = null;
-        }
-
-        @Override
-        public void declineCheckpoint(long checkpointId, Throwable cause) {
-            this.lastDeclinedCheckpointId = checkpointId;
-            this.lastDeclinedCheckpointCause = cause;
-        }
-
-        long getLastDeclinedCheckpointId() {
-            return lastDeclinedCheckpointId;
-        }
-
-        Throwable getLastDeclinedCheckpointCause() {
-            return lastDeclinedCheckpointCause;
         }
     }
 

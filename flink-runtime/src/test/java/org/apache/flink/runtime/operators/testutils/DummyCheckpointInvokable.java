@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.operators.testutils;
 
+import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -34,5 +35,5 @@ public class DummyCheckpointInvokable extends DummyInvokable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics) {}
 
-    public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {}
+    public void abortCheckpointOnBarrier(long checkpointId, CheckpointException cause) {}
 }
