@@ -248,8 +248,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(rel, ModifyKindSetTrait.ALL_CHANGES)
         val leftKindSet = getModifyKindSet(children.head)
         val rightKindSet = getModifyKindSet(children.last)
-        val innerOrSemi = join.flinkJoinType == FlinkJoinType.INNER ||
-            join.flinkJoinType == FlinkJoinType.SEMI
+        val innerOrSemi = join.joinSpec.getJoinType == FlinkJoinType.INNER ||
+            join.joinSpec.getJoinType == FlinkJoinType.SEMI
         val providedTrait = if (innerOrSemi) {
           // forward left and right modify operations
           new ModifyKindSetTrait(leftKindSet.union(rightKindSet))

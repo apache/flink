@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.JoinSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
@@ -43,24 +44,13 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexNode;
-
-import javax.annotation.Nullable;
-
-import java.util.List;
+import java.util.Arrays;
 import java.util.stream.IntStream;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link BatchExecNode} for Hash Join. */
 public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
 
-    private final FlinkJoinType joinType;
-    private final int[] leftKeys;
-    private final int[] rightKeys;
-    private final boolean[] filterNulls;
-    private final @Nullable RexNode nonEquiCondition;
+    private final JoinSpec joinSpec;
     private final boolean leftIsBuild;
     private final int estimatedLeftAvgRowSize;
     private final int estimatedRightAvgRowSize;
@@ -69,29 +59,19 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
     private final boolean tryDistinctBuildRow;
 
     public BatchExecHashJoin(
-            FlinkJoinType joinType,
-            int[] leftKeys,
-            int[] rightKeys,
-            boolean[] filterNulls,
-            @Nullable RexNode nonEquiCondition,
+            JoinSpec joinSpec,
             int estimatedLeftAvgRowSize,
             int estimatedRightAvgRowSize,
             long estimatedLeftRowCount,
             long estimatedRightRowCount,
             boolean leftIsBuild,
             boolean tryDistinctBuildRow,
-            List<ExecEdge> inputEdges,
+            ExecEdge leftEdge,
+            ExecEdge rightEdge,
             RowType outputType,
             String description) {
-        super(inputEdges, outputType, description);
-        this.joinType = checkNotNull(joinType);
-        this.leftKeys = checkNotNull(leftKeys);
-        this.rightKeys = checkNotNull(rightKeys);
-        this.filterNulls = checkNotNull(filterNulls);
-        checkArgument(leftKeys.length > 0 && leftKeys.length == rightKeys.length);
-        checkArgument(leftKeys.length == filterNulls.length);
-
-        this.nonEquiCondition = nonEquiCondition;
+        super(Arrays.asList(leftEdge, rightEdge), outputType, description);
+        this.joinSpec = joinSpec;
         this.leftIsBuild = leftIsBuild;
         this.estimatedLeftAvgRowSize = estimatedLeftAvgRowSize;
         this.estimatedRightAvgRowSize = estimatedRightAvgRowSize;
@@ -112,13 +92,18 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
         RowType leftType = (RowType) leftInputNode.getOutputType();
         RowType rightType = (RowType) rightInputNode.getOutputType();
 
+        JoinUtil.validateJoinSpec(joinSpec, leftType, rightType, false);
+
+        int[] leftKeys = joinSpec.getLeftKeys();
+        int[] rightKeys = joinSpec.getRightKeys();
         LogicalType[] keyFieldTypes =
                 IntStream.of(leftKeys).mapToObj(leftType::getTypeAt).toArray(LogicalType[]::new);
         RowType keyType = RowType.of(keyFieldTypes);
 
         TableConfig config = planner.getTableConfig();
         GeneratedJoinCondition condFunc =
-                JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config, joinSpec.getNonEquiCondition().orElse(null), leftType, rightType);
 
         // projection for equals
         GeneratedProjection leftProj =
@@ -178,6 +163,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
 
         // operator
         StreamOperatorFactory<RowData> operator;
+        FlinkJoinType joinType = joinSpec.getJoinType();
         HashJoinType hashJoinType =
                 HashJoinType.of(
                         leftIsBuild,
@@ -185,7 +171,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
                         joinType.isRightOuter(),
                         joinType == FlinkJoinType.SEMI,
                         joinType == FlinkJoinType.ANTI);
-        if (LongHashJoinGenerator.support(hashJoinType, keyType, filterNulls)) {
+        if (LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls())) {
             operator =
                     LongHashJoinGenerator.gen(
                             config,
@@ -206,7 +192,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData> implements BatchExe
                                     hashJoinType,
                                     condFunc,
                                     reverseJoin,
-                                    filterNulls,
+                                    joinSpec.getFilterNulls(),
                                     buildProj,
                                     probeProj,
                                     tryDistinctBuildRow,

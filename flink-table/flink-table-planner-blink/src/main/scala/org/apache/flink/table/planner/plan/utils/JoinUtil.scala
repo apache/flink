@@ -28,15 +28,13 @@ import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo}
-import org.apache.calcite.rex.{RexBuilder, RexNode, RexUtil}
+import org.apache.calcite.rex.{RexNode, RexUtil}
 import org.apache.calcite.util.ImmutableIntList
-import org.apache.calcite.util.mapping.IntPair
 
 import java.util
 import java.util.Optional
 
 import scala.collection.JavaConversions._
-import scala.collection.mutable
 
 /**
   * Util for [[Join]]s.
@@ -92,52 +90,6 @@ object JoinUtil {
   }
 
   /**
-   * Check and get join left and right keys.
-   */
-  def checkAndGetJoinKeys(
-      keyPairs: List[IntPair],
-      left: RelNode,
-      right: RelNode,
-      allowEmptyKey: Boolean = false): (Array[Int], Array[Int]) = {
-    // get the equality keys
-    val leftKeys = mutable.ArrayBuffer.empty[Int]
-    val rightKeys = mutable.ArrayBuffer.empty[Int]
-    if (keyPairs.isEmpty) {
-      if (allowEmptyKey) {
-        (leftKeys.toArray, rightKeys.toArray)
-      } else {
-        throw new TableException(
-          s"Joins should have at least one equality condition.\n" +
-            s"\tleft: ${left.toString}\n\tright: ${right.toString}\n" +
-            s"please re-check the join statement and make sure there's " +
-            "equality condition for join.")
-      }
-    } else {
-      // at least one equality expression
-      val leftFields = left.getRowType.getFieldList
-      val rightFields = right.getRowType.getFieldList
-
-      keyPairs.foreach { pair =>
-        val leftKeyType = leftFields.get(pair.source).getType.getSqlTypeName
-        val rightKeyType = rightFields.get(pair.target).getType.getSqlTypeName
-
-        // check if keys are compatible
-        if (leftKeyType == rightKeyType) {
-          // add key pair
-          leftKeys += pair.source
-          rightKeys += pair.target
-        } else {
-          throw new TableException(
-            s"Join: Equality join predicate on incompatible types. " +
-              s"\tLeft: ${left.toString}\n\tright: ${right.toString}\n" +
-              "please re-check the join statement.")
-        }
-      }
-      (leftKeys.toArray, rightKeys.toArray)
-    }
-  }
-
-  /**
     * Creates a [[JoinInfo]] by analyzing a condition.
     *
     * <p>NOTES: the functionality of the method is same with [[JoinInfo#of]],
@@ -159,19 +111,6 @@ object JoinUtil {
       // TODO create NonEquiJoinInfo directly
       JoinInfo.of(left, right, condition)
     }
-  }
-
-  def generateConditionFunction(
-      config: TableConfig,
-      rexBuilder: RexBuilder,
-      joinInfo: JoinInfo,
-      leftType: LogicalType,
-      rightType: LogicalType): GeneratedJoinCondition = {
-    generateConditionFunction(
-      config,
-      joinInfo.getRemaining(rexBuilder),
-      leftType,
-      rightType)
   }
 
   def generateConditionFunction(

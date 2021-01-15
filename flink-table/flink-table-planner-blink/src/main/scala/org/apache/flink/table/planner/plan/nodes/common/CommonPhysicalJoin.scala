@@ -24,17 +24,14 @@ import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil}
-import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
-import org.apache.calcite.rel.core.{CorrelationId, Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rel.core.{CorrelationId, Join, JoinRelType}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.validate.SqlValidatorUtil
-import org.apache.calcite.util.mapping.IntPair
 
-import java.util
 import java.util.Collections
 
 import scala.collection.JavaConversions._
@@ -60,19 +57,6 @@ abstract class CommonPhysicalJoin(
   }
 
   lazy val joinSpec: JoinSpec = JoinUtil.createJoinSpec(this)
-
-  def getJoinInfo: JoinInfo = joinInfo
-
-  lazy val filterNulls: Array[Boolean] = {
-    val filterNulls = new util.ArrayList[java.lang.Boolean]
-    JoinUtil.createJoinInfo(getLeft, getRight, getCondition, filterNulls)
-    filterNulls.map(_.booleanValue()).toArray
-  }
-
-  lazy val keyPairs: List[IntPair] = getJoinInfo.pairs.toList
-
-  // TODO remove FlinkJoinType
-  lazy val flinkJoinType: FlinkJoinType = JoinTypeUtil.getFlinkJoinType(this.getJoinType)
 
   lazy val inputRowType: RelDataType = joinType match {
     case JoinRelType.SEMI | JoinRelType.ANTI =>

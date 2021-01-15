@@ -118,18 +118,20 @@ class BatchPhysicalNestedLoopJoin(
   //~ ExecNode methods -----------------------------------------------------------
 
   override def translateToExecNode(): ExecNode[_] = {
+    val (leftEdge, rightEdge) = getInputEdges
     new BatchExecNestedLoopJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       condition,
       leftIsBuild,
       singleRowJoin,
-      getInputEdges,
+      leftEdge,
+      rightEdge,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )
   }
 
-  def getInputEdges: util.List[ExecEdge] = {
+  def getInputEdges: (ExecEdge, ExecEdge) = {
     // this is in sync with BatchExecNestedLoopJoinRuleBase#createNestedLoopJoin
     val (buildRequiredShuffle, probeRequiredShuffle) = if (joinType == JoinRelType.FULL) {
       (ExecEdge.RequiredShuffle.singleton(), ExecEdge.RequiredShuffle.singleton())
@@ -148,9 +150,9 @@ class BatchPhysicalNestedLoopJoin(
       .build()
 
     if (leftIsBuild) {
-      List(buildEdge, probeEdge)
+      (buildEdge, probeEdge)
     } else {
-      List(probeEdge, buildEdge)
+      (probeEdge, buildEdge)
     }
   }
 }
