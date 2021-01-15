@@ -132,13 +132,6 @@ public class Execution
     private final ExecutionAttemptID attemptId;
 
     /**
-     * Gets the global modification version of the execution graph when this execution was created.
-     * This version is bumped in the ExecutionGraph whenever a global failover happens. It is used
-     * to resolve conflicts between concurrent modification by global and local failover actions.
-     */
-    private final long globalModVersion;
-
-    /**
      * The timestamps when state transitions occurred, indexed by {@link ExecutionState#ordinal()}.
      */
     private final long[] stateTimestamps;
@@ -195,8 +188,6 @@ public class Execution
      *     calls.
      * @param vertex The execution vertex to which this Execution belongs
      * @param attemptNumber The execution attempt number.
-     * @param globalModVersion The global modification version of the execution graph when this
-     *     execution was created
      * @param startTimestamp The timestamp that marks the creation of this Execution
      * @param rpcTimeout The rpcTimeout for RPC calls like deploy/cancel/stop.
      */
@@ -204,7 +195,6 @@ public class Execution
             Executor executor,
             ExecutionVertex vertex,
             int attemptNumber,
-            long globalModVersion,
             long startTimestamp,
             Time rpcTimeout) {
 
@@ -213,7 +203,6 @@ public class Execution
         this.attemptId = new ExecutionAttemptID();
         this.rpcTimeout = checkNotNull(rpcTimeout);
 
-        this.globalModVersion = globalModVersion;
         this.attemptNumber = attemptNumber;
 
         this.stateTimestamps = new long[ExecutionState.values().length];
@@ -254,17 +243,6 @@ public class Execution
     @Nullable
     public AllocationID getAssignedAllocationID() {
         return assignedAllocationID;
-    }
-
-    /**
-     * Gets the global modification version of the execution graph when this execution was created.
-     *
-     * <p>This version is bumped in the ExecutionGraph whenever a global failover happens. It is
-     * used to resolve conflicts between concurrent modification by global and local failover
-     * actions.
-     */
-    public long getGlobalModVersion() {
-        return globalModVersion;
     }
 
     public CompletableFuture<TaskManagerLocation> getTaskManagerLocationFuture() {

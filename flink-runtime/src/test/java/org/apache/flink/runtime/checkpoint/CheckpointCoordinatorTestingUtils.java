@@ -474,9 +474,7 @@ public class CheckpointCoordinatorTestingUtils {
         when(vertex.getJobId()).thenReturn(new JobID());
 
         final Execution exec =
-                spy(
-                        new Execution(
-                                mock(Executor.class), vertex, 1, 1L, 1L, Time.milliseconds(500L)));
+                spy(new Execution(mock(Executor.class), vertex, 1, 1L, Time.milliseconds(500L)));
         if (slot != null) {
             // is there a better way to do this?
             Whitebox.setInternalState(exec, "assignedResource", slot);

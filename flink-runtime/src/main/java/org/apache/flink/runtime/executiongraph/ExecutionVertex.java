@@ -100,8 +100,6 @@ public class ExecutionVertex
      * Creates an ExecutionVertex.
      *
      * @param timeout The RPC timeout to use for deploy / cancel calls
-     * @param initialGlobalModVersion The global modification version to initialize the first
-     *     Execution with.
      * @param createTimestamp The timestamp for the vertex creation, used to initialize the first
      *     Execution with.
      * @param maxPriorExecutionHistoryLength The number of prior Executions (= execution attempts)
@@ -112,7 +110,6 @@ public class ExecutionVertex
             int subTaskIndex,
             IntermediateResult[] producedDataSets,
             Time timeout,
-            long initialGlobalModVersion,
             long createTimestamp,
             int maxPriorExecutionHistoryLength) {
 
@@ -142,12 +139,7 @@ public class ExecutionVertex
 
         this.currentExecution =
                 new Execution(
-                        getExecutionGraph().getFutureExecutor(),
-                        this,
-                        0,
-                        initialGlobalModVersion,
-                        createTimestamp,
-                        timeout);
+                        getExecutionGraph().getFutureExecutor(), this, 0, createTimestamp, timeout);
 
         getExecutionGraph().registerExecution(currentExecution);
 
@@ -565,37 +557,21 @@ public class ExecutionVertex
      * reconfiguration actions in a similar way as "optimistic concurrency control".
      *
      * @param timestamp The creation timestamp for the new Execution
-     * @param originatingGlobalModVersion
-     * @return Returns the new created Execution.
-     * @throws GlobalModVersionMismatch Thrown, if the execution graph has a new global mod version
-     *     than the one passed to this message.
      */
-    public Execution resetForNewExecution(
-            final long timestamp, final long originatingGlobalModVersion)
-            throws GlobalModVersionMismatch {
+    public void resetForNewExecution(final long timestamp) {
         LOG.debug(
                 "Resetting execution vertex {} for new execution.", getTaskNameWithSubtaskIndex());
 
         synchronized (priorExecutions) {
-            // check if another global modification has been triggered since the
-            // action that originally caused this reset/restart happened
-            final long actualModVersion = getExecutionGraph().getGlobalModVersion();
-            if (actualModVersion > originatingGlobalModVersion) {
-                // global change happened since, reject this action
-                throw new GlobalModVersionMismatch(originatingGlobalModVersion, actualModVersion);
-            }
-
-            return resetForNewExecutionInternal(timestamp, originatingGlobalModVersion);
+            resetForNewExecutionInternal(timestamp);
         }
     }
 
     public void resetForNewExecution() {
-        resetForNewExecutionInternal(
-                System.currentTimeMillis(), getExecutionGraph().getGlobalModVersion());
+        resetForNewExecutionInternal(System.currentTimeMillis());
     }
 
-    private Execution resetForNewExecutionInternal(
-            final long timestamp, final long originatingGlobalModVersion) {
+    private void resetForNewExecutionInternal(final long timestamp) {
         final Execution oldExecution = currentExecution;
         final ExecutionState oldState = oldExecution.getState();
 
@@ -617,7 +593,6 @@ public class ExecutionVertex
                             getExecutionGraph().getFutureExecutor(),
                             this,
                             oldExecution.getAttemptNumber() + 1,
-                            originatingGlobalModVersion,
                             timestamp,
                             timeout);
 
@@ -644,8 +619,6 @@ public class ExecutionVertex
             for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
                 resultPartition.resetForNewExecution();
             }
-
-            return newExecution;
         } else {
             throw new IllegalStateException(
                     "Cannot reset a vertex that is in non-terminal state " + oldState);

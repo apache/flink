@@ -130,7 +130,6 @@ public class ExecutionJobVertex
             int defaultParallelism,
             int maxPriorAttemptsHistoryLength,
             Time timeout,
-            long initialGlobalModVersion,
             long createTimestamp)
             throws JobException {
 
@@ -194,7 +193,6 @@ public class ExecutionJobVertex
                             i,
                             producedDataSets,
                             timeout,
-                            initialGlobalModVersion,
                             createTimestamp,
                             maxPriorAttemptsHistoryLength);
 
@@ -499,13 +497,12 @@ public class ExecutionJobVertex
         }
     }
 
-    public void resetForNewExecution(final long timestamp, final long expectedGlobalModVersion)
-            throws GlobalModVersionMismatch {
+    public void resetForNewExecution(final long timestamp) {
 
         synchronized (stateMonitor) {
             // check and reset the sharing groups with scheduler hints
             for (int i = 0; i < parallelism; i++) {
-                taskVertices[i].resetForNewExecution(timestamp, expectedGlobalModVersion);
+                taskVertices[i].resetForNewExecution(timestamp);
             }
 
             // set up the input splits again
