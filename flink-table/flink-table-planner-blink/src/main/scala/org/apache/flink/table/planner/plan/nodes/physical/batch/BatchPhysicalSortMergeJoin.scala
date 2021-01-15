@@ -52,9 +52,6 @@ class BatchPhysicalSortMergeJoin(
     val rightSorted: Boolean)
   extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
 
-  protected lazy val (leftAllKey, rightAllKey) =
-    JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight)
-
   protected def isMergeJoinSupportedType(joinRelType: FlinkJoinType): Boolean = {
     joinRelType == FlinkJoinType.INNER ||
       joinRelType == FlinkJoinType.LEFT ||
@@ -183,14 +180,25 @@ class BatchPhysicalSortMergeJoin(
       .build())
 
   override def translateToExecNode(): ExecNode[_] = {
+
+    JoinUtil.validateJoinSpec(
+      joinSpec,
+      FlinkTypeFactory.toLogicalRowType(left.getRowType),
+      FlinkTypeFactory.toLogicalRowType(right.getRowType))
+
     new BatchExecSortMergeJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
-      leftAllKey,
-      rightAllKey,
-      filterNulls,
+      joinSpec.getLeftKeys,
+      joinSpec.getRightKeys,
+      joinSpec.getFilterNulls,
       condition,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
-      getInputEdges,
+      ExecEdge.builder()
+        .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+        .build(),
+      ExecEdge.builder()
+        .damBehavior(ExecEdge.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

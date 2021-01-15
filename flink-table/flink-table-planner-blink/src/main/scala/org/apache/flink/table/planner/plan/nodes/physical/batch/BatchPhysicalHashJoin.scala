@@ -24,16 +24,16 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecEdge, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashJoin
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.util.Util
-import java.util
 
 import scala.collection.JavaConversions._
 
@@ -53,14 +53,6 @@ class BatchPhysicalHashJoin(
     val isBroadcast: Boolean,
     val tryDistinctBuildRow: Boolean)
   extends BatchPhysicalJoinBase(cluster, traitSet, leftRel, rightRel, condition, joinType) {
-
-  private val (leftKeys, rightKeys) =
-    JoinUtil.checkAndGetJoinKeys(keyPairs, getLeft, getRight, allowEmptyKey = true)
-  val (buildKeys, probeKeys) = if (leftIsBuild) (leftKeys, rightKeys) else (rightKeys, leftKeys)
-
-  // Inputs could be changed. See [[BiRel.replaceInput]].
-  def buildRel: RelNode = if (leftIsBuild) getLeft else getRight
-  def probeRel: RelNode = if (leftIsBuild) getRight else getLeft
 
   val hashJoinType: HashJoinType = HashJoinType.of(
     leftIsBuild,
@@ -162,38 +154,40 @@ class BatchPhysicalHashJoin(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val nonEquiPredicates = if (!joinInfo.isEqui) {
-      joinInfo.getRemaining(getCluster.getRexBuilder)
-    } else {
-      null
-    }
+    JoinUtil.validateJoinSpec(
+      joinSpec,
+      FlinkTypeFactory.toLogicalRowType(left.getRowType),
+      FlinkTypeFactory.toLogicalRowType(right.getRowType))
+
     val mq = getCluster.getMetadataQuery
     val leftRowSize = Util.first(mq.getAverageRowSize(left), 24).toInt
     val leftRowCount = Util.first(mq.getRowCount(left), 200000).toLong
     val rightRowSize = Util.first(mq.getAverageRowSize(right), 24).toInt
     val rightRowCount = Util.first(mq.getRowCount(right), 200000).toLong
+    val (leftEdge, rightEdge) = getInputEdges
     new BatchExecHashJoin(
-        JoinTypeUtil.getFlinkJoinType(joinType),
-        leftKeys,
-        rightKeys,
-        filterNulls,
-        nonEquiPredicates,
+        joinSpec,
         leftRowSize,
         rightRowSize,
         leftRowCount,
         rightRowCount,
         leftIsBuild,
         tryDistinctBuildRow,
-        getInputEdges,
+        leftEdge,
+        rightEdge,
         FlinkTypeFactory.toLogicalRowType(getRowType),
         getRelDetailedDescription
     )
   }
 
-  private def getInputEdges: util.List[ExecEdge] = {
+  private def getInputEdges: (ExecEdge, ExecEdge) = {
+
     val (buildRequiredShuffle, probeRequiredShuffle) = if (isBroadcast) {
       (ExecEdge.RequiredShuffle.broadcast(), ExecEdge.RequiredShuffle.any())
     } else {
+      val leftKeys = joinSpec.getLeftKeys
+      val rightKeys = joinSpec.getRightKeys
+      val (buildKeys, probeKeys) = if (leftIsBuild) (leftKeys, rightKeys) else (rightKeys, leftKeys)
       (ExecEdge.RequiredShuffle.hash(buildKeys), ExecEdge.RequiredShuffle.hash(probeKeys))
     }
     val probeDamBehavior = if (hashJoinType.buildLeftSemiOrAnti()) {
@@ -213,9 +207,9 @@ class BatchPhysicalHashJoin(
       .build()
 
     if (leftIsBuild) {
-      List(buildEdge, probeEdge)
+      (buildEdge, probeEdge)
     } else {
-      List(probeEdge, buildEdge)
+      (probeEdge, buildEdge)
     }
   }
 }
