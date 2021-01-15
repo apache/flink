@@ -171,7 +171,7 @@ ON myTopic.key = hTable.rowkey;
       <td style="word-wrap: break-word;">(无)</td>
       <td>String</td>
       <td>
-         可以设置任意 HBase 的配置项。后缀名必须匹配在 <a href="https://abloz.com/hbase/book.html#perf.configurations">HBase 配置文档</a> 中定义的配置键。Flink 将移除 "properties." 配置键前缀并将变换后的配置键和值传入底层的 HBase 客户端。
+         可以设置任意 HBase 的配置项。后缀名必须匹配在 <a href="http://hbase.apache.org/2.3/book.html#hbase_default_configurations">HBase 配置文档</a> 中定义的配置键。Flink 将移除 "properties." 配置键前缀并将变换后的配置键和值传入底层的 HBase 客户端。
          例如您可以设置 <code>'properties.hbase.security.authentication' = 'kerberos'</code> 等kerberos认证参数。
       </td>
     </tr>

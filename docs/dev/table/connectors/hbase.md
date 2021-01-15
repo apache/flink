@@ -178,7 +178,7 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>
-         This can set and pass arbitrary HBase configurations. Suffix names must match the configuration key defined in <a href="https://abloz.com/hbase/book.html#perf.configurations">HBase Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying HBaseClient. For example, you can add a kerberos authentication parameter <code>'properties.hbase.security.authentication' = 'kerberos'</code>.
+         This can set and pass arbitrary HBase configurations. Suffix names must match the configuration key defined in <a href="http://hbase.apache.org/2.3/book.html#hbase_default_configurations">HBase Configuration documentation</a>. Flink will remove the "properties." key prefix and pass the transformed key and values to the underlying HBaseClient. For example, you can add a kerberos authentication parameter <code>'properties.hbase.security.authentication' = 'kerberos'</code>.
       </td>
     </tr>
     </tbody>
