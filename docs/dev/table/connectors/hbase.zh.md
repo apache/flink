@@ -165,6 +165,16 @@ ON myTopic.key = hTable.rowkey;
       <td>Integer</td>
       <td>为 HBase sink operator 定义并行度。默认情况下，并行度由框架决定，和链在一起的上游 operator 一样。</td>
     </tr>
+    <tr>
+      <td><h5>properties.*</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(无)</td>
+      <td>String</td>
+      <td>
+         可以设置任意 HBase 的配置项。后缀名必须匹配在 <a href="http://hbase.apache.org/2.3/book.html#hbase_default_configurations">HBase 配置文档</a> 中定义的配置键。Flink 将移除 "properties." 配置键前缀并将变换后的配置键和值传入底层的 HBase 客户端。
+         例如您可以设置 <code>'properties.hbase.security.authentication' = 'kerberos'</code> 等kerberos认证参数。
+      </td>
+    </tr>
     </tbody>
 </table>
 
