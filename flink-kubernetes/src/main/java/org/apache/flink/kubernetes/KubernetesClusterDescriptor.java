@@ -118,7 +118,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
                                         HighAvailabilityServicesUtils.AddressResolution
                                                 .TRY_ADDRESS_RESOLUTION)));
             } catch (Exception e) {
-                client.handleException(e);
                 throw new RuntimeException(
                         new ClusterRetrieveException("Could not create the RestClusterClient.", e));
             }
@@ -275,7 +274,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
         try {
             client.stopAndCleanupCluster(clusterId);
         } catch (Exception e) {
-            client.handleException(e);
             throw new FlinkException("Could not kill Kubernetes cluster " + clusterId);
         }
     }
@@ -285,7 +283,6 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
         try {
             client.close();
         } catch (Exception e) {
-            client.handleException(e);
             LOG.error("failed to close client, exception {}", e.toString());
         }
     }
