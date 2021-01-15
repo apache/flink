@@ -20,6 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
@@ -28,6 +29,8 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartiti
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DynamicTableFactory;
+import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -51,6 +54,7 @@ import java.util.stream.IntStream;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.AT_LEAST_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.EXACTLY_ONCE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaSinkSemantic.NONE;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
 import static org.apache.flink.table.factories.FactoryUtil.FORMAT_SUFFIX;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 
@@ -210,6 +214,9 @@ public class KafkaOptions {
                     .withDescription(
                             "Optional semantic when commit. Valid enumerationns are [\"at-least-once\", \"exactly-once\", \"none\"]");
 
+    private static final ConfigOption<String> SCHEMA_REGISTRY_SUBJECT =
+            ConfigOptions.key("schema-registry.subject").stringType().noDefaultValue();
+
     // --------------------------------------------------------------------------------------------
     // Option enumerations
     // --------------------------------------------------------------------------------------------
@@ -253,6 +260,10 @@ public class KafkaOptions {
     // Other keywords.
     private static final String PARTITION = "partition";
     private static final String OFFSET = "offset";
+    protected static final String AVRO_CONFLUENT = "avro-confluent";
+    protected static final String DEBEZIUM_AVRO_CONFLUENT = "debezium-avro-confluent";
+    private static final List<String> SCHEMA_REGISTRY_FORMATS =
+            Arrays.asList(AVRO_CONFLUENT, DEBEZIUM_AVRO_CONFLUENT);
 
     // --------------------------------------------------------------------------------------------
     // Validation
@@ -696,6 +707,61 @@ public class KafkaOptions {
                     .toArray();
         }
         throw new TableException("Unknown value fields strategy:" + strategy);
+    }
+
+    /**
+     * Returns a new table context with a default schema registry subject value in the options if
+     * the format is a schema registry format (e.g. 'avro-confluent') and the subject is not
+     * defined.
+     */
+    public static DynamicTableFactory.Context autoCompleteSchemaRegistrySubject(
+            DynamicTableFactory.Context context) {
+        Map<String, String> tableOptions = context.getCatalogTable().getOptions();
+        Map<String, String> newOptions = autoCompleteSchemaRegistrySubject(tableOptions);
+        if (newOptions.size() > tableOptions.size()) {
+            // build a new context
+            return new FactoryUtil.DefaultDynamicTableContext(
+                    context.getObjectIdentifier(),
+                    context.getCatalogTable().copy(newOptions),
+                    context.getConfiguration(),
+                    context.getClassLoader(),
+                    context.isTemporary());
+        } else {
+            return context;
+        }
+    }
+
+    private static Map<String, String> autoCompleteSchemaRegistrySubject(
+            Map<String, String> options) {
+        Configuration configuration = Configuration.fromMap(options);
+        // the subject autoComplete should only be used in sink, check the topic first
+        validateSinkTopic(configuration);
+        final Optional<String> valueFormat = configuration.getOptional(VALUE_FORMAT);
+        final Optional<String> keyFormat = configuration.getOptional(KEY_FORMAT);
+        final Optional<String> format = configuration.getOptional(FORMAT);
+        final String topic = configuration.get(TOPIC).get(0);
+
+        if (format.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(format.get())) {
+            autoCompleteSubject(configuration, format.get(), topic + "-value");
+        } else if (valueFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(valueFormat.get())) {
+            autoCompleteSubject(configuration, "value." + valueFormat.get(), topic + "-value");
+        }
+
+        if (keyFormat.isPresent() && SCHEMA_REGISTRY_FORMATS.contains(keyFormat.get())) {
+            autoCompleteSubject(configuration, "key." + keyFormat.get(), topic + "-key");
+        }
+        return configuration.toMap();
+    }
+
+    private static void autoCompleteSubject(
+            Configuration configuration, String format, String subject) {
+        ConfigOption<String> subjectOption =
+                ConfigOptions.key(format + "." + SCHEMA_REGISTRY_SUBJECT.key())
+                        .stringType()
+                        .noDefaultValue();
+        if (!configuration.getOptional(subjectOption).isPresent()) {
+            configuration.setString(subjectOption, subject);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
