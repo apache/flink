@@ -152,6 +152,42 @@ a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are
 </div>
 </div>
 
+<div class="codetabs" data-hide-tabs="1" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+The default planner supports the following set of SQL types:
+
+| Data Type | Remarks for Data Type |
+|:----------|:----------------------|
+| `CHAR` | |
+| `VARCHAR` | |
+| `STRING` | |
+| `BOOLEAN` | |
+| `BYTES` | `BINARY` and `VARBINARY` are not supported yet. |
+| `DECIMAL` | Supports fixed precision and scale. |
+| `TINYINT` | |
+| `SMALLINT` | |
+| `INTEGER` | |
+| `BIGINT` | |
+| `FLOAT` | |
+| `DOUBLE` | |
+| `DATE` | |
+| `TIME` | Supports only a precision of `0`. |
+| `TIMESTAMP` | |
+| `TIMESTAMP WITH LOCAL TIME ZONE` | |
+| `INTERVAL` | Supports only interval of `MONTH` and `SECOND(3)`. |
+| `ARRAY` | |
+| `MULTISET` | |
+| `MAP` | |
+| `ROW` | |
+| `RAW` | |
+| structured types | Only exposed in user-defined functions yet. |
+
+</div>
+<div data-lang="Python" markdown="1">
+N/A
+</div>
+</div>
+
 List of Data Types
 ------------------
 

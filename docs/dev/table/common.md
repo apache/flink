@@ -122,7 +122,7 @@ The `TableEnvironment` is the entrypoint for Table API and SQL integration and i
 * Executing SQL queries
 * Registering a user-defined (scalar, table, or aggregation) function
 * Converting a `DataStream` into a `Table`
-* Holding a reference to a `StreamExecutionEnvironment`
+* In case of StreamTableEnvironment holding a reference to a `StreamExecutionEnvironment`
 
 A `Table` is always bound to a specific `TableEnvironment`.
 It is not possible to combine tables of different TableEnvironments in the same query, e.g., to join or union them.
@@ -158,25 +158,16 @@ val tEnv = TableEnvironment.create(setting)
 </div>
 <div data-lang="python" markdown="1">
 {% highlight python %}
-# ***************
-# Streaming QUERY
-# ***************
+from pyflink.table import EnvironmentSettings, StreamTableEnvironment, BatchTableEnvironment
 
-from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamTableEnvironment, EnvironmentSettings
+# create a blink streaming TableEnvironment
+env_settings = EnvironmentSettings.new_instance().use_blink_planner().build()
+table_env = StreamTableEnvironment.create(environment_settings=env_settings)
 
-b_s_env = StreamExecutionEnvironment.get_execution_environment()
-b_s_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
-b_s_t_env = StreamTableEnvironment.create(b_s_env, environment_settings=b_s_settings)
+# create a blink batch TableEnvironment
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().build()
+table_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
-# ***********
-# BATCH QUERY
-# ***********
-
-from pyflink.table import EnvironmentSettings, BatchTableEnvironment
-
-b_b_settings = EnvironmentSettings.new_instance().use_blink_planner().in_batch_mode().build()
-b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 {% endhighlight %}
 </div>
 </div>
@@ -850,8 +841,8 @@ val table2: Table = tableEnv.fromDataStream(stream, $"myLong", $"myString")
 
 ### Convert a Table into a DataStream 
 
-A results of a `Table` can be converted into a `DataStream`.
-In this way, custom DataStream programs can be run on the result of a Table API or SQL query.
+The results of a `Table` can be converted into a `DataStream`.
+In this way, custom `DataStream` programs can be run on the result of a Table API or SQL query.
 
 When converting a `Table` into a `DataStream` you need to specify the data type of the resulting records, i.e., the data type into which the rows of the `Table` are to be converted.
 Often the most convenient conversion type is `Row`.
@@ -950,7 +941,6 @@ When defining a position-based mapping, the specified names must not exist in th
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
 
 DataStream<Tuple2<Long, Integer>> stream = ...
@@ -994,7 +984,6 @@ If no field names are specified, the default field names and field order of the 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 DataStream<Tuple2<Long, Integer>> stream = ...
@@ -1083,7 +1072,6 @@ Name-based mapping allows for reordering fields and projection with alias (`as`)
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 DataStream<Tuple2<Long, String>> stream = ...
@@ -1153,7 +1141,6 @@ When converting a POJO `DataStream` into a `Table` without specifying field name
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // Person is a POJO with fields "name" and "age"

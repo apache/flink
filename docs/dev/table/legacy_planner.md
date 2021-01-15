@@ -118,8 +118,8 @@ val tEnv = BatchTableEnvironment.create(env)
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment
 
-f_b_env = ExecutionEnvironment.get_execution_environment()
-f_b_t_env = BatchTableEnvironment.create(f_b_env, table_config)
+b_env = ExecutionEnvironment.get_execution_environment()
+t_env = BatchTableEnvironment.create(b_env, table_config)
 {% endhighlight %}
 </div>
 </div>
@@ -238,8 +238,6 @@ val dsTuple: DataSet[(String, Int)] = tableEnv.toDataSet[(String, Int)](table)
 
 ## Data Types
 
-<div class="codetabs" data-hide-tabs="1" markdown="1">
-<div data-lang="Java/Scala" markdown="1">
 The legacy planner, introduced before Flink 1.9, primarily supports type information.
 It has only limited support for data types.
 It is possible to declare data types that can be translated into type information such that the legacy planner understands them.
@@ -277,8 +275,8 @@ For the *Data Type Representation* column the table omits the prefix `org.apache
 | `MAP(..., ...)` | `MAP<...,...>` | `MAP(...)` | |
 | other generic types | | `RAW(...)` | |
 
-</div>
-</div>
+<span class="label label-danger">Attention</span> If there is a problem with the new type system. Users
+can fallback to type information defined in `org.apache.flink.table.api.Types` at any time.
 
 ## Unsupported Features
 
