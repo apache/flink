@@ -29,8 +29,7 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.apache.flink.util.FileUtils
-
-import org.junit.Assert.{assertEquals, fail}
+import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -906,6 +905,29 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
       + "'`default_catalog`.`default_database`.`t1`' exists. "
       + "Drop it first before removing the permanent table.")
     tableEnv.executeSql("drop table t1")
+  }
+
+  @Test
+  def testDropTableWithIllegalWatermark(): Unit = {
+    // for FLINK-20937
+    val illegalDDL =
+      """
+        |create table t1 (
+        |  a bigint,
+        |  b bigint,
+        |  proctime as PROCTIME(),
+        |  WATERMARK FOR proctime as proctime - INTERVAL '5' SECOND
+        |) with (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    // create table doesn't check the validity for now
+    tableEnv.executeSql(illegalDDL)
+    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    // should success
+    tableEnv.executeSql("DROP TABLE t1")
+    assertTrue(tableEnv.listTables().isEmpty)
   }
 
   @Test
