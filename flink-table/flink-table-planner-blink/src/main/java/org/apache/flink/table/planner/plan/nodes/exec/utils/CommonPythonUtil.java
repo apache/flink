@@ -29,6 +29,7 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
+import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
@@ -36,6 +37,7 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -68,11 +70,15 @@ public class CommonPythonUtil {
             StreamExecutionEnvironment env, TableConfig tableConfig) {
         Class clazz = loadClass(PYTHON_CONFIG_UTILS_CLASS);
         try {
+            StreamExecutionEnvironment realEnv = getRealEnvironment(env);
             Method method =
                     clazz.getDeclaredMethod(
                             "getMergedConfig", StreamExecutionEnvironment.class, TableConfig.class);
-            return (Configuration) method.invoke(null, env, tableConfig);
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            return (Configuration) method.invoke(null, realEnv, tableConfig);
+        } catch (NoSuchFieldException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | InvocationTargetException e) {
             throw new TableException("Method getMergedConfig accessed failed.", e);
         }
     }
@@ -148,5 +154,16 @@ public class CommonPythonUtil {
             }
         }
         return new PythonFunctionInfo((PythonFunction) functionDefinition, inputs.toArray());
+    }
+
+    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
+            throws NoSuchFieldException, IllegalAccessException {
+        Field realExecEnvField =
+                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
+        realExecEnvField.setAccessible(true);
+        while (env instanceof DummyStreamExecutionEnvironment) {
+            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
+        }
+        return env;
     }
 }

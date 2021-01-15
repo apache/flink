@@ -100,10 +100,21 @@ trait CommonPythonBase {
       env: StreamExecutionEnvironment,
       tableConfig: TableConfig): Configuration = {
     val clazz = loadClass(CommonPythonBase.PythonConfigUtil)
+    val realEnv = getRealEnvironment(env)
     val method = clazz.getDeclaredMethod(
       "getMergedConfig", classOf[StreamExecutionEnvironment], classOf[TableConfig])
-    val config = method.invoke(null, env, tableConfig).asInstanceOf[Configuration]
+    val config = method.invoke(null, realEnv, tableConfig).asInstanceOf[Configuration]
     config
+  }
+
+  private def getRealEnvironment(env: StreamExecutionEnvironment): StreamExecutionEnvironment = {
+    val realExecEnvField = classOf[DummyStreamExecutionEnvironment].getDeclaredField("realExecEnv")
+    realExecEnvField.setAccessible(true)
+    var realEnv = env
+    while (realEnv.isInstanceOf[DummyStreamExecutionEnvironment]) {
+      realEnv = realExecEnvField.get(realEnv).asInstanceOf[StreamExecutionEnvironment]
+    }
+    realEnv
   }
 
   protected def isPythonWorkerUsingManagedMemory(config: Configuration): Boolean = {

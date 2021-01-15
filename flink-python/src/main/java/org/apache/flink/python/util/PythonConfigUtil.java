@@ -49,7 +49,6 @@ import org.apache.flink.streaming.api.transformations.WithBoundedness;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -303,18 +302,13 @@ public class PythonConfigUtil {
     public static Configuration getMergedConfig(
             StreamExecutionEnvironment env, TableConfig tableConfig) {
         try {
-            StreamExecutionEnvironment readEnv = getRealEnvironment(env);
-            Configuration config = getEnvironmentConfig(readEnv);
+            Configuration config = new Configuration(getEnvironmentConfig(env));
             config.addAll(tableConfig.getConfiguration());
             Configuration mergedConfig =
-                    PythonDependencyUtils.configurePythonDependencies(
-                            readEnv.getCachedFiles(), config);
+                    PythonDependencyUtils.configurePythonDependencies(env.getCachedFiles(), config);
             mergedConfig.setString("table.exec.timezone", tableConfig.getLocalTimeZone().getId());
             return mergedConfig;
-        } catch (NoSuchFieldException
-                | IllegalAccessException
-                | NoSuchMethodException
-                | InvocationTargetException e) {
+        } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw new TableException("Method getMergedConfig failed.", e);
         }
     }
@@ -336,16 +330,5 @@ public class PythonConfigUtil {
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new TableException("Method getMergedConfig failed.", e);
         }
-    }
-
-    private static StreamExecutionEnvironment getRealEnvironment(StreamExecutionEnvironment env)
-            throws NoSuchFieldException, IllegalAccessException {
-        Field realExecEnvField =
-                DummyStreamExecutionEnvironment.class.getDeclaredField("realExecEnv");
-        realExecEnvField.setAccessible(true);
-        while (env instanceof DummyStreamExecutionEnvironment) {
-            env = (StreamExecutionEnvironment) realExecEnvField.get(env);
-        }
-        return env;
     }
 }
