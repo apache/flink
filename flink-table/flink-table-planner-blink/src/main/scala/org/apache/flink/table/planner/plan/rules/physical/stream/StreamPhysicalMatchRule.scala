@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch
-import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecMatch
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMatch
 import org.apache.flink.table.planner.plan.utils.{MatchUtil, RexDefaultVisitor}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -36,15 +36,15 @@ import org.apache.calcite.util.ImmutableBitSet
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class StreamExecMatchRule
+class StreamPhysicalMatchRule
   extends ConverterRule(
     classOf[FlinkLogicalMatch],
     FlinkConventions.LOGICAL,
     FlinkConventions.STREAM_PHYSICAL,
-    "StreamExecMatchRule") {
+    "StreamPhysicalMatchRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val logicalMatch: FlinkLogicalMatch = call.rel(0).asInstanceOf[FlinkLogicalMatch]
+    val logicalMatch: FlinkLogicalMatch = call.rel(0)
 
     validateAggregations(logicalMatch.getMeasures.values().asScala)
     validateAggregations(logicalMatch.getPatternDefinitions.values().asScala)
@@ -80,13 +80,11 @@ class StreamExecMatchRule
         "MATCH RECOGNIZE clause requires flink-cep dependency to be present on the classpath.", ex)
     }
 
-    new StreamExecMatch(
+    new StreamPhysicalMatch(
       rel.getCluster,
       traitSet,
       convertInput,
       MatchRecognize(
-        logicalMatch.getInput,
-        logicalMatch.getRowType,
         logicalMatch.getPattern,
         logicalMatch.getPatternDefinitions,
         logicalMatch.getMeasures,
@@ -156,6 +154,6 @@ class StreamExecMatchRule
 
 }
 
-object StreamExecMatchRule {
-  val INSTANCE: RelOptRule = new StreamExecMatchRule
+object StreamPhysicalMatchRule {
+  val INSTANCE: RelOptRule = new StreamPhysicalMatchRule
 }
