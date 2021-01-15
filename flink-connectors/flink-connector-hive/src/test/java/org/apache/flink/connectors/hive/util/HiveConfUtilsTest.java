@@ -40,17 +40,19 @@ public class HiveConfUtilsTest {
                     + "</configuration>\n";
 
     @Test
-    public void test() {
+    public void testCreateHiveConf() {
         HiveConf hiveConf = createHiveConf();
         Assert.assertTrue(hiveConf.getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
 
         // will override configurations from `hiveConf` with hive default values which default value
         // is null or empty string
-        HiveConf hiveConfNew = new HiveConf(hiveConf, HiveConf.class);
-        Assert.assertFalse(hiveConfNew.getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
+        Assert.assertFalse(
+                new HiveConf(hiveConf, HiveConf.class)
+                        .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
 
-        hiveConfNew.addResource(hiveConf);
-        Assert.assertTrue(hiveConfNew.getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
+        Assert.assertTrue(
+                HiveConfUtils.create(hiveConf)
+                        .getBoolVar(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL));
     }
 
     private HiveConf createHiveConf() {

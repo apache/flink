@@ -21,18 +21,23 @@ package org.apache.flink.connectors.hive.util;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 
-/** Create HiveConf. */
+/** Utils to create HiveConf. */
 public class HiveConfUtils {
 
     /**
-     * Create HiveConf instance via hadoop configuration.
+     * Create HiveConf instance via Hadoop configuration. Since {@link
+     * HiveConf#HiveConf(org.apache.hadoop.conf.Configuration, java.lang.Class)} will override
+     * properties in Hadoop configuration with Hive default values ({@link org.apache
+     * .hadoop.hive.conf.HiveConf.ConfVars}), so we should use this method to create HiveConf
+     * instance via Hadoop configuration.
      *
-     * @param jobConf hadoop configuration
+     * @param conf Hadoop configuration
      * @return HiveConf instance
      */
-    public static HiveConf create(Configuration jobConf) {
-        HiveConf hiveConf = new HiveConf(jobConf, HiveConf.class);
-        hiveConf.addResource(jobConf);
+    public static HiveConf create(Configuration conf) {
+        HiveConf hiveConf = new HiveConf(conf, HiveConf.class);
+        // to make sure Hive configuration properties in conf not be overridden
+        hiveConf.addResource(conf);
         return hiveConf;
     }
 }
