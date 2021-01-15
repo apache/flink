@@ -136,8 +136,10 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         windowSizeAndSlideSize.f1);
 
         final long managedMemory =
-                ExecNodeUtil.getMemorySize(
-                        tableConfig, ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY);
+                tableConfig
+                        .getConfiguration()
+                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+                        .getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 getDesc(),

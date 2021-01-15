@@ -21,6 +21,7 @@ package org.apache.flink.table.api.config;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
@@ -158,9 +159,10 @@ public class ExecutionConfigOptions {
                                     + "Currently we only support compress spilled data for sort and hash-agg and hash-join operators.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
-    public static final ConfigOption<String> TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE =
             key("table.exec.spill-compression.block-size")
-                    .defaultValue("64 kb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("64 kb"))
                     .withDescription(
                             "The memory size used to do compress when spilling data. "
                                     + "The larger the memory, the higher the compression ratio, "
@@ -185,9 +187,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
             key("table.exec.resource.external-buffer-memory")
-                    .defaultValue("10 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("10 mb"))
                     .withDescription(
                             "Sets the external buffer memory size that is used in sort merge join"
                                     + " and nested join and over window. Note: memory size is only a weight hint,"
@@ -197,9 +200,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY =
             key("table.exec.resource.hash-agg.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed memory size of hash aggregate operator."
                                     + " Note: memory size is only a weight hint, it will affect the weight of memory"
@@ -209,9 +213,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY =
             key("table.exec.resource.hash-join.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed memory for hash join operator. It defines the lower"
                                     + " limit. Note: memory size is only a weight hint, it will affect the weight of"
@@ -221,9 +226,10 @@ public class ExecutionConfigOptions {
     @Documentation.ExcludeFromDocumentation(
             "Beginning from Flink 1.10, this is interpreted as a weight hint "
                     + "instead of an absolute memory requirement. Users should not need to change these carefully tuned weight hints.")
-    public static final ConfigOption<String> TABLE_EXEC_RESOURCE_SORT_MEMORY =
+    public static final ConfigOption<MemorySize> TABLE_EXEC_RESOURCE_SORT_MEMORY =
             key("table.exec.resource.sort.memory")
-                    .defaultValue("128 mb")
+                    .memoryType()
+                    .defaultValue(MemorySize.parse("128 mb"))
                     .withDescription(
                             "Sets the managed buffer memory size for sort operator. Note: memory"
                                     + " size is only a weight hint, it will affect the weight of memory that can be"

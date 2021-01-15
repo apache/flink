@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.sort;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.io.compression.BlockCompressionFactory;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -215,10 +214,7 @@ public class BinaryExternalSorter implements Sorter<BinaryRowData> {
                         : null;
         this.compressionBlockSize =
                 (int)
-                        MemorySize.parse(
-                                        conf.getString(
-                                                ExecutionConfigOptions
-                                                        .TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE))
+                        conf.get(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)
                                 .getBytes();
         asyncMergeEnable =
                 conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
