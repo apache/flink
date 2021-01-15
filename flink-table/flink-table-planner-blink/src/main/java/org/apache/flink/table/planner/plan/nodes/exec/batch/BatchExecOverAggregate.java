@@ -153,9 +153,10 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                             inputType.getChildren().stream()
                                     .allMatch(BinaryRowData::isInFixedLengthPart));
             managedMemory =
-                    ExecNodeUtil.getMemorySize(
-                            tableConfig,
-                            ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY);
+                    tableConfig
+                            .getConfiguration()
+                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                            .getBytes();
         }
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
