@@ -90,6 +90,12 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
     /** Number of fields. */
     private final int fieldCount;
 
+    /** Pattern of the specific database. */
+    private final Pattern databasePattern;
+
+    /** Pattern of the specific table. */
+    private final Pattern tablePattern;
+
     private CanalJsonDeserializationSchema(
             DataType physicalDataType,
             List<ReadableMetadata> requestedMetadata,
@@ -116,6 +122,8 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         this.table = table;
         this.ignoreParseErrors = ignoreParseErrors;
         this.fieldCount = ((RowType) physicalDataType.getLogicalType()).getFieldCount();
+        this.databasePattern = database == null ? null : Pattern.compile(database);
+        this.tablePattern = table == null ? null : Pattern.compile(table);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -198,12 +206,16 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
         try {
             final JsonNode root = jsonDeserializer.deserializeToJsonNode(message);
             if (database != null) {
-                if (!Pattern.matches(database, root.get(ReadableMetadata.DATABASE.key).asText())) {
+                if (!databasePattern
+                        .matcher(root.get(ReadableMetadata.DATABASE.key).asText())
+                        .matches()) {
                     return;
                 }
             }
             if (table != null) {
-                if (!Pattern.matches(table, root.get(ReadableMetadata.TABLE.key).asText())) {
+                if (!tablePattern
+                        .matcher(root.get(ReadableMetadata.TABLE.key).asText())
+                        .matches()) {
                     return;
                 }
             }
