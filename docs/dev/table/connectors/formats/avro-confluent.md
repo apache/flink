@@ -97,14 +97,14 @@ Format Options
       <td>required</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The URL of the Confluent Schema Registry to fetch/register schemas</td>
+      <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>
     </tr>
     <tr>
       <td><h5>avro-confluent.schema-registry.subject</h5></td>
-      <td>required by sink</td>
+      <td>optional</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization</td>
+      <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, kafka and upsert-kafka connectors use "&lt;topic_name&gt;-value" or "&lt;topic_name&gt;-key" as the default subject name if avro-confluent is used as the value or key format. But for other connectors (e.g. filesystem), the subject option is required when used as sink.</td>
     </tr>
     </tbody>
 </table>
