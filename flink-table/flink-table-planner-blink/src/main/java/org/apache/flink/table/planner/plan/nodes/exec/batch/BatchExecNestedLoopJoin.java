@@ -35,9 +35,9 @@ import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.calcite.rex.RexNode;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
-import java.util.List;
+import org.apache.calcite.rex.RexNode;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -55,10 +55,11 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
             RexNode condition,
             boolean leftIsBuild,
             boolean singleRowJoin,
-            List<ExecEdge> inputEdges,
+            ExecEdge leftEdge,
+            ExecEdge rightEdge,
             RowType outputType,
             String description) {
-        super(inputEdges, outputType, description);
+        super(Lists.newArrayList(leftEdge, rightEdge), outputType, description);
         this.joinType = checkNotNull(joinType);
         this.condition = checkNotNull(condition);
         this.leftIsBuild = leftIsBuild;

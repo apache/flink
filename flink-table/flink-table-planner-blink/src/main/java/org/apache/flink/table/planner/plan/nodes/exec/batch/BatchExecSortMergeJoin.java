@@ -42,11 +42,12 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
+
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
-import java.util.List;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -70,10 +71,11 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
             boolean[] filterNulls,
             @Nullable RexNode nonEquiCondition,
             boolean leftIsSmaller,
-            List<ExecEdge> inputEdges,
+            ExecEdge leftEdge,
+            ExecEdge rightEdge,
             RowType outputType,
             String description) {
-        super(inputEdges, outputType, description);
+        super(Lists.newArrayList(leftEdge, rightEdge), outputType, description);
         this.joinType = checkNotNull(joinType);
         this.leftKeys = checkNotNull(leftKeys);
         this.rightKeys = checkNotNull(rightKeys);
