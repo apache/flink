@@ -195,11 +195,6 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
     }
 
     @Override
-    public void handleException(Exception e) {
-        LOG.error("A Kubernetes exception occurred.", e);
-    }
-
-    @Override
     public Optional<KubernetesService> getRestService(String clusterId) {
         final String serviceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
 
