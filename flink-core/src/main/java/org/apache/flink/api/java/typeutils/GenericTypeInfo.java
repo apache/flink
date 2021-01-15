@@ -112,7 +112,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
 
     @Override
     public int hashCode() {
-        return typeClass.hashCode();
+        return typeClass.getName().hashCode();
     }
 
     @Override
@@ -126,7 +126,7 @@ public class GenericTypeInfo<T> extends TypeInformation<T> implements AtomicType
             @SuppressWarnings("unchecked")
             GenericTypeInfo<T> genericTypeInfo = (GenericTypeInfo<T>) obj;
 
-            return typeClass == genericTypeInfo.typeClass;
+            return typeClass.getName().equals(genericTypeInfo.typeClass.getName());
         } else {
             return false;
         }
