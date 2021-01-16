@@ -726,10 +726,17 @@ public class Task
             // so that it is available to the invokable during its entire lifetime.
             executingThread.setContextClassLoader(userCodeClassLoader.asClassLoader());
 
-            // now load and instantiate the task's invokable code
-            invokable =
-                    loadAndInstantiateInvokable(
-                            userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            // When constructing invokable, separate threads can be constructed and thus should be
+            // monitored for system exit (in addition to invoking thread itself monitored below).
+            FlinkSecurityManager.monitorUserSystemExitForCurrentThread();
+            try {
+                // now load and instantiate the task's invokable code
+                invokable =
+                        loadAndInstantiateInvokable(
+                                userCodeClassLoader.asClassLoader(), nameOfInvokableClass, env);
+            } finally {
+                FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
+            }
 
             // ----------------------------------------------------------------
             //  actual task core work

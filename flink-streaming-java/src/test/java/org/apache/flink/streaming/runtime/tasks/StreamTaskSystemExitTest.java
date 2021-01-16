@@ -58,8 +58,12 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
+import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
@@ -71,6 +75,7 @@ import org.junit.Test;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -81,6 +86,17 @@ import static org.mockito.Mockito.mock;
 public class StreamTaskSystemExitTest extends TestLogger {
     private static final int TEST_EXIT_CODE = 123;
     private SecurityManager originalSecurityManager;
+
+    /**
+     * Perform the check System.exit() does through security manager without actually calling
+     * System.exit() not to confuse Junit about failed test.
+     */
+    private static void systemExit() {
+        SecurityManager securityManager = System.getSecurityManager();
+        if (securityManager != null) {
+            securityManager.checkExit(TEST_EXIT_CODE);
+        }
+    }
 
     @Before
     public void setUp() {
@@ -98,15 +114,17 @@ public class StreamTaskSystemExitTest extends TestLogger {
 
     @Test
     public void testInitSystemExitStreamTask() throws Exception {
-        Task task = createSystemExitTask(InitSystemExitStreamTask.class.getName());
+        Task task = createSystemExitTask(InitSystemExitStreamTask.class.getName(), null);
         task.run();
+        assertNotNull(task.getFailureCause());
         assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
     }
 
     @Test
     public void testProcessInputSystemExitStreamTask() throws Exception {
-        Task task = createSystemExitTask(ProcessInputSystemExitStreamTask.class.getName());
+        Task task = createSystemExitTask(ProcessInputSystemExitStreamTask.class.getName(), null);
         task.run();
+        assertNotNull(task.getFailureCause());
         assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
     }
 
@@ -118,11 +136,24 @@ public class StreamTaskSystemExitTest extends TestLogger {
         systemExitStreamTask.cancel();
     }
 
-    private Task createSystemExitTask(final String invokableClassName) throws Exception {
+    @Test
+    public void testStreamSourceSystemExitStreamTask() throws Exception {
+        final TestStreamSource<String, SystemExitSourceFunction> testStreamSource =
+                new TestStreamSource<>(new SystemExitSourceFunction());
+        Task task =
+                createSystemExitTask(SystemExitSourceStreamTask.class.getName(), testStreamSource);
+        task.run();
+        assertNotNull(task.getFailureCause());
+        assertEquals(task.getFailureCause().getClass(), UserSystemExitException.class);
+    }
+
+    private Task createSystemExitTask(final String invokableClassName, StreamOperator<?> operator)
+            throws Exception {
         final Configuration taskConfiguration = new Configuration();
         final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-
         streamConfig.setOperatorID(new OperatorID());
+        streamConfig.setStreamOperator(operator);
+        streamConfig.setTimeCharacteristic(TimeCharacteristic.ProcessingTime); // for source run
 
         final JobInformation jobInformation =
                 new JobInformation(
@@ -217,17 +248,6 @@ public class StreamTaskSystemExitTest extends TestLogger {
             }
         }
 
-        /**
-         * Perform the check System.exit() does through security manager without actually calling
-         * System.exit() not to confuse Junit about failed test.
-         */
-        private void systemExit() {
-            SecurityManager securityManager = System.getSecurityManager();
-            if (securityManager != null) {
-                securityManager.checkExit(TEST_EXIT_CODE);
-            }
-        }
-
         /** Inside invoke() call, specify where system exit is called. */
         protected enum ExitPoint {
             NONE,
@@ -253,6 +273,40 @@ public class StreamTaskSystemExitTest extends TestLogger {
     public static class ProcessInputSystemExitStreamTask extends SystemExitStreamTask {
         public ProcessInputSystemExitStreamTask(Environment env) throws Exception {
             super(env, ExitPoint.PROCESS_INPUT);
+        }
+    }
+
+    /**
+     * SourceStreamTask emulating system exit behavior in run function by {@link
+     * SystemExitSourceFunction}.
+     */
+    public static class SystemExitSourceStreamTask
+            extends SourceStreamTask<
+                    String,
+                    SystemExitSourceFunction,
+                    StreamTaskTest.TestStreamSource<String, SystemExitSourceFunction>> {
+
+        public SystemExitSourceStreamTask(Environment env) throws Exception {
+            super(env);
+        }
+    }
+
+    private static class SystemExitSourceFunction implements SourceFunction<String> {
+
+        @Override
+        public void run(SourceContext<String> ctx) {
+            systemExit();
+        }
+
+        @Override
+        public void cancel() {}
+    }
+
+    static class TestStreamSource<OUT, SRC extends SourceFunction<OUT>>
+            extends StreamSource<OUT, SRC> {
+
+        public TestStreamSource(SRC sourceFunction) {
+            super(sourceFunction);
         }
     }
 }
