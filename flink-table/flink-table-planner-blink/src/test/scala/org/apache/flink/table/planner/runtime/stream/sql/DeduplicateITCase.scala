@@ -190,6 +190,42 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   }
 
   @Test
+  def testFirstRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
+    val t = env.fromCollection(rowtimeTestData)
+      .assignTimestampsAndWatermarks(new RowtimeExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
+    tEnv.registerTable("T", t)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE rowtime_sink (
+         |    cnt BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false',
+         |  'changelog-mode' = 'I,UA,D'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |INSERT INTO rowtime_sink
+        |SELECT COUNT(b) FROM (
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |     ROW_NUMBER() OVER (PARTITION BY b ORDER BY rowtime) as rowNum
+        |   FROM T
+        | )
+        | WHERE rowNum = 1
+        | )
+    """.stripMargin
+
+    tEnv.executeSql(sql).await()
+    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val expected = List("6")
+    assertEquals(expected.sorted, rawResult.sorted)
+  }
+
+  @Test
   def testLastRowOnRowtime(): Unit = {
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
@@ -223,6 +259,42 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
       "+I(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "-U(3,4,Comment#2,1970-01-01T00:00:00.004)",
       "+U(4,4,Comment#3,1970-01-01T00:00:00.004)")
+    assertEquals(expected.sorted, rawResult.sorted)
+  }
+
+  @Test
+  def testLastRowOnRowTimeFollowedByUnboundedAgg(): Unit = {
+    val t = env.fromCollection(rowtimeTestData)
+      .assignTimestampsAndWatermarks(new RowtimeExtractor)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
+    tEnv.registerTable("T", t)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE rowtime_sink (
+         |    cnt BIGINT
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false',
+         |  'changelog-mode' = 'I,UA,D'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |INSERT INTO rowtime_sink
+        |SELECT COUNT(b) FROM (
+        | SELECT a, b, c, rowtime
+        | FROM (
+        |   SELECT *,
+        |     ROW_NUMBER() OVER (PARTITION BY b ORDER BY rowtime DESC) as rowNum
+        |   FROM T
+        | )
+        | WHERE rowNum = 1
+        | )
+    """.stripMargin
+
+    tEnv.executeSql(sql).await()
+    val rawResult = TestValuesTableFactory.getResults("rowtime_sink")
+    val expected = List("6")
     assertEquals(expected.sorted, rawResult.sorted)
   }
 
