@@ -416,7 +416,7 @@ under the License.
 					-->
 					<execution>
 						<id>store-classpath-in-target-for-tests</id>
-						<phase>package</phase>
+						<phase>process-test-resources</phase>
 						<goals>
 							<goal>build-classpath</goal>
 						</goals>
