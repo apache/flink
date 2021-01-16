@@ -121,7 +121,6 @@ class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream 
 
     @Override
     public void sync() throws IOException {
-        out.hflush();
         out.hsync();
     }
 
