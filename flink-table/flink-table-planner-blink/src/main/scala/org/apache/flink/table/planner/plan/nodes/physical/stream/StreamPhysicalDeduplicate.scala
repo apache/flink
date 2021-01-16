@@ -46,7 +46,7 @@ class StreamPhysicalDeduplicate(
 
   def getUniqueKeys: Array[Int] = uniqueKeys
 
-  override def requireWatermark: Boolean = false
+  override def requireWatermark: Boolean = isRowtime
 
   override def deriveRowType(): RelDataType = getInput.getRowType
 

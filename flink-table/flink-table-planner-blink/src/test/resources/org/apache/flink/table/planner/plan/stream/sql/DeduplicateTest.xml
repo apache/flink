@@ -72,6 +72,86 @@ Calc(select=[a, 3:BIGINT AS $1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMiniBatchInferFirstRowOnRowtime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(b) FROM (
+  SELECT a, b
+  FROM (
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime ASC) as rank_num
+    FROM T)
+  WHERE rank_num <= 1
+)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
++- LogicalProject(b=[$1])
+   +- LogicalFilter(condition=[<=($4, 1)])
+      +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalGroupAggregate(select=[COUNT_RETRACT(b) AS count$0, COUNT_RETRACT(*) AS count1$1])
+      +- Calc(select=[b])
+         +- Deduplicate(keep=[FirstRow], key=[a], order=[ROWTIME])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                        +- Calc(select=[a, b, rowtime, PROCTIME() AS proctime])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMiniBatchInferLastRowOnRowtime">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(b) FROM (
+  SELECT a, b
+  FROM (
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY a ORDER BY rowtime DESC) as rank_num
+    FROM T)
+  WHERE rank_num = 1
+)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
++- LogicalProject(b=[$1])
+   +- LogicalFilter(condition=[=($4, 1)])
+      +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[$3], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+            +- LogicalProject(a=[$0], b=[$1], rowtime=[$2], proctime=[PROCTIME()])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(select=[COUNT_RETRACT(count$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalGroupAggregate(select=[COUNT_RETRACT(b) AS count$0, COUNT_RETRACT(*) AS count1$1])
+      +- Calc(select=[b])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, rowtime])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
+                     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+                        +- Calc(select=[a, b, rowtime, PROCTIME() AS proctime])
+                           +- LegacyTableSourceScan(table=[[default_catalog, default_database, T, source: [CollectionTableSource(a, b, rowtime)]]], fields=[a, b, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSimpleFirstRowOnBuiltinProctime">
     <Resource name="sql">
       <![CDATA[
