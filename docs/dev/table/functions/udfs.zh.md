@@ -220,7 +220,7 @@ public static class SumFunction extends ScalarFunction {
   }
 
   public Integer eval(String a, String b) {
-    return Integer.valueOf(a) + Integer.valueOf();
+    return Integer.valueOf(a) + Integer.valueOf(b);
   }
 
   public Integer eval(Double... d) {
