@@ -54,17 +54,18 @@ class StreamExecPythonCalc(
       planner: StreamPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
       "StreamExecPythonCalc",
-      getConfig(planner.getExecEnv, planner.getTableConfig))
+      config)
 
     if (inputsContainSingleton()) {
       ret.setParallelism(1)
       ret.setMaxParallelism(1)
     }
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

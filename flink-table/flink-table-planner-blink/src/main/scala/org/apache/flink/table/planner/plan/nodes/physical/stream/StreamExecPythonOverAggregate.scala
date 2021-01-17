@@ -156,6 +156,7 @@ class StreamExecPythonOverAggregate(
     }
     // bounded OVER window
     val precedingOffset = -1 * boundValue.asInstanceOf[Long]
+    val config = getMergedConfig(planner.getExecEnv, tableConfig)
     val ret = createPythonOneInputTransformation(
       inputDS,
       inRowType,
@@ -167,9 +168,9 @@ class StreamExecPythonOverAggregate(
       partitionKeys,
       tableConfig.getMinIdleStateRetentionTime,
       tableConfig.getMaxIdleStateRetentionTime,
-      getConfig(planner.getExecEnv, tableConfig))
+      config)
 
-    if (isPythonWorkerUsingManagedMemory(tableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
 

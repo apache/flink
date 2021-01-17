@@ -86,58 +86,24 @@ trait CommonPythonBase {
     }
   }
 
-  protected def getConfig(
+  protected def getMergedConfig(
       env: ExecutionEnvironment,
       tableConfig: TableConfig): Configuration = {
-    val field = classOf[ExecutionEnvironment].getDeclaredField("cacheFile")
-    field.setAccessible(true)
-    val clazz = loadClass(CommonPythonBase.PYTHON_DEPENDENCY_UTILS_CLASS)
+    val clazz = loadClass(CommonPythonBase.PythonConfigUtil)
     val method = clazz.getDeclaredMethod(
-      "configurePythonDependencies", classOf[java.util.List[_]], classOf[Configuration])
-    val config = method.invoke(
-      null, field.get(env), getMergedConfiguration(env, tableConfig))
-      .asInstanceOf[Configuration]
-    config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
+      "getMergedConfig", classOf[ExecutionEnvironment], classOf[TableConfig])
+    val config = method.invoke(null, env, tableConfig).asInstanceOf[Configuration]
     config
   }
 
-  protected def getConfig(
+  protected def getMergedConfig(
       env: StreamExecutionEnvironment,
       tableConfig: TableConfig): Configuration = {
-    val clazz = loadClass(CommonPythonBase.PYTHON_DEPENDENCY_UTILS_CLASS)
+    val clazz = loadClass(CommonPythonBase.PythonConfigUtil)
     val realEnv = getRealEnvironment(env)
     val method = clazz.getDeclaredMethod(
-      "configurePythonDependencies", classOf[java.util.List[_]], classOf[Configuration])
-    val config = method.invoke(
-      null, realEnv.getCachedFiles, getMergedConfiguration(realEnv, tableConfig))
-      .asInstanceOf[Configuration]
-    config.setString("table.exec.timezone", tableConfig.getLocalTimeZone.getId)
-    config
-  }
-
-  private def getMergedConfiguration(
-      env: StreamExecutionEnvironment,
-      tableConfig: TableConfig): Configuration = {
-    // As the python dependency configurations may appear in both
-    // `StreamExecutionEnvironment#getConfiguration` (e.g. parsed from flink-conf.yaml and command
-    // line) and `TableConfig#getConfiguration` (e.g. user specified), we need to merge them and
-    // ensure the user specified configuration has priority over others.
-    val method = classOf[StreamExecutionEnvironment].getDeclaredMethod("getConfiguration")
-    method.setAccessible(true)
-    val config = new Configuration(method.invoke(env).asInstanceOf[Configuration])
-    config.addAll(tableConfig.getConfiguration)
-    config
-  }
-
-  private def getMergedConfiguration(
-      env: ExecutionEnvironment,
-      tableConfig: TableConfig): Configuration = {
-    // As the python dependency configurations may appear in both
-    // `ExecutionEnvironment#getConfiguration` (e.g. parsed from flink-conf.yaml and command
-    // line) and `TableConfig#getConfiguration` (e.g. user specified), we need to merge them and
-    // ensure the user specified configuration has priority over others.
-    val config = new Configuration(env.getConfiguration)
-    config.addAll(tableConfig.getConfiguration)
+      "getMergedConfig", classOf[StreamExecutionEnvironment], classOf[TableConfig])
+    val config = method.invoke(null, realEnv, tableConfig).asInstanceOf[Configuration]
     config
   }
 
@@ -159,5 +125,5 @@ trait CommonPythonBase {
 }
 
 object CommonPythonBase {
-  val PYTHON_DEPENDENCY_UTILS_CLASS = "org.apache.flink.python.util.PythonDependencyUtils"
+  val PythonConfigUtil = "org.apache.flink.python.util.PythonConfigUtil"
 }
