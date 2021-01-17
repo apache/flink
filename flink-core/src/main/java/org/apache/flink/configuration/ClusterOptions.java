@@ -151,6 +151,11 @@ public class ClusterOptions {
                         text(String.format("%s - %s", mode.name(), mode.getDescription())));
             }
             builder.list(modeDescriptions.toArray(new TextElement[modeDescriptions.size()]));
+            builder.linebreak();
+            builder.text(
+                    "Note that this configuration option can interfere with %s: "
+                            + "In intercepted user-code, a call to System.exit() will not cause the JVM to halt, when %s is configured.",
+                    code(HALT_ON_FATAL_ERROR.key()), code(THROW.name()));
             return builder.build();
         }
 
