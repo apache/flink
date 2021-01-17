@@ -31,7 +31,9 @@ import scala.collection.JavaConverters._
 @SerialVersionUID(1L)
 class ObjectExplodeTableFunc(componentType: TypeInformation[_]) extends TableFunction[Object] {
   def eval(arr: Array[Object]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Object, Integer]): Unit = {
@@ -50,7 +52,9 @@ class ObjectExplodeTableFunc(componentType: TypeInformation[_]) extends TableFun
 @SerialVersionUID(1L)
 class FloatExplodeTableFunc extends TableFunction[Float] {
   def eval(arr: Array[Float]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Float, Integer]): Unit = {
@@ -61,7 +65,9 @@ class FloatExplodeTableFunc extends TableFunction[Float] {
 @SerialVersionUID(1L)
 class ShortExplodeTableFunc extends TableFunction[Short] {
   def eval(arr: Array[Short]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Short, Integer]): Unit = {
@@ -72,7 +78,9 @@ class ShortExplodeTableFunc extends TableFunction[Short] {
 @SerialVersionUID(1L)
 class IntExplodeTableFunc extends TableFunction[Int] {
   def eval(arr: Array[Int]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Int, Integer]): Unit = {
@@ -83,7 +91,9 @@ class IntExplodeTableFunc extends TableFunction[Int] {
 @SerialVersionUID(1L)
 class LongExplodeTableFunc extends TableFunction[Long] {
   def eval(arr: Array[Long]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Long, Integer]): Unit = {
@@ -94,7 +104,9 @@ class LongExplodeTableFunc extends TableFunction[Long] {
 @SerialVersionUID(1L)
 class DoubleExplodeTableFunc extends TableFunction[Double] {
   def eval(arr: Array[Double]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Double, Integer]): Unit = {
@@ -105,7 +117,9 @@ class DoubleExplodeTableFunc extends TableFunction[Double] {
 @SerialVersionUID(1L)
 class ByteExplodeTableFunc extends TableFunction[Byte] {
   def eval(arr: Array[Byte]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Byte, Integer]): Unit = {
@@ -116,7 +130,9 @@ class ByteExplodeTableFunc extends TableFunction[Byte] {
 @SerialVersionUID(1L)
 class BooleanExplodeTableFunc extends TableFunction[Boolean] {
   def eval(arr: Array[Boolean]): Unit = {
-    arr.foreach(collect)
+    if (arr != null) {
+      arr.foreach(collect)
+    }
   }
 
   def eval(map: util.Map[Boolean, Integer]): Unit = {
@@ -127,6 +143,9 @@ class BooleanExplodeTableFunc extends TableFunction[Boolean] {
 @SerialVersionUID(1L)
 class MapExplodeTableFunc extends TableFunction[Row] {
   def eval(map: util.Map[Object, Object]): Unit = {
+    if (map == null) {
+      return
+    }
     map.asScala.foreach { case (key, value) =>
       collect(Row.of(key, value))
     }
@@ -135,6 +154,9 @@ class MapExplodeTableFunc extends TableFunction[Row] {
 
 object CommonCollect {
   def collect[T](map: util.Map[T, Integer], collectFunc: (T) => Unit): Unit = {
+    if (map == null) {
+      return
+    }
     map.asScala.foreach { e =>
       for (i <- 0 until e._2) {
         collectFunc(e._1)
@@ -170,7 +192,6 @@ object ExplodeFunctionUtil {
       case BasicTypeInfo.FLOAT_TYPE_INFO => new FloatExplodeTableFunc
       case BasicTypeInfo.DOUBLE_TYPE_INFO => new DoubleExplodeTableFunc
       case BasicTypeInfo.BYTE_TYPE_INFO => new ByteExplodeTableFunc
-      case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
       case BasicTypeInfo.BOOLEAN_TYPE_INFO => new BooleanExplodeTableFunc
       case _ => new ObjectExplodeTableFunc(typeInfo)
     }

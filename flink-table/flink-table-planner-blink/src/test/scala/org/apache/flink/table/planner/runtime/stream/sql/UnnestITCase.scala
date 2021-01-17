@@ -322,4 +322,27 @@ class UnnestITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mo
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testUnnestWithNull(): Unit = {
+    val t = tEnv.fromValues(
+      DataTypes.ROW(
+        DataTypes.FIELD("a", DataTypes.INT()),
+        DataTypes.FIELD("b", DataTypes.ARRAY(DataTypes.STRING()))
+      ),
+      row(1, Array("aa", "bb")),
+      row(2, null),
+      row(3, Array("cc"))
+    )
+    tEnv.registerTable("T", t)
+
+    val sqlQuery = "SELECT a, s FROM T, UNNEST(T.b) as A (s)"
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = List("1,aa", "1,bb", "3,cc")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
 }
