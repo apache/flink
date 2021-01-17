@@ -27,7 +27,7 @@ and SQL Client with SQL JAR bundles.</p>
 {% endcomment %}
 
 {% if include.connector.versions == nil %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">Maven dependency</th>
@@ -62,7 +62,7 @@ and SQL Client with SQL JAR bundles.</p>
 	</tbody>
 </table>
 {% else %}
-<table>
+<table class="table table-bordered">
 	<thead>
 	<tr>
 		<th style="text-align: left">{{ include.connector.name }} version</th>
