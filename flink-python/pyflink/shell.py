@@ -139,8 +139,10 @@ utf8_out.write(welcome_msg)
 
 b_env = ExecutionEnvironment.get_execution_environment()
 
-bt_env = BatchTableEnvironment.create(b_env)
+env_settings = EnvironmentSettings.new_instance().in_batch_mode().use_blink_planner().build()
+bt_env = BatchTableEnvironment.create(environment_settings=env_settings)
 
 s_env = StreamExecutionEnvironment.get_execution_environment()
 
-st_env = StreamTableEnvironment.create(s_env)
+env_settings = EnvironmentSettings.new_instance().in_streaming_mode().use_blink_planner().build()
+st_env = StreamTableEnvironment.create(environment_settings=env_settings)
