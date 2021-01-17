@@ -1,5 +1,5 @@
 ---
-title: "JDBC SQL Connector"
+title: "JDBC SQL 连接器"
 nav-title: JDBC
 nav-parent_id: sql-connectors
 nav-pos: 5
@@ -31,35 +31,36 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-The JDBC connector allows for reading data from and writing data into any relational databases with a JDBC driver. This document describes how to setup the JDBC connector to run SQL queries against relational databases.
+JDBC连接器允许使用JDBC驱动向任意类型的关系型数据库读取或者写入数据。本文档描述了针对关系型数据库如何通过建立JDBC连接器来执行SQL查询。
 
-The JDBC sink operate in upsert mode for exchange UPDATE/DELETE messages with the external system if a primary key is defined on the DDL, otherwise, it operates in append mode and doesn't support to consume UPDATE/DELETE messages.
+如果一个主键定义在DDL中，JDBC sink将以upsert模式(upsert模式是update和insert的合体:存在时更新不存在时插入)与外部系统交换UPDATE/DELETE消息；否则，它将以appened模式下与外部连接器交换插入(Insert)消息并且不支持消费UPDATE/DELETE消息。
 
-Dependencies
+
+依赖
 ------------
 
 {% assign connector = site.data.sql-connectors['jdbc'] %} 
 {% include sql-connector-download-table.zh.html 
-    connector=connector
+​    connector=connector
 %}
 
 <br>
-A driver dependency is also required to connect to a specified database. Here are drivers currently supported:
+你的应用需要什么驱动依赖于连接到具体数据库，目前支持的驱动如下：
 
 | Driver      |      Group Id      |      Artifact Id       |      JAR         |
 | :-----------| :------------------| :----------------------| :----------------|
-| MySQL       |       `mysql`      | `mysql-connector-java` | [Download](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
-| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [Download](https://jdbc.postgresql.org/download.html) |
-| Derby       | `org.apache.derby` |        `derby`         | [Download](http://db.apache.org/derby/derby_downloads.html) |
+| MySQL       |       `mysql`      | `mysql-connector-java` | [下载](https://repo.maven.apache.org/maven2/mysql/mysql-connector-java/) |
+| PostgreSQL  |  `org.postgresql`  |      `postgresql`      | [下载](https://jdbc.postgresql.org/download.html) |
+| Derby       | `org.apache.derby` |        `derby`         | [下载](http://db.apache.org/derby/derby_downloads.html) |
 
 <br>
-JDBC connector and drivers are not currently part of Flink's binary distribution. See how to link with them for cluster execution [here]({% link dev/project-configuration.zh.md %}).
+JDBC连接器以及驱动不是当前Flink二进制发布包的一部分，请参阅为了执行集群该如何连接到 [他们]({% link dev/project-configuration.zh.md %})。
 
 
-How to create a JDBC table
+如何创建JDBC table
 ----------------
 
-The JDBC table can be defined as following:
+JDBC table可以按如下定义：
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -92,210 +93,207 @@ ON myTopic.key = MyUserTable.id;
 </div>
 </div>
 
-Connector Options
+连接器参数选项
 ----------------
 
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-left" style="width: 8%">Required</th>
-        <th class="text-left" style="width: 7%">Default</th>
-        <th class="text-left" style="width: 10%">Type</th>
-        <th class="text-left" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-left" style="width: 8%">是否必填</th>
+        <th class="text-left" style="width: 7%">默认值</th>
+        <th class="text-left" style="width: 10%">类型</th>
+        <th class="text-left" style="width: 50%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>connector</h5></td>
-      <td>required</td>
+      <td>必填</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what connector to use, here should be <code>'jdbc'</code>.</td>
+      <td>指定使用什么类型的 connector, 这里应该是 <code>'jdbc'</code></td>
     </tr>
     <tr>
       <td><h5>url</h5></td>
-      <td>required</td>
+      <td>必填</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The JDBC database url.</td>
+      <td>JDBC 数据库 url</td>
     </tr>
     <tr>
       <td><h5>table-name</h5></td>
-      <td>required</td>
+      <td>必填</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The name of JDBC table to connect.</td>
+      <td>用于连接到JDBC表的名称</td>
     </tr>
     <tr>
       <td><h5>driver</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The class name of the JDBC driver to use to connect to this URL, if not set, it will automatically be derived from the URL.</td>
+      <td>用于连接到这个URL的JDBC驱动程序类名，如果未设置它将自动从该URL推导出来</td>
     </tr>
     <tr>
       <td><h5>username</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The JDBC user name. <code>'username'</code> and <code>'password'</code> must both be specified if any of them is specified.</td>
+      <td> JDBC 用户名： <code>'username'</code> 和 <code>'password'</code> 必须都被指定，如果指定了两者中任一参数</td>
     </tr>
     <tr>
       <td><h5>password</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The JDBC password.</td>
+      <td> JDBC 密码</td>
     </tr>
     <tr>
       <td><h5>connection.max-retry-timeout</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">60s</td>
       <td>Duration</td>
-      <td>Maximum timeout between retries. The timeout should be in second granularity and shouldn't be smaller than 1 second.</td>
+      <td>最大重试超时时间，超时应该是以秒为粒度的，并且不应该小于1秒</td>
     </tr>
     <tr>
       <td><h5>scan.partition.column</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>The column name used for partitioning the input. See the following <a href="#partitioned-scan">Partitioned Scan</a> section for more details.</td>
+      <td>输入用于进行分区的列名，有关更多细节请参阅下面的 <a href="#partitioned-scan">分区扫描</a>部分</td>
     </tr>
     <tr>
       <td><h5>scan.partition.num</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The number of partitions.</td>
+      <td>分区的数量</td>
     </tr>
     <tr>
       <td><h5>scan.partition.lower-bound</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The smallest value of the first partition.</td>
+      <td>第一个分区的最小值</td>
     </tr>
     <tr>
       <td><h5>scan.partition.upper-bound</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The largest value of the last partition.</td>
+      <td>最后一个分区的最大值</td>
     </tr>
     <tr>
       <td><h5>scan.fetch-size</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">0</td>
       <td>Integer</td>
-      <td>The number of rows that should be fetched from the database when reading per round trip. If the value specified is zero, then the hint is ignored.</td>
+      <td>每次循环读取时应该从数据库中获取的行数；如果指定的值为0，则提示会被忽略</td>
     </tr>
     <tr>
       <td><h5>scan.auto-commit</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
-      <td>Sets the <a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> flag on the JDBC driver,
-      which determines whether each statement is committed in a transaction automatically. Some JDBC drivers, specifically
-      <a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>, may require this to be set to false in order to stream results.</td>
+      <td>在JDBC驱动程序上设置<a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/transactions.html#commit_transactions">auto-commit</a> 标志，它决定了每个语句是否在事务中自动提交。有一些JDBC驱动程序，特别是<a href="https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor">Postgres</a>，可能需要将此设置为false以便流化结果</td>
     </tr>
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>The max number of rows of lookup cache, over this value, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details.</td>
+      <td>查找缓存的最大行数，若超过该值，则最老的行记录将被设置成已过期。默认情况下，查找缓存是未开启的。查看如下 <a href="#lookup-cache">Lookup Cache</a> 部分可以了解到更详细的信息
+      </td>
     </tr>
     <tr>
       <td><h5>lookup.cache.ttl</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>The max time to live for each rows in lookup cache, over this time, the oldest rows will be expired.
-      Lookup cache is disabled by default. See the following <a href="#lookup-cache">Lookup Cache</a> section for more details. </td>
+      <td>查找缓存中每一行记录的最大存活时间，若超过该时间，则最老的行记录将被设置成已过期。默认情况下，查找缓存是未开启的。查看如下 <a href="#lookup-cache">Lookup Cache</a> 部分可以了解到更详细的信息 </td>
     </tr>
     <tr>
       <td><h5>lookup.max-retries</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
-      <td>The max retry times if lookup database failed.</td>
+      <td>查询数据库失败的最大重试时间</td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.max-rows</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">100</td>
       <td>Integer</td>
-      <td>The max size of buffered records before flush. Can be set to zero to disable it.</td>
+      <td>flush前缓存记录的最大大小,可以设置为<code>0</code> 来禁用它</td>
     </tr>
     <tr>
       <td><h5>sink.buffer-flush.interval</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">1s</td>
       <td>Duration</td>
-      <td>The flush interval mills, over this time, asynchronous threads will flush data. Can be set to <code>'0'</code> to disable it. Note, <code>'sink.buffer-flush.max-rows'</code> can be set to <code>'0'</code> with the flush interval set allowing for complete async processing of buffered actions.</td>
-    </tr>
-    <tr>
+      <td>刷新(flush)的时间间隔(mills)，超过该值一步线程将刷新数据，可以将刷新的时间间隔设置为<code>'0'</code> 来禁用它。注意<code>'sink.buffer-flush.max-rows'</code> 可以设置为'0'并刷新间隔，以允许异步线程完成处理缓冲的动作 </td>
+ </tr>
+<tr>
       <td><h5>sink.max-retries</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">3</td>
       <td>Integer</td>
-      <td>The max retry times if writing records to database failed.</td>
+      <td>写入记录到数据库失败后的最大重试次数</td>
     </tr>
     <tr>
       <td><h5>sink.parallelism</h5></td>
-      <td>optional</td>
+      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
-      <td>Defines the parallelism of the JDBC sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+      <td>用于定义JDBC sink算子的并行度。默认情况下，并行度是由框架决定的：使用与上游链式算子相同的并行度</td>
     </tr>
     </tbody>
 </table>
 
-Features
+
+特性
 --------
 
-### Key handling
+### 键处理
 
-Flink uses the primary key that defined in DDL when writing data to external databases. The connector operate in upsert mode if the primary key was defined, otherwise, the connector operate in append mode.
+Flink使用定义在DDL的主键写入数据到外部数据库。如果定义了主键，则连接器使用upsert 模式，否则连接器将使用append模式。
 
-In upsert mode, Flink will insert a new row or update the existing row according to the primary key, Flink can ensure the idempotence in this way. To guarantee the output result is as expected, it's recommended to define primary key for the table and make sure the primary key is one of the unique key sets or primary key of the underlying database table. In append mode, Flink will interpret all records as INSERT messages, the INSERT operation may fail if a primary key or unique constraint violation happens in the underlying database.
+在upsert模式下，Flink将根据主键插入一行或者更新已存在的记录，这种方式可以确保幂等性。为了确保输出预期的结果，我们推荐表要定义主键并且要确保主键是基础数据库表的唯一主键集或主键之一。在append模式下，Flink将把所有记录解释为插入消息，如果底层数据库发生了主键或者唯一约束的错误，INSERT插入可以失败。
 
-See [CREATE TABLE DDL]({% link dev/table/sql/create.zh.md %}#create-table) for more details about PRIMARY KEY syntax.
+可以查看[CREATE TABLE DDL]({% link dev/table/sql/create.zh.md %}#create-table) 更多关于PRIMARY KEY语法。
 
-### Partitioned Scan
+### 分区扫描
 
-To accelerate reading data in parallel `Source` task instances, Flink provides partitioned scan feature for JDBC table.
+为了在 并行`Source` 任务实例下加速读取数据，Flink为JDBC table提供了分区扫描的特性。
 
-All the following scan partition options must all be specified if any of them is specified. They describe how to partition the table when reading in parallel from multiple tasks.
-The `scan.partition.column` must be a numeric, date, or timestamp column from the table in question. Notice that `scan.partition.lower-bound` and `scan.partition.upper-bound` are used to decide the partition stride and filter the rows in table. If it is a batch job, it also doable to get the max and min value first before submitting the flink job.
+如果其中任一参数被指定的话，所有如下的扫描分区选项必须要指定，这些参数描述了在多个任务并行读取数据时如何对表进行分区。 `scan.partition.column` 必须是相关表中的数字、日期或时间戳列。注意 ，`scan.partition.lower-bound` 和 `scan.partition.upper-bound` 用于决定分区跨距和过滤表中的行。如果是批处理任务，也可以在提交flink任务之前先获取最大值和最小值：
 
-- `scan.partition.column`: The column name used for partitioning the input.
-- `scan.partition.num`: The number of partitions.
-- `scan.partition.lower-bound`: The smallest value of the first partition.
-- `scan.partition.upper-bound`: The largest value of the last partition.
+- `scan.partition.column`: 输入用于进行分区的列名
+- `scan.partition.num`: 分区的数量
+- `scan.partition.lower-bound`: 第一个分区的最小值
+- `scan.partition.upper-bound`: 最后一个分区的最大值
 
-### Lookup Cache
+### 查询缓存
 
-JDBC connector can be used in temporal join as a lookup source (aka. dimension table). Currently, only sync lookup mode is supported.
+JDBC连接器可以在临时表连接中用作查找源(例如维度表)，当前只支持同步的查找模式。默认情况下，查找缓存是未启用的，你可以通过设置`lookup.cache.max-rows` and `lookup.cache.ttl`等参数启用它。
 
-By default, lookup cache is not enabled. You can enable it by setting both `lookup.cache.max-rows` and `lookup.cache.ttl`.
+查找缓存的主要目的是用于提高JDBC连接器临时表连接的性能。默认情况下，因为没有启用查找缓存，所以所有请求都被发送到外部的数据库。当查找缓存被启用时，每个进程(如TaskManager)将保存一个缓存。Flink将优先查找缓存，只有当缓存未查找到时才向外部数据库发送请求，并使用返回的行更新缓存。
 
-The lookup cache is used to improve performance of temporal join the JDBC connector. By default, lookup cache is not enabled, so all the requests are sent to external database.
-When lookup cache is enabled, each process (i.e. TaskManager) will hold a cache. Flink will lookup the cache first, and only send requests to external database when cache missing, and update cache with the rows returned.
-The oldest rows in cache will be expired when the cache hit to the max cached rows `lookup.cache.max-rows` or when the row exceeds the max time to live `lookup.cache.ttl`.
-The cached rows might not be the latest, users can tune `lookup.cache.ttl` to a smaller value to have a better fresh data, but this may increase the number of requests send to database. So this is a balance between throughput and correctness.
+当缓存命中最大缓存行时`lookup.cache.max-rows`或者当行超过最大存活时间`lookup.cache.ttl`，缓存中最老的行将被设置为已过期。
 
-### Idempotent Writes
+缓存中的记录可能不是最新的，用户可以将`lookup.cache.ttl`设置为一个更小的值以获得更好的刷新数据，但这可能会增加发送到数据库的请求数，所以要做好吞吐量和正确性之间的平衡。
 
-JDBC sink will use upsert semantics rather than plain INSERT statements if primary key is defined in DDL. Upsert semantics refer to atomically adding a new row or updating the existing row if there is a unique constraint violation in the underlying database, which provides idempotence.
 
-If there are failures, the Flink job will recover and re-process from last successful checkpoint, which can lead to re-processing messages during recovery. The upsert mode is highly recommended as it helps avoid constraint violations or duplicate data if records need to be re-processed.
+### 幂等写入
 
-Aside from failure recovery, the source topic may also naturally contain multiple records over time with the same primary key, making upserts desirable.
+如果在DDL中定义了主键，JDBC sink将使用upsert语义而不是普通的INSERT语句。Upsert语义指的是如果底层数据库中存在违反唯一性约束，则原子地添加新行或更新现有行，这种方式了提供了幂等性。
 
-As there is no standard syntax for upsert, the following table describes the database-specific DML that is used.
+如果出现故障，Flink任务将从上次成功的检查点(checkpoint)恢复并重新处理，这可能导致在恢复期间重新处理消息。我们强烈推荐使用upsert模式，因为如果需要重新处理记录，它有助于避免违反约束或产生重复数据。
+
+除了故障恢复之外，源主题（the source topic）还可能随着时间的推移自然地包含多个具有相同主键的记录，因此需要使用upsert。
+
+由于upsert没有标准语法，因此下表描述了所使用的特定于数据库的DML：
 
 <table class="table table-bordered" style="width: 60%">
     <thead>
@@ -316,11 +314,9 @@ As there is no standard syntax for upsert, the following table describes the dat
     </tbody>
 </table>
 
-### Postgres Database as a Catalog
+### Postgres数据库作为目录
 
-The `JdbcCatalog` enables users to connect Flink to relational databases over JDBC protocol.
-
-Currently, `PostgresCatalog` is the only implementation of JDBC Catalog at the moment, `PostgresCatalog` only supports limited `Catalog` methods include:
+`JdbcCatalog`允许用户通过JDBC协议将Flink连接到关系数据库。目前，`PostgresCatalog`是JDBC Catalog的唯一实现，`PostgresCatalog`只支持有限的`Catalog`'方法，包括：
 
 {% highlight java %}
 // The supported methods by Postgres Catalog.
@@ -332,18 +328,18 @@ PostgresCatalog.getTable(ObjectPath tablePath)
 PostgresCatalog.tableExists(ObjectPath tablePath)
 {% endhighlight %}
 
-Other `Catalog` methods is unsupported now.
+其他的 `Catalog` 方式现在还是不支持的。
 
-#### Usage of PostgresCatalog
+#### 使用PostgresCatalog
 
-Please refer to [Dependencies](#dependencies) section for how to setup a JDBC connector and Postgres driver.
+你可以查阅[Dependencies](#dependencies) 部分了解如何建立JDBC连接器和Postgres驱动。
 
-Postgres catalog supports the following options:
-- `name`: required, name of the catalog.
-- `default-database`: required, default database to connect to.
-- `username`: required, username of Postgres account.
-- `password`: required, password of the account.
-- `base-url`: required, should be of format `"jdbc:postgresql://<ip>:<port>"`, and should not contain database name here.
+Postgres catalog支持以下参数:
+- `name`: 必填, catalog的名称
+- `default-database`:  必填, 默认要连接的数据库
+- `username`: 必填, Postgres 账户的用户名
+- `password`: 必填, 账户的密码
+- `base-url`: 必填, 应该符合格式 `"jdbc:postgresql://<ip>:<port>"`, 并且这里应该不包含数据库名称
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -378,6 +374,7 @@ tableEnv.registerCatalog("mypg", catalog);
 tableEnv.useCatalog("mypg");
 {% endhighlight %}
 </div>
+
 <div data-lang="Scala" markdown="1">
 {% highlight scala %}
 
@@ -393,10 +390,11 @@ val baseUrl         = "..."
 val catalog = new JdbcCatalog(name, defaultDatabase, username, password, baseUrl)
 tableEnv.registerCatalog("mypg", catalog)
 
-// set the JdbcCatalog as the current catalog of the session
+// 设置JdbcCatalog为会话的当前目录
 tableEnv.useCatalog("mypg")
 {% endhighlight %}
 </div>
+
 <div data-lang="Python" markdown="1">
 {% highlight python %}
 from pyflink.table.catalog import JdbcCatalog
@@ -413,18 +411,19 @@ base_url = "..."
 catalog = JdbcCatalog(name, default_database, username, password, base_url)
 t_env.register_catalog("mypg", catalog)
 
-# set the JdbcCatalog as the current catalog of the session
+// 设置JdbcCatalog为会话的当前目录
 t_env.use_catalog("mypg")
 {% endhighlight %}
 </div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 
 execution:
-    planner: blink
-    ...
-    current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
-    current-database: mydb
+​    planner: blink
+​    ...
+​    current-catalog: mypg  # set the JdbcCatalog as the current catalog of the session
+​    current-database: mydb
 
 catalogs:
    - name: mypg
@@ -437,12 +436,13 @@ catalogs:
 </div>
 </div>
 
-#### PostgresSQL Metaspace Mapping
+#### PostgresSQL 元空间映射
 
-PostgresSQL has an additional namespace as `schema` besides database. A Postgres instance can have multiple databases, each database can have multiple schemas with a default one named "public", each schema can have multiple tables.
-In Flink, when querying tables registered by Postgres catalog, users can use either `schema_name.table_name` or just `table_name`. The `schema_name` is optional and defaults to "public".
+除了database之外，postgresSQL还有一个额外的命名空间`schema`。一个Postgres实例可以拥有多个数据库；每个数据库可以拥有多个模式，其中一个模式默认名为“public”；每个模式可以包含多个表。
 
-Therefor the metaspace mapping between Flink Catalog and Postgres is as following:
+在Flink中，当查询由Postgres catalog注册的表时，用户可以使用`schema_name.table_name`或只有`table_name`，其中`schema_name` 是可选的，默认值为"public"。
+
+因此，Flink Catalog和Postgres之间的元空间映射如下：
 
 | Flink Catalog Metaspace Structure    |   Postgres Metaspace Structure      |
 | :------------------------------------| :-----------------------------------|
@@ -450,9 +450,9 @@ Therefor the metaspace mapping between Flink Catalog and Postgres is as followin
 | database name                        | database name                       |
 | table name                           | [schema_name.]table_name            |
 
-The full path of Postgres table in Flink should be ``"<catalog>.<db>.`<schema.table>`"`` if schema is specified, note the `<schema.table>` should be escaped.
+Flink中的Postgres表的完整路径应该是 ``"<catalog>.<db>.`<schema.table>`"``。如果指定了schema，注意需要转义 `<schema.table>` 。
 
-Here are some examples to access Postgres tables:
+这里提供了一些访问Postgres表的例子：
 
 {% highlight sql %}
 -- scan table 'test_table' of 'public' schema (i.e. the default schema), the schema name can be omitted
@@ -467,9 +467,9 @@ SELECT * FROM mydb.`custom_schema.test_table2`;
 SELECT * FROM `custom_schema.test_table2`;
 {% endhighlight %}
 
-Data Type Mapping
+数据类型映射
 ----------------
-Flink supports connect to several databases which uses dialect like MySQL, PostgresSQL, Derby. The Derby dialect usually used for testing purpose. The field data type mappings from relational databases data types to Flink SQL data types are listed in the following table, the mapping table can help define JDBC table in Flink easily.
+Flink支持连接到多个使用方言(dialect)的数据库，如MySQL、PostgresSQL、Derby等。其中，Derby方言通常是用于测试目的。下表列出了从关系数据库数据类型到Flink SQL数据类型的字段数据类型映射，映射表可以帮助您轻松地在Flink中定义JDBC表。
 
 <table class="table table-bordered">
     <thead>
