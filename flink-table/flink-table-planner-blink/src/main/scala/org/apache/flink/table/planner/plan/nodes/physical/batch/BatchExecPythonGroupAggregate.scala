@@ -185,12 +185,13 @@ class BatchExecPythonGroupAggregate(
     val outputType = FlinkTypeFactory.toLogicalRowType(getRowType)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRowType)
 
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       input,
       inputType,
       outputType,
-      getConfig(planner.getExecEnv, planner.getTableConfig))
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+      config)
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

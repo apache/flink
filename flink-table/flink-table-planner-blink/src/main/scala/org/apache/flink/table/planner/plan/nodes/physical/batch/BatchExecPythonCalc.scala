@@ -54,13 +54,14 @@ class BatchExecPythonCalc(
   override protected def translateToPlanInternal(planner: BatchPlanner): Transformation[RowData] = {
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       inputTransform,
       calcProgram,
       "BatchExecPythonCalc",
-      getConfig(planner.getExecEnv, planner.getTableConfig))
+      config)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

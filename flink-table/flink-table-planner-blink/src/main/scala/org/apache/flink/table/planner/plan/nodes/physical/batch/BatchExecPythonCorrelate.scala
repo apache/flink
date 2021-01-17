@@ -72,14 +72,15 @@ class BatchExecPythonCorrelate(
       planner: BatchPlanner): Transformation[RowData] = {
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[RowData]]
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       inputTransformation,
       scan,
       "BatchExecPythonCorrelate",
       outputRowType,
-      getConfig(planner.getExecEnv, planner.getTableConfig),
+      config,
       joinType)
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

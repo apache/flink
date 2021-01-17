@@ -144,6 +144,7 @@ class BatchExecPythonGroupWindowAggregate(
     val groupBufferLimitSize = planner.getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       input,
       inputType,
@@ -152,9 +153,9 @@ class BatchExecPythonGroupWindowAggregate(
       groupBufferLimitSize,
       windowSize,
       slideSize,
-      getConfig(planner.getExecEnv, planner.getTableConfig))
+      config)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret

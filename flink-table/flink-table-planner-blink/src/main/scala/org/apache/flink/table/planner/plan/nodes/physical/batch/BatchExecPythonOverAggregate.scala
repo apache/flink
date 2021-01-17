@@ -123,6 +123,7 @@ class BatchExecPythonOverAggregate(
         windowBoundary.append(boundary)
         aggCallToAggFunction.map((_, index))
     }
+    val config = getMergedConfig(planner.getExecEnv, planner.getTableConfig)
     val ret = createPythonOneInputTransformation(
       input,
       aggFunctions,
@@ -130,9 +131,9 @@ class BatchExecPythonOverAggregate(
       inputType,
       outputType,
       grouping,
-      getConfig(planner.getExecEnv, planner.getTableConfig))
+      config)
 
-    if (isPythonWorkerUsingManagedMemory(planner.getTableConfig.getConfiguration)) {
+    if (isPythonWorkerUsingManagedMemory(config)) {
       ret.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON)
     }
     ret
